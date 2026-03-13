@@ -4,7 +4,8 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import Link from 'next/link'
 
-// ─── Especialidades con emojis ────────
+// ─── Paleta oficial del Manual de Identidad Salurama ────────
+// Verde: #0D5C4A | Ámbar: #F59E0B | Texto: #1A1A2E
 const ESPECIALIDADES = [
   { nombre: 'Cardiología',      emoji: '🫀' },
   { nombre: 'Pediatría',        emoji: '👶' },
@@ -26,6 +27,7 @@ const SUGERENCIAS = [
   'dermatólogo verificado',
   'me duele la cabeza',
   'revisión general',
+  'ginecóloga mujer',
 ]
 
 export default function HomePage() {
@@ -94,105 +96,280 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-white font-sans text-[#1A1A2E]">
-      {/* ── NAVBAR RESPONSIVA ───────────────────────────── */}
-      <nav className="sticky top-0 z-50 bg-white/92 backdrop-blur-md border-b border-[#F0F4F2]">
-        <div className="max-w-[1100px] mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo */}
-            <Link href="/" className="flex items-center gap-1 flex-shrink-0">
-              <span className="font-[Fraunces] text-[22px] font-black text-[#0D5C4A]">Salu</span>
-              <span className="font-[Fraunces] text-[22px] font-semibold text-[#F59E0B]">rama</span>
-            </Link>
+    <div style={{ fontFamily: "'DM Sans', sans-serif", background: '#fff', minHeight: '100vh', color: '#1A1A2E' }}>
+      {/* ── Fuentes ──────────────────────────────────────── */}
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;0,900;1,600&family=DM+Sans:wght@300;400;500;700&display=swap');
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        ::selection { background: #0D5C4A22; }
+        .search-input {
+          width: 100%;
+          padding: 18px 60px 18px 24px;
+          font-size: 18px;
+          font-family: 'DM Sans', sans-serif;
+          font-weight: 400;
+          color: #1A1A2E;
+          background: #fff;
+          border: 2px solid #D1D9D6;
+          border-radius: 50px;
+          outline: none;
+          transition: border-color 0.2s, box-shadow 0.2s;
+          caret-color: #0D5C4A;
+        }
+        .search-input:focus {
+          border-color: #0D5C4A;
+          box-shadow: 0 0 0 4px #0D5C4A18;
+        }
+        .search-input::placeholder { color: #9CA3AF; font-weight: 300; }
+        .btn-buscar {
+          position: absolute;
+          right: 8px;
+          top: 50%;
+          transform: translateY(-50%);
+          background: #0D5C4A;
+          color: #fff;
+          border: none;
+          border-radius: 50px;
+          padding: 10px 24px;
+          font-size: 15px;
+          font-family: 'DM Sans', sans-serif;
+          font-weight: 500;
+          cursor: pointer;
+          transition: background 0.2s, transform 0.1s;
+        }
+        .btn-buscar:hover { background: #1A7A62; }
+        .btn-buscar:active { transform: translateY(-50%) scale(0.97); }
+        .chip {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 10px 18px;
+          border-radius: 50px;
+          border: 1.5px solid #D1D9D6;
+          background: #fff;
+          font-size: 14px;
+          font-family: 'DM Sans', sans-serif;
+          color: #1A1A2E;
+          cursor: pointer;
+          transition: all 0.18s;
+          white-space: nowrap;
+        }
+        .chip:hover {
+          border-color: #0D5C4A;
+          background: #E8F5F1;
+          color: #0D5C4A;
+          transform: translateY(-1px);
+        }
+        .medico-card {
+          background: #fff;
+          border: 1.5px solid #E5EAE8;
+          border-radius: 16px;
+          padding: 24px;
+          transition: box-shadow 0.2s, transform 0.2s, border-color 0.2s;
+          cursor: pointer;
+          text-decoration: none;
+          display: block;
+          color: inherit;
+        }
+        .medico-card:hover {
+          box-shadow: 0 8px 32px #0D5C4A14;
+          transform: translateY(-3px);
+          border-color: #0D5C4A44;
+        }
+        .avatar {
+          width: 52px;
+          height: 52px;
+          border-radius: 50%;
+          background: #E8F5F1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-family: 'Fraunces', serif;
+          font-size: 22px;
+          font-weight: 900;
+          color: #0D5C4A;
+          flex-shrink: 0;
+        }
+        .badge-verificado {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          font-size: 12px;
+          color: #0D5C4A;
+          background: #E8F5F1;
+          border-radius: 20px;
+          padding: 3px 10px;
+          font-weight: 500;
+        }
+        .paso-num {
+          width: 48px;
+          height: 48px;
+          border-radius: 50%;
+          background: #0D5C4A;
+          color: #fff;
+          font-family: 'Fraunces', serif;
+          font-size: 20px;
+          font-weight: 900;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          margin: 0 auto 16px;
+        }
+        .nav-link {
+          color: #1A1A2E;
+          text-decoration: none;
+          font-size: 15px;
+          font-weight: 400;
+          padding: 6px 2px;
+          border-bottom: 2px solid transparent;
+          transition: color 0.15s, border-color 0.15s;
+        }
+        .nav-link:hover { color: #0D5C4A; border-color: #0D5C4A; }
+        .btn-soy-medico {
+          background: #0D5C4A;
+          color: #fff;
+          text-decoration: none;
+          padding: 10px 22px;
+          border-radius: 50px;
+          font-size: 14px;
+          font-weight: 500;
+          font-family: 'DM Sans', sans-serif;
+          transition: background 0.18s;
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .btn-soy-medico:hover { background: #1A7A62; }
+        @media (max-width: 640px) {
+          .search-input { font-size: 16px; padding: 16px 56px 16px 20px; }
+          .btn-buscar { padding: 8px 16px; font-size: 14px; }
+          .chips-grid { gap: 8px; }
+          .medicos-grid { grid-template-columns: 1fr !important; }
+          .pasos-grid { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
 
-            {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center gap-7">
-              <Link href="/buscar" className="text-[15px] font-normal text-[#1A1A2E] hover:text-[#0D5C4A] border-b-2 border-transparent hover:border-[#0D5C4A] transition-colors pb-1">
+      {/* ── NAVBAR ───────────────────────────────────────── */}
+      <nav style={{
+        position: 'sticky', top: 0, zIndex: 50,
+        background: 'rgba(255,255,255,0.92)',
+        backdropFilter: 'blur(12px)',
+        borderBottom: '1px solid #F0F4F2',
+        padding: '0 24px',
+      }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          {/* Logo - HORIZONTAL (UNA LÍNEA) */}
+          <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 0 }}>
+            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, fontWeight: 900, color: '#0D5C4A' }}>Salu</span>
+            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, fontWeight: 600, color: '#F59E0B' }}>rama</span>
+          </Link>
+          
+          {/* Desktop Navigation */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 28 }}>
+            <Link href="/buscar" className="nav-link">Especialidades</Link>
+            <Link href="/nosotros" className="nav-link">Nosotros</Link>
+            <Link href="/registro" className="btn-soy-medico">
+              <span>👨‍⚕️</span> Soy Médico
+            </Link>
+          </div>
+
+          {/* Mobile Menu Button */}
+          <button 
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            style={{ 
+              display: 'none',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: 8,
+            }}
+            className="mobile-menu-btn"
+            aria-label="Toggle menu"
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0D5C4A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              {mobileMenuOpen ? (
+                <path d="M18 6L6 18M6 6l12 12" />
+              ) : (
+                <path d="M4 6h16M4 12h16M4 18h16" />
+              )}
+            </svg>
+          </button>
+        </div>
+
+        {/* Mobile Menu */}
+        {mobileMenuOpen && (
+          <div style={{ 
+            display: 'none',
+            padding: '16px 24px',
+            borderTop: '1px solid #F0F4F2',
+            background: '#fff',
+          }} className="mobile-menu">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <Link 
+                href="/buscar" 
+                style={{ fontSize: 15, color: '#1A1A2E', textDecoration: 'none', padding: '8px 0' }}
+                onClick={() => setMobileMenuOpen(false)}
+              >
                 Especialidades
               </Link>
-              <Link href="/nosotros" className="text-[15px] font-normal text-[#1A1A2E] hover:text-[#0D5C4A] border-b-2 border-transparent hover:border-[#0D5C4A] transition-colors pb-1">
+              <Link 
+                href="/nosotros" 
+                style={{ fontSize: 15, color: '#1A1A2E', textDecoration: 'none', padding: '8px 0' }}
+                onClick={() => setMobileMenuOpen(false)}
+              >
                 Nosotros
               </Link>
               <Link 
                 href="/registro" 
-                className="inline-flex items-center gap-2 bg-[#0D5C4A] text-white px-5 py-2.5 rounded-full text-[14px] font-medium hover:bg-[#1A7A62] transition-colors"
+                className="btn-soy-medico"
+                onClick={() => setMobileMenuOpen(false)}
               >
                 <span>👨‍⚕️</span> Soy Médico
               </Link>
             </div>
-
-            {/* Mobile Menu Button */}
-            <button 
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2 rounded-lg hover:bg-[#E8F5F1] transition-colors"
-              aria-label="Toggle menu"
-            >
-              <svg className="w-6 h-6 text-[#0D5C4A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                {mobileMenuOpen ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                ) : (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                )}
-              </svg>
-            </button>
           </div>
-
-          {/* Mobile Menu */}
-          {mobileMenuOpen && (
-            <div className="md:hidden py-4 border-t border-[#F0F4F2]">
-              <div className="flex flex-col gap-4">
-                <Link 
-                  href="/buscar" 
-                  className="text-[15px] font-normal text-[#1A1A2E] hover:text-[#0D5C4A] transition-colors"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Especialidades
-                </Link>
-                <Link 
-                  href="/nosotros" 
-                  className="text-[15px] font-normal text-[#1A1A2E] hover:text-[#0D5C4A] transition-colors"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Nosotros
-                </Link>
-                <Link 
-                  href="/registro" 
-                  className="inline-flex items-center justify-center gap-2 bg-[#0D5C4A] text-white px-5 py-3 rounded-full text-[14px] font-medium hover:bg-[#1A7A62] transition-colors"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <span>👨‍⚕️</span> Soy Médico
-                </Link>
-              </div>
-            </div>
-          )}
-        </div>
+        )}
       </nav>
 
       {/* ── HERO SECTION ───────────────────────────────── */}
-      <section className="py-16 sm:py-20 px-4 text-center">
-        <div className="max-w-[680px] mx-auto">
-          {/* Logo grande */}
-          <div className="mb-3">
-            <span className="font-[Fraunces] text-[clamp(48px,10vw,72px)] font-black text-[#0D5C4A] tracking-tight block">Salu</span>
-            <span className="font-[Fraunces] text-[clamp(48px,10vw,72px)] font-semibold text-[#F59E0B] tracking-tight block -mt-2">rama</span>
+      <section style={{ padding: '80px 24px 60px', textAlign: 'center' }}>
+        <div style={{ maxWidth: 680, margin: '0 auto' }}>
+          {/* Logo grande - HORIZONTAL */}
+          <div style={{ marginBottom: 12 }}>
+            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(48px, 8vw, 72px)', fontWeight: 900, color: '#0D5C4A', letterSpacing: '-1px', display: 'inline-block' }}>Salu</span>
+            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(48px, 8vw, 72px)', fontWeight: 600, color: '#F59E0B', letterSpacing: '-1px', display: 'inline-block', marginLeft: 2 }}>rama</span>
           </div>
 
           {/* Slogan oficial */}
-          <p className="font-[Fraunces] text-[clamp(16px,4vw,20px)] font-semibold italic text-[#1A7A62] mb-2 tracking-wide">
+          <p style={{
+            fontFamily: "'Fraunces', serif",
+            fontSize: 'clamp(16px, 3vw, 20px)',
+            fontWeight: 600,
+            fontStyle: 'italic',
+            color: '#1A7A62',
+            marginBottom: 8,
+            letterSpacing: '0.01em',
+          }}>
             Salud en tus manos
           </p>
 
           {/* Tagline */}
-          <p className="text-[15px] text-[#6B7280] font-light mb-9">
+          <p style={{
+            fontSize: 15,
+            color: '#6B7280',
+            fontWeight: 300,
+            marginBottom: 36,
+          }}>
             Tu médico de confianza, al alcance de tu mano 🩺
           </p>
 
-          {/* Buscador */}
-          <div className="relative max-w-[600px] mx-auto w-full">
+          {/* ── Buscador ── */}
+          <div style={{ position: 'relative', maxWidth: 600, margin: '0 auto' }}>
             <input
               ref={inputRef}
               type="text"
-              className="w-full px-6 py-4.5 pr-32 text-[16px] sm:text-[18px] font-normal font-sans text-[#1A1A2E] bg-white border-2 border-[#D1D9D6] rounded-full outline-none transition-all duration-200 focus:border-[#0D5C4A] focus:ring-4 focus:ring-[#0D5C4A]/10 placeholder:text-[#9CA3AF] placeholder:font-light caret-[#0D5C4A]"
+              className="search-input"
               placeholder={placeholder}
               value={query}
               onChange={e => setQuery(e.target.value)}
@@ -200,34 +377,30 @@ export default function HomePage() {
               autoComplete="off"
               aria-label="Buscar médico, especialidad o síntoma"
             />
-            <button 
-              className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#0D5C4A] text-white border-none rounded-full px-6 py-2.5 text-[15px] font-medium hover:bg-[#1A7A62] transition-all active:scale-95"
-              onClick={handleBuscar}
-              aria-label="Buscar"
-            >
+            <button className="btn-buscar" onClick={handleBuscar} aria-label="Buscar">
               Buscar
             </button>
           </div>
 
           {/* Hint */}
-          <p className="text-[13px] text-[#9CA3AF] font-light mt-3">
+          <p style={{ fontSize: 13, color: '#9CA3AF', marginTop: 12, fontWeight: 300 }}>
             Busca por especialidad, síntoma, nombre de médico o clínica
           </p>
         </div>
       </section>
 
-      {/* ── ESPECIALIDADES ─────────────────────────────── */}
-      <section className="py-5 px-4 bg-white">
-        <div className="max-w-[860px] mx-auto">
-          <p className="text-[13px] font-medium text-[#9CA3AF] uppercase tracking-widest text-center mb-5">
+      {/* ── ESPECIALIDADES ───────────────────────────────── */}
+      <section style={{ padding: '20px 24px 60px', background: '#fff' }}>
+        <div style={{ maxWidth: 860, margin: '0 auto' }}>
+          <p style={{ fontSize: 13, fontWeight: 500, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'center', marginBottom: 20 }}>
             Especialidades frecuentes
           </p>
-          <div className="flex flex-wrap justify-center gap-2.5 sm:gap-3">
+          <div className="chips-grid" style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center' }}>
             {ESPECIALIDADES.map(esp => (
               <button
                 key={esp.nombre}
+                className="chip"
                 onClick={() => handleEspecialidad(esp.nombre)}
-                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full border-[1.5px] border-[#D1D9D6] bg-white text-[14px] font-normal text-[#1A1A2E] hover:border-[#0D5C4A] hover:bg-[#E8F5F1] hover:text-[#0D5C4A] hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
                 aria-label={`Buscar ${esp.nombre}`}
               >
                 <span>{esp.emoji}</span>
@@ -238,30 +411,27 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── CÓMO FUNCIONA ──────────────────────────────── */}
-      <section className="py-16 px-4 bg-[#F9FAFB]">
-        <div className="max-w-[860px] mx-auto">
-          <h2 className="font-[Fraunces] text-[clamp(22px,5vw,30px)] font-black text-[#0D5C4A] text-center mb-2">
+      {/* ── CÓMO FUNCIONA ────────────────────────────────── */}
+      <section style={{ padding: '60px 24px', background: '#F9FAFB' }}>
+        <div style={{ maxWidth: 860, margin: '0 auto' }}>
+          <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(22px, 4vw, 30px)', fontWeight: 900, color: '#0D5C4A', textAlign: 'center', marginBottom: 8 }}>
             ¿Cómo funciona?
           </h2>
-          <p className="text-center text-[#6B7280] mb-12 text-[15px]">
+          <p style={{ textAlign: 'center', color: '#6B7280', marginBottom: 48, fontSize: 15 }}>
             Encuentra a tu médico en menos de 2 minutos
           </p>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          <div className="pasos-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24 }}>
             {[
               { n: '1', titulo: 'Busca', desc: 'Escribe la especialidad, un síntoma o el nombre de tu médico en el buscador.' },
               { n: '2', titulo: 'Compara', desc: 'Revisa perfiles verificados con horarios, ubicación y teléfono de contacto.' },
               { n: '3', titulo: 'Contacta', desc: 'Llama o escribe por WhatsApp directamente. Sin intermediarios. Sin costo.' },
             ].map(paso => (
-              <div key={paso.n} className="text-center p-8 bg-white rounded-2xl border-[1.5px] border-[#E5EAE8]">
-                <div className="w-12 h-12 rounded-full bg-[#0D5C4A] text-white font-[Fraunces] text-[20px] font-black flex items-center justify-center mx-auto mb-4">
-                  {paso.n}
-                </div>
-                <h3 className="font-[Fraunces] text-[20px] font-black text-[#1A1A2E] mb-2.5">
+              <div key={paso.n} style={{ textAlign: 'center', padding: '32px 24px', background: '#fff', borderRadius: 16, border: '1.5px solid #E5EAE8' }}>
+                <div className="paso-num">{paso.n}</div>
+                <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 900, color: '#1A1A2E', marginBottom: 10 }}>
                   {paso.titulo}
                 </h3>
-                <p className="text-[14px] text-[#6B7280] leading-relaxed font-light">
+                <p style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.6, fontWeight: 300 }}>
                   {paso.desc}
                 </p>
               </div>
@@ -270,70 +440,58 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── MÉDICOS DESTACADOS ─────────────────────────── */}
-      <section className="py-16 px-4 bg-white">
-        <div className="max-w-[1000px] mx-auto">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-baseline gap-3 mb-8">
+      {/* ── MÉDICOS DESTACADOS ───────────────────────────── */}
+      <section style={{ padding: '60px 24px 80px', background: '#fff' }}>
+        <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 32, flexWrap: 'wrap', gap: 12 }}>
             <div>
-              <h2 className="font-[Fraunces] text-[clamp(22px,5vw,28px)] font-black text-[#0D5C4A]">
+              <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(22px, 4vw, 28px)', fontWeight: 900, color: '#0D5C4A' }}>
                 Especialistas verificados
               </h2>
-              <p className="text-[14px] text-[#6B7280] mt-1 font-light">
-                Cédula profesional confirmida · Perfil completo
+              <p style={{ fontSize: 14, color: '#6B7280', marginTop: 4, fontWeight: 300 }}>
+                Cédula profesional confirmada · Perfil completo
               </p>
             </div>
-            <Link 
-              href="/buscar" 
-              className="text-[14px] font-medium text-[#0D5C4A] hover:text-[#1A7A62] border-b border-[#0D5C4A]/25 hover:border-[#0D5C4A] transition-colors pb-0.5"
-            >
+            <Link href="/buscar" style={{ fontSize: 14, color: '#0D5C4A', fontWeight: 500, textDecoration: 'none', borderBottom: '1px solid #0D5C4A44', paddingBottom: 2 }}>
               Ver todos →
             </Link>
           </div>
 
           {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {[1, 2, 3].map(i => (
-                <div key={i} className="h-[140px] rounded-2xl bg-[#F3F4F6] animate-pulse" />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20 }}>
+              {[1,2,3].map(i => (
+                <div key={i} style={{ height: 140, borderRadius: 16, background: '#F3F4F6', animation: 'pulse 1.5s infinite' }} />
               ))}
             </div>
           ) : medicos.length === 0 ? (
-            <div className="text-center py-12 px-4">
-              <p className="text-[32px] mb-3">🩺</p>
-              <p className="text-[15px] text-[#9CA3AF] mb-4">Próximamente más especialistas verificados</p>
-              <Link 
-                href="/registro" 
-                className="inline-block text-[#0D5C4A] font-medium text-[14px] hover:text-[#1A7A62] border-b border-[#0D5C4A] hover:border-[#1A7A62] transition-colors pb-0.5"
-              >
+            <div style={{ textAlign: 'center', padding: '48px 24px', color: '#9CA3AF' }}>
+              <p style={{ fontSize: 32, marginBottom: 12 }}>🩺</p>
+              <p style={{ fontSize: 15 }}>Próximamente más especialistas verificados</p>
+              <Link href="/registro" style={{ display: 'inline-block', marginTop: 16, color: '#0D5C4A', fontWeight: 500, fontSize: 14, textDecoration: 'none', borderBottom: '1px solid #0D5C4A' }}>
                 ¿Eres médico? Regístrate gratis →
               </Link>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div className="medicos-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20 }}>
               {medicos.map(m => (
-                <Link 
-                  key={m.id} 
-                  href={`/doctor/${m.id}`}
-                  className="block bg-white border-[1.5px] border-[#E5EAE8] rounded-2xl p-6 hover:shadow-[0_8px_32px_#0D5C4A/8] hover:-translate-y-1 hover:border-[#0D5C4A]/25 transition-all duration-200"
-                >
-                  <div className="flex gap-4 items-start">
-                    <div className="w-[52px] h-[52px] rounded-full bg-[#E8F5F1] font-[Fraunces] text-[22px] font-black text-[#0D5C4A] flex items-center justify-center flex-shrink-0">
+                <Link key={m.id} href={`/doctor/${m.id}`} className="medico-card">
+                  <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+                    <div className="avatar">
                       {(m.nombre_completo || m.full_name || '?')[0].toUpperCase()}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-[Fraunces] text-[16px] font-semibold text-[#1A1A2E] mb-1 truncate">
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontFamily: "'Fraunces', serif", fontSize: 16, fontWeight: 600, color: '#1A1A2E', marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {m.nombre_completo || m.full_name}
                       </p>
-                      <p className="text-[13px] font-medium text-[#0D5C4A] mb-2">
+                      <p style={{ fontSize: 13, color: '#0D5C4A', fontWeight: 500, marginBottom: 8 }}>
                         {m.especialidad}
                       </p>
-                      <div className="flex flex-wrap gap-2 items-center">
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                         {m.licencia_verificada && (
-                          <span className="inline-flex items-center gap-1 text-[12px] text-[#0D5C4A] bg-[#E8F5F1] rounded-full px-2.5 py-1 font-medium">
-                            ✓ Verificado
-                          </span>
+                          <span className="badge-verificado">✓ Verificado</span>
                         )}
                         {(m.ubicacion_ciudad || m.ciudad) && (
-                          <span className="text-[12px] text-[#9CA3AF]">
+                          <span style={{ fontSize: 12, color: '#9CA3AF' }}>
                             📍 {m.ubicacion_ciudad || m.ciudad}
                           </span>
                         )}
@@ -347,56 +505,73 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── BANNER CTA MÉDICOS ─────────────────────────── */}
-      <section className="bg-[#0D5C4A] py-14 px-4 text-center">
-        <div className="max-w-[600px] mx-auto">
-          <p className="text-[13px] font-medium text-[#F59E0B] uppercase tracking-widest mb-3">
+      {/* ── BANNER CTA MÉDICOS ───────────────────────────── */}
+      <section style={{ background: '#0D5C4A', padding: '56px 24px', textAlign: 'center' }}>
+        <div style={{ maxWidth: 600, margin: '0 auto' }}>
+          <p style={{ fontSize: 13, fontWeight: 500, color: '#F59E0B', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 12 }}>
             Para médicos
           </p>
-          <h2 className="font-[Fraunces] text-[clamp(22px,5vw,30px)] font-black text-white mb-3 leading-tight">
+          <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(22px, 4vw, 30px)', fontWeight: 900, color: '#fff', marginBottom: 12, lineHeight: 1.3 }}>
             ¿Eres médico? Tu perfil, gratis para siempre
           </h2>
-          <p className="text-[#A7C4BB] text-[15px] mb-8 font-light">
+          <p style={{ color: '#A7C4BB', fontSize: 15, marginBottom: 32, fontWeight: 300 }}>
             Sin suscripciones, sin comisiones. Solo más pacientes.
           </p>
-          <Link 
-            href="/registro" 
-            className="inline-flex items-center justify-center gap-2 bg-[#F59E0B] text-white font-bold px-8 py-3.5 rounded-full text-[16px] hover:bg-[#F59E0B]/90 hover:scale-105 transition-all duration-200"
-          >
+          <Link href="/registro" style={{
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            background: '#F59E0B', color: '#fff', fontWeight: 700,
+            textDecoration: 'none', padding: '14px 32px',
+            borderRadius: '50px', fontSize: 16,
+            fontFamily: "'DM Sans', sans-serif",
+            transition: 'transform 0.15s, background 0.15s',
+          }}>
             Registrarme gratis →
           </Link>
-          <p className="mt-4 text-[12px] text-[#A7C4BB] font-light">
+          <p style={{ marginTop: 16, fontSize: 12, color: '#A7C4BB', fontWeight: 300 }}>
             Ya somos más de 2 especialistas verificados · Creciendo cada día
           </p>
         </div>
       </section>
 
-      {/* ── FOOTER ────────────────────────────────────── */}
-      <footer className="bg-[#111827] py-10 px-4 text-center">
-        <div className="max-w-[860px] mx-auto">
-          <div className="mb-4">
-            <span className="font-[Fraunces] text-[20px] font-black text-[#0D5C4A]">Salu</span>
-            <span className="font-[Fraunces] text-[20px] font-semibold text-[#F59E0B]">rama</span>
+      {/* ── FOOTER ───────────────────────────────────────── */}
+      <footer style={{ background: '#111827', padding: '40px 24px', textAlign: 'center' }}>
+        <div style={{ maxWidth: 860, margin: '0 auto' }}>
+          <div style={{ marginBottom: 16 }}>
+            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 900, color: '#0D5C4A' }}>Salu</span>
+            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 600, color: '#F59E0B' }}>rama</span>
           </div>
-          <p className="text-[13px] text-[#6B7280] italic mb-5">
+          <p style={{ fontSize: 13, color: '#6B7280', fontStyle: 'italic', marginBottom: 20 }}>
             "Salud en tus manos"
           </p>
-          <div className="flex justify-center gap-6 flex-wrap mb-6">
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 24, flexWrap: 'wrap', marginBottom: 24 }}>
             {['Especialidades', 'Registro médico', 'Nosotros'].map(link => (
-              <a 
-                key={link} 
-                href="#" 
-                className="text-[13px] text-[#6B7280] hover:text-white transition-colors"
-              >
+              <a key={link} href="#" style={{ fontSize: 13, color: '#6B7280', textDecoration: 'none', transition: 'color 0.15s' }}
+                onMouseEnter={e => e.target.style.color = '#fff'}
+                onMouseLeave={e => e.target.style.color = '#6B7280'}>
                 {link}
               </a>
             ))}
           </div>
-          <p className="text-[12px] text-[#374151]">
+          <p style={{ fontSize: 12, color: '#374151' }}>
             © 2026 Salurama · salurama.com · Hecho en México 🇲🇽
           </p>
         </div>
       </footer>
+
+      {/* Mobile Styles */}
+      <style jsx>{`
+        @media (max-width: 768px) {
+          .mobile-menu-btn {
+            display: block !important;
+          }
+          .mobile-menu {
+            display: block !important;
+          }
+          nav > div > div:last-child {
+            display: none;
+          }
+        }
+      `}</style>
     </div>
   )
 }
