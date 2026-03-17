@@ -1,38 +1,122 @@
 'use client'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { useRouter } from 'next/navigation'
-import { Mail, Lock, User, Phone, MapPin, DollarSign, FileText, Stethoscope, CreditCard, ArrowLeft } from 'lucide-react'
+import imageCompression from 'browser-image-compression'
+import Link from 'next/link'
+import { 
+  Mail, Lock, User, Phone, MapPin, DollarSign, 
+  FileText, Stethoscope, CreditCard, Camera, X,
+  CheckCircle, AlertCircle, Heart
+} from 'lucide-react'
 
 export default function RegistroMedico() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
+  const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
-  
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     email: '',
     password: '',
+    confirmPassword: '',
     full_name: '',
     specialty: '',
     professional_license: '',
     phone: '',
-    location_city: 'Ciudad de México',
+    location_city: '',
     location_neighborhood: '',
     address: '',
     consultation_price: '',
-    description: ''
+    description: '',
+    terms_accepted: false,
+    photo: null as File | null,
   })
+  
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const handleSocialLogin = async (provider: string) => {
-    alert(`Configuración de ${provider} pendiente. Por ahora usa el formulario tradicional.`)
+  const validateEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+  const validateLicense = (license: string) => /^\d{7,8}$/.test(license)
+  const validatePhone = (phone: string) => /^[\d\s\-\(\)]+$/.test(phone)
+
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!file.type.startsWith('image/')) {
+      setError('Por favor selecciona un archivo de imagen válido')
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError('La imagen no debe pesar más de 5MB')
+      return
+    }
+
+    try {
+      const options = {
+        maxSizeMB: 1,
+        maxWidthOrHeight: 800,
+        useWebWorker: true,
+      }
+      const compressedFile = await imageCompression(file, options)
+      
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setPhotoPreview(reader.result as string)
+      }
+      reader.readAsDataURL(compressedFile)
+      
+      setFormData({ ...formData, photo: compressedFile })
+      setError(null)
+    } catch (err) {
+      setError('Error al procesar la imagen')
+    }
+  }
+
+  const removePhoto = () => {
+    setPhotoPreview(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value, type } = e.target
+    const checked = (e.target as HTMLInputElement).checked
+    
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError(null)
+
+    if (!validateEmail(formData.email)) {
+      setError('Ingresa un email válido')
+      return
+    }
+    if (formData.password.length < 8) {
+      setError('La contraseña debe tener al menos 8 caracteres')
+      return
+    }
+    if (formData.password !== formData.confirmPassword) {
+      setError('Las contraseñas no coinciden')
+      return
+    }
+    if (!validateLicense(formData.professional_license)) {
+      setError('La cédula profesional debe tener 7 u 8 dígitos')
+      return
+    }
+    if (!formData.terms_accepted) {
+      setError('Debes aceptar los términos y condiciones')
+      return
+    }
+
     try {
       setLoading(true)
-      setError(null)
 
       const {  authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
@@ -40,6 +124,27 @@ export default function RegistroMedico() {
       })
 
       if (authError) throw authError
+
+      let photoUrl = null
+      if (formData.photo && authData.user) {
+        const fileExt = formData.photo.name.split('.').pop()
+        const fileName = `${authData.user.id}-${Date.now()}.${fileExt}`
+        
+        const { error: uploadError } = await supabase.storage
+          .from('doctor-photos')
+          .upload(fileName, formData.photo, {
+            cacheControl: '3600',
+            upsert: false
+          })
+
+        if (uploadError) throw uploadError
+        
+        const {  urlData } = supabase.storage
+          .from('doctor-photos')
+          .getPublicUrl(fileName)
+        
+        photoUrl = urlData.publicUrl
+      }
 
       const { error: doctorError } = await supabase
         .from('doctors')
@@ -54,6 +159,7 @@ export default function RegistroMedico() {
           address: formData.address,
           consultation_price: parseFloat(formData.consultation_price) || 0,
           description: formData.description,
+          photo_url: photoUrl,
           license_verified: false,
           is_active: true
         })
@@ -67,119 +173,138 @@ export default function RegistroMedico() {
       }, 3000)
 
     } catch (err: any) {
-      setError(err.message)
+      setError(err.message || 'Error al registrar. Intenta de nuevo.')
     } finally {
       setLoading(false)
     }
-  }
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    })
   }
 
   if (success) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-[#E8F5F1] to-white flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
-          <div className="w-16 h-16 bg-[#10B981] rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
+          <div className="w-20 h-20 bg-[#10B981] rounded-full flex items-center justify-center mx-auto mb-6">
+            <CheckCircle className="w-10 h-10 text-white" />
           </div>
-          <h2 className="text-2xl font-bold text-[#1A1A2E] mb-2">¡Registro Exitoso!</h2>
-          <p className="text-[#475569] mb-4">
+          <h2 className="font-['Fraunces'] text-3xl font-black text-[#0D5C4A] mb-4">
+            ¡Registro Exitoso!
+          </h2>
+          <p className="text-[#475569] mb-6 text-lg">
             Tu solicitud ha sido enviada. Revisaremos tu cédula profesional y te contactaremos en 24-48 horas.
           </p>
-          <p className="text-sm text-[#475569]">Redirigiendo al inicio...</p>
+          <div className="animate-pulse text-[#0D5C4A] font-medium">
+            Redirigiendo al inicio...
+          </div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#E8F5F1] to-white py-12 px-4">
-      <div className="max-w-4xl mx-auto">
-        {/* Botón regresar */}
-        <button
-          onClick={() => router.back()}
-          className="flex items-center gap-2 text-[#0D5C4A] hover:text-[#1A7A62] mb-6 transition"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          Volver al inicio
-        </button>
-
+    <div className="min-h-screen bg-gradient-to-b from-[#E8F5F1] to-white py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-3xl mx-auto">
+        {/* Header con LOGO */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-[#1A1A2E] mb-2">Registro de Médicos</h1>
-          <p className="text-[#475569]">Únete a Salurama y llega a más pacientes</p>
-        </div>
-
-        {/* Social Login */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
-          <h2 className="text-lg font-semibold text-[#1A1A2E] mb-4 text-center">Regístrate con</h2>
-          <div className="grid grid-cols-3 gap-3">
-            <button
-              onClick={() => handleSocialLogin('google')}
-              disabled={loading}
-              className="flex items-center justify-center gap-2 px-4 py-3 border border-[#CBD5E1] rounded-lg hover:bg-[#F8FAFC] transition disabled:opacity-50"
-            >
-              <svg className="w-5 h-5" viewBox="0 0 24 24">
-                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-              </svg>
-              Google
-            </button>
-
-            <button
-              onClick={() => handleSocialLogin('facebook')}
-              disabled={loading}
-              className="flex items-center justify-center gap-2 px-4 py-3 border border-[#CBD5E1] rounded-lg hover:bg-[#F8FAFC] transition disabled:opacity-50"
-            >
-              <svg className="w-5 h-5" fill="#1877F2" viewBox="0 0 24 24">
-                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-              </svg>
-              Facebook
-            </button>
-
-            <button
-              onClick={() => handleSocialLogin('apple')}
-              disabled={loading}
-              className="flex items-center justify-center gap-2 px-4 py-3 border border-[#CBD5E1] rounded-lg hover:bg-[#F8FAFC] transition disabled:opacity-50"
-            >
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
-              </svg>
-              Apple
-            </button>
+          {/* Logo Salurama */}
+          <Link href="/" className="inline-block mb-4">
+            <div className="flex items-center justify-center gap-0">
+              <span className="font-['Fraunces'] text-[40px] sm:text-[48px] font-black text-[#0D5C4A] tracking-tight">Salu</span>
+              <span className="font-['Fraunces'] text-[40px] sm:text-[48px] font-semibold text-[#F59E0B] tracking-tight">rama</span>
+            </div>
+          </Link>
+          
+          <h1 className="font-['Fraunces'] text-3xl sm:text-4xl font-black text-[#0D5C4A] mb-3">
+            Registro de Médicos
+          </h1>
+          <p className="text-[#1A7A62] text-lg font-['Fraunces'] italic font-semibold mb-4">
+            Salud en tus manos
+          </p>
+          
+          {/* Badge GRATIS PARA SIEMPRE */}
+          <div className="inline-flex items-center bg-gradient-to-r from-[#10B981] to-[#0D5C4A] text-white px-6 py-3 rounded-full font-bold text-sm sm:text-base shadow-lg mb-4">
+            <span>GRATIS PARA SIEMPRE</span>
           </div>
-          <p className="text-xs text-[#475569] text-center mt-3">* Configuración pendiente</p>
+          
+          <p className="text-[#475569] text-sm sm:text-base font-medium">
+            Sin suscripciones • Sin comisiones • Sin costos ocultos
+          </p>
+          <p className="text-[#6B7280] mt-2 text-xs sm:text-sm">
+            Únete al directorio médico que cree en la salud accesible
+          </p>
         </div>
 
-        {/* Divider */}
-        <div className="flex items-center gap-4 mb-6">
-          <div className="flex-1 h-px bg-[#CBD5E1]"></div>
-          <span className="text-[#475569] text-sm">o regístrate con email</span>
-          <div className="flex-1 h-px bg-[#CBD5E1]"></div>
-        </div>
-
-        {/* Formulario */}
-        <div className="bg-white rounded-2xl shadow-lg p-8">
-          {error && (
-            <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
+        {/* Error Alert */}
+        {error && (
+          <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-8 rounded-r-lg">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
               <p className="text-red-700 text-sm">{error}</p>
             </div>
-          )}
+          </div>
+        )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid md:grid-cols-2 gap-4">
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-lg p-6 sm:p-10">
+          
+          {/* Foto de perfil */}
+          <div className="mb-8">
+            <label className="block text-sm font-medium text-[#1A1A2E] mb-3">
+              Foto de perfil <span className="text-[#9CA3AF] font-normal">(opcional pero recomendado)</span>
+            </label>
+            <div className="flex items-center gap-6">
+              {photoPreview ? (
+                <div className="relative w-24 h-24">
+                  <img 
+                    src={photoPreview} 
+                    alt="Preview" 
+                    className="w-full h-full rounded-full object-cover border-2 border-[#0D5C4A]"
+                  />
+                  <button
+                    type="button"
+                    onClick={removePhoto}
+                    className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="w-24 h-24 rounded-full bg-[#E8F5F1] flex items-center justify-center">
+                  <Camera className="w-8 h-8 text-[#0D5C4A]" />
+                </div>
+              )}
+              <div className="flex-1">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={handlePhotoChange}
+                  className="hidden"
+                  id="photo-upload"
+                />
+                <label
+                  htmlFor="photo-upload"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-[#0D5C4A] text-white rounded-lg cursor-pointer hover:bg-[#1A7A62] transition-colors text-sm font-medium"
+                >
+                  <Camera className="w-4 h-4" />
+                  {photoPreview ? 'Cambiar foto' : 'Subir foto'}
+                </label>
+                <p className="text-xs text-[#6B7280] mt-2">
+                  JPG, PNG o WebP. Máximo 5MB. Se comprime automáticamente.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Cuenta */}
+          <div className="mb-8 pb-8 border-b border-[#E5EAE8]">
+            <h3 className="font-['Fraunces'] text-xl font-bold text-[#1A1A2E] mb-4 flex items-center gap-2">
+              <Mail className="w-5 h-5 text-[#0D5C4A]" />
+              Cuenta
+            </h3>
+            <div className="grid sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-[#1A1A2E] mb-2">
-                  <Mail className="inline w-4 h-4 mr-1" />
-                  Email *
+                  Email profesional *
                 </label>
                 <input
                   type="email"
@@ -187,14 +312,12 @@ export default function RegistroMedico() {
                   value={formData.email}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-2 border border-[#CBD5E1] rounded-lg focus:ring-2 focus:ring-[#0D5C4A] focus:border-transparent transition"
+                  className="w-full px-4 py-3 border border-[#CBD5E1] rounded-lg focus:ring-2 focus:ring-[#0D5C4A] focus:border-transparent transition text-sm"
                   placeholder="tu@email.com"
                 />
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-[#1A1A2E] mb-2">
-                  <Lock className="inline w-4 h-4 mr-1" />
                   Contraseña *
                 </label>
                 <input
@@ -204,32 +327,50 @@ export default function RegistroMedico() {
                   onChange={handleChange}
                   required
                   minLength={8}
-                  className="w-full px-4 py-2 border border-[#CBD5E1] rounded-lg focus:ring-2 focus:ring-[#0D5C4A] focus:border-transparent transition"
+                  className="w-full px-4 py-3 border border-[#CBD5E1] rounded-lg focus:ring-2 focus:ring-[#0D5C4A] focus:border-transparent transition text-sm"
                   placeholder="Mínimo 8 caracteres"
                 />
               </div>
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-[#1A1A2E] mb-2">
+                  Confirmar contraseña *
+                </label>
+                <input
+                  type="password"
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-4 py-3 border border-[#CBD5E1] rounded-lg focus:ring-2 focus:ring-[#0D5C4A] focus:border-transparent transition text-sm"
+                  placeholder="Escribe la misma contraseña"
+                />
+              </div>
             </div>
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium text-[#1A1A2E] mb-2">
-                <User className="inline w-4 h-4 mr-1" />
-                Nombre completo *
-              </label>
-              <input
-                type="text"
-                name="full_name"
-                value={formData.full_name}
-                onChange={handleChange}
-                required
-                className="w-full px-4 py-2 border border-[#CBD5E1] rounded-lg focus:ring-2 focus:ring-[#0D5C4A] focus:border-transparent transition"
-                placeholder="Dr. Juan Pérez García"
-              />
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-4">
+          {/* Información Profesional */}
+          <div className="mb-8 pb-8 border-b border-[#E5EAE8]">
+            <h3 className="font-['Fraunces'] text-xl font-bold text-[#1A1A2E] mb-4 flex items-center gap-2">
+              <Stethoscope className="w-5 h-5 text-[#0D5C4A]" />
+              Información Profesional
+            </h3>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-[#1A1A2E] mb-2">
+                  Nombre completo *
+                </label>
+                <input
+                  type="text"
+                  name="full_name"
+                  value={formData.full_name}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-4 py-3 border border-[#CBD5E1] rounded-lg focus:ring-2 focus:ring-[#0D5C4A] focus:border-transparent transition text-sm"
+                  placeholder="Dr. Juan Pérez García"
+                />
+              </div>
               <div>
                 <label className="block text-sm font-medium text-[#1A1A2E] mb-2">
-                  <Stethoscope className="inline w-4 h-4 mr-1" />
                   Especialidad *
                 </label>
                 <input
@@ -238,14 +379,12 @@ export default function RegistroMedico() {
                   value={formData.specialty}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-2 border border-[#CBD5E1] rounded-lg focus:ring-2 focus:ring-[#0D5C4A] focus:border-transparent transition"
+                  className="w-full px-4 py-3 border border-[#CBD5E1] rounded-lg focus:ring-2 focus:ring-[#0D5C4A] focus:border-transparent transition text-sm"
                   placeholder="Ej: Cardiología"
                 />
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-[#1A1A2E] mb-2">
-                  <CreditCard className="inline w-4 h-4 mr-1" />
                   Cédula profesional *
                 </label>
                 <input
@@ -254,43 +393,62 @@ export default function RegistroMedico() {
                   value={formData.professional_license}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-2 border border-[#CBD5E1] rounded-lg focus:ring-2 focus:ring-[#0D5C4A] focus:border-transparent transition"
-                  placeholder="12345678"
+                  pattern="\d{7,8}"
+                  className="w-full px-4 py-3 border border-[#CBD5E1] rounded-lg focus:ring-2 focus:ring-[#0D5C4A] focus:border-transparent transition text-sm"
+                  placeholder="7 u 8 dígitos"
+                />
+                <p className="text-xs text-[#6B7280] mt-1">Sin espacios ni guiones</p>
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-[#1A1A2E] mb-2">
+                  Descripción de tu trabajo
+                </label>
+                <textarea
+                  name="description"
+                  value={formData.description}
+                  onChange={handleChange}
+                  rows={3}
+                  className="w-full px-4 py-3 border border-[#CBD5E1] rounded-lg focus:ring-2 focus:ring-[#0D5C4A] focus:border-transparent transition text-sm"
+                  placeholder="Describe tu experiencia, especialidades, enfoques de tratamiento..."
                 />
               </div>
             </div>
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium text-[#1A1A2E] mb-2">
-                <Phone className="inline w-4 h-4 mr-1" />
-                Teléfono
-              </label>
-              <input
-                type="tel"
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border border-[#CBD5E1] rounded-lg focus:ring-2 focus:ring-[#0D5C4A] focus:border-transparent transition"
-                placeholder="55 1234 5678"
-              />
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-4">
+          {/* Ubicación y Contacto */}
+          <div className="mb-8 pb-8 border-b border-[#E5EAE8]">
+            <h3 className="font-['Fraunces'] text-xl font-bold text-[#1A1A2E] mb-4 flex items-center gap-2">
+              <MapPin className="w-5 h-5 text-[#0D5C4A]" />
+              Ubicación y Contacto
+            </h3>
+            <div className="grid sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-[#1A1A2E] mb-2">
-                  <MapPin className="inline w-4 h-4 mr-1" />
-                  Ciudad
+                  Teléfono de contacto
+                </label>
+                <input
+                  type="tel"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 border border-[#CBD5E1] rounded-lg focus:ring-2 focus:ring-[#0D5C4A] focus:border-transparent transition text-sm"
+                  placeholder="55 1234 5678"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[#1A1A2E] mb-2">
+                  Ciudad *
                 </label>
                 <input
                   type="text"
                   name="location_city"
                   value={formData.location_city}
                   onChange={handleChange}
-                  className="w-full px-4 py-2 border border-[#CBD5E1] rounded-lg focus:ring-2 focus:ring-[#0D5C4A] focus:border-transparent transition"
+                  required
+                  className="w-full px-4 py-3 border border-[#CBD5E1] rounded-lg focus:ring-2 focus:ring-[#0D5C4A] focus:border-transparent transition text-sm"
                   placeholder="Ciudad de México"
                 />
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-[#1A1A2E] mb-2">
                   Colonia
@@ -300,68 +458,111 @@ export default function RegistroMedico() {
                   name="location_neighborhood"
                   value={formData.location_neighborhood}
                   onChange={handleChange}
-                  className="w-full px-4 py-2 border border-[#CBD5E1] rounded-lg focus:ring-2 focus:ring-[#0D5C4A] focus:border-transparent transition"
+                  className="w-full px-4 py-3 border border-[#CBD5E1] rounded-lg focus:ring-2 focus:ring-[#0D5C4A] focus:border-transparent transition text-sm"
                   placeholder="Ej: Polanco"
                 />
               </div>
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-[#1A1A2E] mb-2">
+                  Dirección del consultorio
+                </label>
+                <input
+                  type="text"
+                  name="address"
+                  value={formData.address}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 border border-[#CBD5E1] rounded-lg focus:ring-2 focus:ring-[#0D5C4A] focus:border-transparent transition text-sm"
+                  placeholder="Calle y número"
+                />
+              </div>
             </div>
+          </div>
 
+          {/* Costo */}
+          <div className="mb-8">
+            <h3 className="font-['Fraunces'] text-xl font-bold text-[#1A1A2E] mb-4 flex items-center gap-2">
+              <DollarSign className="w-5 h-5 text-[#0D5C4A]" />
+              Costo de Consulta
+            </h3>
             <div>
               <label className="block text-sm font-medium text-[#1A1A2E] mb-2">
-                Dirección del consultorio
-              </label>
-              <input
-                type="text"
-                name="address"
-                value={formData.address}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border border-[#CBD5E1] rounded-lg focus:ring-2 focus:ring-[#0D5C4A] focus:border-transparent transition"
-                placeholder="Calle y número"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-[#1A1A2E] mb-2">
-                <DollarSign className="inline w-4 h-4 mr-1" />
-                Costo de consulta (MXN)
+                Precio en pesos mexicanos (MXN)
               </label>
               <input
                 type="number"
                 name="consultation_price"
                 value={formData.consultation_price}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-[#CBD5E1] rounded-lg focus:ring-2 focus:ring-[#0D5C4A] focus:border-transparent transition"
+                min="0"
+                step="50"
+                className="w-full px-4 py-3 border border-[#CBD5E1] rounded-lg focus:ring-2 focus:ring-[#0D5C4A] focus:border-transparent transition text-sm"
                 placeholder="800"
               />
+              <p className="text-xs text-[#6B7280] mt-1">
+                Deja en 0 si es gratis o sin costo fijo
+              </p>
             </div>
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium text-[#1A1A2E] mb-2">
-                <FileText className="inline w-4 h-4 mr-1" />
-                Descripción de tu trabajo
-              </label>
-              <textarea
-                name="description"
-                value={formData.description}
+          {/* Términos */}
+          <div className="mb-8">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                name="terms_accepted"
+                checked={formData.terms_accepted}
                 onChange={handleChange}
-                rows={4}
-                className="w-full px-4 py-2 border border-[#CBD5E1] rounded-lg focus:ring-2 focus:ring-[#0D5C4A] focus:border-transparent transition"
-                placeholder="Describe tu experiencia, especialidades, enfoques de tratamiento..."
+                className="w-5 h-5 mt-0.5 rounded border-[#CBD5E1] text-[#0D5C4A] focus:ring-[#0D5C4A]"
               />
-            </div>
+              <span className="text-sm text-[#475569]">
+                Acepto los{' '}
+                <a href="/terminos" target="_blank" className="text-[#0D5C4A] hover:underline font-medium">
+                  Términos y Condiciones
+                </a>
+                {' '}y el{' '}
+                <a href="/privacidad" target="_blank" className="text-[#0D5C4A] hover:underline font-medium">
+                  Aviso de Privacidad
+                </a>
+                {' '}de Salurama *
+              </span>
+            </label>
+          </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-[#0D5C4A] text-white py-3 rounded-lg font-semibold hover:bg-[#1A7A62] transition disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Registrando...' : 'Enviar registro'}
-            </button>
+          {/* Submit Button */}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-gradient-to-r from-[#0D5C4A] to-[#1A7A62] text-white py-4 rounded-lg font-bold text-lg hover:from-[#1A7A62] hover:to-[#0D5C4A] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg"
+          >
+            {loading ? (
+              <>
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Registrando...
+              </>
+            ) : (
+              <>
+                <CheckCircle className="w-5 h-5" />
+                Registrarme
+              </>
+            )}
+          </button>
 
-            <p className="text-xs text-[#475569] text-center">
-              * Campos obligatorios. Tu registro será revisado antes de publicarse.
-            </p>
-          </form>
+          <p className="text-xs text-[#6B7280] text-center mt-4">
+            * Campos obligatorios · Tu información está protegida
+          </p>
+        </form>
+
+        {/* Footer */}
+        <div className="text-center mt-8">
+          <p className="text-sm text-[#475569] mb-2">
+            ¿Ya tienes cuenta?{' '}
+            <a href="/login" className="text-[#0D5C4A] font-bold hover:underline">
+              Inicia sesión
+            </a>
+          </p>
+          <p className="text-xs text-[#6B7280] italic">
+            "Creemos en la salud accesible para todos"
+          </p>
         </div>
       </div>
     </div>

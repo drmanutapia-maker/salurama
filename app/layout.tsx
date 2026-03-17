@@ -2,11 +2,66 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Salurama — Salud en tus manos",
+  // ─── Básicos ────────────────────────────────────────
+  title: {
+    default: "Salurama — Salud en tus manos",
+    template: "%s | Salurama",
+  },
   description: "Directorio médico gratuito. Especialistas verificados cerca de ti.",
+  
+  // ─── URLs ───────────────────────────────────────────
+  metadataBase: new URL("https://salurama.com"),
+  alternates: {
+    canonical: "https://salurama.com",
+  },
+  
+  // ─── Robots ─────────────────────────────────────────
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  
+  // ─── Iconos ─────────────────────────────────────────
   icons: {
     icon: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
   },
+  
+  // ─── Open Graph (Facebook, WhatsApp, LinkedIn) ─────
+  openGraph: {
+    type: "website",
+    locale: "es_MX",
+    url: "https://salurama.com",
+    siteName: "Salurama",
+    title: "Salurama — Salud en tus manos",
+    description: "Directorio médico gratuito. Especialistas verificados cerca de ti.",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Salurama — Salud en tus manos",
+      },
+    ],
+  },
+  
+  // ─── Twitter Card ───────────────────────────────────
+  twitter: {
+    card: "summary_large_image",
+    title: "Salurama — Salud en tus manos",
+    description: "Directorio médico gratuito. Especialistas verificados cerca de ti.",
+    creator: "@saluramamx",
+  },
+  
+  // ─── Color de tema (Mobile Browsers) ────────────────
+  themeColor: "#3730A3", // Índigo Principal v2.0
 };
 
 export default function RootLayout({
@@ -16,29 +71,45 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      <body className="antialiased bg-[#F3F4F6] text-[#1A1A2E]">
+      {/* Preload de fuentes críticas */}
+      <head>
+        <link
+          rel="preload"
+          href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;0,900;1,600&family=DM+Sans:wght@300;400;500;700&display=swap"
+          as="style"
+        />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;0,900;1,600&family=DM+Sans:wght@300;400;500;700&display=swap"
+          rel="stylesheet"
+        />
+        
+        {/* Structured Data - MedicalWebPage */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "MedicalWebPage",
+              "name": "Salurama",
+              "url": "https://salurama.com",
+              "description": "Directorio médico gratuito. Especialistas verificados cerca de ti.",
+              "inLanguage": "es-MX",
+              "medicalAudience": {
+                "@type": "MedicalAudience",
+                "audienceType": "Patient",
+              },
+              "publisher": {
+                "@type": "Organization",
+                "name": "Salurama",
+                "url": "https://salurama.com",
+                "logo": "https://salurama.com/logo.png",
+              },
+            }),
+          }}
+        />
+      </head>
+      <body className="antialiased bg-white text-[#1A1A2E]">
         {children}
-
-        {/* FOOTER OFICIAL — Manual de Marca v1.0 */}
-        <footer className="bg-[#0D5C4A] text-white py-10 text-center mt-12">
-          <p className="text-sm font-medium">
-            © 2026 Salurama S.A. de C.V. | Salud en tus manos
-          </p>
-          <div className="mt-4 flex justify-center gap-8 text-sm">
-            <a
-              href="/aviso-de-privacidad.html"
-              className="hover:text-[#F59E0B] hover:underline transition-colors"
-            >
-              Aviso de Privacidad
-            </a>
-            <a
-              href="/terminos-y-condiciones.html"
-              className="hover:text-[#F59E0B] hover:underline transition-colors"
-            >
-              Términos y Condiciones
-            </a>
-          </div>
-        </footer>
       </body>
     </html>
   );
