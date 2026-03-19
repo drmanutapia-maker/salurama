@@ -1,569 +1,448 @@
 'use client'
-import { useState, useRef } from 'react'
+
+import { useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { useRouter } from 'next/navigation'
-import imageCompression from 'browser-image-compression'
 import Link from 'next/link'
-import { 
-  Mail, Lock, User, Phone, MapPin, DollarSign, 
-  FileText, Stethoscope, CreditCard, Camera, X,
-  CheckCircle, AlertCircle, Heart
-} from 'lucide-react'
+import { Mail, MapPin, Stethoscope, CheckCircle, AlertCircle, Eye, EyeOff } from 'lucide-react'
+
+const ESPECIALIDADES = [
+  'Anestesiología','Cardiología','Cirugía General','Dermatología',
+  'Endocrinología','Gastroenterología','Geriatría','Ginecología y Obstetricia',
+  'Hematología','Infectología','Medicina Familiar','Medicina Interna',
+  'Nefrología','Neurología','Nutriología','Oftalmología','Oncología',
+  'Ortopedia y Traumatología','Otorrinolaringología','Pediatría',
+  'Psiquiatría','Reumatología','Urología','Otra especialidad'
+]
+
+const CIUDADES = [
+  'Ciudad de México','Guadalajara','Monterrey','Puebla','Tijuana',
+  'León','Juárez','Zapopan','Mérida','San Luis Potosí',
+  'Aguascalientes','Hermosillo','Saltillo','Mexicali','Culiacán',
+  'Querétaro','Chihuahua','Morelia','Toluca','Cancún',
+  'Veracruz','Acapulco','Cuernavaca','Xalapa','Oaxaca',
+  'Tuxtla Gutiérrez','Villahermosa','Durango','Tepic','Zacatecas',
+  'Pachuca','Tlaxcala','Colima','Chetumal','La Paz'
+]
 
 export default function RegistroMedico() {
-  const router = useRouter()
+  const router  = useRouter()
+  const [step, setStep]       = useState(1)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError]     = useState(null)
   const [success, setSuccess] = useState(false)
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    confirmPassword: '',
-    full_name: '',
-    specialty: '',
-    professional_license: '',
-    phone: '',
-    location_city: '',
-    location_neighborhood: '',
-    address: '',
-    consultation_price: '',
-    description: '',
-    terms_accepted: false,
-    photo: null as File | null,
+  const [showPass, setShowPass]   = useState(false)
+  const [showPass2, setShowPass2] = useState(false)
+
+  const [form, setForm] = useState({
+    email: '', password: '', confirmPassword: '',
+    full_name: '', specialty: '', professional_license: '',
+    description: '', consultation_price: '',
+    phone: '', location_city: '', location_neighborhood: '',
+    address: '', terms_accepted: false,
   })
-  
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const validateEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
-  const validateLicense = (license: string) => /^\d{7,8}$/.test(license)
-  const validatePhone = (phone: string) => /^[\d\s\-\(\)]+$/.test(phone)
+  const handle = (e) => {
+    const { name, value, type, checked } = e.target
+    setForm(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }))
+    if (error) setError(null)
+  }
 
-  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    if (!file.type.startsWith('image/')) {
-      setError('Por favor selecciona un archivo de imagen válido')
-      return
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      setError('La imagen no debe pesar más de 5MB')
-      return
-    }
-
-    try {
-      const options = {
-        maxSizeMB: 1,
-        maxWidthOrHeight: 800,
-        useWebWorker: true,
-      }
-      const compressedFile = await imageCompression(file, options)
-      
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setPhotoPreview(reader.result as string)
-      }
-      reader.readAsDataURL(compressedFile)
-      
-      setFormData({ ...formData, photo: compressedFile })
-      setError(null)
-    } catch (err) {
-      setError('Error al procesar la imagen')
+  const validate = {
+    1: () => {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) return 'Ingresa un email válido'
+      if (form.password.length < 8) return 'La contraseña debe tener mínimo 8 caracteres'
+      if (form.password !== form.confirmPassword) return 'Las contraseñas no coinciden'
+      return null
+    },
+    2: () => {
+      if (!form.full_name.trim()) return 'El nombre completo es obligatorio'
+      if (!form.specialty) return 'Selecciona tu especialidad'
+      if (!/^\d{7,8}$/.test(form.professional_license)) return 'La cédula debe tener 7 u 8 dígitos numéricos'
+      return null
+    },
+    3: () => {
+      if (!form.phone.replace(/\D/g,'').match(/^\d{10}$/)) return 'Ingresa un teléfono de 10 dígitos'
+      if (!form.location_city.trim()) return 'La ciudad es obligatoria'
+      if (!form.terms_accepted) return 'Debes aceptar los términos y condiciones'
+      return null
     }
   }
 
-  const removePhoto = () => {
-    setPhotoPreview(null)
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ''
-    }
-  }
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value, type } = e.target
-    const checked = (e.target as HTMLInputElement).checked
-    
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }))
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const nextStep = () => {
+    const err = validate[step]()
+    if (err) { setError(err); return }
     setError(null)
+    setStep(s => s + 1)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
-    if (!validateEmail(formData.email)) {
-      setError('Ingresa un email válido')
-      return
-    }
-    if (formData.password.length < 8) {
-      setError('La contraseña debe tener al menos 8 caracteres')
-      return
-    }
-    if (formData.password !== formData.confirmPassword) {
-      setError('Las contraseñas no coinciden')
-      return
-    }
-    if (!validateLicense(formData.professional_license)) {
-      setError('La cédula profesional debe tener 7 u 8 dígitos')
-      return
-    }
-    if (!formData.terms_accepted) {
-      setError('Debes aceptar los términos y condiciones')
-      return
-    }
+  const prevStep = () => {
+    setStep(s => s - 1)
+    setError(null)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    const err = validate[3]()
+    if (err) { setError(err); return }
+    setLoading(true)
+    setError(null)
     try {
-      setLoading(true)
-
-      const {  authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
+      const { error: authError } = await supabase.auth.signUp({
+        email: form.email,
+        password: form.password,
       })
-
       if (authError) throw authError
 
-      let photoUrl = null
-      if (formData.photo && authData.user) {
-        const fileExt = formData.photo.name.split('.').pop()
-        const fileName = `${authData.user.id}-${Date.now()}.${fileExt}`
-        
-        const { error: uploadError } = await supabase.storage
-          .from('doctor-photos')
-          .upload(fileName, formData.photo, {
-            cacheControl: '3600',
-            upsert: false
-          })
-
-        if (uploadError) throw uploadError
-        
-        const {  urlData } = supabase.storage
-          .from('doctor-photos')
-          .getPublicUrl(fileName)
-        
-        photoUrl = urlData.publicUrl
-      }
-
-      const { error: doctorError } = await supabase
-        .from('doctors')
-        .insert({
-          email: formData.email,
-          full_name: formData.full_name,
-          specialty: formData.specialty,
-          professional_license: formData.professional_license,
-          phone: formData.phone,
-          location_city: formData.location_city,
-          location_neighborhood: formData.location_neighborhood,
-          address: formData.address,
-          consultation_price: parseFloat(formData.consultation_price) || 0,
-          description: formData.description,
-          photo_url: photoUrl,
-          license_verified: false,
-          is_active: true
-        })
-
-      if (doctorError) throw doctorError
-
+      const { error: dbError } = await supabase.from('doctors').insert({
+        email:                form.email,
+        full_name:            form.full_name.trim(),
+        specialty:            form.specialty,
+        professional_license: form.professional_license,
+        description:          form.description.trim() || null,
+        consultation_price:   parseFloat(form.consultation_price) || 0,
+        phone:                form.phone.replace(/\D/g,''),
+        location_city:        form.location_city.trim(),
+        location_neighborhood:form.location_neighborhood.trim() || null,
+        address:              form.address.trim() || null,
+        license_verified:     false,
+        is_active:            true,
+        verification_status:  'pendiente',
+      })
+      if (dbError) throw dbError
       setSuccess(true)
-      
-      setTimeout(() => {
-        router.push('/')
-      }, 3000)
-
-    } catch (err: any) {
-      setError(err.message || 'Error al registrar. Intenta de nuevo.')
+    } catch (err) {
+      setError(err.message || 'Ocurrió un error. Intenta de nuevo.')
     } finally {
       setLoading(false)
     }
   }
 
+  // ── ÉXITO ──────────────────────────────────────────────────
   if (success) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-[#E8F5F1] to-white flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
-          <div className="w-20 h-20 bg-[#10B981] rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle className="w-10 h-10 text-white" />
+      <div style={{ minHeight: '100vh', background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, fontFamily: "'DM Sans', sans-serif" }}>
+        <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;0,900;1,600&family=DM+Sans:wght@300;400;500;700&display=swap');`}</style>
+        <div style={{ background: '#fff', borderRadius: 24, padding: '48px 40px', maxWidth: 480, width: '100%', textAlign: 'center', boxShadow: '0 20px 60px #3730A318' }}>
+          <div style={{ width: 80, height: 80, borderRadius: '50%', background: '#3730A3', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
+            <CheckCircle size={40} color="#fff" />
           </div>
-          <h2 className="font-['Fraunces'] text-3xl font-black text-[#0D5C4A] mb-4">
-            ¡Registro Exitoso!
+          <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 30, fontWeight: 900, color: '#3730A3', marginBottom: 12 }}>
+            ¡Ya eres parte de Salurama!
           </h2>
-          <p className="text-[#475569] mb-6 text-lg">
-            Tu solicitud ha sido enviada. Revisaremos tu cédula profesional y te contactaremos en 24-48 horas.
+          <p style={{ color: '#6B7280', fontSize: 15, lineHeight: 1.7, marginBottom: 8 }}>
+            Revisaremos tu cédula profesional y activaremos tu perfil en <strong style={{ color: '#1A1A2E' }}>24 a 48 horas</strong>.
           </p>
-          <div className="animate-pulse text-[#0D5C4A] font-medium">
-            Redirigiendo al inicio...
-          </div>
+          <p style={{ color: '#9CA3AF', fontSize: 13, marginBottom: 32 }}>
+            Te avisaremos por email cuando estés visible para los pacientes.
+          </p>
+          <Link href="/" style={{ display: 'inline-block', background: '#3730A3', color: '#fff', padding: '13px 32px', borderRadius: 50, textDecoration: 'none', fontWeight: 700, fontSize: 15 }}>
+            Ir al inicio
+          </Link>
         </div>
       </div>
     )
   }
 
+  // ── RENDER ─────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#E8F5F1] to-white py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto">
-        {/* Header con LOGO */}
-        <div className="text-center mb-8">
-          {/* Logo Salurama */}
-          <Link href="/" className="inline-block mb-4">
-            <div className="flex items-center justify-center gap-0">
-              <span className="font-['Fraunces'] text-[40px] sm:text-[48px] font-black text-[#0D5C4A] tracking-tight">Salu</span>
-              <span className="font-['Fraunces'] text-[40px] sm:text-[48px] font-semibold text-[#F59E0B] tracking-tight">rama</span>
-            </div>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #EEF2FF 0%, #fff 40%)', fontFamily: "'DM Sans', sans-serif", color: '#1A1A2E' }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;0,900;1,600&family=DM+Sans:wght@300;400;500;700&display=swap');
+        * { box-sizing: border-box; }
+
+        .field {
+          width: 100%; padding: 14px 16px;
+          border: 1.5px solid #E5E7EB; border-radius: 10px;
+          font-size: 15px; font-family: 'DM Sans', sans-serif;
+          color: #1A1A2E; outline: none; background: #fff;
+          transition: border-color 0.18s, box-shadow 0.18s;
+        }
+        .field:focus { border-color: #3730A3; box-shadow: 0 0 0 3px #3730A314; }
+        .field::placeholder { color: #9CA3AF; font-weight: 300; }
+
+        select.field {
+          appearance: none;
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+          background-repeat: no-repeat;
+          background-position: right 14px center;
+          padding-right: 40px; cursor: pointer;
+        }
+
+        .label { display: block; font-size: 13px; font-weight: 500; color: #374151; margin-bottom: 6px; }
+        .hint  { font-size: 12px; color: #9CA3AF; margin-top: 4px; }
+
+        .btn-primary {
+          width: 100%; background: #3730A3; color: #fff; border: none;
+          border-radius: 50px; padding: 15px 24px;
+          font-size: 16px; font-family: 'DM Sans', sans-serif; font-weight: 700;
+          cursor: pointer; transition: background 0.18s;
+        }
+        .btn-primary:hover:not(:disabled) { background: #4F46E5; }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .btn-back {
+          width: 100%; background: transparent; color: #6B7280;
+          border: 1.5px solid #E5E7EB; border-radius: 50px;
+          padding: 13px 24px; font-size: 15px;
+          font-family: 'DM Sans', sans-serif; font-weight: 500;
+          cursor: pointer; transition: all 0.18s; margin-top: 10px;
+        }
+        .btn-back:hover { border-color: #3730A3; color: #3730A3; }
+
+        .pass-wrap { position: relative; }
+        .pass-eye  {
+          position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+          background: none; border: none; cursor: pointer; color: #9CA3AF; padding: 4px;
+        }
+
+        .step-dot {
+          width: 36px; height: 36px; border-radius: 50%;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 14px; font-weight: 700; transition: all 0.3s;
+        }
+
+        @keyframes spin    { to { transform: rotate(360deg); } }
+        @keyframes fadeIn  { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .fade-in { animation: fadeIn 0.25s ease-out; }
+
+        @media (max-width: 600px) { .grid2 { grid-template-columns: 1fr !important; } }
+      `}</style>
+
+      <div style={{ maxWidth: 580, margin: '0 auto', padding: '40px 20px 60px' }}>
+
+        {/* HEADER */}
+        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+          <Link href="/" style={{ textDecoration: 'none', display: 'inline-block', marginBottom: 8 }}>
+            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 42, fontWeight: 900, color: '#3730A3', letterSpacing: '-1px' }}>Salu</span>
+            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 42, fontWeight: 600, color: '#F4623A', letterSpacing: '-1px' }}>rama</span>
           </Link>
-          
-          <h1 className="font-['Fraunces'] text-3xl sm:text-4xl font-black text-[#0D5C4A] mb-3">
-            Registro de Médicos
-          </h1>
-          <p className="text-[#1A7A62] text-lg font-['Fraunces'] italic font-semibold mb-4">
+          <p style={{ fontFamily: "'Fraunces', serif", fontSize: 16, fontStyle: 'italic', fontWeight: 600, color: '#4F46E5', marginBottom: 18 }}>
             Salud en tus manos
           </p>
-          
-          {/* Badge GRATIS PARA SIEMPRE */}
-          <div className="inline-flex items-center bg-gradient-to-r from-[#10B981] to-[#0D5C4A] text-white px-6 py-3 rounded-full font-bold text-sm sm:text-base shadow-lg mb-4">
-            <span>GRATIS PARA SIEMPRE</span>
-          </div>
-          
-          <p className="text-[#475569] text-sm sm:text-base font-medium">
-            Sin suscripciones • Sin comisiones • Sin costos ocultos
+          <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(22px, 5vw, 30px)', fontWeight: 900, color: '#3730A3', marginBottom: 8 }}>
+            Registro de Médicos
+          </h1>
+          <p style={{ fontSize: 15, color: '#4F46E5', fontWeight: 500, marginBottom: 14 }}>
+            Tus pacientes ya te están buscando.
           </p>
-          <p className="text-[#6B7280] mt-2 text-xs sm:text-sm">
-            Únete al directorio médico que cree en la salud accesible
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#3730A3', color: '#fff', padding: '8px 20px', borderRadius: 50, fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
+            ✓ GRATIS PARA SIEMPRE
+          </div>
+          <p style={{ fontSize: 12, color: '#9CA3AF', fontWeight: 300 }}>
+            Sin suscripciones · Sin comisiones · Sin costos ocultos
           </p>
         </div>
 
-        {/* Error Alert */}
-        {error && (
-          <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-8 rounded-r-lg">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-              <p className="text-red-700 text-sm">{error}</p>
+        {/* INDICADOR DE PASOS */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 28 }}>
+          {[
+            { n: 1, label: 'Cuenta' },
+            { n: 2, label: 'Perfil' },
+            { n: 3, label: 'Ubicación' },
+          ].map((s, i) => (
+            <div key={s.n} style={{ display: 'flex', alignItems: 'center' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
+                <div className="step-dot" style={{
+                  background: step > s.n ? '#10B981' : step === s.n ? '#3730A3' : '#E5E7EB',
+                  color: step >= s.n ? '#fff' : '#9CA3AF',
+                }}>
+                  {step > s.n ? <CheckCircle size={18} /> : s.n}
+                </div>
+                <span style={{ fontSize: 11, fontWeight: step === s.n ? 600 : 400, color: step >= s.n ? '#3730A3' : '#9CA3AF' }}>
+                  {s.label}
+                </span>
+              </div>
+              {i < 2 && (
+                <div style={{ width: 64, height: 2, background: step > s.n ? '#10B981' : '#E5E7EB', margin: '0 6px 18px', transition: 'background 0.3s' }} />
+              )}
             </div>
+          ))}
+        </div>
+
+        {/* ERROR */}
+        {error && (
+          <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderLeft: '4px solid #DC2626', borderRadius: 10, padding: '12px 16px', marginBottom: 18, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+            <AlertCircle size={17} color="#DC2626" style={{ flexShrink: 0, marginTop: 1 }} />
+            <p style={{ fontSize: 14, color: '#DC2626', margin: 0 }}>{error}</p>
           </div>
         )}
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-lg p-6 sm:p-10">
-          
-          {/* Foto de perfil */}
-          <div className="mb-8">
-            <label className="block text-sm font-medium text-[#1A1A2E] mb-3">
-              Foto de perfil <span className="text-[#9CA3AF] font-normal">(opcional pero recomendado)</span>
-            </label>
-            <div className="flex items-center gap-6">
-              {photoPreview ? (
-                <div className="relative w-24 h-24">
-                  <img 
-                    src={photoPreview} 
-                    alt="Preview" 
-                    className="w-full h-full rounded-full object-cover border-2 border-[#0D5C4A]"
-                  />
-                  <button
-                    type="button"
-                    onClick={removePhoto}
-                    className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+        {/* CARD */}
+        <div style={{ background: '#fff', borderRadius: 20, boxShadow: '0 4px 24px #3730A30D', padding: 'clamp(24px, 6vw, 40px)' }}>
+
+          {/* ── PASO 1 — Cuenta ── */}
+          {step === 1 && (
+            <div className="fade-in">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
+                <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Mail size={17} color="#3730A3" />
                 </div>
-              ) : (
-                <div className="w-24 h-24 rounded-full bg-[#E8F5F1] flex items-center justify-center">
-                  <Camera className="w-8 h-8 text-[#0D5C4A]" />
+                <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 900, color: '#1A1A2E', margin: 0 }}>Crea tu cuenta</h2>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div>
+                  <label className="label">Email profesional *</label>
+                  <input name="email" type="email" className="field" value={form.email} onChange={handle} placeholder="tu@email.com" autoComplete="email" />
                 </div>
-              )}
-              <div className="flex-1">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  onChange={handlePhotoChange}
-                  className="hidden"
-                  id="photo-upload"
-                />
-                <label
-                  htmlFor="photo-upload"
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-[#0D5C4A] text-white rounded-lg cursor-pointer hover:bg-[#1A7A62] transition-colors text-sm font-medium"
-                >
-                  <Camera className="w-4 h-4" />
-                  {photoPreview ? 'Cambiar foto' : 'Subir foto'}
-                </label>
-                <p className="text-xs text-[#6B7280] mt-2">
-                  JPG, PNG o WebP. Máximo 5MB. Se comprime automáticamente.
-                </p>
+                <div>
+                  <label className="label">Contraseña *</label>
+                  <div className="pass-wrap">
+                    <input name="password" type={showPass ? 'text' : 'password'} className="field" value={form.password} onChange={handle} placeholder="Mínimo 8 caracteres" style={{ paddingRight: 46 }} />
+                    <button type="button" className="pass-eye" onClick={() => setShowPass(p => !p)}>
+                      {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="label">Confirmar contraseña *</label>
+                  <div className="pass-wrap">
+                    <input name="confirmPassword" type={showPass2 ? 'text' : 'password'} className="field" value={form.confirmPassword} onChange={handle} placeholder="Repite tu contraseña" style={{ paddingRight: 46 }} />
+                    <button type="button" className="pass-eye" onClick={() => setShowPass2(p => !p)}>
+                      {showPass2 ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ marginTop: 24 }}>
+                <button className="btn-primary" onClick={nextStep}>Continuar →</button>
               </div>
             </div>
-          </div>
+          )}
 
-          {/* Cuenta */}
-          <div className="mb-8 pb-8 border-b border-[#E5EAE8]">
-            <h3 className="font-['Fraunces'] text-xl font-bold text-[#1A1A2E] mb-4 flex items-center gap-2">
-              <Mail className="w-5 h-5 text-[#0D5C4A]" />
-              Cuenta
-            </h3>
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-[#1A1A2E] mb-2">
-                  Email profesional *
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-4 py-3 border border-[#CBD5E1] rounded-lg focus:ring-2 focus:ring-[#0D5C4A] focus:border-transparent transition text-sm"
-                  placeholder="tu@email.com"
-                />
+          {/* ── PASO 2 — Perfil profesional ── */}
+          {step === 2 && (
+            <div className="fade-in">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
+                <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Stethoscope size={17} color="#3730A3" />
+                </div>
+                <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 900, color: '#1A1A2E', margin: 0 }}>Tu perfil profesional</h2>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-[#1A1A2E] mb-2">
-                  Contraseña *
-                </label>
-                <input
-                  type="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  required
-                  minLength={8}
-                  className="w-full px-4 py-3 border border-[#CBD5E1] rounded-lg focus:ring-2 focus:ring-[#0D5C4A] focus:border-transparent transition text-sm"
-                  placeholder="Mínimo 8 caracteres"
-                />
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div>
+                  <label className="label">Nombre completo *</label>
+                  <input name="full_name" type="text" className="field" value={form.full_name} onChange={handle} placeholder="Dr. Juan Pérez García" autoComplete="name" />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }} className="grid2">
+                  <div>
+                    <label className="label">Especialidad *</label>
+                    <select name="specialty" className="field" value={form.specialty} onChange={handle}>
+                      <option value="">Selecciona</option>
+                      {ESPECIALIDADES.map(e => <option key={e} value={e}>{e}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="label">Cédula profesional *</label>
+                    <input name="professional_license" type="text" inputMode="numeric" className="field" value={form.professional_license} onChange={handle} placeholder="12345678" maxLength={8} />
+                    <p className="hint">7 u 8 dígitos, sin espacios</p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="label">Descripción <span style={{ color: '#9CA3AF', fontWeight: 300 }}>(opcional)</span></label>
+                  <textarea name="description" className="field" value={form.description} onChange={handle} rows={3} placeholder="Cuéntale a tus pacientes sobre tu experiencia y enfoque..." style={{ resize: 'vertical', lineHeight: 1.6 }} />
+                </div>
+
+                <div>
+                  <label className="label">Costo de consulta <span style={{ color: '#9CA3AF', fontWeight: 300 }}>(MXN, opcional)</span></label>
+                  <input name="consultation_price" type="number" inputMode="numeric" className="field" value={form.consultation_price} onChange={handle} placeholder="800" min="0" step="50" />
+                  <p className="hint">Deja vacío si el costo varía según el servicio</p>
+                </div>
               </div>
-              <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-[#1A1A2E] mb-2">
-                  Confirmar contraseña *
-                </label>
-                <input
-                  type="password"
-                  name="confirmPassword"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-4 py-3 border border-[#CBD5E1] rounded-lg focus:ring-2 focus:ring-[#0D5C4A] focus:border-transparent transition text-sm"
-                  placeholder="Escribe la misma contraseña"
-                />
+
+              <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 0 }}>
+                <button className="btn-primary" onClick={nextStep}>Continuar →</button>
+                <button className="btn-back" onClick={prevStep}>← Atrás</button>
               </div>
             </div>
-          </div>
+          )}
 
-          {/* Información Profesional */}
-          <div className="mb-8 pb-8 border-b border-[#E5EAE8]">
-            <h3 className="font-['Fraunces'] text-xl font-bold text-[#1A1A2E] mb-4 flex items-center gap-2">
-              <Stethoscope className="w-5 h-5 text-[#0D5C4A]" />
-              Información Profesional
-            </h3>
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-[#1A1A2E] mb-2">
-                  Nombre completo *
-                </label>
-                <input
-                  type="text"
-                  name="full_name"
-                  value={formData.full_name}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-4 py-3 border border-[#CBD5E1] rounded-lg focus:ring-2 focus:ring-[#0D5C4A] focus:border-transparent transition text-sm"
-                  placeholder="Dr. Juan Pérez García"
-                />
+          {/* ── PASO 3 — Ubicación ── */}
+          {step === 3 && (
+            <form className="fade-in" onSubmit={handleSubmit}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
+                <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <MapPin size={17} color="#3730A3" />
+                </div>
+                <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 900, color: '#1A1A2E', margin: 0 }}>Ubicación y contacto</h2>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-[#1A1A2E] mb-2">
-                  Especialidad *
-                </label>
-                <input
-                  type="text"
-                  name="specialty"
-                  value={formData.specialty}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-4 py-3 border border-[#CBD5E1] rounded-lg focus:ring-2 focus:ring-[#0D5C4A] focus:border-transparent transition text-sm"
-                  placeholder="Ej: Cardiología"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-[#1A1A2E] mb-2">
-                  Cédula profesional *
-                </label>
-                <input
-                  type="text"
-                  name="professional_license"
-                  value={formData.professional_license}
-                  onChange={handleChange}
-                  required
-                  pattern="\d{7,8}"
-                  className="w-full px-4 py-3 border border-[#CBD5E1] rounded-lg focus:ring-2 focus:ring-[#0D5C4A] focus:border-transparent transition text-sm"
-                  placeholder="7 u 8 dígitos"
-                />
-                <p className="text-xs text-[#6B7280] mt-1">Sin espacios ni guiones</p>
-              </div>
-              <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-[#1A1A2E] mb-2">
-                  Descripción de tu trabajo
-                </label>
-                <textarea
-                  name="description"
-                  value={formData.description}
-                  onChange={handleChange}
-                  rows={3}
-                  className="w-full px-4 py-3 border border-[#CBD5E1] rounded-lg focus:ring-2 focus:ring-[#0D5C4A] focus:border-transparent transition text-sm"
-                  placeholder="Describe tu experiencia, especialidades, enfoques de tratamiento..."
-                />
-              </div>
-            </div>
-          </div>
 
-          {/* Ubicación y Contacto */}
-          <div className="mb-8 pb-8 border-b border-[#E5EAE8]">
-            <h3 className="font-['Fraunces'] text-xl font-bold text-[#1A1A2E] mb-4 flex items-center gap-2">
-              <MapPin className="w-5 h-5 text-[#0D5C4A]" />
-              Ubicación y Contacto
-            </h3>
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-[#1A1A2E] mb-2">
-                  Teléfono de contacto
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }} className="grid2">
+                  <div>
+                    <label className="label">Teléfono *</label>
+                    <input name="phone" type="tel" inputMode="tel" className="field" value={form.phone} onChange={handle} placeholder="55 1234 5678" />
+                    <p className="hint">10 dígitos — los pacientes te contactarán aquí</p>
+                  </div>
+                  <div>
+                    <label className="label">Ciudad *</label>
+                    <input name="location_city" type="text" className="field" value={form.location_city} onChange={handle} placeholder="Ciudad de México" list="ciudades" />
+                    <datalist id="ciudades">
+                      {CIUDADES.map(c => <option key={c} value={c} />)}
+                    </datalist>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }} className="grid2">
+                  <div>
+                    <label className="label">Colonia <span style={{ color: '#9CA3AF', fontWeight: 300 }}>(opcional)</span></label>
+                    <input name="location_neighborhood" type="text" className="field" value={form.location_neighborhood} onChange={handle} placeholder="Polanco" />
+                  </div>
+                  <div>
+                    <label className="label">Dirección <span style={{ color: '#9CA3AF', fontWeight: 300 }}>(opcional)</span></label>
+                    <input name="address" type="text" className="field" value={form.address} onChange={handle} placeholder="Av. Reforma 123" />
+                  </div>
+                </div>
+
+                {/* TÉRMINOS */}
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 12, cursor: 'pointer', padding: '10px 0', marginTop: 4 }}>
+                  <input type="checkbox" name="terms_accepted" checked={form.terms_accepted} onChange={handle}
+                    style={{ width: 18, height: 18, marginTop: 2, accentColor: '#3730A3', flexShrink: 0, cursor: 'pointer' }} />
+                  <span style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.6 }}>
+                    Acepto los{' '}
+                    <a href="/terminos-y-condiciones" target="_blank" style={{ color: '#3730A3', fontWeight: 500 }}>Términos y Condiciones</a>
+                    {' '}y el{' '}
+                    <a href="/aviso-de-privacidad" target="_blank" style={{ color: '#3730A3', fontWeight: 500 }}>Aviso de Privacidad</a>
+                    {' '}de Salurama *
+                  </span>
                 </label>
-                <input
-                  type="tel"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 border border-[#CBD5E1] rounded-lg focus:ring-2 focus:ring-[#0D5C4A] focus:border-transparent transition text-sm"
-                  placeholder="55 1234 5678"
-                />
+
+                <button type="submit" className="btn-primary" disabled={loading}>
+                  {loading ? (
+                    <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                      <span style={{ width: 18, height: 18, border: '2px solid #ffffff44', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
+                      Registrando...
+                    </span>
+                  ) : (
+                    <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                      <CheckCircle size={18} /> Completar registro
+                    </span>
+                  )}
+                </button>
+                <button type="button" className="btn-back" onClick={prevStep}>← Atrás</button>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-[#1A1A2E] mb-2">
-                  Ciudad *
-                </label>
-                <input
-                  type="text"
-                  name="location_city"
-                  value={formData.location_city}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-4 py-3 border border-[#CBD5E1] rounded-lg focus:ring-2 focus:ring-[#0D5C4A] focus:border-transparent transition text-sm"
-                  placeholder="Ciudad de México"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-[#1A1A2E] mb-2">
-                  Colonia
-                </label>
-                <input
-                  type="text"
-                  name="location_neighborhood"
-                  value={formData.location_neighborhood}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 border border-[#CBD5E1] rounded-lg focus:ring-2 focus:ring-[#0D5C4A] focus:border-transparent transition text-sm"
-                  placeholder="Ej: Polanco"
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-[#1A1A2E] mb-2">
-                  Dirección del consultorio
-                </label>
-                <input
-                  type="text"
-                  name="address"
-                  value={formData.address}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 border border-[#CBD5E1] rounded-lg focus:ring-2 focus:ring-[#0D5C4A] focus:border-transparent transition text-sm"
-                  placeholder="Calle y número"
-                />
-              </div>
-            </div>
-          </div>
+            </form>
+          )}
 
-          {/* Costo */}
-          <div className="mb-8">
-            <h3 className="font-['Fraunces'] text-xl font-bold text-[#1A1A2E] mb-4 flex items-center gap-2">
-              <DollarSign className="w-5 h-5 text-[#0D5C4A]" />
-              Costo de Consulta
-            </h3>
-            <div>
-              <label className="block text-sm font-medium text-[#1A1A2E] mb-2">
-                Precio en pesos mexicanos (MXN)
-              </label>
-              <input
-                type="number"
-                name="consultation_price"
-                value={formData.consultation_price}
-                onChange={handleChange}
-                min="0"
-                step="50"
-                className="w-full px-4 py-3 border border-[#CBD5E1] rounded-lg focus:ring-2 focus:ring-[#0D5C4A] focus:border-transparent transition text-sm"
-                placeholder="800"
-              />
-              <p className="text-xs text-[#6B7280] mt-1">
-                Deja en 0 si es gratis o sin costo fijo
-              </p>
-            </div>
-          </div>
+        </div>
 
-          {/* Términos */}
-          <div className="mb-8">
-            <label className="flex items-start gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                name="terms_accepted"
-                checked={formData.terms_accepted}
-                onChange={handleChange}
-                className="w-5 h-5 mt-0.5 rounded border-[#CBD5E1] text-[#0D5C4A] focus:ring-[#0D5C4A]"
-              />
-              <span className="text-sm text-[#475569]">
-                Acepto los{' '}
-                <a href="/terminos" target="_blank" className="text-[#0D5C4A] hover:underline font-medium">
-                  Términos y Condiciones
-                </a>
-                {' '}y el{' '}
-                <a href="/privacidad" target="_blank" className="text-[#0D5C4A] hover:underline font-medium">
-                  Aviso de Privacidad
-                </a>
-                {' '}de Salurama *
-              </span>
-            </label>
-          </div>
-
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-gradient-to-r from-[#0D5C4A] to-[#1A7A62] text-white py-4 rounded-lg font-bold text-lg hover:from-[#1A7A62] hover:to-[#0D5C4A] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg"
-          >
-            {loading ? (
-              <>
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Registrando...
-              </>
-            ) : (
-              <>
-                <CheckCircle className="w-5 h-5" />
-                Registrarme
-              </>
-            )}
-          </button>
-
-          <p className="text-xs text-[#6B7280] text-center mt-4">
-            * Campos obligatorios · Tu información está protegida
-          </p>
-        </form>
-
-        {/* Footer */}
-        <div className="text-center mt-8">
-          <p className="text-sm text-[#475569] mb-2">
+        {/* FOOTER */}
+        <div style={{ textAlign: 'center', marginTop: 22 }}>
+          <p style={{ fontSize: 13, color: '#9CA3AF' }}>
             ¿Ya tienes cuenta?{' '}
-            <a href="/login" className="text-[#0D5C4A] font-bold hover:underline">
+            <Link href="/login" style={{ color: '#3730A3', fontWeight: 600, textDecoration: 'none' }}>
               Inicia sesión
-            </a>
-          </p>
-          <p className="text-xs text-[#6B7280] italic">
-            "Creemos en la salud accesible para todos"
+            </Link>
           </p>
         </div>
+
       </div>
     </div>
   )
