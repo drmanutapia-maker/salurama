@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Mail, MapPin, Stethoscope, CheckCircle, AlertCircle, Eye, EyeOff } from 'lucide-react'
 
-// ✅ ESPECIALIDADES COMPLETAS (como en el buscador)
 const ESPECIALIDADES = [
   'Alergología', 'Anestesiología', 'Angiología', 'Cardiología',
   'Cirugía Cardiovascular', 'Cirugía General', 'Cirugía Plástica', 'Dermatología',
@@ -18,7 +17,6 @@ const ESPECIALIDADES = [
   'Radiología', 'Reumatología', 'Urología', 'Otra especialidad'
 ]
 
-// ✅ 32 ESTADOS DE MÉXICO (como en el buscador)
 const ESTADOS_MEXICO = [
   'Aguascalientes', 'Baja California', 'Baja California Sur', 'Campeche',
   'Chiapas', 'Chihuahua', 'Ciudad de México', 'Coahuila', 'Colima',
@@ -29,7 +27,6 @@ const ESTADOS_MEXICO = [
   'Veracruz', 'Yucatán', 'Zacatecas'
 ]
 
-// ✅ CIUDADES POR ESTADO (como en el buscador)
 const CIUDADES_POR_ESTADO: Record<string, string[]> = {
   'Aguascalientes': ['Aguascalientes', 'Calvillo', 'Rincón de Romos'],
   'Baja California': ['Tijuana', 'Mexicali', 'Ensenada', 'Playas de Rosarito', 'Tecate'],
@@ -66,12 +63,12 @@ const CIUDADES_POR_ESTADO: Record<string, string[]> = {
 }
 
 export default function RegistroMedico() {
-  const router  = useRouter()
-  const [step, setStep]       = useState(1)
+  const router = useRouter()
+  const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
-  const [error, setError]     = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
-  const [showPass, setShowPass]   = useState(false)
+  const [showPass, setShowPass] = useState(false)
   const [showPass2, setShowPass2] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<Record<string, boolean>>({})
   const [ciudadesDisponibles, setCiudadesDisponibles] = useState<string[]>([])
@@ -86,18 +83,15 @@ export default function RegistroMedico() {
     address: '', terms_accepted: false,
   })
 
-  // Auto-focus al primer campo de cada paso
   useEffect(() => {
     if (firstInputRef.current) {
       firstInputRef.current.focus()
     }
   }, [step])
 
-  // Actualizar ciudades disponibles cuando cambia el estado
   useEffect(() => {
     if (form.location_state && CIUDADES_POR_ESTADO[form.location_state]) {
       setCiudadesDisponibles(CIUDADES_POR_ESTADO[form.location_state])
-      // Si la ciudad seleccionada no está en las nuevas ciudades, limpiarla
       if (!CIUDADES_POR_ESTADO[form.location_state].includes(form.location_city)) {
         setForm(prev => ({ ...prev, location_city: '' }))
       }
@@ -111,7 +105,6 @@ export default function RegistroMedico() {
     const checked = (e.target as HTMLInputElement).checked
     setForm(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }))
     
-    // Limpiar error del campo cuando el usuario escribe
     if (fieldErrors[name]) {
       setFieldErrors(prev => ({ ...prev, [name]: false }))
     }
@@ -233,16 +226,15 @@ export default function RegistroMedico() {
     }
   }
 
-  // ── ÉXITO ──────────────────────────────────────────────────
   if (success) {
     return (
       <div style={{ minHeight: '100vh', background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, fontFamily: "'DM Sans', sans-serif" }}>
-        <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;0,900;1,600&family=DM+Sans:wght@300;400;500;700&display=swap');`}</style>
-        <div style={{ background: '#fff', borderRadius: 24, padding: '48px 40px', maxWidth: 480, width: '100%', textAlign: 'center', boxShadow: '0 20px 60px #3730A318' }}>
+        <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@600;900&family=DM+Sans:wght@300;400;500;700&display=swap');`}</style>
+        <div style={{ background: '#fff', borderRadius: 24, padding: '40px 32px', maxWidth: 480, width: '100%', textAlign: 'center', boxShadow: '0 20px 60px #3730A318' }}>
           <div style={{ width: 80, height: 80, borderRadius: '50%', background: '#3730A3', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
             <CheckCircle size={40} color="#fff" />
           </div>
-          <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 30, fontWeight: 900, color: '#3730A3', marginBottom: 12 }}>
+          <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(24px, 5vw, 30px)', fontWeight: 900, color: '#3730A3', marginBottom: 12 }}>
             ¡Ya eres parte de Salurama!
           </h2>
           <p style={{ color: '#6B7280', fontSize: 15, lineHeight: 1.7, marginBottom: 8 }}>
@@ -251,7 +243,7 @@ export default function RegistroMedico() {
           <p style={{ color: '#9CA3AF', fontSize: 13, marginBottom: 32 }}>
             Te avisaremos por email cuando estés visible para los pacientes.
           </p>
-          <Link href="/" style={{ display: 'inline-block', background: '#3730A3', color: '#fff', padding: '13px 32px', borderRadius: 50, textDecoration: 'none', fontWeight: 700, fontSize: 15 }}>
+          <Link href="/" style={{ display: 'inline-block', background: '#3730A3', color: '#fff', padding: '14px 32px', borderRadius: 50, textDecoration: 'none', fontWeight: 700, fontSize: 15, minHeight: 48 }}>
             Ir al inicio
           </Link>
         </div>
@@ -259,11 +251,10 @@ export default function RegistroMedico() {
     )
   }
 
-  // ── RENDER ─────────────────────────────────────────────────
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #EEF2FF 0%, #fff 40%)', fontFamily: "'DM Sans', sans-serif", color: '#1A1A2E' }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;0,900;1,600&family=DM+Sans:wght@300;400;500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@600;900&family=DM+Sans:wght@300;400;500;700&display=swap');
         * { box-sizing: border-box; }
 
         .field {
@@ -272,6 +263,7 @@ export default function RegistroMedico() {
           font-size: 15px; font-family: 'DM Sans', sans-serif;
           color: #1A1A2E; outline: none; background: #fff;
           transition: border-color 0.18s, box-shadow 0.18s;
+          min-height: 48px;
         }
         .field:focus { border-color: #3730A3; box-shadow: 0 0 0 3px #3730A314; }
         .field.error { border-color: #DC2626; }
@@ -294,6 +286,7 @@ export default function RegistroMedico() {
           border-radius: 50px; padding: 15px 24px;
           font-size: 16px; font-family: 'DM Sans', sans-serif; font-weight: 700;
           cursor: pointer; transition: background 0.18s;
+          min-height: 48px;
         }
         .btn-primary:hover:not(:disabled) { background: #4F46E5; }
         .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -304,6 +297,7 @@ export default function RegistroMedico() {
           padding: 13px 24px; font-size: 15px;
           font-family: 'DM Sans', sans-serif; font-weight: 500;
           cursor: pointer; transition: all 0.18s; margin-top: 10px;
+          min-height: 48px;
         }
         .btn-back:hover { border-color: #3730A3; color: #3730A3; }
 
@@ -311,8 +305,9 @@ export default function RegistroMedico() {
         .pass-eye  {
           position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
           background: none; border: none; cursor: pointer; color: '#9CA3AF'; padding: 4px;
+          min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center;
         }
-        .pass-eye:hover { color: '#3730A3'; }
+        .pass-eye:hover { color: '#3730A3; }
 
         .step-dot {
           width: 36px; height: 36px; border-radius: 50%;
@@ -324,24 +319,29 @@ export default function RegistroMedico() {
         @keyframes fadeIn  { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         .fade-in { animation: fadeIn 0.25s ease-out; }
 
-        @media (max-width: 600px) { .grid2 { grid-template-columns: 1fr !important; } }
+        @media (max-width: 640px) {
+          .grid2 { grid-template-columns: 1fr !important; }
+          .container-padding { padding: 24px 16px 40px !important; }
+          .card-padding { padding: 24px 20px !important; }
+          .logo-size { font-size: clamp(32px, 8vw, 42px) !important; }
+        }
       `}</style>
 
-      <div style={{ maxWidth: 580, margin: '0 auto', padding: '40px 20px 60px' }}>
+      <div className="container-padding" style={{ maxWidth: 580, margin: '0 auto', padding: '32px 24px 60px' }}>
 
         {/* HEADER */}
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+        <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <Link href="/" style={{ textDecoration: 'none', display: 'inline-block', marginBottom: 8 }}>
-  <span style={{ fontFamily: "'Fraunces', serif", fontSize: 42, fontWeight: 900, color: '#3730A3', letterSpacing: '-1px' }}>Salu</span>
-  <span style={{ fontFamily: "'Fraunces', serif", fontSize: 42, fontWeight: 600, color: '#F4623A', letterSpacing: '-1px' }}>rama</span>
-</Link>
-          <p style={{ fontFamily: "'Fraunces', serif", fontSize: 16, fontStyle: 'italic', fontWeight: 600, color: '#4F46E5', marginBottom: 18 }}>
+            <span className="logo-size" style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(32px, 8vw, 42px)', fontWeight: 900, color: '#3730A3', letterSpacing: '-1px', display: 'inline-block' }}>Salu</span>
+            <span className="logo-size" style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(32px, 8vw, 42px)', fontWeight: 600, color: '#F4623A', letterSpacing: '-1px', display: 'inline-block', marginLeft: 2 }}>rama</span>
+          </Link>
+          <p style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(14px, 3vw, 16px)', fontStyle: 'italic', fontWeight: 600, color: '#4F46E5', marginBottom: 14 }}>
             Salud en tus manos
           </p>
-          <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(22px, 5vw, 30px)', fontWeight: 900, color: '#3730A3', marginBottom: 8 }}>
+          <h1 className="logo-size" style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(20px, 5vw, 30px)', fontWeight: 900, color: '#3730A3', marginBottom: 8 }}>
             Registro de Médicos
           </h1>
-          <p style={{ fontSize: 15, color: '#4F46E5', fontWeight: 500, marginBottom: 14 }}>
+          <p style={{ fontSize: 15, color: '#4F46E5', fontWeight: 500, marginBottom: 12 }}>
             Tus pacientes te están buscando.
           </p>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#3730A3', color: '#fff', padding: '8px 20px', borderRadius: 50, fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
@@ -353,7 +353,7 @@ export default function RegistroMedico() {
         </div>
 
         {/* INDICADOR DE PASOS */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 28 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
           {[
             { n: 1, label: 'Cuenta' },
             { n: 2, label: 'Perfil' },
@@ -364,6 +364,7 @@ export default function RegistroMedico() {
                 <div className="step-dot" style={{
                   background: step > s.n ? '#10B981' : step === s.n ? '#3730A3' : '#E5E7EB',
                   color: step >= s.n ? '#fff' : '#9CA3AF',
+                  minWidth: 44, minHeight: 44,
                 }}>
                   {step > s.n ? <CheckCircle size={18} /> : s.n}
                 </div>
@@ -372,7 +373,7 @@ export default function RegistroMedico() {
                 </span>
               </div>
               {i < 2 && (
-                <div style={{ width: 64, height: 2, background: step > s.n ? '#10B981' : '#E5E7EB', margin: '0 6px 18px', transition: 'background 0.3s' }} />
+                <div style={{ width: 48, height: 2, background: step > s.n ? '#10B981' : '#E5E7EB', margin: '0 6px 18px', transition: 'background 0.3s' }} />
               )}
             </div>
           ))}
@@ -387,16 +388,16 @@ export default function RegistroMedico() {
         )}
 
         {/* CARD */}
-        <div style={{ background: '#fff', borderRadius: 20, boxShadow: '0 4px 24px #3730A30D', padding: 'clamp(24px, 6vw, 40px)' }}>
+        <div className="card-padding" style={{ background: '#fff', borderRadius: 20, boxShadow: '0 4px 24px #3730A30D', padding: 'clamp(24px, 6vw, 40px)', border: '1px solid #E5E7EB' }}>
 
           {/* ── PASO 1 — Cuenta ── */}
           {step === 1 && (
             <div className="fade-in">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
                 <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <Mail size={17} color="#3730A3" />
                 </div>
-                <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 900, color: '#1A1A2E', margin: 0 }}>Crea tu cuenta</h2>
+                <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(18px, 4vw, 20px)', fontWeight: 900, color: '#1A1A2E', margin: 0 }}>Crea tu cuenta</h2>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -468,30 +469,30 @@ export default function RegistroMedico() {
           {/* ── PASO 2 — Perfil profesional ── */}
           {step === 2 && (
             <div className="fade-in">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
                 <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <Stethoscope size={17} color="#3730A3" />
                 </div>
-                <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 900, color: '#1A1A2E', margin: 0 }}>Tu perfil profesional</h2>
+                <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(18px, 4vw, 20px)', fontWeight: 900, color: '#1A1A2E', margin: 0 }}>Tu perfil profesional</h2>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 <div>
                   <label className="label">Nombre completo *</label>
-      <input 
-  ref={firstInputRef}
-  name="full_name" 
-  type="text" 
-  className={`field ${fieldErrors.full_name ? 'error' : ''}`} 
-  value={form.full_name} 
-  onChange={handle} 
-  placeholder="Juan Pérez García" 
-  autoComplete="name" 
-/>
-<p className="hint">Sin abreviaciones</p>
+                  <input 
+                    ref={firstInputRef}
+                    name="full_name" 
+                    type="text" 
+                    className={`field ${fieldErrors.full_name ? 'error' : ''}`} 
+                    value={form.full_name} 
+                    onChange={handle} 
+                    placeholder="Juan Pérez García" 
+                    autoComplete="name" 
+                  />
+                  <p className="hint">Sin abreviaciones</p>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }} className="grid2">
+                <div className="grid2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                   <div>
                     <label className="label">Especialidad *</label>
                     <select 
@@ -550,7 +551,7 @@ export default function RegistroMedico() {
                 </div>
               </div>
 
-              <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 0 }}>
+              <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <button className="btn-primary" onClick={nextStep}>Continuar →</button>
                 <button className="btn-back" onClick={prevStep}>← Atrás</button>
               </div>
@@ -560,15 +561,15 @@ export default function RegistroMedico() {
           {/* ── PASO 3 — Ubicación ── */}
           {step === 3 && (
             <form className="fade-in" onSubmit={handleSubmit}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
                 <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <MapPin size={17} color="#3730A3" />
                 </div>
-                <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 900, color: '#1A1A2E', margin: 0 }}>Ubicación y contacto</h2>
+                <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(18px, 4vw, 20px)', fontWeight: 900, color: '#1A1A2E', margin: 0 }}>Ubicación y contacto</h2>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }} className="grid2">
+                <div className="grid2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                   <div>
                     <label className="label">Teléfono *</label>
                     <input 
@@ -581,7 +582,7 @@ export default function RegistroMedico() {
                       onChange={handle} 
                       placeholder="55 1234 5678" 
                     />
-                    <p className="hint">10 dígitos — los pacientes te contactarán aquí</p>
+                    <p className="hint">10 dígitos</p>
                   </div>
                   <div>
                     <label className="label">Estado *</label>
@@ -597,7 +598,7 @@ export default function RegistroMedico() {
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }} className="grid2">
+                <div className="grid2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                   <div>
                     <label className="label">Ciudad *</label>
                     <select 
@@ -649,15 +650,14 @@ export default function RegistroMedico() {
                       accentColor: '#3730A3', 
                       flexShrink: 0, 
                       cursor: 'pointer',
-                      border: fieldErrors.terms_accepted ? '2px solid #DC2626' : 'none',
-                      borderRadius: 4
+                      minWidth: 18, minHeight: 18,
                     }} 
                   />
                   <span style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.6 }}>
                     Acepto los{' '}
-                    <a href="/terminos-y-condiciones" target="_blank" style={{ color: '#3730A3', fontWeight: 500 }}>Términos y Condiciones</a>
+                    <a href="/terminos-y-condiciones" target="_blank" rel="noopener noreferrer" style={{ color: '#3730A3', fontWeight: 500 }}>Términos y Condiciones</a>
                     {' '}y el{' '}
-                    <a href="/aviso-de-privacidad" target="_blank" style={{ color: '#3730A3', fontWeight: 500 }}>Aviso de Privacidad</a>
+                    <a href="/aviso-de-privacidad" target="_blank" rel="noopener noreferrer" style={{ color: '#3730A3', fontWeight: 500 }}>Aviso de Privacidad</a>
                     {' '}de Salurama *
                   </span>
                 </label>
@@ -682,7 +682,7 @@ export default function RegistroMedico() {
         </div>
 
         {/* FOOTER */}
-        <div style={{ textAlign: 'center', marginTop: 22 }}>
+        <div style={{ textAlign: 'center', marginTop: 20 }}>
           <p style={{ fontSize: 13, color: '#9CA3AF' }}>
             ¿Ya tienes cuenta?{' '}
             <Link href="/login" style={{ color: '#3730A3', fontWeight: 600, textDecoration: 'none' }}>

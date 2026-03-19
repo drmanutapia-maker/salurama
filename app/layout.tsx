@@ -1,21 +1,18 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  // ─── Básicos ────────────────────────────────────────
   title: {
     default: "Salurama — Salud en tus manos",
     template: "%s | Salurama",
   },
   description: "Directorio médico gratuito. Especialistas verificados cerca de ti.",
   
-  // ─── URLs ───────────────────────────────────────────
   metadataBase: new URL("https://salurama.com"),
   alternates: {
     canonical: "https://salurama.com",
   },
   
-  // ─── Robots ─────────────────────────────────────────
   robots: {
     index: true,
     follow: true,
@@ -28,13 +25,11 @@ export const metadata: Metadata = {
     },
   },
   
-  // ─── Iconos ─────────────────────────────────────────
   icons: {
     icon: "/favicon.ico",
     apple: "/apple-touch-icon.png",
   },
   
-  // ─── Open Graph (Facebook, WhatsApp, LinkedIn) ─────
   openGraph: {
     type: "website",
     locale: "es_MX",
@@ -52,16 +47,18 @@ export const metadata: Metadata = {
     ],
   },
   
-  // ─── Twitter Card ───────────────────────────────────
   twitter: {
     card: "summary_large_image",
     title: "Salurama — Salud en tus manos",
     description: "Directorio médico gratuito. Especialistas verificados cerca de ti.",
     creator: "@saluramamx",
   },
-  
-  // ─── Color de tema (Mobile Browsers) ────────────────
-  themeColor: "#3730A3", // Índigo Principal v2.0
+};
+
+export const viewport: Viewport = {
+  themeColor: "#3730A3",
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({
@@ -71,7 +68,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      {/* Preload de fuentes críticas */}
       <head>
         <link
           rel="preload"
@@ -83,7 +79,6 @@ export default function RootLayout({
           rel="stylesheet"
         />
         
-        {/* Structured Data - MedicalWebPage */}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{

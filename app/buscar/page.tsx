@@ -9,7 +9,6 @@ import 'mapbox-gl/dist/mapbox-gl.css'
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || ''
 
-// ✅ ESPECIALIDADES COMPLETAS
 const ESPECIALIDADES = [
   'Alergología', 'Anestesiología', 'Angiología', 'Cardiología',
   'Cirugía Cardiovascular', 'Cirugía General', 'Cirugía Plástica', 'Dermatología',
@@ -21,7 +20,6 @@ const ESPECIALIDADES = [
   'Radiología', 'Reumatología', 'Urología', 'Otra especialidad'
 ]
 
-// ✅ 32 ESTADOS DE MÉXICO
 const ESTADOS_MEXICO = [
   'Aguascalientes', 'Baja California', 'Baja California Sur', 'Campeche',
   'Chiapas', 'Chihuahua', 'Ciudad de México', 'Coahuila', 'Colima',
@@ -32,7 +30,6 @@ const ESTADOS_MEXICO = [
   'Veracruz', 'Yucatán', 'Zacatecas'
 ]
 
-// ✅ CIUDADES POR ESTADO
 const CIUDADES_POR_ESTADO: Record<string, string[]> = {
   'Aguascalientes': ['Aguascalientes', 'Calvillo', 'Rincón de Romos'],
   'Baja California': ['Tijuana', 'Mexicali', 'Ensenada', 'Playas de Rosarito', 'Tecate'],
@@ -130,7 +127,6 @@ export default function BuscarPage() {
   const [filtrosTmp, setFiltrosTmp] = useState({ ...filtros })
   const [ciudadesDisponibles, setCiudadesDisponibles] = useState<string[]>([])
 
-  // ✅ 1. FUNCIÓN BUSCAR (DEFINIDA PRIMERO)
   const buscar = useCallback(async (f: typeof filtros) => {
     setLoading(true)
     try {
@@ -174,7 +170,6 @@ export default function BuscarPage() {
     }
   }, [])
 
-  // ✅ 2. FUNCIÓN ACTUALIZAR MAPA
   function actualizarMapa(data: Medico[], ciudad: string) {
     if (!map.current) return
     
@@ -242,7 +237,6 @@ export default function BuscarPage() {
     }
   }
 
-  // ✅ 3. USEEFFECTS (AHORA SÍ PUEDEN USAR `buscar`)
   useEffect(() => {
     const checkViewport = () => {
       setIsDesktop(window.innerWidth >= 768)
@@ -269,22 +263,18 @@ export default function BuscarPage() {
     const q = params.get('q') || ''
     const especialidad = params.get('especialidad') || ''
     const ciudad = params.get('ciudad') || ''
-    
     const nuevosFiltros = { q, especialidad, estado: '', ciudad, precio_max: '' }
     setFiltros(nuevosFiltros)
     setFiltrosTmp(nuevosFiltros)
   }, [])
 
-  // ✅ BÚSQUEDA EN TIEMPO REAL
   useEffect(() => {
     const timer = setTimeout(() => {
       buscar(filtros)
     }, 300)
-    
     return () => clearTimeout(timer)
   }, [filtros, buscar])
 
-  // ✅ INICIALIZAR MAPA
   useEffect(() => {
     if (!mapboxgl.accessToken) {
       console.error('⚠️ Mapbox token no configurado')
@@ -345,13 +335,14 @@ export default function BuscarPage() {
     }
     return resultado
   }
-    const filtrosActivos = Object.entries(filtros).filter(([k, v]) => v && k !== 'q').length
+
+  const filtrosActivos = Object.entries(filtros).filter(([k, v]) => v && k !== 'q').length
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', fontFamily: "'DM Sans', sans-serif", color: '#1A1A2E', background: '#FAFAFA' }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@600;900&family=DM+Sans:wght@300;400;500;700&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
-
         .search-bar {
           flex: 1; padding: 12px 18px; border: 2px solid #E5E7EB;
           border-radius: 50px; font-size: 15px; font-family: 'DM Sans', sans-serif;
@@ -360,7 +351,6 @@ export default function BuscarPage() {
         }
         .search-bar:focus { border-color: #3730A3; box-shadow: 0 0 0 4px #3730A314; }
         .search-bar::placeholder { color: #9CA3AF; }
-
         .field-sm {
           width: 100%; padding: 10px 14px; border: 1.5px solid #E5E7EB;
           border-radius: 10px; font-size: 14px; font-family: 'DM Sans', sans-serif;
@@ -368,30 +358,27 @@ export default function BuscarPage() {
           transition: border-color 0.18s;
         }
         .field-sm:focus { border-color: #3730A3; }
-
         select.field-sm {
           appearance: none;
           background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
           background-repeat: no-repeat; background-position: right 12px center; padding-right: 36px;
         }
-
         .medico-card {
           padding: 20px; background: #fff; border-radius: 16px;
-          cursor: pointer; transition: all 0.2s; display: block; 
+          cursor: pointer; transition: all 0.2s; display: block;
           text-decoration: none; color: inherit;
           box-shadow: 0 2px 8px rgba(0,0,0,0.06);
           border: 1px solid #F3F4F6;
         }
-        .medico-card:hover { 
+        .medico-card:hover {
           box-shadow: 0 8px 24px rgba(55,48,163,0.12);
           transform: translateY(-2px);
           border-color: #3730A344;
         }
-        .medico-card.selected { 
-          background: #EEF2FF; 
+        .medico-card.selected {
+          background: #EEF2FF;
           border: 2px solid #3730A3;
         }
-
         .avatar-md {
           width: 64px; height: 64px; border-radius: 50%;
           background: linear-gradient(135deg, #3730A3 0%, #F4623A 100%);
@@ -399,29 +386,24 @@ export default function BuscarPage() {
           font-family: 'Fraunces', serif; font-size: 24px; font-weight: 900;
           color: #fff; flex-shrink: 0; box-shadow: 0 4px 12px rgba(55,48,163,0.2);
         }
-
         .badge { display: inline-flex; align-items: center; gap: 4px; background: #EEF2FF; color: #3730A3; border-radius: 20px; padding: 3px 10px; font-size: 12px; font-weight: 600; }
         .badge-coral { background: #FFF0EB; color: #F4623A; }
         .badge-verificado { background: #DCFCE7; color: #059669; }
-
         .btn-tab { padding: 10px 24px; border-radius: 50px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: all 0.18s; }
         .btn-tab.active { background: #3730A3; color: #fff; box-shadow: 0 4px 12px rgba(55,48,163,0.3); }
         .btn-tab.inactive { background: #F3F4F6; color: #6B7280; }
-
         .filter-panel {
           position: absolute; top: 100%; right: 0; z-index: 100;
           background: #fff; border: 1px solid #E5E7EB; border-radius: 16px;
           box-shadow: 0 12px 48px rgba(0,0,0,0.15); padding: 24px; margin-top: 8px;
           width: 420px;
         }
-
-        .mapboxgl-popup-content { 
-          border-radius: 12px !important; 
-          padding: 0 !important; 
+        .mapboxgl-popup-content {
+          border-radius: 12px !important;
+          padding: 0 !important;
           box-shadow: 0 8px 32px rgba(0,0,0,0.15) !important;
           overflow: hidden;
         }
-
         .horario-slot {
           padding: 6px 12px;
           background: #fff;
@@ -439,7 +421,15 @@ export default function BuscarPage() {
           border-color: #3730A3;
           transform: scale(1.05);
         }
-
+        /* ✅ CORREGIDO: Clases CSS para mostrar/ocultar "Filtros" */
+        .filter-text {
+          display: none;
+        }
+        @media (min-width: 640px) {
+          .filter-text {
+            display: inline;
+          }
+        }
         @media (min-width: 768px) {
           .mobile-tabs { display: none !important; }
           .mobile-only { display: none !important; }
@@ -448,6 +438,7 @@ export default function BuscarPage() {
         @media (max-width: 767px) {
           .desktop-only { display: none !important; }
           .mobile-only { display: flex !important; }
+          .filter-panel { width: 100%; max-width: 100%; left: 0; right: 0; }
         }
       `}</style>
 
@@ -457,7 +448,6 @@ export default function BuscarPage() {
             <span style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 900, color: '#3730A3' }}>Salu</span>
             <span style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 600, color: '#F4623A' }}>rama</span>
           </Link>
-
           <div style={{ flex: 1, position: 'relative', maxWidth: 700 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{ position: 'relative', flex: 1 }}>
@@ -471,40 +461,40 @@ export default function BuscarPage() {
                   onChange={e => setFiltros(f => ({ ...f, q: e.target.value }))}
                 />
               </div>
-
               <div style={{ position: 'relative' }}>
                 <button
                   onClick={() => setFiltrosAbiertos(f => !f)}
-                  style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: 8, 
-                    padding: '12px 20px', 
-                    background: filtrosActivos > 0 ? '#3730A3' : '#F3F4F6', 
-                    color: filtrosActivos > 0 ? '#fff' : '#374151', 
-                    border: 'none', 
-                    borderRadius: 50, 
-                    fontSize: 14, 
-                    fontWeight: 600, 
-                    cursor: 'pointer', 
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '12px 20px',
+                    background: filtrosActivos > 0 ? '#3730A3' : '#F3F4F6',
+                    color: filtrosActivos > 0 ? '#fff' : '#374151',
+                    border: 'none',
+                    borderRadius: 50,
+                    fontSize: 14,
+                    fontWeight: 600,
+                    cursor: 'pointer',
                     fontFamily: "'DM Sans', sans-serif",
                     whiteSpace: 'nowrap',
                     transition: 'all 0.2s'
                   }}
                 >
                   <Filter size={16} />
-                  Filtros {filtrosActivos > 0 && `(${filtrosActivos})`}
+                  {/* ✅ CORREGIDO: Usando clase CSS en lugar de media query inline */}
+                  <span className="filter-text">Filtros</span>
+                  {filtrosActivos > 0 && `(${filtrosActivos})`}
                   <ChevronDown size={16} />
                 </button>
-
                 {filtrosAbiertos && (
                   <div className="filter-panel">
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
                       <div>
                         <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>Especialidad</label>
-                        <select 
-                          className="field-sm" 
-                          value={filtrosTmp.especialidad} 
+                        <select
+                          className="field-sm"
+                          value={filtrosTmp.especialidad}
                           onChange={e => setFiltrosTmp(f => ({ ...f, especialidad: e.target.value }))}
                         >
                           <option value="">Todas</option>
@@ -513,9 +503,9 @@ export default function BuscarPage() {
                       </div>
                       <div>
                         <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>Estado</label>
-                        <select 
-                          className="field-sm" 
-                          value={filtrosTmp.estado} 
+                        <select
+                          className="field-sm"
+                          value={filtrosTmp.estado}
                           onChange={e => setFiltrosTmp(f => ({ ...f, estado: e.target.value }))}
                         >
                           <option value="">Todos</option>
@@ -524,9 +514,9 @@ export default function BuscarPage() {
                       </div>
                       <div>
                         <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>Ciudad</label>
-                        <select 
-                          className="field-sm" 
-                          value={filtrosTmp.ciudad} 
+                        <select
+                          className="field-sm"
+                          value={filtrosTmp.ciudad}
                           onChange={e => setFiltrosTmp(f => ({ ...f, ciudad: e.target.value }))}
                           disabled={!filtrosTmp.estado}
                         >
@@ -536,30 +526,30 @@ export default function BuscarPage() {
                       </div>
                       <div style={{ gridColumn: '1 / -1' }}>
                         <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>Precio máximo (MXN)</label>
-                        <input 
-                          type="number" 
-                          className="field-sm" 
-                          placeholder="ej. 1500" 
-                          value={filtrosTmp.precio_max} 
-                          onChange={e => setFiltrosTmp(f => ({ ...f, precio_max: e.target.value }))} 
-                          min="0" 
-                          step="100" 
+                        <input
+                          type="number"
+                          className="field-sm"
+                          placeholder="ej. 1500"
+                          value={filtrosTmp.precio_max}
+                          onChange={e => setFiltrosTmp(f => ({ ...f, precio_max: e.target.value }))}
+                          min="0"
+                          step="100"
                         />
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: 12 }}>
-                      <button 
-                        onClick={limpiarFiltros} 
-                        style={{ 
-                          flex: 1, 
-                          padding: '12px', 
-                          background: '#F3F4F6', 
-                          color: '#6B7280', 
-                          border: 'none', 
-                          borderRadius: 50, 
-                          fontSize: 14, 
-                          fontWeight: 600, 
-                          cursor: 'pointer', 
+                      <button
+                        onClick={limpiarFiltros}
+                        style={{
+                          flex: 1,
+                          padding: '12px',
+                          background: '#F3F4F6',
+                          color: '#6B7280',
+                          border: 'none',
+                          borderRadius: 50,
+                          fontSize: 14,
+                          fontWeight: 600,
+                          cursor: 'pointer',
                           fontFamily: "'DM Sans', sans-serif",
                           transition: 'all 0.2s'
                         }}
@@ -568,18 +558,18 @@ export default function BuscarPage() {
                       >
                         Limpiar
                       </button>
-                      <button 
-                        onClick={aplicarFiltros} 
-                        style={{ 
-                          flex: 2, 
-                          padding: '12px', 
-                          background: '#3730A3', 
-                          color: '#fff', 
-                          border: 'none', 
-                          borderRadius: 50, 
-                          fontSize: 14, 
-                          fontWeight: 700, 
-                          cursor: 'pointer', 
+                      <button
+                        onClick={aplicarFiltros}
+                        style={{
+                          flex: 2,
+                          padding: '12px',
+                          background: '#3730A3',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: 50,
+                          fontSize: 14,
+                          fontWeight: 700,
+                          cursor: 'pointer',
                           fontFamily: "'DM Sans', sans-serif",
                           transition: 'all 0.2s'
                         }}
@@ -598,16 +588,16 @@ export default function BuscarPage() {
       </nav>
 
       <div className="mobile-tabs mobile-only" style={{ display: 'flex', background: '#fff', borderBottom: '2px solid #F3F4F6', padding: '12px 16px', gap: 12, flexShrink: 0 }}>
-        <button 
-          className={`btn-tab ${vistaMovil === 'lista' ? 'active' : 'inactive'}`} 
-          onClick={() => setVistaMovil('lista')} 
+        <button
+          className={`btn-tab ${vistaMovil === 'lista' ? 'active' : 'inactive'}`}
+          onClick={() => setVistaMovil('lista')}
           style={{ flex: 1 }}
         >
           Lista ({totalCount})
         </button>
-        <button 
-          className={`btn-tab ${vistaMovil === 'mapa' ? 'active' : 'inactive'}`} 
-          onClick={() => setVistaMovil('mapa')} 
+        <button
+          className={`btn-tab ${vistaMovil === 'mapa' ? 'active' : 'inactive'}`}
+          onClick={() => setVistaMovil('mapa')}
           style={{ flex: 1 }}
         >
           Mapa
@@ -627,7 +617,6 @@ export default function BuscarPage() {
               {loading ? 'Buscando...' : `${totalCount} especialista${totalCount !== 1 ? 's' : ''} encontrado${totalCount !== 1 ? 's' : ''}`}
             </p>
           </div>
-
           {loading ? (
             <div style={{ padding: 24 }}>
               {[1,2,3,4].map(i => (
@@ -645,17 +634,17 @@ export default function BuscarPage() {
               <p style={{ fontSize: 48, marginBottom: 16 }}>🔍</p>
               <p style={{ fontSize: 18, color: '#374151', fontWeight: 700, marginBottom: 8, fontFamily: "'Fraunces', serif" }}>Sin resultados</p>
               <p style={{ fontSize: 14, color: '#9CA3AF', marginBottom: 24 }}>Intenta con otra especialidad o ciudad</p>
-              <button 
-                onClick={limpiarFiltros} 
-                style={{ 
-                  padding: '12px 28px', 
-                  background: '#EEF2FF', 
-                  color: '#3730A3', 
-                  border: 'none', 
-                  borderRadius: 50, 
-                  fontSize: 14, 
-                  fontWeight: 600, 
-                  cursor: 'pointer', 
+              <button
+                onClick={limpiarFiltros}
+                style={{
+                  padding: '12px 28px',
+                  background: '#EEF2FF',
+                  color: '#3730A3',
+                  border: 'none',
+                  borderRadius: 50,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: 'pointer',
                   fontFamily: "'DM Sans', sans-serif",
                   transition: 'all 0.2s'
                 }}
@@ -677,25 +666,24 @@ export default function BuscarPage() {
                 >
                   <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
                     {m.photo_url ? (
-                      <img 
-                        src={m.photo_url} 
-                        alt={m.full_name} 
-                        style={{ 
-                          width: 64, 
-                          height: 64, 
-                          borderRadius: '50%', 
-                          objectFit: 'cover', 
+                      <img
+                        src={m.photo_url}
+                        alt={m.full_name}
+                        style={{
+                          width: 64,
+                          height: 64,
+                          borderRadius: '50%',
+                          objectFit: 'cover',
                           flexShrink: 0,
                           border: '3px solid #fff',
                           boxShadow: '0 4px 12px rgba(55,48,163,0.15)'
-                        }} 
+                        }}
                       />
                     ) : (
                       <div className="avatar-md">
                         {(m.full_name || '?')[0].toUpperCase()}
                       </div>
                     )}
-                    
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
                         <p style={{ fontSize: 18, fontWeight: 900, color: '#1A1A2E', fontFamily: "'Fraunces', serif", margin: 0 }}>
@@ -703,23 +691,21 @@ export default function BuscarPage() {
                         </p>
                         {m.license_verified && (
                           <span className="badge badge-verificado">
-                            <CheckCircle size={12} /> 
+                            <CheckCircle size={12} />
                             Verificado
                           </span>
                         )}
                       </div>
-                      
                       <p style={{ fontSize: 14, color: '#4F46E5', fontWeight: 600, marginBottom: 8, margin: 0 }}>
                         {m.specialty}
                       </p>
-                      
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                           {[1,2,3,4,5].map(star => (
-                            <Star 
-                              key={star} 
-                              size={14} 
-                              fill={star <= Math.round(m.rating_avg || 0) ? '#F59E0B' : 'none'} 
+                            <Star
+                              key={star}
+                              size={14}
+                              fill={star <= Math.round(m.rating_avg || 0) ? '#F59E0B' : 'none'}
                               color={star <= Math.round(m.rating_avg || 0) ? '#F59E0B' : '#E5E7EB'}
                             />
                           ))}
@@ -728,11 +714,10 @@ export default function BuscarPage() {
                           {m.rating_avg?.toFixed(1) || '0.0'} ({m.rating_count || 0} opiniones)
                         </span>
                       </div>
-                      
                       <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16 }}>
                         {m.location_city && (
                           <span style={{ fontSize: 13, color: '#6B7280', display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <MapPin size={14} /> 
+                            <MapPin size={14} />
                             {m.location_city}
                           </span>
                         )}
@@ -742,7 +727,6 @@ export default function BuscarPage() {
                           </span>
                         )}
                       </div>
-                      
                       <div>
                         <p style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
                           <Clock size={14} />
@@ -756,8 +740,8 @@ export default function BuscarPage() {
                               </p>
                               <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                                 {HORARIOS_DISPONIBLES[dia.diaKey]?.slice(0, 2).map((hora, hidx) => (
-                                  <div 
-                                    key={hidx} 
+                                  <div
+                                    key={hidx}
                                     className="horario-slot"
                                     style={{ fontSize: 12, padding: '4px 8px' }}
                                   >
@@ -776,20 +760,19 @@ export default function BuscarPage() {
             </div>
           )}
         </div>
-
         <div style={{ width: '40%', position: 'relative', background: '#F3F4F6' }}>
           <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
           {medicos.length === 0 && !loading && (
-            <div style={{ 
-              position: 'absolute', 
-              top: '50%', 
-              left: '50%', 
-              transform: 'translate(-50%,-50%)', 
-              background: '#fff', 
-              borderRadius: 16, 
-              padding: '20px 32px', 
-              boxShadow: '0 8px 32px rgba(0,0,0,0.15)', 
-              textAlign: 'center' 
+            <div style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%,-50%)',
+              background: '#fff',
+              borderRadius: 16,
+              padding: '20px 32px',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
+              textAlign: 'center'
             }}>
               <p style={{ fontSize: 14, color: '#6B7280', fontWeight: 500 }}>Sin médicos en esta área</p>
             </div>
@@ -798,9 +781,9 @@ export default function BuscarPage() {
       </div>
 
       <div className="mobile-only" style={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
-        <div style={{ 
-          width: '100%', 
-          overflowY: 'auto', 
+        <div style={{
+          width: '100%',
+          overflowY: 'auto',
           display: vistaMovil === 'lista' ? 'block' : 'none',
           background: '#FAFAFA'
         }}>
@@ -820,18 +803,18 @@ export default function BuscarPage() {
             <div style={{ padding: 48, textAlign: 'center' }}>
               <p style={{ fontSize: 48, marginBottom: 12 }}>🔍</p>
               <p style={{ fontSize: 16, color: '#374151', fontWeight: 700 }}>Sin resultados</p>
-              <button 
-                onClick={limpiarFiltros} 
-                style={{ 
-                  marginTop: 20, 
-                  padding: '10px 24px', 
-                  background: '#EEF2FF', 
-                  color: '#3730A3', 
-                  border: 'none', 
-                  borderRadius: 50, 
-                  fontSize: 14, 
-                  fontWeight: 600, 
-                  cursor: 'pointer' 
+              <button
+                onClick={limpiarFiltros}
+                style={{
+                  marginTop: 20,
+                  padding: '10px 24px',
+                  background: '#EEF2FF',
+                  color: '#3730A3',
+                  border: 'none',
+                  borderRadius: 50,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: 'pointer'
                 }}
               >
                 Limpiar filtros
@@ -840,24 +823,24 @@ export default function BuscarPage() {
           ) : (
             <div style={{ padding: 16 }}>
               {medicos.map(m => (
-                <Link 
-                  key={m.id} 
-                  href={`/doctor/${m.id}`} 
+                <Link
+                  key={m.id}
+                  href={`/doctor/${m.id}`}
                   className="medico-card"
                   style={{ marginBottom: 16, padding: 16 }}
                 >
                   <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
                     {m.photo_url ? (
-                      <img 
-                        src={m.photo_url} 
-                        alt={m.full_name} 
-                        style={{ 
-                          width: 56, 
-                          height: 56, 
-                          borderRadius: '50%', 
-                          objectFit: 'cover', 
-                          flexShrink: 0 
-                        }} 
+                      <img
+                        src={m.photo_url}
+                        alt={m.full_name}
+                        style={{
+                          width: 56,
+                          height: 56,
+                          borderRadius: '50%',
+                          objectFit: 'cover',
+                          flexShrink: 0
+                        }}
                       />
                     ) : (
                       <div className="avatar-md" style={{ width: 56, height: 56, fontSize: 20 }}>
@@ -897,7 +880,6 @@ export default function BuscarPage() {
             </div>
           )}
         </div>
-
         {vistaMovil === 'mapa' && (
           <div style={{ width: '100%', height: '100%' }}>
             <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
