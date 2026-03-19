@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, memo } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
@@ -8,7 +8,10 @@ import { Search, MapPin, Filter, ChevronDown, CheckCircle, Star } from 'lucide-r
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 
-mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || ''
+// ✅ Proteger acceso a env vars durante SSR
+if (typeof window !== 'undefined') {
+  mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || ''
+}
 
 const ESPECIALIDADES = [
   'Alergología','Anestesiología','Cardiología','Cirugía General',
@@ -51,6 +54,68 @@ interface Filtros {
   precio_max: string
 }
 
+// ✅ MedicoCard extraído y memoizado para mejor performance
+const MedicoCard = memo(({ m, sel, setSel }: { 
+  m: Medico, 
+  sel: string | null, 
+  setSel: (id: string) => void 
+}) => (
+  <Link
+    href={'/doctor/' + m.id}
+    style={{ 
+      display: 'block', 
+      padding: '14px 16px', 
+      background: '#fff', 
+      borderRadius: 12, 
+      textDecoration: 'none', 
+      color: 'inherit', 
+      boxShadow: '0 2px 8px rgba(0,0,0,0.05)', 
+      border: sel === m.id ? '2px solid #3730A3' : '1.5px solid #F3F4F6', 
+      marginBottom: 10, 
+      transition: 'all 0.18s' 
+    }}
+    onMouseEnter={() => setSel(m.id)}
+  >
+    <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+      {m.photo_url
+        ? <img src={m.photo_url} alt={m.full_name} style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+        : <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'linear-gradient(135deg,#3730A3,#F4623A)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 18, color: '#fff', flexShrink: 0 }}>
+            {(m.full_name || '?')[0].toUpperCase()}
+          </div>
+      }
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 3 }}>
+          <p style={{ fontSize: 15, fontWeight: 700, color: '#1A1A2E', margin: 0, fontFamily: "'Fraunces', serif" }}>{m.full_name}</p>
+          {m.license_verified && (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: '#DCFCE7', color: '#059669', borderRadius: 20, padding: '2px 7px', fontSize: 11, fontWeight: 600 }}>
+              <CheckCircle size={10} /> Verificado
+            </span>
+          )}
+        </div>
+        <p style={{ fontSize: 13, color: '#4F46E5', fontWeight: 600, margin: '0 0 6px' }}>{m.specialty}</p>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          {m.location_city && (
+            <span style={{ fontSize: 12, color: '#6B7280', display: 'flex', alignItems: 'center', gap: 3 }}>
+              <MapPin size={11} />{m.location_city}
+            </span>
+          )}
+          {m.consultation_price > 0 && (
+            <span style={{ fontSize: 12, color: '#F4623A', fontWeight: 600 }}>
+              {'$' + m.consultation_price.toLocaleString('es-MX') + ' MXN'}
+            </span>
+          )}
+          {(m.rating_avg || 0) > 0 && (
+            <span style={{ fontSize: 12, color: '#6B7280', display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Star size={11} fill="#F59E0B" color="#F59E0B" />{m.rating_avg.toFixed(1)}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  </Link>
+))
+MedicoCard.displayName = 'MedicoCard'
+
 export default function BuscarPage() {
   const searchParams  = useSearchParams()
   const mapRefD = useRef<HTMLDivElement>(null)
@@ -79,6 +144,7 @@ export default function BuscarPage() {
   }, [])
 
   useEffect(() => {
+    if (!searchParams) return
     const q      = searchParams.get('q') || ''
     const esp    = searchParams.get('especialidad') || ''
     const ciudad = searchParams.get('ciudad') || ''
@@ -180,18 +246,22 @@ export default function BuscarPage() {
     container: HTMLDivElement,
     mapRef: React.MutableRefObject<mapboxgl.Map | null>
   ) => {
-    if (mapRef.current || !mapboxgl.accessToken) return
-    mapRef.current = new mapboxgl.Map({
-      container,
-      style: 'mapbox://styles/mapbox/light-v11',
-      center: [-99.1332, 19.4326],
-      zoom: 11
-    })
-    mapRef.current.addControl(new mapboxgl.NavigationControl(), 'top-right')
-    mapRef.current.addControl(new mapboxgl.GeolocateControl({
-      positionOptions: { enableHighAccuracy: true },
-      trackUserLocation: false
-    }), 'top-right')
+    if (!mapboxgl.accessToken || mapRef.current) return
+    try {
+      mapRef.current = new mapboxgl.Map({
+        container,
+        style: 'mapbox://styles/mapbox/light-v11',
+        center: [-99.1332, 19.4326],
+        zoom: 11
+      })
+      mapRef.current.addControl(new mapboxgl.NavigationControl(), 'top-right')
+      mapRef.current.addControl(new mapboxgl.GeolocateControl({
+        positionOptions: { enableHighAccuracy: true },
+        trackUserLocation: false
+      }), 'top-right')
+    } catch (error) {
+      console.error('Error inicializando mapa:', error)
+    }
   }, [])
 
   useEffect(() => {
@@ -211,51 +281,6 @@ export default function BuscarPage() {
     setFiltrosOpen(false)
   }
 
-  const MedicoCard = ({ m }: { m: Medico }) => (
-    <Link
-      href={'/doctor/' + m.id}
-      style={{ display: 'block', padding: '14px 16px', background: '#fff', borderRadius: 12, textDecoration: 'none', color: 'inherit', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', border: sel === m.id ? '2px solid #3730A3' : '1.5px solid #F3F4F6', marginBottom: 10, transition: 'all 0.18s' }}
-      onMouseEnter={() => setSel(m.id)}
-    >
-      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-        {m.photo_url
-          ? <img src={m.photo_url} alt={m.full_name} style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
-          : <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'linear-gradient(135deg,#3730A3,#F4623A)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 18, color: '#fff', flexShrink: 0 }}>
-              {(m.full_name || '?')[0].toUpperCase()}
-            </div>
-        }
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 3 }}>
-            <p style={{ fontSize: 15, fontWeight: 700, color: '#1A1A2E', margin: 0, fontFamily: "'Fraunces', serif" }}>{m.full_name}</p>
-            {m.license_verified && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: '#DCFCE7', color: '#059669', borderRadius: 20, padding: '2px 7px', fontSize: 11, fontWeight: 600 }}>
-                <CheckCircle size={10} /> Verificado
-              </span>
-            )}
-          </div>
-          <p style={{ fontSize: 13, color: '#4F46E5', fontWeight: 600, margin: '0 0 6px' }}>{m.specialty}</p>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-            {m.location_city && (
-              <span style={{ fontSize: 12, color: '#6B7280', display: 'flex', alignItems: 'center', gap: 3 }}>
-                <MapPin size={11} />{m.location_city}
-              </span>
-            )}
-            {m.consultation_price > 0 && (
-              <span style={{ fontSize: 12, color: '#F4623A', fontWeight: 600 }}>
-                {'$' + m.consultation_price.toLocaleString('es-MX') + ' MXN'}
-              </span>
-            )}
-            {(m.rating_avg || 0) > 0 && (
-              <span style={{ fontSize: 12, color: '#6B7280', display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Star size={11} fill="#F59E0B" color="#F59E0B" />{m.rating_avg.toFixed(1)}
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
-    </Link>
-  )
-
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', fontFamily: "'DM Sans', sans-serif", color: '#1A1A2E', background: '#F9FAFB' }}>
       <style>{`
@@ -267,12 +292,15 @@ export default function BuscarPage() {
         .fld { width:100%; padding:8px 12px; border:1.5px solid #E5E7EB; border-radius:8px; font-size:13px; font-family:'DM Sans',sans-serif; color:#1A1A2E; outline:none; background:#fff; }
         .fld:focus { border-color:#3730A3; }
         select.fld { appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 10px center; padding-right:28px; }
-        .tab-mv { flex:1; padding:9px; border:none; border-radius:50px; font-size:13px; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.18s; }
+        .tab-mv { flex:1; padding:9px; border:none; border-radius:50px; font-size:13px; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.18s; min-height:44px; }
         .tab-mv.on { background:#3730A3; color:#fff; }
         .tab-mv.off { background:#fff; color:#6B7280; border:1.5px solid #E5E7EB; }
         .mapboxgl-popup-content { border-radius:10px !important; padding:0 !important; overflow:hidden; box-shadow:0 6px 20px rgba(0,0,0,0.1) !important; }
         @keyframes fadeUp { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
         .fade-up { animation:fadeUp 0.18s ease-out; }
+        @media (max-width: 767px) {
+          .desktop-map { display: none !important; }
+        }
       `}</style>
 
       {/* NAV */}
@@ -292,6 +320,7 @@ export default function BuscarPage() {
                 placeholder="Especialidad, síntoma o médico..."
                 value={filtros.q}
                 onChange={e => setFiltros(f => ({ ...f, q: e.target.value }))}
+                aria-label="Buscar médico o especialidad"
               />
             </div>
 
@@ -299,7 +328,9 @@ export default function BuscarPage() {
             <div ref={panelRef} style={{ position: 'relative', flexShrink: 0 }}>
               <button
                 onClick={() => setFiltrosOpen(o => !o)}
-                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 14px', background: filtrosActivos > 0 ? '#3730A3' : '#F3F4F6', color: filtrosActivos > 0 ? '#fff' : '#374151', border: 'none', borderRadius: 50, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", whiteSpace: 'nowrap' }}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 14px', background: filtrosActivos > 0 ? '#3730A3' : '#F3F4F6', color: filtrosActivos > 0 ? '#fff' : '#374151', border: 'none', borderRadius: 50, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", whiteSpace: 'nowrap', minHeight: 44 }}
+                aria-expanded={filtrosOpen}
+                aria-label="Abrir filtros de búsqueda"
               >
                 <Filter size={13} />
                 {'Filtros' + (filtrosActivos > 0 ? ' (' + filtrosActivos + ')' : '')}
@@ -322,6 +353,8 @@ export default function BuscarPage() {
                     width: 300,
                     maxWidth: 'calc(100vw - 32px)',
                   }}
+                  role="dialog"
+                  aria-label="Filtros de búsqueda"
                 >
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 14 }}>
                     <div>
@@ -341,10 +374,10 @@ export default function BuscarPage() {
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button onClick={limpiar} style={{ flex: 1, padding: '9px', background: '#F3F4F6', color: '#6B7280', border: 'none', borderRadius: 50, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
+                    <button onClick={limpiar} style={{ flex: 1, padding: '9px', background: '#F3F4F6', color: '#6B7280', border: 'none', borderRadius: 50, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", minHeight: 44 }}>
                       Limpiar
                     </button>
-                    <button onClick={() => { setFiltros({ ...tmp }); setFiltrosOpen(false) }} style={{ flex: 2, padding: '9px', background: '#3730A3', color: '#fff', border: 'none', borderRadius: 50, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
+                    <button onClick={() => { setFiltros({ ...tmp }); setFiltrosOpen(false) }} style={{ flex: 2, padding: '9px', background: '#3730A3', color: '#fff', border: 'none', borderRadius: 50, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", minHeight: 44 }}>
                       Aplicar
                     </button>
                   </div>
@@ -358,10 +391,10 @@ export default function BuscarPage() {
       {/* TABS MÓVIL */}
       {isMobile && (
         <div style={{ display: 'flex', background: '#fff', borderBottom: '1px solid #F3F4F6', padding: '10px 16px', gap: 8 }}>
-          <button className={'tab-mv ' + (vista === 'lista' ? 'on' : 'off')} onClick={() => setVista('lista')}>
+          <button className={'tab-mv ' + (vista === 'lista' ? 'on' : 'off')} onClick={() => setVista('lista')} aria-pressed={vista === 'lista'}>
             {'Lista (' + total + ')'}
           </button>
-          <button className={'tab-mv ' + (vista === 'mapa' ? 'on' : 'off')} onClick={() => setVista('mapa')}>
+          <button className={'tab-mv ' + (vista === 'mapa' ? 'on' : 'off')} onClick={() => setVista('mapa')} aria-pressed={vista === 'mapa'}>
             🗺 Mapa
           </button>
         </div>
@@ -395,14 +428,14 @@ export default function BuscarPage() {
                 <p style={{ fontSize: 13, color: '#9CA3AF' }}>Intenta con otra especialidad o ciudad</p>
               </div>
             ) : (
-              medicos.map(m => <MedicoCard key={m.id} m={m} />)
+              medicos.map(m => <MedicoCard key={m.id} m={m} sel={sel} setSel={setSel} />)
             )}
           </div>
         </div>
 
         {/* MAPA DESKTOP */}
         {!isMobile && (
-          <div style={{ width: '45%', position: 'relative', background: '#F3F4F6', flexShrink: 0 }}>
+          <div className="desktop-map" style={{ width: '45%', position: 'relative', background: '#F3F4F6', flexShrink: 0 }}>
             <div ref={mapRefD} style={{ width: '100%', height: '100%' }} />
           </div>
         )}
