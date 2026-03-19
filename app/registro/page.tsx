@@ -7,681 +7,516 @@ import Link from 'next/link'
 import { Mail, MapPin, Stethoscope, CheckCircle, AlertCircle, Eye, EyeOff } from 'lucide-react'
 
 const ESPECIALIDADES = [
-  'Alergología', 'Anestesiología', 'Angiología', 'Cardiología',
-  'Cirugía Cardiovascular', 'Cirugía General', 'Cirugía Plástica', 'Dermatología',
-  'Endocrinología', 'Gastroenterología', 'Geriatría', 'Ginecología y Obstetricia',
-  'Hematología', 'Infectología', 'Medicina Familiar', 'Medicina Física y Rehabilitación',
-  'Medicina Interna', 'Nefrología', 'Neumología', 'Neurología',
-  'Neurocirugía', 'Nutriología', 'Oftalmología', 'Oncología',
-  'Ortopedia y Traumatología', 'Otorrinolaringología', 'Pediatría', 'Psiquiatría',
-  'Radiología', 'Reumatología', 'Urología', 'Otra especialidad'
+  'Alergología','Anestesiología','Angiología','Cardiología',
+  'Cirugía Cardiovascular','Cirugía General','Cirugía Plástica','Dermatología',
+  'Endocrinología','Gastroenterología','Geriatría','Ginecología y Obstetricia',
+  'Hematología','Infectología','Medicina Familiar','Medicina Física y Rehabilitación',
+  'Medicina Interna','Nefrología','Neumología','Neurología',
+  'Neurocirugía','Nutriología','Oftalmología','Oncología',
+  'Ortopedia y Traumatología','Otorrinolaringología','Pediatría','Psiquiatría',
+  'Radiología','Reumatología','Urología','Otra especialidad'
 ]
 
 const ESTADOS_MEXICO = [
-  'Aguascalientes', 'Baja California', 'Baja California Sur', 'Campeche',
-  'Chiapas', 'Chihuahua', 'Ciudad de México', 'Coahuila', 'Colima',
-  'Durango', 'Guanajuato', 'Guerrero', 'Hidalgo', 'Jalisco',
-  'México', 'Michoacán', 'Morelos', 'Nayarit', 'Nuevo León',
-  'Oaxaca', 'Puebla', 'Querétaro', 'Quintana Roo', 'San Luis Potosí',
-  'Sinaloa', 'Sonora', 'Tabasco', 'Tamaulipas', 'Tlaxcala',
-  'Veracruz', 'Yucatán', 'Zacatecas'
+  'Aguascalientes','Baja California','Baja California Sur','Campeche',
+  'Chiapas','Chihuahua','Ciudad de México','Coahuila','Colima',
+  'Durango','Guanajuato','Guerrero','Hidalgo','Jalisco',
+  'México','Michoacán','Morelos','Nayarit','Nuevo León',
+  'Oaxaca','Puebla','Querétaro','Quintana Roo','San Luis Potosí',
+  'Sinaloa','Sonora','Tabasco','Tamaulipas','Tlaxcala',
+  'Veracruz','Yucatán','Zacatecas'
 ]
 
 const CIUDADES_POR_ESTADO: Record<string, string[]> = {
-  'Aguascalientes': ['Aguascalientes', 'Calvillo', 'Rincón de Romos'],
-  'Baja California': ['Tijuana', 'Mexicali', 'Ensenada', 'Playas de Rosarito', 'Tecate'],
-  'Baja California Sur': ['La Paz', 'Los Cabos', 'Loreto', 'Comondú'],
-  'Campeche': ['Campeche', 'Ciudad del Carmen', 'Champotón'],
-  'Chiapas': ['Tuxtla Gutiérrez', 'Tapachula', 'San Cristóbal de las Casas', 'Comitán'],
-  'Chihuahua': ['Chihuahua', 'Ciudad Juárez', 'Delicias', 'Cuauhtémoc', 'Parral'],
+  'Aguascalientes': ['Aguascalientes','Calvillo','Rincón de Romos'],
+  'Baja California': ['Tijuana','Mexicali','Ensenada','Playas de Rosarito','Tecate'],
+  'Baja California Sur': ['La Paz','Los Cabos','Loreto','Comondú'],
+  'Campeche': ['Campeche','Ciudad del Carmen','Champotón'],
+  'Chiapas': ['Tuxtla Gutiérrez','Tapachula','San Cristóbal de las Casas','Comitán'],
+  'Chihuahua': ['Chihuahua','Ciudad Juárez','Delicias','Cuauhtémoc','Parral'],
   'Ciudad de México': ['Ciudad de México'],
-  'Coahuila': ['Saltillo', 'Torreón', 'Monclova', 'Piedras Negras', 'Acuña'],
-  'Colima': ['Colima', 'Manzanillo', 'Tecomán', 'Villa de Álvarez'],
-  'Durango': ['Durango', 'Gómez Palacio', 'Lerdo', 'Santiago Papasquiaro'],
-  'Guanajuato': ['León', 'Irapuato', 'Celaya', 'Salamanca', 'Guanajuato', 'Silao'],
-  'Guerrero': ['Acapulco', 'Chilpancingo', 'Iguala', 'Taxco', 'Zihuatanejo'],
-  'Hidalgo': ['Pachuca', 'Tulancingo', 'Huejutla', 'Ixmiquilpan'],
-  'Jalisco': ['Guadalajara', 'Zapopan', 'Tlaquepaque', 'Tonalá', 'Puerto Vallarta', 'Tlajomulco'],
-  'México': ['Toluca', 'Ecatepec', 'Nezahualcóyotl', 'Naucalpan', 'Tlalnepantla', 'Cuautitlán Izcalli'],
-  'Michoacán': ['Morelia', 'Uruapan', 'Zamora', 'Lázaro Cárdenas', 'Apatzingán'],
-  'Morelos': ['Cuernavaca', 'Jiutepec', 'Temixco', 'Cuautla'],
-  'Nayarit': ['Tepic', 'Bahía de Banderas', 'Santiago Ixcuintla'],
-  'Nuevo León': ['Monterrey', 'Guadalupe', 'San Nicolás de los Garza', 'Apodaca', 'Santa Catarina', 'San Pedro Garza García'],
-  'Oaxaca': ['Oaxaca de Juárez', 'Salina Cruz', 'Tuxtepec', 'Juchitán'],
-  'Puebla': ['Puebla', 'Tehuacán', 'San Martín Texmelucan', 'Atlixco', 'Cholula'],
-  'Querétaro': ['Querétaro', 'San Juan del Río', 'Corregidora', 'El Marqués'],
-  'Quintana Roo': ['Cancún', 'Playa del Carmen', 'Chetumal', 'Cozumel', 'Tulum'],
-  'San Luis Potosí': ['San Luis Potosí', 'Soledad de Graciano Sánchez', 'Ciudad Valles', 'Matehuala'],
-  'Sinaloa': ['Culiacán', 'Mazatlán', 'Los Mochis', 'Guasave', 'Guamúchil'],
-  'Sonora': ['Hermosillo', 'Ciudad Obregón', 'Nogales', 'San Luis Río Colorado', 'Navojoa'],
-  'Tabasco': ['Villahermosa', 'Cárdenas', 'Comalcalco', 'Huimanguillo'],
-  'Tamaulipas': ['Ciudad Victoria', 'Reynosa', 'Matamoros', 'Tampico', 'Nuevo Laredo', 'Madero'],
-  'Tlaxcala': ['Tlaxcala', 'Huamantla', 'Apizaco', 'Chiautempan'],
-  'Veracruz': ['Veracruz', 'Xalapa', 'Coatzacoalcos', 'Poza Rica', 'Córdoba', 'Orizaba', 'Minatitlán'],
-  'Yucatán': ['Mérida', 'Valladolid', 'Tizimín', 'Progreso', 'Ticul'],
-  'Zacatecas': ['Zacatecas', 'Fresnillo', 'Guadalupe', 'Jerez']
+  'Coahuila': ['Saltillo','Torreón','Monclova','Piedras Negras','Acuña'],
+  'Colima': ['Colima','Manzanillo','Tecomán','Villa de Álvarez'],
+  'Durango': ['Durango','Gómez Palacio','Lerdo','Santiago Papasquiaro'],
+  'Guanajuato': ['León','Irapuato','Celaya','Salamanca','Guanajuato','Silao'],
+  'Guerrero': ['Acapulco','Chilpancingo','Iguala','Taxco','Zihuatanejo'],
+  'Hidalgo': ['Pachuca','Tulancingo','Huejutla','Ixmiquilpan'],
+  'Jalisco': ['Guadalajara','Zapopan','Tlaquepaque','Tonalá','Puerto Vallarta','Tlajomulco'],
+  'México': ['Toluca','Ecatepec','Nezahualcóyotl','Naucalpan','Tlalnepantla','Cuautitlán Izcalli'],
+  'Michoacán': ['Morelia','Uruapan','Zamora','Lázaro Cárdenas','Apatzingán'],
+  'Morelos': ['Cuernavaca','Jiutepec','Temixco','Cuautla'],
+  'Nayarit': ['Tepic','Bahía de Banderas','Santiago Ixcuintla'],
+  'Nuevo León': ['Monterrey','Guadalupe','San Nicolás de los Garza','Apodaca','Santa Catarina','San Pedro Garza García'],
+  'Oaxaca': ['Oaxaca de Juárez','Salina Cruz','Tuxtepec','Juchitán'],
+  'Puebla': ['Puebla','Tehuacán','San Martín Texmelucan','Atlixco','Cholula'],
+  'Querétaro': ['Querétaro','San Juan del Río','Corregidora','El Marqués'],
+  'Quintana Roo': ['Cancún','Playa del Carmen','Chetumal','Cozumel','Tulum'],
+  'San Luis Potosí': ['San Luis Potosí','Soledad de Graciano Sánchez','Ciudad Valles','Matehuala'],
+  'Sinaloa': ['Culiacán','Mazatlán','Los Mochis','Guasave','Guamúchil'],
+  'Sonora': ['Hermosillo','Ciudad Obregón','Nogales','San Luis Río Colorado','Navojoa'],
+  'Tabasco': ['Villahermosa','Cárdenas','Comalcalco','Huimanguillo'],
+  'Tamaulipas': ['Ciudad Victoria','Reynosa','Matamoros','Tampico','Nuevo Laredo','Madero'],
+  'Tlaxcala': ['Tlaxcala','Huamantla','Apizaco','Chiautempan'],
+  'Veracruz': ['Veracruz','Xalapa','Coatzacoalcos','Poza Rica','Córdoba','Orizaba','Minatitlán'],
+  'Yucatán': ['Mérida','Valladolid','Tizimín','Progreso','Ticul'],
+  'Zacatecas': ['Zacatecas','Fresnillo','Guadalupe','Jerez']
+}
+
+interface FormData {
+  email: string; password: string; confirmPassword: string
+  full_name: string; specialty: string; professional_license: string
+  description: string; consultation_price: string
+  phone: string; location_state: string; location_city: string
+  location_neighborhood: string; address: string; terms_accepted: boolean
 }
 
 export default function RegistroMedico() {
   const router = useRouter()
-  const [step, setStep] = useState(1)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState(false)
-  const [showPass, setShowPass] = useState(false)
+  const [step, setStep]           = useState(1)
+  const [loading, setLoading]     = useState(false)
+  const [error, setError]         = useState<string | null>(null)
+  const [success, setSuccess]     = useState(false)
+  const [showPass, setShowPass]   = useState(false)
   const [showPass2, setShowPass2] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<Record<string, boolean>>({})
-  const [ciudadesDisponibles, setCiudadesDisponibles] = useState<string[]>([])
-  
-  const firstInputRef = useRef<HTMLInputElement>(null)
+  const [ciudades, setCiudades]   = useState<string[]>([])
 
-  const [form, setForm] = useState({
+  // Un ref por paso para el focus automático
+  const refPaso1 = useRef<HTMLInputElement>(null)
+  const refPaso2 = useRef<HTMLInputElement>(null)
+  const refPaso3 = useRef<HTMLInputElement>(null)
+
+  const [form, setForm] = useState<FormData>({
     email: '', password: '', confirmPassword: '',
     full_name: '', specialty: '', professional_license: '',
     description: '', consultation_price: '',
-    phone: '', location_state: '', location_city: '', location_neighborhood: '',
-    address: '', terms_accepted: false,
+    phone: '', location_state: '', location_city: '',
+    location_neighborhood: '', address: '', terms_accepted: false,
   })
 
+  // Focus automático al cambiar de paso
   useEffect(() => {
-    if (firstInputRef.current) {
-      firstInputRef.current.focus()
-    }
+    const timer = setTimeout(() => {
+      if (step === 1) refPaso1.current?.focus()
+      if (step === 2) refPaso2.current?.focus()
+      if (step === 3) refPaso3.current?.focus()
+    }, 100)
+    return () => clearTimeout(timer)
   }, [step])
 
   useEffect(() => {
     if (form.location_state && CIUDADES_POR_ESTADO[form.location_state]) {
-      setCiudadesDisponibles(CIUDADES_POR_ESTADO[form.location_state])
+      setCiudades(CIUDADES_POR_ESTADO[form.location_state])
       if (!CIUDADES_POR_ESTADO[form.location_state].includes(form.location_city)) {
-        setForm(prev => ({ ...prev, location_city: '' }))
+        setForm(p => ({ ...p, location_city: '' }))
       }
     } else {
-      setCiudadesDisponibles([])
+      setCiudades([])
     }
-  }, [form.location_state, form.location_city])
+  }, [form.location_state])
 
   const handle = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target
     const checked = (e.target as HTMLInputElement).checked
-    setForm(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }))
-    
-    if (fieldErrors[name]) {
-      setFieldErrors(prev => ({ ...prev, [name]: false }))
-    }
+    setForm(p => ({ ...p, [name]: type === 'checkbox' ? checked : value }))
+    if (fieldErrors[name]) setFieldErrors(p => ({ ...p, [name]: false }))
     if (error) setError(null)
   }
 
-  const validate = {
+  const validate: Record<number, () => { msg: string | null; errors: Record<string, boolean> }> = {
     1: () => {
-      const errors: Record<string, boolean> = {}
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
-        errors.email = true
-        return { msg: 'Ingresa un email válido', errors }
-      }
-      if (form.password.length < 8) {
-        errors.password = true
-        return { msg: 'La contraseña debe tener mínimo 8 caracteres', errors }
-      }
-      if (form.password !== form.confirmPassword) {
-        errors.confirmPassword = true
-        return { msg: 'Las contraseñas no coinciden', errors }
-      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
+        return { msg: 'Ingresa un email válido', errors: { email: true } }
+      if (form.password.length < 8)
+        return { msg: 'La contraseña debe tener mínimo 8 caracteres', errors: { password: true } }
+      if (form.password !== form.confirmPassword)
+        return { msg: 'Las contraseñas no coinciden', errors: { confirmPassword: true } }
       return { msg: null, errors: {} }
     },
     2: () => {
-      const errors: Record<string, boolean> = {}
-      if (!form.full_name.trim()) {
-        errors.full_name = true
-        return { msg: 'El nombre completo es obligatorio', errors }
-      }
-      if (!form.specialty) {
-        errors.specialty = true
-        return { msg: 'Selecciona tu especialidad', errors }
-      }
-      if (!/^\d{7,8}$/.test(form.professional_license)) {
-        errors.professional_license = true
-        return { msg: 'La cédula debe tener 7 u 8 dígitos numéricos', errors }
-      }
+      if (!form.full_name.trim())
+        return { msg: 'El nombre completo es obligatorio', errors: { full_name: true } }
+      if (!form.specialty)
+        return { msg: 'Selecciona tu especialidad', errors: { specialty: true } }
+      if (!/^\d{7,8}$/.test(form.professional_license))
+        return { msg: 'La cédula debe tener 7 u 8 dígitos', errors: { professional_license: true } }
       return { msg: null, errors: {} }
     },
     3: () => {
-      const errors: Record<string, boolean> = {}
-      if (!form.phone.replace(/\D/g,'').match(/^\d{10}$/)) {
-        errors.phone = true
-        return { msg: 'Ingresa un teléfono de 10 dígitos', errors }
-      }
-      if (!form.location_state) {
-        errors.location_state = true
-        return { msg: 'Selecciona tu estado', errors }
-      }
-      if (!form.location_city.trim()) {
-        errors.location_city = true
-        return { msg: 'Selecciona tu ciudad', errors }
-      }
-      if (!form.terms_accepted) {
+      if (!form.phone.replace(/\D/g, '').match(/^\d{10}$/))
+        return { msg: 'Ingresa un teléfono de 10 dígitos', errors: { phone: true } }
+      if (!form.location_state)
+        return { msg: 'Selecciona tu estado', errors: { location_state: true } }
+      if (!form.location_city.trim())
+        return { msg: 'Selecciona tu ciudad', errors: { location_city: true } }
+      if (!form.terms_accepted)
         return { msg: 'Debes aceptar los términos y condiciones', errors: { terms_accepted: true } }
-      }
       return { msg: null, errors: {} }
     }
   }
 
   const nextStep = () => {
-    const result = validate[step]()
-    if (result.msg) { 
-      setError(result.msg)
-      setFieldErrors(result.errors)
-      return 
-    }
-    setError(null)
-    setFieldErrors({})
+    const { msg, errors } = validate[step]()
+    if (msg) { setError(msg); setFieldErrors(errors); return }
+    setError(null); setFieldErrors({})
     setStep(s => s + 1)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const prevStep = () => {
     setStep(s => s - 1)
-    setError(null)
-    setFieldErrors({})
+    setError(null); setFieldErrors({})
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const result = validate[3]()
-    if (result.msg) { 
-      setError(result.msg)
-      setFieldErrors(result.errors)
-      return 
-    }
-    setLoading(true)
-    setError(null)
+    const { msg, errors } = validate[3]()
+    if (msg) { setError(msg); setFieldErrors(errors); return }
+    setLoading(true); setError(null)
     try {
-      const { error: authError } = await supabase.auth.signUp({
-        email: form.email,
-        password: form.password,
+      const { error: ae } = await supabase.auth.signUp({ email: form.email, password: form.password })
+      if (ae) throw ae
+      const { error: de } = await supabase.from('doctors').insert({
+        email:                 form.email,
+        full_name:             form.full_name.trim(),
+        specialty:             form.specialty,
+        professional_license:  form.professional_license,
+        description:           form.description.trim() || null,
+        consultation_price:    parseFloat(form.consultation_price) || 0,
+        phone:                 form.phone.replace(/\D/g, ''),
+        location_city:         form.location_city.trim(),
+        location_neighborhood: form.location_neighborhood.trim() || null,
+        address:               form.address.trim() || null,
+        license_verified:      false,
+        is_active:             true,
+        verification_status:   'pendiente',
       })
-      if (authError) throw authError
-
-      const { error: dbError } = await supabase.from('doctors').insert({
-        email:                form.email,
-        full_name:            form.full_name.trim(),
-        specialty:            form.specialty,
-        professional_license: form.professional_license,
-        description:          form.description.trim() || null,
-        consultation_price:   parseFloat(form.consultation_price) || 0,
-        phone:                form.phone.replace(/\D/g,''),
-        location_city:        form.location_city.trim(),
-        location_neighborhood:form.location_neighborhood.trim() || null,
-        address:              form.address.trim() || null,
-        license_verified:     false,
-        is_active:            true,
-        verification_status:  'pendiente',
-      })
-      if (dbError) throw dbError
+      if (de) throw de
       setSuccess(true)
-    } catch (err: any) {
-      setError(err.message || 'Ocurrió un error. Intenta de nuevo.')
-    } finally {
-      setLoading(false)
-    }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Ocurrió un error. Intenta de nuevo.')
+    } finally { setLoading(false) }
   }
 
-  if (success) {
-    return (
-      <div style={{ minHeight: '100vh', background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, fontFamily: "'DM Sans', sans-serif" }}>
-        <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@600;900&family=DM+Sans:wght@300;400;500;700&display=swap');`}</style>
-        <div style={{ background: '#fff', borderRadius: 24, padding: '40px 32px', maxWidth: 480, width: '100%', textAlign: 'center', boxShadow: '0 20px 60px #3730A318' }}>
-          <div style={{ width: 80, height: 80, borderRadius: '50%', background: '#3730A3', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
-            <CheckCircle size={40} color="#fff" />
-          </div>
-          <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(24px, 5vw, 30px)', fontWeight: 900, color: '#3730A3', marginBottom: 12 }}>
-            ¡Ya eres parte de Salurama!
-          </h2>
-          <p style={{ color: '#6B7280', fontSize: 15, lineHeight: 1.7, marginBottom: 8 }}>
-            Revisaremos tu cédula profesional y activaremos tu perfil en <strong style={{ color: '#1A1A2E' }}>24 a 48 horas</strong>.
-          </p>
-          <p style={{ color: '#9CA3AF', fontSize: 13, marginBottom: 32 }}>
-            Te avisaremos por email cuando estés visible para los pacientes.
-          </p>
-          <Link href="/" style={{ display: 'inline-block', background: '#3730A3', color: '#fff', padding: '14px 32px', borderRadius: 50, textDecoration: 'none', fontWeight: 700, fontSize: 15, minHeight: 48 }}>
-            Ir al inicio
-          </Link>
+  const fs = (name: string): React.CSSProperties => ({
+    width: '100%', padding: '13px 15px',
+    border: '1.5px solid ' + (fieldErrors[name] ? '#DC2626' : '#E5E7EB'),
+    borderRadius: 10, fontSize: 15,
+    fontFamily: "'DM Sans', sans-serif",
+    color: '#1A1A2E', outline: 'none',
+    background: '#fff',
+  })
+
+  if (success) return (
+    <div style={{ minHeight: '100vh', background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, fontFamily: "'DM Sans', sans-serif" }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@900&family=DM+Sans:wght@400;700&display=swap');`}</style>
+      <div style={{ background: '#fff', borderRadius: 22, padding: 'clamp(32px, 8vw, 48px)', maxWidth: 440, width: '100%', textAlign: 'center', boxShadow: '0 16px 48px rgba(55,48,163,0.1)' }}>
+        <div style={{ width: 76, height: 76, borderRadius: '50%', background: '#3730A3', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+          <CheckCircle size={38} color="#fff" />
         </div>
+        <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 28, fontWeight: 900, color: '#3730A3', marginBottom: 10 }}>
+          ¡Ya eres parte de Salurama!
+        </h2>
+        <p style={{ color: '#6B7280', fontSize: 14, lineHeight: 1.7, marginBottom: 6 }}>
+          Revisaremos tu cédula y activaremos tu perfil en{' '}
+          <strong style={{ color: '#1A1A2E' }}>24 a 48 horas</strong>.
+        </p>
+        <p style={{ color: '#9CA3AF', fontSize: 13, marginBottom: 28 }}>
+          Te avisaremos por email cuando estés visible para los pacientes.
+        </p>
+        <Link href="/" style={{ display: 'inline-block', background: '#3730A3', color: '#fff', padding: '12px 28px', borderRadius: 50, textDecoration: 'none', fontWeight: 700, fontSize: 14 }}>
+          Ir al inicio
+        </Link>
       </div>
-    )
-  }
+    </div>
+  )
 
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #EEF2FF 0%, #fff 40%)', fontFamily: "'DM Sans', sans-serif", color: '#1A1A2E' }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@600;900&family=DM+Sans:wght@300;400;500;700&display=swap');
-        * { box-sizing: border-box; }
-
-        .field {
-          width: 100%; padding: 14px 16px;
-          border: 1.5px solid #E5E7EB; border-radius: 10px;
-          font-size: 15px; font-family: 'DM Sans', sans-serif;
-          color: #1A1A2E; outline: none; background: #fff;
-          transition: border-color 0.18s, box-shadow 0.18s;
-          min-height: 48px;
-        }
-        .field:focus { border-color: #3730A3; box-shadow: 0 0 0 3px #3730A314; }
-        .field.error { border-color: #DC2626; }
-        .field:disabled { background: #F3F4F6; cursor: not-allowed; }
-        .field::placeholder { color: #9CA3AF; font-weight: 300; }
-
-        select.field {
-          appearance: none;
-          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-          background-repeat: no-repeat;
-          background-position: right 14px center;
-          padding-right: 40px; cursor: pointer;
-        }
-
-        .label { display: block; font-size: 13px; font-weight: 500; color: '#374151'; margin-bottom: 6px; }
-        .hint  { font-size: 12px; color: '#9CA3AF'; margin-top: 4px; }
-
-        .btn-primary {
-          width: 100%; background: #3730A3; color: #fff; border: none;
-          border-radius: 50px; padding: 15px 24px;
-          font-size: 16px; font-family: 'DM Sans', sans-serif; font-weight: 700;
-          cursor: pointer; transition: background 0.18s;
-          min-height: 48px;
-        }
-        .btn-primary:hover:not(:disabled) { background: #4F46E5; }
-        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-
-        .btn-back {
-          width: 100%; background: transparent; color: '#6B7280';
-          border: 1.5px solid #E5E7EB; border-radius: 50px;
-          padding: 13px 24px; font-size: 15px;
-          font-family: 'DM Sans', sans-serif; font-weight: 500;
-          cursor: pointer; transition: all 0.18s; margin-top: 10px;
-          min-height: 48px;
-        }
-        .btn-back:hover { border-color: #3730A3; color: #3730A3; }
-
-        .pass-wrap { position: relative; }
-        .pass-eye  {
-          position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
-          background: none; border: none; cursor: pointer; color: '#9CA3AF'; padding: 4px;
-          min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center;
-        }
-        .pass-eye:hover { color: '#3730A3; }
-
-        .step-dot {
-          width: 36px; height: 36px; border-radius: 50%;
-          display: flex; align-items: center; justify-content: center;
-          font-size: 14px; font-weight: 700; transition: all 0.3s;
-        }
-
-        @keyframes spin    { to { transform: rotate(360deg); } }
-        @keyframes fadeIn  { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-        .fade-in { animation: fadeIn 0.25s ease-out; }
-
-        @media (max-width: 640px) {
-          .grid2 { grid-template-columns: 1fr !important; }
-          .container-padding { padding: 24px 16px 40px !important; }
-          .card-padding { padding: 24px 20px !important; }
-          .logo-size { font-size: clamp(32px, 8vw, 42px) !important; }
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;0,900&family=DM+Sans:wght@300;400;500;700&display=swap');
+        *, *::before, *::after { box-sizing: border-box; }
+        input:focus, select:focus, textarea:focus { border-color: #3730A3 !important; box-shadow: 0 0 0 3px rgba(55,48,163,0.08) !important; outline: none; }
+        input::placeholder, textarea::placeholder { color: #9CA3AF; font-weight: 300; }
+        select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 13px center; padding-right: 38px !important; cursor: pointer; }
+        .btn-p { width:100%; background:#3730A3; color:#fff; border:none; border-radius:50px; padding:14px 24px; font-size:16px; font-family:'DM Sans',sans-serif; font-weight:700; cursor:pointer; transition:background 0.18s; }
+        .btn-p:hover:not(:disabled) { background:#4F46E5; }
+        .btn-p:disabled { opacity:0.5; cursor:not-allowed; }
+        .btn-b { width:100%; background:transparent; color:#6B7280; border:1.5px solid #E5E7EB; border-radius:50px; padding:12px 24px; font-size:14px; font-family:'DM Sans',sans-serif; font-weight:500; cursor:pointer; transition:all 0.18s; margin-top:10px; }
+        .btn-b:hover { border-color:#3730A3; color:#3730A3; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes fi { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+        .fi { animation: fi 0.22s ease-out; }
+        @media (max-width: 560px) { .g2 { grid-template-columns: 1fr !important; } }
       `}</style>
 
-      <div className="container-padding" style={{ maxWidth: 580, margin: '0 auto', padding: '32px 24px 60px' }}>
+      <div style={{ maxWidth: 560, margin: '0 auto', padding: 'clamp(28px, 6vw, 44px) 16px 56px' }}>
 
         {/* HEADER */}
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <Link href="/" style={{ textDecoration: 'none', display: 'inline-block', marginBottom: 8 }}>
-            <span className="logo-size" style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(32px, 8vw, 42px)', fontWeight: 900, color: '#3730A3', letterSpacing: '-1px', display: 'inline-block' }}>Salu</span>
-            <span className="logo-size" style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(32px, 8vw, 42px)', fontWeight: 600, color: '#F4623A', letterSpacing: '-1px', display: 'inline-block', marginLeft: 2 }}>rama</span>
+          <Link href="/" style={{ textDecoration: 'none', display: 'inline-block', marginBottom: 6 }}>
+            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(34px, 8vw, 42px)', fontWeight: 900, color: '#3730A3', letterSpacing: '-1px' }}>Salu</span>
+            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(34px, 8vw, 42px)', fontWeight: 600, color: '#F4623A', letterSpacing: '-1px' }}>rama</span>
           </Link>
-          <p style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(14px, 3vw, 16px)', fontStyle: 'italic', fontWeight: 600, color: '#4F46E5', marginBottom: 14 }}>
-            Salud en tus manos
-          </p>
-          <h1 className="logo-size" style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(20px, 5vw, 30px)', fontWeight: 900, color: '#3730A3', marginBottom: 8 }}>
-            Registro de Médicos
-          </h1>
-          <p style={{ fontSize: 15, color: '#4F46E5', fontWeight: 500, marginBottom: 12 }}>
-            Tus pacientes te están buscando.
-          </p>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#3730A3', color: '#fff', padding: '8px 20px', borderRadius: 50, fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
+          <p style={{ fontFamily: "'Fraunces', serif", fontSize: 15, fontStyle: 'italic', fontWeight: 600, color: '#4F46E5', marginBottom: 16 }}>Salud en tus manos</p>
+          <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(20px, 5vw, 28px)', fontWeight: 900, color: '#3730A3', marginBottom: 6 }}>Registro de Médicos</h1>
+          <p style={{ fontSize: 14, color: '#4F46E5', fontWeight: 500, marginBottom: 12 }}>Tus pacientes te están buscando.</p>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: '#3730A3', color: '#fff', padding: '7px 18px', borderRadius: 50, fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
             GRATIS PARA SIEMPRE
           </div>
-          <p style={{ fontSize: 12, color: '#6B7280', fontWeight: 400 }}>
-            Sin suscripciones · Sin comisiones · Sin costos ocultos
-          </p>
+          <p style={{ fontSize: 12, color: '#9CA3AF' }}>Sin suscripciones · Sin comisiones · Sin costos ocultos</p>
         </div>
 
         {/* INDICADOR DE PASOS */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
-          {[
-            { n: 1, label: 'Cuenta' },
-            { n: 2, label: 'Perfil' },
-            { n: 3, label: 'Ubicación' },
-          ].map((s, i) => (
+          {[{ n: 1, label: 'Cuenta' }, { n: 2, label: 'Perfil' }, { n: 3, label: 'Ubicación' }].map((s, i) => (
             <div key={s.n} style={{ display: 'flex', alignItems: 'center' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
-                <div className="step-dot" style={{
-                  background: step > s.n ? '#10B981' : step === s.n ? '#3730A3' : '#E5E7EB',
-                  color: step >= s.n ? '#fff' : '#9CA3AF',
-                  minWidth: 44, minHeight: 44,
-                }}>
-                  {step > s.n ? <CheckCircle size={18} /> : s.n}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                <div style={{ width: 34, height: 34, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, transition: 'all 0.3s', background: step > s.n ? '#10B981' : step === s.n ? '#3730A3' : '#E5E7EB', color: step >= s.n ? '#fff' : '#9CA3AF' }}>
+                  {step > s.n ? <CheckCircle size={16} /> : s.n}
                 </div>
-                <span style={{ fontSize: 11, fontWeight: step === s.n ? 600 : 400, color: step >= s.n ? '#3730A3' : '#9CA3AF' }}>
-                  {s.label}
-                </span>
+                <span style={{ fontSize: 10, fontWeight: step === s.n ? 600 : 400, color: step >= s.n ? '#3730A3' : '#9CA3AF' }}>{s.label}</span>
               </div>
-              {i < 2 && (
-                <div style={{ width: 48, height: 2, background: step > s.n ? '#10B981' : '#E5E7EB', margin: '0 6px 18px', transition: 'background 0.3s' }} />
-              )}
+              {i < 2 && <div style={{ width: 56, height: 2, background: step > s.n ? '#10B981' : '#E5E7EB', margin: '0 6px 16px', transition: 'background 0.3s' }} />}
             </div>
           ))}
         </div>
 
         {/* ERROR */}
         {error && (
-          <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderLeft: '4px solid #DC2626', borderRadius: 10, padding: '12px 16px', marginBottom: 18, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-            <AlertCircle size={17} color="#DC2626" style={{ flexShrink: 0, marginTop: 1 }} />
-            <p style={{ fontSize: 14, color: '#DC2626', margin: 0 }}>{error}</p>
+          <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderLeft: '4px solid #DC2626', borderRadius: 10, padding: '11px 14px', marginBottom: 16, display: 'flex', gap: 9, alignItems: 'flex-start' }}>
+            <AlertCircle size={16} color="#DC2626" style={{ flexShrink: 0, marginTop: 1 }} />
+            <p style={{ fontSize: 13, color: '#DC2626', margin: 0 }}>{error}</p>
           </div>
         )}
 
         {/* CARD */}
-        <div className="card-padding" style={{ background: '#fff', borderRadius: 20, boxShadow: '0 4px 24px #3730A30D', padding: 'clamp(24px, 6vw, 40px)', border: '1px solid #E5E7EB' }}>
+        <div style={{ background: '#fff', borderRadius: 18, boxShadow: '0 4px 20px rgba(55,48,163,0.06)', padding: 'clamp(20px, 5vw, 36px)' }}>
 
-          {/* ── PASO 1 — Cuenta ── */}
+          {/* PASO 1 */}
           {step === 1 && (
-            <div className="fade-in">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-                <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <Mail size={17} color="#3730A3" />
+            <div className="fi">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 22 }}>
+                <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Mail size={16} color="#3730A3" />
                 </div>
-                <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(18px, 4vw, 20px)', fontWeight: 900, color: '#1A1A2E', margin: 0 }}>Crea tu cuenta</h2>
+                <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 19, fontWeight: 900, color: '#1A1A2E', margin: 0 }}>Crea tu cuenta</h2>
               </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 <div>
-                  <label className="label">Email profesional *</label>
-                  <input 
-                    ref={firstInputRef}
-                    name="email" 
-                    type="email" 
-                    className={`field ${fieldErrors.email ? 'error' : ''}`} 
-                    value={form.email} 
-                    onChange={handle} 
-                    placeholder="tu@email.com" 
-                    autoComplete="email" 
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 6 }}>Email profesional *</label>
+                  <input
+                    ref={refPaso1}
+                    name="email" type="email"
+                    style={fs('email')}
+                    value={form.email} onChange={handle}
+                    placeholder="tu@email.com" autoComplete="email"
                   />
                 </div>
                 <div>
-                  <label className="label">Contraseña *</label>
-                  <div className="pass-wrap">
-                    <input 
-                      name="password" 
-                      type={showPass ? 'text' : 'password'} 
-                      className={`field ${fieldErrors.password ? 'error' : ''}`} 
-                      value={form.password} 
-                      onChange={handle} 
-                      placeholder="Mínimo 8 caracteres" 
-                      style={{ paddingRight: 46 }} 
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 6 }}>Contraseña *</label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      name="password" type={showPass ? 'text' : 'password'}
+                      style={{ ...fs('password'), paddingRight: 44 }}
+                      value={form.password} onChange={handle}
+                      placeholder="Mínimo 8 caracteres"
                     />
-                    <button 
-                      type="button" 
-                      className="pass-eye" 
-                      onClick={() => setShowPass(p => !p)}
-                      aria-label={showPass ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-                    >
-                      {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
+                    <button type="button" onClick={() => setShowPass(p => !p)} style={{ position: 'absolute', right: 13, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', padding: 4 }}>
+                      {showPass ? <EyeOff size={17} /> : <Eye size={17} />}
                     </button>
                   </div>
                 </div>
                 <div>
-                  <label className="label">Confirmar contraseña *</label>
-                  <div className="pass-wrap">
-                    <input 
-                      name="confirmPassword" 
-                      type={showPass2 ? 'text' : 'password'} 
-                      className={`field ${fieldErrors.confirmPassword ? 'error' : ''}`} 
-                      value={form.confirmPassword} 
-                      onChange={handle} 
-                      placeholder="Repite tu contraseña" 
-                      style={{ paddingRight: 46 }} 
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 6 }}>Confirmar contraseña *</label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      name="confirmPassword" type={showPass2 ? 'text' : 'password'}
+                      style={{ ...fs('confirmPassword'), paddingRight: 44 }}
+                      value={form.confirmPassword} onChange={handle}
+                      placeholder="Repite tu contraseña"
                     />
-                    <button 
-                      type="button" 
-                      className="pass-eye" 
-                      onClick={() => setShowPass2(p => !p)}
-                      aria-label={showPass2 ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-                    >
-                      {showPass2 ? <EyeOff size={18} /> : <Eye size={18} />}
+                    <button type="button" onClick={() => setShowPass2(p => !p)} style={{ position: 'absolute', right: 13, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', padding: 4 }}>
+                      {showPass2 ? <EyeOff size={17} /> : <Eye size={17} />}
                     </button>
                   </div>
                 </div>
               </div>
-
-              <div style={{ marginTop: 24 }}>
-                <button className="btn-primary" onClick={nextStep}>Continuar →</button>
+              <div style={{ marginTop: 22 }}>
+                <button className="btn-p" onClick={nextStep}>Continuar →</button>
               </div>
             </div>
           )}
 
-          {/* ── PASO 2 — Perfil profesional ── */}
+          {/* PASO 2 */}
           {step === 2 && (
-            <div className="fade-in">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-                <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <Stethoscope size={17} color="#3730A3" />
+            <div className="fi">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 22 }}>
+                <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Stethoscope size={16} color="#3730A3" />
                 </div>
-                <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(18px, 4vw, 20px)', fontWeight: 900, color: '#1A1A2E', margin: 0 }}>Tu perfil profesional</h2>
+                <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 19, fontWeight: 900, color: '#1A1A2E', margin: 0 }}>Tu perfil profesional</h2>
               </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 <div>
-                  <label className="label">Nombre completo *</label>
-                  <input 
-                    ref={firstInputRef}
-                    name="full_name" 
-                    type="text" 
-                    className={`field ${fieldErrors.full_name ? 'error' : ''}`} 
-                    value={form.full_name} 
-                    onChange={handle} 
-                    placeholder="Juan Pérez García" 
-                    autoComplete="name" 
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 6 }}>Nombre completo *</label>
+                  <input
+                    ref={refPaso2}
+                    name="full_name" type="text"
+                    style={fs('full_name')}
+                    value={form.full_name} onChange={handle}
+                    placeholder="Juan Pérez García" autoComplete="name"
                   />
-                  <p className="hint">Sin abreviaciones</p>
+                  <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>Sin abreviaciones</p>
                 </div>
-
-                <div className="grid2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }} className="g2">
                   <div>
-                    <label className="label">Especialidad *</label>
-                    <select 
-                      name="specialty" 
-                      className={`field ${fieldErrors.specialty ? 'error' : ''}`} 
-                      value={form.specialty} 
-                      onChange={handle}
-                    >
+                    <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 6 }}>Especialidad *</label>
+                    <select name="specialty" style={fs('specialty')} value={form.specialty} onChange={handle}>
                       <option value="">Selecciona</option>
                       {ESPECIALIDADES.map(e => <option key={e} value={e}>{e}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="label">Cédula profesional *</label>
-                    <input 
-                      name="professional_license" 
-                      type="text" 
-                      inputMode="numeric" 
-                      className={`field ${fieldErrors.professional_license ? 'error' : ''}`} 
-                      value={form.professional_license} 
-                      onChange={handle} 
-                      placeholder="12345678" 
-                      maxLength={8} 
+                    <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 6 }}>Cédula profesional *</label>
+                    <input
+                      name="professional_license" type="text" inputMode="numeric"
+                      style={fs('professional_license')}
+                      value={form.professional_license} onChange={handle}
+                      placeholder="12345678" maxLength={8}
                     />
-                    <p className="hint">7 u 8 dígitos, sin espacios</p>
+                    <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>7 u 8 dígitos</p>
                   </div>
                 </div>
-
                 <div>
-                  <label className="label">Descripción <span style={{ color: '#9CA3AF', fontWeight: 300 }}>(opcional)</span></label>
-                  <textarea 
-                    name="description" 
-                    className="field" 
-                    value={form.description} 
-                    onChange={handle} 
-                    rows={3} 
-                    placeholder="Cuéntale a tus pacientes sobre tu experiencia y enfoque..." 
-                    style={{ resize: 'vertical', lineHeight: 1.6 }} 
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 6 }}>
+                    Descripción <span style={{ color: '#9CA3AF', fontWeight: 300 }}>(opcional)</span>
+                  </label>
+                  <textarea
+                    name="description" style={{ ...fs('description'), resize: 'vertical', lineHeight: 1.6 }}
+                    value={form.description} onChange={handle} rows={3}
+                    placeholder="Cuéntale a tus pacientes sobre tu experiencia..."
                   />
                 </div>
-
                 <div>
-                  <label className="label">Costo de consulta <span style={{ color: '#9CA3AF', fontWeight: 300 }}>(MXN, opcional)</span></label>
-                  <input 
-                    name="consultation_price" 
-                    type="number" 
-                    inputMode="numeric" 
-                    className="field" 
-                    value={form.consultation_price} 
-                    onChange={handle} 
-                    placeholder="800" 
-                    min="0" 
-                    step="50" 
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 6 }}>
+                    Costo de consulta <span style={{ color: '#9CA3AF', fontWeight: 300 }}>(MXN, opcional)</span>
+                  </label>
+                  <input
+                    name="consultation_price" type="number" inputMode="numeric"
+                    style={fs('consultation_price')}
+                    value={form.consultation_price} onChange={handle}
+                    placeholder="800" min="0" step="50"
                   />
-                  <p className="hint">Deja vacío si el costo varía según el servicio</p>
+                  <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>Deja vacío si varía</p>
                 </div>
               </div>
-
-              <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <button className="btn-primary" onClick={nextStep}>Continuar →</button>
-                <button className="btn-back" onClick={prevStep}>← Atrás</button>
+              <div style={{ marginTop: 22 }}>
+                <button className="btn-p" onClick={nextStep}>Continuar →</button>
+                <button className="btn-b" onClick={prevStep}>← Atrás</button>
               </div>
             </div>
           )}
 
-          {/* ── PASO 3 — Ubicación ── */}
+          {/* PASO 3 */}
           {step === 3 && (
-            <form className="fade-in" onSubmit={handleSubmit}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-                <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <MapPin size={17} color="#3730A3" />
+            <form className="fi" onSubmit={handleSubmit}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 22 }}>
+                <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <MapPin size={16} color="#3730A3" />
                 </div>
-                <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(18px, 4vw, 20px)', fontWeight: 900, color: '#1A1A2E', margin: 0 }}>Ubicación y contacto</h2>
+                <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 19, fontWeight: 900, color: '#1A1A2E', margin: 0 }}>Ubicación y contacto</h2>
               </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                <div className="grid2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }} className="g2">
                   <div>
-                    <label className="label">Teléfono *</label>
-                    <input 
-                      ref={firstInputRef}
-                      name="phone" 
-                      type="tel" 
-                      inputMode="tel" 
-                      className={`field ${fieldErrors.phone ? 'error' : ''}`} 
-                      value={form.phone} 
-                      onChange={handle} 
-                      placeholder="55 1234 5678" 
+                    <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 6 }}>Teléfono *</label>
+                    <input
+                      ref={refPaso3}
+                      name="phone" type="tel" inputMode="tel"
+                      style={fs('phone')}
+                      value={form.phone} onChange={handle}
+                      placeholder="55 1234 5678"
                     />
-                    <p className="hint">10 dígitos</p>
+                    <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>10 dígitos</p>
                   </div>
                   <div>
-                    <label className="label">Estado *</label>
-                    <select 
-                      name="location_state" 
-                      className={`field ${fieldErrors.location_state ? 'error' : ''}`} 
-                      value={form.location_state} 
-                      onChange={handle}
-                    >
+                    <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 6 }}>Estado *</label>
+                    <select name="location_state" style={fs('location_state')} value={form.location_state} onChange={handle}>
                       <option value="">Selecciona</option>
                       {ESTADOS_MEXICO.map(e => <option key={e} value={e}>{e}</option>)}
                     </select>
                   </div>
                 </div>
-
-                <div className="grid2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }} className="g2">
                   <div>
-                    <label className="label">Ciudad *</label>
-                    <select 
-                      name="location_city" 
-                      className={`field ${fieldErrors.location_city ? 'error' : ''}`} 
-                      value={form.location_city} 
-                      onChange={handle}
+                    <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 6 }}>Ciudad *</label>
+                    <select
+                      name="location_city"
+                      style={{ ...fs('location_city'), opacity: !form.location_state ? 0.6 : 1 }}
+                      value={form.location_city} onChange={handle}
                       disabled={!form.location_state}
                     >
                       <option value="">Selecciona</option>
-                      {ciudadesDisponibles.map(c => <option key={c} value={c}>{c}</option>)}
+                      {ciudades.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
-                    {!form.location_state && <p className="hint">Primero selecciona el estado</p>}
+                    {!form.location_state && <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>Primero selecciona el estado</p>}
                   </div>
                   <div>
-                    <label className="label">Colonia <span style={{ color: '#9CA3AF', fontWeight: 300 }}>(opcional)</span></label>
-                    <input 
-                      name="location_neighborhood" 
-                      type="text" 
-                      className="field" 
-                      value={form.location_neighborhood} 
-                      onChange={handle} 
-                      placeholder="Polanco" 
+                    <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 6 }}>
+                      Colonia <span style={{ color: '#9CA3AF', fontWeight: 300 }}>(opcional)</span>
+                    </label>
+                    <input
+                      name="location_neighborhood" type="text"
+                      style={fs('location_neighborhood')}
+                      value={form.location_neighborhood} onChange={handle}
+                      placeholder="Polanco"
                     />
                   </div>
                 </div>
-
                 <div>
-                  <label className="label">Dirección <span style={{ color: '#9CA3AF', fontWeight: 300 }}>(opcional)</span></label>
-                  <input 
-                    name="address" 
-                    type="text" 
-                    className="field" 
-                    value={form.address} 
-                    onChange={handle} 
-                    placeholder="Av. Reforma 123" 
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 6 }}>
+                    Dirección <span style={{ color: '#9CA3AF', fontWeight: 300 }}>(opcional)</span>
+                  </label>
+                  <input
+                    name="address" type="text"
+                    style={fs('address')}
+                    value={form.address} onChange={handle}
+                    placeholder="Av. Reforma 123"
                   />
                 </div>
-
-                {/* TÉRMINOS */}
-                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 12, cursor: 'pointer', padding: '10px 0', marginTop: 4 }}>
-                  <input 
-                    type="checkbox" 
-                    name="terms_accepted" 
-                    checked={form.terms_accepted} 
-                    onChange={handle}
-                    style={{ 
-                      width: 18, height: 18, marginTop: 2, 
-                      accentColor: '#3730A3', 
-                      flexShrink: 0, 
-                      cursor: 'pointer',
-                      minWidth: 18, minHeight: 18,
-                    }} 
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 11, cursor: 'pointer', padding: '8px 0' }}>
+                  <input
+                    type="checkbox" name="terms_accepted"
+                    checked={form.terms_accepted} onChange={handle}
+                    style={{ width: 17, height: 17, marginTop: 2, accentColor: '#3730A3', flexShrink: 0, cursor: 'pointer' }}
                   />
                   <span style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.6 }}>
                     Acepto los{' '}
-                    <a href="/terminos-y-condiciones" target="_blank" rel="noopener noreferrer" style={{ color: '#3730A3', fontWeight: 500 }}>Términos y Condiciones</a>
+                    <a href="/terminos-y-condiciones" target="_blank" style={{ color: '#3730A3', fontWeight: 500 }}>Términos y Condiciones</a>
                     {' '}y el{' '}
-                    <a href="/aviso-de-privacidad" target="_blank" rel="noopener noreferrer" style={{ color: '#3730A3', fontWeight: 500 }}>Aviso de Privacidad</a>
-                    {' '}de Salurama *
+                    <a href="/aviso-de-privacidad" target="_blank" style={{ color: '#3730A3', fontWeight: 500 }}>Aviso de Privacidad</a> *
                   </span>
                 </label>
-
-                <button type="submit" className="btn-primary" disabled={loading}>
+                <button type="submit" className="btn-p" disabled={loading}>
                   {loading ? (
-                    <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-                      <span style={{ width: 18, height: 18, border: '2px solid #ffffff44', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
+                    <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9 }}>
+                      <span style={{ width: 17, height: 17, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
                       Registrando...
                     </span>
                   ) : (
-                    <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                      <CheckCircle size={18} /> Completar registro
+                    <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+                      <CheckCircle size={17} /> Completar registro
                     </span>
                   )}
                 </button>
-                <button type="button" className="btn-back" onClick={prevStep}>← Atrás</button>
+                <button type="button" className="btn-b" onClick={prevStep}>← Atrás</button>
               </div>
             </form>
           )}
-
         </div>
 
-        {/* FOOTER */}
         <div style={{ textAlign: 'center', marginTop: 20 }}>
           <p style={{ fontSize: 13, color: '#9CA3AF' }}>
             ¿Ya tienes cuenta?{' '}
@@ -690,7 +525,6 @@ export default function RegistroMedico() {
             </Link>
           </p>
         </div>
-
       </div>
     </div>
   )
