@@ -71,6 +71,7 @@ export default function RootLayout({
   return (
     <html lang="es">
       <head>
+        <meta name="robots" content="noindex, nofollow" />
         <link
           rel="preload"
           href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;0,900;1,600&family=DM+Sans:wght@300;400;500;700&display=swap"
