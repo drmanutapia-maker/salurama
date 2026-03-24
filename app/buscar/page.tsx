@@ -376,6 +376,8 @@ function BuscarContent() {
 
       {/* CONTENIDO */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
+
+        {/* LISTA */}
         <div style={{ width: isMobile ? '100%' : '55%', overflowY: 'auto', display: isMobile && vista === 'mapa' ? 'none' : 'flex', flexDirection: 'column', background: '#F9FAFB' }}>
           <div style={{ padding: '10px 14px', background: '#fff', borderBottom: '1px solid #F3F4F6', position: 'sticky', top: 0, zIndex: 10 }}>
             <p style={{ fontSize: 13, color: '#6B7280', fontWeight: 500 }}>
@@ -405,12 +407,14 @@ function BuscarContent() {
           </div>
         </div>
 
+        {/* MAPA DESKTOP */}
         {!isMobile && (
           <div style={{ width: '45%', position: 'relative', background: '#F3F4F6', flexShrink: 0 }}>
             <div ref={mapRefD} style={{ width: '100%', height: '100%' }} />
           </div>
         )}
 
+        {/* MAPA MÓVIL */}
         {isMobile && vista === 'mapa' && (
           <div style={{ width: '100%', flex: 1 }}>
             <div ref={mapRefM} style={{ width: '100%', height: '100%' }} />

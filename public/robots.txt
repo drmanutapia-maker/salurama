@@ -1,0 +1,5 @@
+User-agent: *
+Disallow: /
+
+# Bloquear todo hasta lanzamiento oficial
+# Salurama - Sitio en construcción

@@ -59,6 +59,8 @@ export const viewport: Viewport = {
   themeColor: "#3730A3",
   width: "device-width",
   initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
 };
 
 export default function RootLayout({
@@ -78,6 +80,8 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;0,900;1,600&family=DM+Sans:wght@300;400;500;700&display=swap"
           rel="stylesheet"
         />
+        
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes" />
         
         <script
           type="application/ld+json"
@@ -103,7 +107,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="antialiased bg-white text-[#1A1A2E]">
+      <body className="antialiased bg-white text-[#1A1A2E]" style={{ margin: 0, padding: 0, overflowX: 'hidden' }}>
         {children}
       </body>
     </html>
