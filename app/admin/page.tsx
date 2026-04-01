@@ -3,26 +3,14 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import Link from 'next/link'
-import { 
-  CheckCircle, 
-  XCircle, 
-  Eye, 
-  EyeOff, 
-  LogOut, 
-  ExternalLink, 
-  Copy, 
-  Shield, 
-  ToggleLeft, 
-  ToggleRight,
-  GraduationCap,
-  Calendar,
-  FileText,
-  AlertCircle
+import {
+  CheckCircle, XCircle, Eye, EyeOff, LogOut, ExternalLink, Copy,
+  Shield, ToggleLeft, ToggleRight, GraduationCap, Calendar,
+  FileText, AlertCircle
 } from 'lucide-react'
 
-// ⚠️ PASSWORD DEBE ESTAR EN .env.local
-// const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'Oasis2187!'
-const ADMIN_PASSWORD = 'Oasis2187!' // ⚠️ CAMBIAR EN PRODUCCIÓN
+// ✅ Contraseña desde variable de entorno (definida en .env.local y Vercel)
+const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'Salurama#Admin2026$Seguro!'
 
 const CEDULA_SEP_URL = 'https://www.cedulaprofesional.sep.gob.mx/cedula/presidencia/indexAvanzada.action'
 
@@ -50,26 +38,22 @@ interface Medico {
 }
 
 export default function AdminPanel() {
-  const [autenticado, setAutenticado] = useState(false)
-  const [passInput, setPassInput] = useState('')
-  const [showPass, setShowPass] = useState(false)
-  const [passError, setPassError] = useState(false)
-  const [medicos, setMedicos] = useState<Medico[]>([])
-  const [loading, setLoading] = useState(false)
-  const [vista, setVista] = useState<'pendientes' | 'todos'>('pendientes')
-  const [copiado, setCopiado] = useState<string | null>(null)
-  const [procesando, setProcesando] = useState<string | null>(null)
-  const [stats, setStats] = useState({ 
-    pendientes: 0, 
-    revisados: 0, 
-    rechazados: 0, 
-    total: 0,
-    con_cedula_visible: 0
+  const [autenticado, setAutenticado]   = useState(false)
+  const [passInput, setPassInput]       = useState('')
+  const [showPass, setShowPass]         = useState(false)
+  const [passError, setPassError]       = useState(false)
+  const [medicos, setMedicos]           = useState<Medico[]>([])
+  const [loading, setLoading]           = useState(false)
+  const [vista, setVista]               = useState<'pendientes' | 'todos'>('pendientes')
+  const [copiado, setCopiado]           = useState<string | null>(null)
+  const [procesando, setProcesando]     = useState<string | null>(null)
+  const [adminEmail, setAdminEmail]     = useState('')
+  const [stats, setStats] = useState({
+    pendientes: 0, revisados: 0, rechazados: 0, total: 0
   })
-  const [adminEmail, setAdminEmail] = useState('')
 
   useEffect(() => {
-    const ok = sessionStorage.getItem('salurama_admin')
+    const ok    = sessionStorage.getItem('salurama_admin')
     const email = sessionStorage.getItem('salurama_admin_email')
     if (ok === 'true') {
       setAutenticado(true)
@@ -84,23 +68,17 @@ export default function AdminPanel() {
   async function cargarMedicos() {
     setLoading(true)
     try {
-      // Stats generales
-      const { data: todos } = await supabase.from('doctors').select('review_status, license_visible')
+      const { data: todos } = await supabase.from('doctors').select('review_status')
       if (todos) {
         setStats({
           pendientes: todos.filter(m => m.review_status === 'pendiente').length,
-          revisados: todos.filter(m => m.review_status === 'revisado').length,
+          revisados:  todos.filter(m => m.review_status === 'revisado').length,
           rechazados: todos.filter(m => m.review_status === 'rechazado').length,
-          total: todos.length,
-          con_cedula_visible: todos.filter(m => m.license_visible === true).length,
+          total:      todos.length,
         })
       }
-
-      // Lista según vista
       let query = supabase.from('doctors').select('*').order('created_at', { ascending: false })
-      if (vista === 'pendientes') {
-        query = query.eq('review_status', 'pendiente')
-      }
+      if (vista === 'pendientes') query = query.eq('review_status', 'pendiente')
       const { data } = await query
       setMedicos(data || [])
     } catch (e) {
@@ -111,6 +89,10 @@ export default function AdminPanel() {
   }
 
   function login() {
+    if (!ADMIN_PASSWORD) {
+      alert('Variable de entorno NEXT_PUBLIC_ADMIN_PASSWORD no configurada.')
+      return
+    }
     if (passInput === ADMIN_PASSWORD) {
       sessionStorage.setItem('salurama_admin', 'true')
       sessionStorage.setItem('salurama_admin_email', 'admin@salurama.com')
@@ -131,39 +113,32 @@ export default function AdminPanel() {
     setAdminEmail('')
   }
 
-  async function cambiarStatus(
-    medico: Medico,
-    nuevoStatus: 'revisado' | 'rechazado',
-  ) {
-    if (!confirm(`¿Estás seguro de marcar como "${nuevoStatus}" a ${medico.full_name}?`)) {
-      return
-    }
+  async function cambiarStatus(medico: Medico, nuevoStatus: 'revisado' | 'rechazado') {
+    const accion = nuevoStatus === 'revisado'
+      ? 'marcar cédula como consultable'
+      : 'rechazar este perfil'
+    if (!confirm(`¿Confirmas ${accion} para ${medico.full_name}?`)) return
 
     setProcesando(medico.id)
     try {
-      const revisado = nuevoStatus === 'revisado'
       const { error } = await supabase.from('doctors').update({
-        review_status: nuevoStatus,
-        license_visible: revisado,
+        review_status:    nuevoStatus,
+        license_visible:  nuevoStatus === 'revisado',
         last_reviewed_at: new Date().toISOString(),
         last_reviewed_by: adminEmail || 'admin@salurama.com',
       }).eq('id', medico.id)
-
       if (error) throw error
 
-      // Log de acción (opcional, crea tabla admin_actions si quieres)
       await supabase.from('admin_actions').insert({
-        action_type: `revision_${nuevoStatus}`,
-        doctor_id: medico.id,
-        doctor_name: medico.full_name,
-        admin_email: adminEmail || 'admin@salurama.com',
-        timestamp: new Date().toISOString(),
-      }).catch(() => {
-        // Si la tabla no existe, ignorar (es opcional para MVP)
-      })
+        action_type:  `revision_${nuevoStatus}`,
+        doctor_id:    medico.id,
+        doctor_name:  medico.full_name,
+        admin_email:  adminEmail || 'admin@salurama.com',
+        timestamp:    new Date().toISOString(),
+      }).catch(() => {}) // tabla opcional
 
       await cargarMedicos()
-      alert(`Médico ${nuevoStatus} correctamente`)
+      alert(`Perfil actualizado: ${nuevoStatus}`)
     } catch (e) {
       console.error(e)
       alert('Error al actualizar. Intenta de nuevo.')
@@ -175,13 +150,12 @@ export default function AdminPanel() {
   async function toggleActivo(medico: Medico) {
     setProcesando(medico.id + '_activo')
     try {
-      const { error } = await supabase.from('doctors').update({
-        is_active: !medico.is_active
-      }).eq('id', medico.id)
-
+      const { error } = await supabase.from('doctors')
+        .update({ is_active: !medico.is_active })
+        .eq('id', medico.id)
       if (error) throw error
       await cargarMedicos()
-    } catch (e) {
+    } catch {
       alert('Error al actualizar. Intenta de nuevo.')
     } finally {
       setProcesando(null)
@@ -194,59 +168,30 @@ export default function AdminPanel() {
     setTimeout(() => setCopiado(null), 2000)
   }
 
-  function abrirSEP() {
-    window.open(CEDULA_SEP_URL, '_blank')
-  }
-
   function formatFecha(fecha: string) {
     return new Date(fecha).toLocaleDateString('es-MX', {
-      day: 'numeric', 
-      month: 'short', 
-      year: 'numeric', 
-      hour: '2-digit', 
-      minute: '2-digit'
+      day: 'numeric', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit'
     })
   }
 
   function statusColor(status: string) {
-    if (status === 'revisado') return { bg: '#DCFCE7', color: '#059669', border: '#86EFAC', texto: 'Cédula consultable' }
+    if (status === 'revisado')  return { bg: '#DCFCE7', color: '#059669', border: '#86EFAC', texto: 'Cédula consultable' }
     if (status === 'rechazado') return { bg: '#FEF2F2', color: '#DC2626', border: '#FECACA', texto: 'Rechazado' }
     return { bg: '#FEF3C7', color: '#D97706', border: '#FDE68A', texto: 'Pendiente de revisión' }
   }
 
   function calcularExperiencia(licenseIssueDate?: string) {
     if (!licenseIssueDate) return 'No registrada'
-    const fecha = new Date(licenseIssueDate)
-    const hoy = new Date()
-    const anos = hoy.getFullYear() - fecha.getFullYear()
+    const anos = new Date().getFullYear() - new Date(licenseIssueDate).getFullYear()
     return `${anos} año${anos !== 1 ? 's' : ''}`
   }
 
-  // ── LOGIN ─────────────────────────────────────────────────
+  // ── LOGIN ──────────────────────────────────────────────────────────────────
   if (!autenticado) return (
-    <div style={{ 
-      minHeight: '100vh', 
-      background: 'linear-gradient(135deg, #EEF2FF 0%, #FAFAFA 100%)', 
-      display: 'flex', 
-      alignItems: 'center', 
-      justifyContent: 'center', 
-      padding: 20, 
-      fontFamily: "'DM Sans', sans-serif" 
-    }}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@900&family=DM+Sans:wght@400;500;700&display=swap');
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-      `}</style>
-      
-      <div style={{ 
-        background: '#fff', 
-        borderRadius: 20, 
-        padding: 'clamp(28px, 6vw, 44px)', 
-        maxWidth: 420, 
-        width: '100%', 
-        boxShadow: '0 16px 48px rgba(55,48,163,0.12)' 
-      }}>
-        {/* LOGO CONSISTENTE CON HOMEPAGE */}
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #EEF2FF 0%, #FAFAFA 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, fontFamily: "'DM Sans', sans-serif" }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@900&family=DM+Sans:wght@400;500;700&display=swap'); *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }`}</style>
+      <div style={{ background: '#fff', borderRadius: 20, padding: 'clamp(28px, 6vw, 44px)', maxWidth: 420, width: '100%', boxShadow: '0 16px 48px rgba(55,48,163,0.12)' }}>
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <div style={{ marginBottom: 12 }}>
             <span style={{ fontFamily: "'Fraunces', serif", fontSize: 32, fontWeight: 900, color: '#3730A3' }}>Salu</span>
@@ -255,7 +200,6 @@ export default function AdminPanel() {
           <p style={{ fontSize: 13, color: '#6B7280' }}>Panel de Administración</p>
           <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>Acceso restringido</p>
         </div>
-        
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div style={{ position: 'relative' }}>
             <input
@@ -264,115 +208,47 @@ export default function AdminPanel() {
               value={passInput}
               onChange={e => { setPassInput(e.target.value); setPassError(false) }}
               onKeyDown={e => e.key === 'Enter' && login()}
-              style={{ 
-                width: '100%', 
-                padding: '13px 44px 13px 16px', 
-                border: '1.5px solid ' + (passError ? '#DC2626' : '#E5E7EB'), 
-                borderRadius: 10, 
-                fontSize: 15, 
-                fontFamily: "'DM Sans', sans-serif", 
-                color: '#1A1A2E', 
-                outline: 'none' 
-              }}
+              style={{ width: '100%', padding: '13px 44px 13px 16px', border: `1.5px solid ${passError ? '#DC2626' : '#E5E7EB'}`, borderRadius: 10, fontSize: 15, fontFamily: "'DM Sans', sans-serif", color: '#1A1A2E', outline: 'none' }}
             />
-            <button 
-              type="button" 
-              onClick={() => setShowPass(p => !p)} 
-              style={{ 
-                position: 'absolute', 
-                right: 13, 
-                top: '50%', 
-                transform: 'translateY(-50%)', 
-                background: 'none', 
-                border: 'none', 
-                cursor: 'pointer', 
-                color: '#9CA3AF' 
-              }}
-            >
+            <button type="button" onClick={() => setShowPass(p => !p)} style={{ position: 'absolute', right: 13, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF' }}>
               {showPass ? <EyeOff size={17} /> : <Eye size={17} />}
             </button>
           </div>
-          
-          {passError && (
-            <p style={{ fontSize: 13, color: '#DC2626', textAlign: 'center' }}>
-              Contraseña incorrecta
-            </p>
-          )}
-          
-          <button 
-            onClick={login} 
-            style={{ 
-              width: '100%', 
-              background: '#3730A3', 
-              color: '#fff', 
-              border: 'none', 
-              borderRadius: 50, 
-              padding: '13px', 
-              fontSize: 15, 
-              fontWeight: 700, 
-              cursor: 'pointer', 
-              fontFamily: "'DM Sans', sans-serif",
-              transition: 'background 0.18s'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.background = '#4F46E5'}
-            onMouseLeave={(e) => e.currentTarget.style.background = '#3730A3'}
-          >
+          {passError && <p style={{ fontSize: 13, color: '#DC2626', textAlign: 'center' }}>Contraseña incorrecta</p>}
+          <button onClick={login} style={{ width: '100%', background: '#3730A3', color: '#fff', border: 'none', borderRadius: 50, padding: '13px', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", transition: 'background 0.18s' }}
+            onMouseEnter={e => e.currentTarget.style.background = '#4F46E5'}
+            onMouseLeave={e => e.currentTarget.style.background = '#3730A3'}>
             Entrar al panel
           </button>
-          
-          <Link href="/" style={{ textAlign: 'center', fontSize: 13, color: '#9CA3AF', textDecoration: 'none' }}>
-            ← Volver al inicio
-          </Link>
+          <Link href="/" style={{ textAlign: 'center', fontSize: 13, color: '#9CA3AF', textDecoration: 'none' }}>← Volver al inicio</Link>
         </div>
       </div>
     </div>
   )
 
-  // ── PANEL ─────────────────────────────────────────────────
+  // ── PANEL ──────────────────────────────────────────────────────────────────
   return (
     <div style={{ minHeight: '100vh', background: '#F9FAFB', fontFamily: "'DM Sans', sans-serif", color: '#1A1A2E' }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@600;900&family=DM+Sans:wght@300;400;500;700&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        .btn-ok { 
-          display:inline-flex; align-items:center; gap:6px; 
-          background:#DCFCE7; color:#059669; border:1px solid #86EFAC; 
-          border-radius:50px; padding:7px 14px; font-size:13px; font-weight:700; 
-          cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.18s; 
-        }
+        .btn-ok { display:inline-flex; align-items:center; gap:6px; background:#DCFCE7; color:#059669; border:1px solid #86EFAC; border-radius:50px; padding:7px 14px; font-size:13px; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.18s; }
         .btn-ok:hover { background:#059669; color:#fff; border-color:#059669; }
-        .btn-no { 
-          display:inline-flex; align-items:center; gap:6px; 
-          background:#FEF2F2; color:#DC2626; border:1px solid #FECACA; 
-          border-radius:50px; padding:7px 14px; font-size:13px; font-weight:700; 
-          cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.18s; 
-        }
+        .btn-no { display:inline-flex; align-items:center; gap:6px; background:#FEF2F2; color:#DC2626; border:1px solid #FECACA; border-radius:50px; padding:7px 14px; font-size:13px; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.18s; }
         .btn-no:hover { background:#DC2626; color:#fff; border-color:#DC2626; }
-        .btn-sep { 
-          display:inline-flex; align-items:center; gap:6px; 
-          background:#EEF2FF; color:#3730A3; border:1px solid #C7D2FE; 
-          border-radius:50px; padding:7px 14px; font-size:13px; font-weight:600; 
-          cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.18s; 
-        }
+        .btn-sep { display:inline-flex; align-items:center; gap:6px; background:#EEF2FF; color:#3730A3; border:1px solid #C7D2FE; border-radius:50px; padding:7px 14px; font-size:13px; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.18s; }
         .btn-sep:hover { background:#3730A3; color:#fff; }
-        .mcard { 
-          background:#fff; border-radius:14px; border:1px solid #E5E7EB; 
-          padding:20px; margin-bottom:14px; transition:box-shadow 0.18s; 
-        }
+        .mcard { background:#fff; border-radius:14px; border:1px solid #E5E7EB; padding:20px; margin-bottom:14px; transition:box-shadow 0.18s; }
         .mcard:hover { box-shadow:0 4px 16px rgba(55,48,163,0.08); }
-        .tab-btn { 
-          padding:9px 20px; border:none; border-radius:50px; 
-          font-size:13px; font-weight:600; cursor:pointer; 
-          font-family:'DM Sans',sans-serif; transition:all 0.18s; 
-        }
+        .tab-btn { padding:9px 20px; border:none; border-radius:50px; font-size:13px; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.18s; }
         .tab-btn.on { background:#3730A3; color:#fff; }
         .tab-btn.off { background:#F3F4F6; color:#6B7280; }
         @keyframes spin { to { transform:rotate(360deg); } }
         .spin { animation:spin 0.7s linear infinite; }
-        @media (max-width: 640px) {
-          .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
-          .mcard-flex { flex-direction: column !important; }
-          .acciones-col { flex-direction: column !important; gap: 8px !important; }
+        @media (max-width:640px) {
+          .stats-grid { grid-template-columns: repeat(2,1fr) !important; }
+          .mcard-flex { flex-direction:column !important; }
+          .acciones-col { flex-direction:column !important; gap:8px !important; }
         }
       `}</style>
 
@@ -393,35 +269,25 @@ export default function AdminPanel() {
       </nav>
 
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 16px 60px' }}>
-        {/* INSTRUCCIONES DE REVISIÓN */}
-        <div style={{ 
-          background: '#EEF2FF', 
-          border: '1px solid #C7D2FE', 
-          borderRadius: 12, 
-          padding: '16px', 
-          marginBottom: 24, 
-          display: 'flex', 
-          alignItems: 'flex-start', 
-          gap: 10 
-        }}>
+
+        {/* INSTRUCCIONES */}
+        <div style={{ background: '#EEF2FF', border: '1px solid #C7D2FE', borderRadius: 12, padding: '16px', marginBottom: 24, display: 'flex', alignItems: 'flex-start', gap: 10 }}>
           <Shield size={18} color="#3730A3" style={{ flexShrink: 0, marginTop: 1 }} />
           <div>
             <p style={{ fontSize: 13, fontWeight: 600, color: '#3730A3', marginBottom: 8 }}>
-              Proceso de revisión de cédula
+              Proceso de revisión — narrativa Salurama
             </p>
-            <ol style={{ fontSize: 13, color: '#374151', lineHeight: 1.7, paddingLeft: 20, margin: 0 }}>
+            <ol style={{ fontSize: 13, color: '#374151', lineHeight: 1.75, paddingLeft: 20, margin: 0 }}>
               <li>Copia el número de cédula del médico</li>
-              <li>Abre el <a href={CEDULA_SEP_URL} target="_blank" rel="noopener noreferrer" style={{ color: '#4F46E5', fontWeight: 600 }}>portal de la SEP</a></li>
-              <li>Busca la cédula por número o nombre</li>
-              <li><strong>Si coincide:</strong> presiona "Cédula consultable"</li>
-              <li><strong>Si no coincide o no existe:</strong> presiona "Rechazar"</li>
+              <li>Abre el <a href={CEDULA_SEP_URL} target="_blank" rel="noopener noreferrer" style={{ color: '#4F46E5', fontWeight: 600 }}>portal de la SEP</a> y búscala</li>
+              <li><strong>Si coincide con nombre y especialidad:</strong> marca "Cédula consultable" — esto significa que el paciente podrá confirmarla desde el perfil</li>
+              <li><strong>Si no coincide o no existe:</strong> rechazar</li>
             </ol>
-            <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: 12, fontStyle: 'italic', margin: 0 }}>
-              💡 Nota: Esta revisión es administrativa. El paciente podrá consultar directamente en la SEP desde el perfil del médico.
+            <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: 10, fontStyle: 'italic', margin: '10px 0 12px' }}>
+              Recuerda: Salurama no verifica, solo facilita el acceso. "Cédula consultable" = el número que el médico declaró existe en SEP al momento de la revisión.
             </p>
-            <button onClick={abrirSEP} className="btn-sep" style={{ marginTop: 12 }}>
-              <ExternalLink size={14} />
-              Abrir portal SEP →
+            <button onClick={() => window.open(CEDULA_SEP_URL, '_blank')} className="btn-sep">
+              <ExternalLink size={14} /> Abrir portal SEP →
             </button>
           </div>
         </div>
@@ -429,10 +295,10 @@ export default function AdminPanel() {
         {/* STATS */}
         <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 24 }}>
           {[
-            { label: 'Total registrados', value: stats.total, color: '#3730A3', bg: '#EEF2FF' },
-            { label: 'Pendientes', value: stats.pendientes, color: '#D97706', bg: '#FEF3C7' },
-            { label: 'Cédula consultable', value: stats.revisados, color: '#059669', bg: '#DCFCE7' },
-            { label: 'Rechazados', value: stats.rechazados, color: '#DC2626', bg: '#FEF2F2' },
+            { label: 'Total registrados', value: stats.total,      color: '#3730A3', bg: '#EEF2FF' },
+            { label: 'Pendientes',        value: stats.pendientes,  color: '#D97706', bg: '#FEF3C7' },
+            { label: 'Cédula consultable',value: stats.revisados,   color: '#059669', bg: '#DCFCE7' },
+            { label: 'Rechazados',        value: stats.rechazados,  color: '#DC2626', bg: '#FEF2F2' },
           ].map(s => (
             <div key={s.label} style={{ background: s.bg, borderRadius: 14, padding: '16px 18px', textAlign: 'center' }}>
               <p style={{ fontFamily: "'Fraunces', serif", fontSize: 32, fontWeight: 900, color: s.color, lineHeight: 1 }}>{s.value}</p>
@@ -441,16 +307,16 @@ export default function AdminPanel() {
           ))}
         </div>
 
-        {/* HEADER + TABS */}
+        {/* TABS */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
           <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(18px, 4vw, 24px)', fontWeight: 900, color: '#1A1A2E' }}>
             {vista === 'pendientes' ? 'Pendientes de revisión' : 'Todos los médicos'}
           </h1>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button className={'tab-btn ' + (vista === 'pendientes' ? 'on' : 'off')} onClick={() => setVista('pendientes')}>
-              Pendientes {stats.pendientes > 0 && '(' + stats.pendientes + ')'}
+            <button className={`tab-btn ${vista === 'pendientes' ? 'on' : 'off'}`} onClick={() => setVista('pendientes')}>
+              Pendientes {stats.pendientes > 0 && `(${stats.pendientes})`}
             </button>
-            <button className={'tab-btn ' + (vista === 'todos' ? 'on' : 'off')} onClick={() => setVista('todos')}>
+            <button className={`tab-btn ${vista === 'todos' ? 'on' : 'off'}`} onClick={() => setVista('todos')}>
               Todos
             </button>
           </div>
@@ -471,22 +337,23 @@ export default function AdminPanel() {
           </div>
         ) : (
           medicos.map(m => {
-            const sc = statusColor(m.review_status)
-            const esProcesando = procesando === m.id
-            const esProcesandoActivo = procesando === m.id + '_activo'
+            const sc              = statusColor(m.review_status)
+            const esProcesando    = procesando === m.id
+            const esProcesandoAct = procesando === m.id + '_activo'
             return (
               <div key={m.id} className="mcard">
                 <div className="mcard-flex" style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                  {/* AVATAR */}
+
+                  {/* Avatar */}
                   <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'linear-gradient(135deg,#3730A3,#F4623A)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 900, color: '#fff', flexShrink: 0 }}>
                     {(m.full_name || '?')[0].toUpperCase()}
                   </div>
 
-                  {/* INFO */}
+                  {/* Info */}
                   <div style={{ flex: 1, minWidth: 200 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
                       <p style={{ fontFamily: "'Fraunces', serif", fontSize: 17, fontWeight: 900, color: '#1A1A2E' }}>{m.full_name}</p>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: sc.bg, color: sc.color, border: '1px solid ' + sc.border, borderRadius: 20, padding: '2px 9px', fontSize: 11, fontWeight: 700 }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: sc.bg, color: sc.color, border: `1px solid ${sc.border}`, borderRadius: 20, padding: '2px 9px', fontSize: 11, fontWeight: 700 }}>
                         {sc.texto}
                       </span>
                       {!m.is_active && (
@@ -494,9 +361,7 @@ export default function AdminPanel() {
                       )}
                     </div>
                     <p style={{ fontSize: 13, color: '#4F46E5', fontWeight: 600, marginBottom: 6 }}>{m.specialty}</p>
-                    {m.sub_specialty && (
-                      <p style={{ fontSize: 12, color: '#6B7280', marginBottom: 6 }}>📌 {m.sub_specialty}</p>
-                    )}
+                    {m.sub_specialty && <p style={{ fontSize: 12, color: '#6B7280', marginBottom: 6 }}>📌 {m.sub_specialty}</p>}
                     <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 12, color: '#6B7280', marginBottom: 10 }}>
                       <span>📧 {m.email}</span>
                       {m.phone && <span>📱 {m.phone}</span>}
@@ -505,7 +370,7 @@ export default function AdminPanel() {
                       <span>🗓 {formatFecha(m.created_at)}</span>
                     </div>
 
-                    {/* CÉDULA */}
+                    {/* Cédula */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 8, padding: '6px 12px' }}>
                         <FileText size={14} color="#9CA3AF" />
@@ -520,15 +385,20 @@ export default function AdminPanel() {
                       {copiado === m.id && <span style={{ fontSize: 12, color: '#059669', fontWeight: 600 }}>¡Copiada!</span>}
                     </div>
 
-                    {/* CONSEJO DE ESPECIALIDAD */}
+                    {/* Consejo de especialidad */}
                     {m.specialty_council && (
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 8, padding: '6px 12px', fontSize: 12, color: '#6B7280' }}>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 8, padding: '6px 12px', fontSize: 12, color: '#6B7280', marginBottom: 6 }}>
                         <GraduationCap size={14} color="#9CA3AF" />
                         <span>{m.specialty_council}</span>
+                        {m.specialty_council_url && (
+                          <a href={m.specialty_council_url} target="_blank" rel="noopener noreferrer" style={{ color: '#3730A3', display: 'flex' }}>
+                            <ExternalLink size={12} />
+                          </a>
+                        )}
                       </div>
                     )}
 
-                    {/* FECHA DE CÉDULA */}
+                    {/* Fecha cédula */}
                     {m.license_issue_date && (
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 8, padding: '6px 12px', fontSize: 12, color: '#6B7280' }}>
                         <Calendar size={14} color="#9CA3AF" />
@@ -537,7 +407,7 @@ export default function AdminPanel() {
                       </div>
                     )}
 
-                    {/* NOTAS DEL ADMIN */}
+                    {/* Notas */}
                     {m.admin_notes && (
                       <div style={{ background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: 8, padding: 10, marginTop: 10, fontSize: 12, color: '#92400E' }}>
                         <AlertCircle size={14} style={{ display: 'inline', marginRight: 4 }} />
@@ -545,7 +415,7 @@ export default function AdminPanel() {
                       </div>
                     )}
 
-                    {/* ÚLTIMA REVISIÓN */}
+                    {/* Última revisión */}
                     {m.last_reviewed_at && (
                       <p style={{ fontSize: 11, color: '#9CA3AF', marginTop: 8 }}>
                         Revisado por {m.last_reviewed_by || 'admin'} el {formatFecha(m.last_reviewed_at)}
@@ -553,15 +423,10 @@ export default function AdminPanel() {
                     )}
                   </div>
 
-                  {/* ACCIONES */}
+                  {/* Acciones */}
                   <div className="acciones-col" style={{ display: 'flex', flexDirection: 'column', gap: 8, flexShrink: 0 }}>
-                    {/* REVISAR / RECHAZAR */}
                     {m.review_status !== 'revisado' && (
-                      <button
-                        className="btn-ok"
-                        onClick={() => cambiarStatus(m, 'revisado')}
-                        disabled={!!esProcesando}
-                      >
+                      <button className="btn-ok" onClick={() => cambiarStatus(m, 'revisado')} disabled={!!esProcesando}>
                         {esProcesando
                           ? <span style={{ width: 14, height: 14, border: '2px solid #05966944', borderTopColor: '#059669', borderRadius: '50%' }} className="spin" />
                           : <CheckCircle size={14} />
@@ -570,11 +435,7 @@ export default function AdminPanel() {
                       </button>
                     )}
                     {m.review_status !== 'rechazado' && (
-                      <button
-                        className="btn-no"
-                        onClick={() => cambiarStatus(m, 'rechazado')}
-                        disabled={!!esProcesando}
-                      >
+                      <button className="btn-no" onClick={() => cambiarStatus(m, 'rechazado')} disabled={!!esProcesando}>
                         {esProcesando
                           ? <span style={{ width: 14, height: 14, border: '2px solid #DC262644', borderTopColor: '#DC2626', borderRadius: '50%' }} className="spin" />
                           : <XCircle size={14} />
@@ -582,28 +443,15 @@ export default function AdminPanel() {
                         Rechazar
                       </button>
                     )}
-
-                    {/* ACTIVAR / DESACTIVAR */}
-                    <button
-                      className="btn-sep"
-                      onClick={() => toggleActivo(m)}
-                      disabled={!!esProcesandoActivo}
-                      style={{ justifyContent: 'center' }}
-                    >
-                      {esProcesandoActivo
+                    <button className="btn-sep" onClick={() => toggleActivo(m)} disabled={!!esProcesandoAct} style={{ justifyContent: 'center' }}>
+                      {esProcesandoAct
                         ? <span style={{ width: 14, height: 14, border: '2px solid #3730A344', borderTopColor: '#3730A3', borderRadius: '50%' }} className="spin" />
                         : m.is_active ? <ToggleRight size={14} /> : <ToggleLeft size={14} />
                       }
                       {m.is_active ? 'Desactivar' : 'Activar'}
                     </button>
-
-                    {/* VER PERFIL */}
-                    <Link
-                      href={'/doctor/' + m.id}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: '#F9FAFB', color: '#6B7280', border: '1px solid #E5E7EB', borderRadius: 50, padding: '7px 14px', fontSize: 13, fontWeight: 500, textDecoration: 'none', fontFamily: "'DM Sans', sans-serif" }}
-                    >
+                    <Link href={`/doctor/${m.id}`} target="_blank" rel="noopener noreferrer"
+                      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: '#F9FAFB', color: '#6B7280', border: '1px solid #E5E7EB', borderRadius: 50, padding: '7px 14px', fontSize: 13, fontWeight: 500, textDecoration: 'none', fontFamily: "'DM Sans', sans-serif" }}>
                       <ExternalLink size={13} /> Ver perfil
                     </Link>
                   </div>
