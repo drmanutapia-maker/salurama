@@ -1,207 +1,356 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowLeft, Shield, Mail, MapPin } from 'lucide-react'
+import { useState } from 'react'
+import { Menu, X } from 'lucide-react'
 
-export default function AvisoPrivacidad() {
+const SECTIONS = [
+  { id: 'responsable',     title: '1. Responsable y marco legal' },
+  { id: 'datos',           title: '2. Datos que recabamos' },
+  { id: 'finalidades',     title: '3. Finalidades del tratamiento' },
+  { id: 'transferencias',  title: '4. Transferencia de datos' },
+  { id: 'arco',            title: '5. Derechos ARCO' },
+  { id: 'seguridad',       title: '6. Medidas de seguridad' },
+  { id: 'cambios',         title: '7. Cambios al aviso' },
+  { id: 'autoridad',       title: '8. Autoridad competente' },
+  { id: 'contacto',        title: '9. Contacto' },
+]
+
+export default function AvisoDePrivacidad() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
   return (
-    <div style={{ minHeight: '100vh', background: '#FAFAFA', fontFamily: "'DM Sans', sans-serif", color: '#1A1A2E' }}>
+    <div style={{ fontFamily: "'DM Sans', sans-serif", background: '#fff', minHeight: '100vh', color: '#1A1A2E' }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@600;900&family=DM+Sans:wght@300;400;500;700&display=swap');
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        h1, h2, h3 { font-family: "'Fraunces', serif"; }
-        .container { max-width: 800px; margin: 0 auto; padding: 24px 20px; }
-        .card { background: #fff; borderRadius: 16px; padding: 32px; border: 1px solid #E5E7EB; }
-        .section { marginBottom: 28px; }
-        .section-title { fontSize: 18px; fontWeight: 700; color: '#3730A3'; marginBottom: 12px; }
-        .text { fontSize: 14px; color: '#374151'; lineHeight: 1.7; marginBottom: 12px; }
-        .list { paddingLeft: 20px; marginBottom: 12px; }
-        .list li { fontSize: 14px; color: '#374151'; lineHeight: 1.7; marginBottom: 6px; }
-        .highlight { background: '#EEF2FF'; padding: 16px; borderRadius: 10px; border-left: 4px solid #3730A3; margin: 16px 0; }
-        @media (max-width: 640px) { .card { padding: 24px 18px; } }
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;0,900;1,600&family=DM+Sans:wght@300;400;500;700&display=swap');
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        .nav-link { color: #1A1A2E; text-decoration: none; font-size: 15px; font-weight: 400;
+          padding: 6px 2px; border-bottom: 2px solid transparent; transition: color 0.15s, border-color 0.15s; }
+        .nav-link:hover { color: #3730A3; border-color: #3730A3; }
+        .btn-medico { background: #3730A3; color: #fff; text-decoration: none;
+          padding: 10px 20px; border-radius: 50px; font-size: 14px; font-weight: 600;
+          font-family: 'DM Sans', sans-serif; transition: background 0.18s;
+          display: inline-flex; align-items: center; gap: 7px; }
+        .btn-medico:hover { background: #4F46E5; }
+        .toc-link { display: block; font-size: 13px; color: #6B7280; text-decoration: none;
+          padding: 7px 12px; border-radius: 6px; transition: all 0.15s;
+          border-left: 2px solid transparent; }
+        .toc-link:hover { background: #EEF2FF; color: #3730A3; border-left-color: #3730A3; }
+        .legal-h2 { font-family: 'Fraunces', serif; font-size: clamp(18px,3.5vw,22px);
+          font-weight: 900; color: #1E1B4B; margin: 0 0 14px;
+          padding-bottom: 10px; border-bottom: 2px solid #EEF2FF; }
+        .legal-h3 { font-size: 15px; font-weight: 600; color: #3730A3; margin: 20px 0 8px; }
+        .legal-p { font-size: 14px; color: #4B5563; line-height: 1.85; margin-bottom: 12px; }
+        .legal-ul { padding-left: 20px; margin-bottom: 14px; }
+        .legal-li { font-size: 14px; color: #4B5563; line-height: 1.8; margin-bottom: 5px; }
+        .legal-strong { color: #1A1A2E; font-weight: 600; }
+        .alert-box { background: #EEF2FF; border: 1.5px solid #C7D2FE; border-radius: 10px;
+          padding: 14px 18px; margin: 16px 0; }
+        .alert-box p { margin: 0; color: #3730A3; font-size: 13px; font-weight: 500; line-height: 1.6; }
+        .data-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 13px; }
+        .data-table th { background: #1E1B4B; color: #fff; padding: 10px 14px; text-align: left; font-weight: 600; }
+        .data-table td { padding: 9px 14px; color: #4B5563; border-bottom: 1px solid #F3F4F6; }
+        .data-table tr:hover td { background: #F9FAFB; }
+        .section-block { margin-bottom: 44px; scroll-margin-top: 80px; }
+        @media (max-width: 768px) {
+          .dsk { display: none !important; }
+          .mob-btn { display: flex !important; }
+          .sidebar-col { display: none !important; }
+          .data-table { font-size: 12px; }
+        }
+        @media (min-width: 769px) {
+          .mob-btn { display: none !important; }
+          .mob-menu { display: none !important; }
+        }
       `}</style>
 
-      {/* NAV */}
-      <nav style={{ background: '#fff', borderBottom: '1px solid #F3F4F6', padding: '0 20px', position: 'sticky', top: 0, zIndex: 50 }}>
-        <div style={{ maxWidth: 800, margin: '0 auto', height: 54, display: 'flex', alignItems: 'center', gap: 12 }}>
-          <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 0 }}>
-            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 900, color: '#3730A3' }}>Salu</span>
-            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 600, color: '#F4623A' }}>rama</span>
+      {/* NAVBAR */}
+      <nav style={{ position: 'sticky', top: 0, zIndex: 100, background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(14px)', borderBottom: '1px solid #F3F4F6', padding: '0 20px' }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto', height: 58, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Link href="/" style={{ textDecoration: 'none' }}>
+            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, fontWeight: 900, color: '#3730A3', letterSpacing: '-0.5px' }}>Salu</span>
+            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, fontWeight: 600, color: '#F4623A', letterSpacing: '-0.5px' }}>rama</span>
           </Link>
+          <div className="dsk" style={{ display: 'flex', alignItems: 'center', gap: 28 }}>
+            <Link href="/buscar"             className="nav-link">Especialidades</Link>
+            <Link href="/como-elegir-medico" className="nav-link">¿Cómo elegir médico?</Link>
+            <Link href="/nosotros"           className="nav-link">Nosotros</Link>
+            <Link href="/registro"           className="btn-medico">👨‍⚕️ Soy Médico</Link>
+          </div>
+          <button className="mob-btn" onClick={() => setMobileMenuOpen(o => !o)}
+            style={{ display: 'none', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', padding: 8 }}>
+            {mobileMenuOpen ? <X size={24} color="#3730A3" /> : <Menu size={24} color="#3730A3" />}
+          </button>
         </div>
+        {mobileMenuOpen && (
+          <div className="mob-menu" style={{ padding: '12px 20px 20px', borderTop: '1px solid #F3F4F6', background: '#fff' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {[['Especialidades','/buscar'],['¿Cómo elegir médico?','/como-elegir-medico'],['Nosotros','/nosotros']].map(([l,h]) => (
+                <Link key={h} href={h} onClick={() => setMobileMenuOpen(false)}
+                  style={{ fontSize: 16, color: '#1A1A2E', textDecoration: 'none', padding: '12px 8px', display: 'block' }}>{l}</Link>
+              ))}
+              <Link href="/registro" onClick={() => setMobileMenuOpen(false)} className="btn-medico"
+                style={{ marginTop: 10, justifyContent: 'center', padding: '13px 20px', fontSize: 15 }}>
+                👨‍⚕️ Soy Médico
+              </Link>
+            </div>
+          </div>
+        )}
       </nav>
 
-      {/* CONTENT */}
-      <div className="container">
-        <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#6B7280', textDecoration: 'none', fontSize: 14, marginBottom: 20 }}>
-          <ArrowLeft size={16} /> Volver al inicio
-        </Link>
-
-        <div className="card">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-            <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Shield size={24} color="#3730A3" />
-            </div>
-            <div>
-              <h1 style={{ fontSize: 24, fontWeight: 900, color: '#1A1A2E', marginBottom: 4 }}>Aviso de Privacidad</h1>
-              <p style={{ fontSize: 13, color: '#9CA3AF' }}>Última actualización: 21 de marzo de 2026</p>
-            </div>
-          </div>
-
-          <div className="highlight">
-            <p style={{ fontSize: 14, color: '#374151', margin: 0 }}>
-              <strong>Salurama S.A.S. de C.V. (en constitución)</strong>, con domicilio fiscal en México, es responsable del tratamiento de sus datos personales conforme a la Ley Federal de Protección de Datos Personales en Posesión de los Particulares.
-            </p>
-          </div>
-
-          <div className="section">
-            <h2 className="section-title">1. Datos personales que recabamos</h2>
-            
-            <p className="text"><strong>De usuarios (pacientes):</strong></p>
-            <ul className="list">
-              <li>Nombre completo</li>
-              <li>Correo electrónico</li>
-              <li>Teléfono</li>
-              <li>Ubicación (ciudad)</li>
-              <li>Historial de búsquedas en la plataforma</li>
-              <li>Dirección IP y datos de navegación</li>
-            </ul>
-
-            <p className="text"><strong>De médicos/profesionales:</strong></p>
-            <ul className="list">
-              <li>Nombre completo</li>
-              <li>Correo electrónico</li>
-              <li>Teléfono</li>
-              <li>Cédula profesional (7-8 dígitos)</li>
-              <li>Especialidad médica</li>
-              <li>Ciudad y estado de ejercicio</li>
-              <li>Dirección del consultorio (opcional)</li>
-              <li>Costo de consulta (opcional)</li>
-              <li>Fotografía de perfil (opcional)</li>
-              <li>Descripción profesional (opcional)</li>
-            </ul>
-
-            <div className="highlight" style={{ background: '#DCFCE7', borderLeftColor: '#059669' }}>
-              <p style={{ fontSize: 14, color: '#065F46', margin: 0 }}>
-                <strong>Datos que NO recabamos:</strong> Información clínica de pacientes, diagnósticos médicos, historial médico personal, datos financieros completos, datos biométricos.
-              </p>
-            </div>
-          </div>
-
-          <div className="section">
-            <h2 className="section-title">2. Finalidades del tratamiento</h2>
-            
-            <p className="text"><strong>Finalidades primarias (necesarias para el servicio):</strong></p>
-            <ul className="list">
-              <li>Crear y administrar cuentas de usuario</li>
-              <li>Mostrar perfiles de profesionales de la salud</li>
-              <li>Facilitar contacto entre pacientes y médicos</li>
-              <li>Operación del directorio médico</li>
-              <li>Verificación de cédulas profesionales ante la SEP</li>
-            </ul>
-
-            <p className="text"><strong>Finalidades secundarias (requieren consentimiento):</strong></p>
-            <ul className="list">
-              <li>Marketing y publicidad de servicios relacionados</li>
-              <li>Análisis de uso de la plataforma</li>
-              <li>Mejora del servicio</li>
-              <li>Estadísticas agregadas y anónimas</li>
-            </ul>
-          </div>
-
-          <div className="section">
-            <h2 className="section-title">3. Transferencia de datos</h2>
-            
-            <p className="text">Sus datos podrán ser compartidos con:</p>
-            <ul className="list">
-              <li><strong>Profesionales de la salud registrados</strong> (para facilitar contacto)</li>
-              <li><strong>Proveedores tecnológicos:</strong>
-                <ul className="list">
-                  <li>Supabase Inc. (base de datos) - Estados Unidos</li>
-                  <li>Vercel Inc. (hosting) - Estados Unidos</li>
-                  <li>Mapbox Inc. (mapas) - Estados Unidos</li>
-                  <li>Google LLC (analytics) - Estados Unidos</li>
-                  <li>Amazon Web Services (servidores) - Estados Unidos</li>
-                </ul>
-              </li>
-              <li><strong>Autoridades competentes</strong> (por orden judicial o legal)</li>
-            </ul>
-
-            <div className="highlight">
-              <p style={{ fontSize: 14, color: '#374151', margin: 0 }}>
-                Algunos de nuestros proveedores están ubicados en Estados Unidos de América. Estas transferencias se realizan bajo contratos de protección de datos conforme al artículo 37 de la LFPDPPP. Al utilizar nuestra plataforma, usted consiente expresamente estas transferencias internacionales de datos.
-              </p>
-            </div>
-          </div>
-
-          <div className="section">
-            <h2 className="section-title">4. Derechos ARCO</h2>
-            
-            <p className="text">Usted tiene derecho a:</p>
-            <ul className="list">
-              <li><strong>Acceder</strong> a sus datos personales</li>
-              <li><strong>Rectificar</strong> datos inexactos o incompletos</li>
-              <li><strong>Cancelar</strong> sus datos cuando considere innecesarios</li>
-              <li><strong>Oponerse</strong> al tratamiento para fines específicos</li>
-            </ul>
-
-            <div className="highlight">
-              <p style={{ fontSize: 14, color: '#374151', margin: 0 }}>
-                <strong>Procedimiento:</strong> Enviar solicitud por email a <strong>privacidad@salurama.com</strong> incluyendo nombre completo, email registrado, derecho que desea ejercer y copia de identificación oficial. Recibirá respuesta en <strong>10 días hábiles</strong>.
-              </p>
-            </div>
-          </div>
-
-          <div className="section">
-            <h2 className="section-title">5. Medidas de seguridad</h2>
-            
-            <p className="text">Implementamos medidas técnicas, administrativas y físicas:</p>
-            <ul className="list">
-              <li>Encriptación de datos en tránsito (HTTPS/TLS)</li>
-              <li>Encriptación de datos en reposo</li>
-              <li>Control de acceso con autenticación</li>
-              <li>Backups automáticos</li>
-              <li>Monitoreo de accesos no autorizados</li>
-            </ul>
-          </div>
-
-          <div className="section">
-            <h2 className="section-title">6. Contacto</h2>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <Mail size={18} color="#3730A3" />
-                <span style={{ fontSize: 14, color: '#374151' }}>privacidad@salurama.com</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <MapPin size={18} color="#3730A3" />
-                <span style={{ fontSize: 14, color: '#374151' }}>Ciudad de México, México</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="section">
-            <h2 className="section-title">7. Autoridad competente</h2>
-            
-            <p className="text">
-              La autoridad competente para conocer de controversias en materia de protección de datos personales es:
-            </p>
-            <div style={{ background: '#F9FAFB', padding: 16, borderRadius: 10, fontSize: 13, color: '#6B7280' }}>
-              <p style={{ marginBottom: 4 }}><strong>Secretaría de la Función Pública</strong></p>
-              <p style={{ marginBottom: 4 }}>Dirección General de Protección de Datos Personales</p>
-              <p style={{ marginBottom: 4 }}>Avenida Insurgentes Sur 1735, Guadalupe Inn</p>
-              <p style={{ marginBottom: 4 }}>Ciudad de México, CP 01020</p>
-              <p>Teléfono: 55 2000 2000</p>
-            </div>
-          </div>
-
-          <div style={{ borderTop: '1px solid #F3F4F6', paddingTop: 24, marginTop: 32 }}>
-            <p style={{ fontSize: 13, color: '#9CA3AF', textAlign: 'center' }}>
-              © 2026 Salurama S.A.S. de C.V. (en constitución) · Todos los derechos reservados
-            </p>
-          </div>
+      {/* HERO */}
+      <section style={{ background: 'linear-gradient(160deg, #EEF2FF 0%, #fff 60%)', padding: 'clamp(40px,6vw,60px) 20px 32px' }}>
+        <div style={{ maxWidth: 860, margin: '0 auto' }}>
+          <p style={{ fontSize: 11, fontWeight: 600, color: '#4F46E5', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 10 }}>
+            Privacidad y datos
+          </p>
+          <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(28px,6vw,40px)', fontWeight: 900, color: '#1E1B4B', marginBottom: 12 }}>
+            Aviso de Privacidad
+          </h1>
+          <p style={{ fontSize: 14, color: '#6B7280', marginBottom: 6 }}>
+            Última actualización: 31 de marzo de 2026
+          </p>
+          <p style={{ fontSize: 14, color: '#6B7280' }}>
+            Conforme a la <strong style={{ color: '#1A1A2E' }}>Ley Federal de Protección de Datos Personales en Posesión de los Particulares</strong> (publicada en el DOF el 20 de marzo de 2025, vigente desde el 21 de marzo de 2025)
+          </p>
         </div>
+      </section>
+
+      {/* CONTENIDO */}
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '40px 20px 80px', display: 'grid', gridTemplateColumns: '220px 1fr', gap: 48, alignItems: 'start' }}>
+
+        {/* SIDEBAR */}
+        <aside className="sidebar-col" style={{ position: 'sticky', top: 80 }}>
+          <p style={{ fontSize: 11, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
+            Contenido
+          </p>
+          <nav style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {SECTIONS.map(s => (
+              <a key={s.id} href={`#${s.id}`} className="toc-link">{s.title}</a>
+            ))}
+          </nav>
+        </aside>
+
+        {/* MAIN */}
+        <main>
+
+          {/* 1 */}
+          <div id="responsable" className="section-block">
+            <h2 className="legal-h2">1. Responsable y marco legal</h2>
+            <p className="legal-p">
+              <strong className="legal-strong">SALURAMA S.A.S.</strong>, con domicilio en la Ciudad de México, es el Responsable del tratamiento de sus datos personales en términos de la Ley Federal de Protección de Datos Personales en Posesión de los Particulares vigente (en adelante, "la Ley").
+            </p>
+            <p className="legal-p">
+              El Responsable de Protección de Datos designado es <strong className="legal-strong">Manuel Augusto Tapia Dávila</strong>, contactable en <a href="mailto:privacidad@salurama.com" style={{ color: '#3730A3' }}>privacidad@salurama.com</a>.
+            </p>
+            <div className="alert-box">
+              <p>Este Aviso de Privacidad se pone a su disposición desde el momento en que recabamos sus datos personales, conforme al artículo 16 de la Ley.</p>
+            </div>
+          </div>
+
+          {/* 2 */}
+          <div id="datos" className="section-block">
+            <h2 className="legal-h2">2. Datos personales que recabamos</h2>
+
+            <h3 className="legal-h3">De usuarios (pacientes)</h3>
+            <ul className="legal-ul">
+              <li className="legal-li">Nombre completo y correo electrónico (al registrarse).</li>
+              <li className="legal-li">Teléfono y ciudad (opcionales, si el usuario los proporciona).</li>
+              <li className="legal-li">Historial de búsquedas en la plataforma.</li>
+              <li className="legal-li">Dirección IP y datos de navegación (cookies técnicas).</li>
+            </ul>
+
+            <h3 className="legal-h3">De profesionales de la salud</h3>
+            <ul className="legal-ul">
+              <li className="legal-li">Nombre completo y datos de contacto profesional.</li>
+              <li className="legal-li">Número de cédula profesional (dato público — proporcionado voluntariamente para su perfil).</li>
+              <li className="legal-li">Consejo de especialidad (para enlace de consulta pública).</li>
+              <li className="legal-li">Ciudad, estado y dirección del consultorio (opcionales).</li>
+              <li className="legal-li">Fotografía de perfil, descripción y costo de consulta (opcionales).</li>
+            </ul>
+
+            <div className="alert-box">
+              <p>IMPORTANTE: La cédula profesional y datos de especialidad son información pública disponible en portales gubernamentales. Su inclusión en Salurama tiene como único propósito que los pacientes puedan acceder fácilmente a las fuentes oficiales de verificación (SEP, consejos de especialidad). Salurama NO verifica ni certifica estas credenciales.</p>
+            </div>
+
+            <h3 className="legal-h3">Datos que NO recabamos</h3>
+            <p className="legal-p">
+              Salurama <strong className="legal-strong">no recaba</strong> información clínica de pacientes, diagnósticos, historial médico personal, datos biométricos, ni información financiera completa. No recabamos datos personales de menores de 18 años.
+            </p>
+          </div>
+
+          {/* 3 */}
+          <div id="finalidades" className="section-block">
+            <h2 className="legal-h2">3. Finalidades del tratamiento</h2>
+
+            <h3 className="legal-h3">Finalidades primarias (necesarias para el servicio)</h3>
+            <ul className="legal-ul">
+              <li className="legal-li">Crear y administrar cuentas de usuario en la plataforma.</li>
+              <li className="legal-li">Mostrar perfiles públicos de profesionales de la salud.</li>
+              <li className="legal-li">Facilitar la conexión entre pacientes y profesionales.</li>
+              <li className="legal-li">Operación, mantenimiento y mejora técnica de la plataforma.</li>
+              <li className="legal-li">Atender solicitudes de derechos ARCO y otras comunicaciones.</li>
+            </ul>
+
+            <h3 className="legal-h3">Finalidades secundarias (requieren consentimiento expreso)</h3>
+            <ul className="legal-ul">
+              <li className="legal-li">Envío de comunicaciones sobre nuevas funcionalidades o servicios de Salurama.</li>
+              <li className="legal-li">Elaboración de estadísticas y análisis de uso (siempre en forma agregada y anónima).</li>
+              <li className="legal-li">Compartir información con socios comerciales del sector salud para contenido educativo o informativo relevante.</li>
+            </ul>
+            <p className="legal-p">
+              Si no desea que sus datos sean tratados para finalidades secundarias, puede manifestarlo en cualquier momento a <a href="mailto:privacidad@salurama.com" style={{ color: '#3730A3' }}>privacidad@salurama.com</a>. La negativa no afectará el acceso a las funcionalidades principales.
+            </p>
+          </div>
+
+          {/* 4 */}
+          <div id="transferencias" className="section-block">
+            <h2 className="legal-h2">4. Transferencia de datos a terceros</h2>
+            <p className="legal-p">
+              Sus datos podrán ser compartidos con los siguientes terceros, conforme al artículo 37 de la Ley:
+            </p>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Destinatario</th>
+                  <th>Finalidad</th>
+                  <th>País</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  ['Supabase Inc.', 'Base de datos y autenticación', 'EE.UU.'],
+                  ['Vercel Inc.', 'Hospedaje de la plataforma', 'EE.UU.'],
+                  ['Resend Inc.', 'Envío de correos electrónicos', 'EE.UU.'],
+                  ['Autoridades competentes', 'Por orden judicial o mandato legal fundado', 'México'],
+                  ['Profesionales registrados', 'Para facilitar contacto solicitado por el usuario', 'México'],
+                ].map(([d,f,p]) => (
+                  <tr key={d}>
+                    <td><strong>{d}</strong></td>
+                    <td>{f}</td>
+                    <td>{p}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="legal-p">
+              Las transferencias internacionales a proveedores ubicados en Estados Unidos se realizan bajo contratos de protección de datos que garantizan niveles adecuados de seguridad, conforme al artículo 37 de la Ley. Al utilizar nuestra plataforma, usted otorga su consentimiento expreso para estas transferencias.
+            </p>
+            <p className="legal-p">
+              Salurama <strong className="legal-strong">no vende, renta ni cede</strong> datos personales a terceros con fines comerciales propios de esos terceros.
+            </p>
+          </div>
+
+          {/* 5 */}
+          <div id="arco" className="section-block">
+            <h2 className="legal-h2">5. Derechos ARCO</h2>
+            <p className="legal-p">
+              Conforme a la Ley, usted tiene derecho a:
+            </p>
+            <ul className="legal-ul">
+              <li className="legal-li"><strong className="legal-strong">Acceder</strong> a sus datos personales en posesión de Salurama y conocer las condiciones de su tratamiento.</li>
+              <li className="legal-li"><strong className="legal-strong">Rectificar</strong> datos inexactos, incompletos o desactualizados.</li>
+              <li className="legal-li"><strong className="legal-strong">Cancelar</strong> sus datos cuando no sean necesarios para la finalidad que motivó su recabación, o cuando haya concluido la relación.</li>
+              <li className="legal-li"><strong className="legal-strong">Oponerse</strong> al tratamiento de sus datos para finalidades específicas, incluyendo decisiones automatizadas que le afecten.</li>
+              <li className="legal-li"><strong className="legal-strong">Revocar el consentimiento</strong> otorgado para finalidades secundarias en cualquier momento.</li>
+            </ul>
+
+            <h3 className="legal-h3">Procedimiento para ejercer derechos ARCO</h3>
+            <p className="legal-p">
+              Envíe su solicitud a <a href="mailto:privacidad@salurama.com" style={{ color: '#3730A3' }}>privacidad@salurama.com</a> indicando:
+            </p>
+            <ul className="legal-ul">
+              <li className="legal-li">Nombre completo y correo electrónico registrado en la plataforma.</li>
+              <li className="legal-li">El derecho ARCO específico que desea ejercer o una descripción clara de su solicitud.</li>
+              <li className="legal-li">Copia de identificación oficial vigente.</li>
+              <li className="legal-li">En caso de rectificación: descripción del dato incorrecto y el valor correcto.</li>
+            </ul>
+            <div className="alert-box">
+              <p>Recibirá respuesta en un plazo máximo de <strong>20 días hábiles</strong> contados a partir de la recepción de su solicitud, conforme a la Ley vigente. Si la solicitud procede, los cambios se realizarán dentro de los 15 días hábiles siguientes.</p>
+            </div>
+          </div>
+
+          {/* 6 */}
+          <div id="seguridad" className="section-block">
+            <h2 className="legal-h2">6. Medidas de seguridad</h2>
+            <p className="legal-p">
+              Implementamos medidas técnicas, administrativas y físicas para proteger sus datos personales contra daño, pérdida, alteración, destrucción o acceso no autorizado, incluyendo:
+            </p>
+            <ul className="legal-ul">
+              <li className="legal-li">Cifrado de datos en tránsito mediante HTTPS/TLS.</li>
+              <li className="legal-li">Cifrado de datos en reposo en la base de datos.</li>
+              <li className="legal-li">Control de acceso con autenticación y gestión de privilegios mínimos.</li>
+              <li className="legal-li">Respaldos automáticos y monitoreo de accesos no autorizados.</li>
+              <li className="legal-li">Obligación de confidencialidad para todos los colaboradores que intervengan en el tratamiento de datos.</li>
+            </ul>
+            <p className="legal-p">
+              En caso de una vulneración de seguridad que afecte de forma significativa sus derechos, se le notificará conforme a los mecanismos establecidos en la Ley.
+            </p>
+          </div>
+
+          {/* 7 */}
+          <div id="cambios" className="section-block">
+            <h2 className="legal-h2">7. Cambios al Aviso de Privacidad</h2>
+            <p className="legal-p">
+              Salurama podrá actualizar este Aviso de Privacidad cuando sea necesario para reflejar cambios en la plataforma, en la legislación aplicable o en las prácticas de tratamiento de datos. Los cambios serán comunicados mediante publicación en esta página y, en su caso, por correo electrónico. La fecha de última actualización siempre estará visible en la parte superior de este documento.
+            </p>
+          </div>
+
+          {/* 8 */}
+          <div id="autoridad" className="section-block">
+            <h2 className="legal-h2">8. Autoridad competente</h2>
+            <p className="legal-p">
+              La autoridad competente en materia de protección de datos personales en posesión de particulares en México es la:
+            </p>
+            <div style={{ background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 10, padding: '16px 20px', margin: '12px 0' }}>
+              <p style={{ fontSize: 14, fontWeight: 600, color: '#1A1A2E', marginBottom: 4 }}>
+                Secretaría Anticorrupción y Buen Gobierno
+              </p>
+              <p style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.7 }}>
+                Unidad de Protección de Datos Personales<br />
+                Sitio oficial: <a href="https://www.gob.mx/buengobierno" target="_blank" rel="noopener noreferrer" style={{ color: '#3730A3' }}>www.gob.mx/buengobierno</a><br />
+                (Sustituyó al INAI a partir del 21 de marzo de 2025, conforme al Decreto publicado en el DOF el 20 de marzo de 2025)
+              </p>
+            </div>
+            <p className="legal-p">
+              Contra las resoluciones emitidas por la Secretaría procede el juicio de amparo indirecto ante Juzgados de Distrito y Tribunales Colegiados de Circuito especializados en materia de acceso a la información y protección de datos personales.
+            </p>
+          </div>
+
+          {/* 9 */}
+          <div id="contacto" className="section-block">
+            <h2 className="legal-h2">9. Contacto</h2>
+            <p className="legal-p">
+              Para cualquier consulta relacionada con este Aviso de Privacidad o con el tratamiento de sus datos personales:
+            </p>
+            <ul className="legal-ul">
+              <li className="legal-li">Correo: <a href="mailto:privacidad@salurama.com" style={{ color: '#3730A3' }}>privacidad@salurama.com</a></li>
+              <li className="legal-li">Asunto del correo: "Aviso de Privacidad — [su nombre]"</li>
+              <li className="legal-li">Domicilio: Ciudad de México, México</li>
+            </ul>
+            <p className="legal-p" style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid #F3F4F6', fontSize: 12, color: '#9CA3AF' }}>
+              © 2026 SALURAMA S.A.S. · Todos los derechos reservados · salurama.com
+            </p>
+          </div>
+
+        </main>
       </div>
+
+      {/* FOOTER */}
+      <footer style={{ background: '#1E1B4B', padding: 'clamp(32px,5vw,40px) 20px', textAlign: 'center' }}>
+        <div style={{ maxWidth: 860, margin: '0 auto' }}>
+          <div style={{ marginBottom: 10 }}>
+            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 900, color: '#fff' }}>Salu</span>
+            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 600, color: '#F4623A' }}>rama</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 20, flexWrap: 'wrap', marginBottom: 14 }}>
+            {[['Términos y Condiciones','/terminos-y-condiciones'],['Política de Cookies','/politica-de-cookies'],
+              ['Términos Profesionales','/terminos-profesionales'],['Inicio','/']]
+              .map(([l,h]) => <Link key={h} href={h} style={{ fontSize: 13, color: '#A5B4FC', textDecoration: 'none' }}>{l}</Link>)}
+          </div>
+          <p style={{ fontSize: 12, color: '#6B7280' }}>© 2026 SALURAMA S.A.S. · salurama.com · Hecho en México 🇲🇽</p>
+        </div>
+      </footer>
     </div>
   )
 }

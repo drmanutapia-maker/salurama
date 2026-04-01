@@ -1,205 +1,283 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowLeft, UserCheck, Stethoscope } from 'lucide-react'
+import { useState } from 'react'
+import { Menu, X } from 'lucide-react'
+
+const SECTIONS = [
+  { id: 'naturaleza',      title: '1. Naturaleza de la relación' },
+  { id: 'registro',        title: '2. Registro y perfil' },
+  { id: 'verificacion',    title: '3. Verificación de credenciales' },
+  { id: 'responsabilidad', title: '4. Responsabilidad médica' },
+  { id: 'resenas',         title: '5. Reseñas y reputación' },
+  { id: 'conducta',        title: '6. Conducta profesional' },
+  { id: 'modelo',          title: '7. Modelo gratuito y servicios futuros' },
+  { id: 'suspension',      title: '8. Suspensión y cancelación' },
+  { id: 'jurisdiccion',    title: '9. Jurisdicción' },
+]
 
 export default function TerminosProfesionales() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
   return (
-    <div style={{ minHeight: '100vh', background: '#FAFAFA', fontFamily: "'DM Sans', sans-serif", color: '#1A1A2E' }}>
+    <div style={{ fontFamily: "'DM Sans', sans-serif", background: '#fff', minHeight: '100vh', color: '#1A1A2E' }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@600;900&family=DM+Sans:wght@300;400;500;700&display=swap');
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        h1, h2, h3 { font-family: "'Fraunces', serif"; }
-        .container { max-width: 800px; margin: 0 auto; padding: 24px 20px; }
-        .card { background: #fff; borderRadius: 16px; padding: 32px; border: 1px solid #E5E7EB; }
-        .section { marginBottom: 28px; }
-        .section-title { fontSize: 18px; fontWeight: 700; color: '#3730A3'; marginBottom: 12px; }
-        .text { fontSize: 14px; color: '#374151'; lineHeight: 1.7; marginBottom: 12px; }
-        .list { paddingLeft: 20px; marginBottom: 12px; }
-        .list li { fontSize: 14px; color: '#374151'; lineHeight: 1.7; marginBottom: 6px; }
-        .highlight { background: '#EEF2FF'; padding: 16px; borderRadius: 10px; border-left: 4px solid #3730A3; margin: 16px 0; }
-        .warning { background: '#DCFCE7'; padding: 16px; borderRadius: 10px; border-left: 4px solid '#059669'; margin: 16px 0; }
-        @media (max-width: 640px) { .card { padding: 24px 18px; } }
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;0,900;1,600&family=DM+Sans:wght@300;400;500;700&display=swap');
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        .nav-link { color: #1A1A2E; text-decoration: none; font-size: 15px; font-weight: 400;
+          padding: 6px 2px; border-bottom: 2px solid transparent; transition: color 0.15s, border-color 0.15s; }
+        .nav-link:hover { color: #3730A3; border-color: #3730A3; }
+        .btn-medico { background: #3730A3; color: #fff; text-decoration: none;
+          padding: 10px 20px; border-radius: 50px; font-size: 14px; font-weight: 600;
+          font-family: 'DM Sans', sans-serif; transition: background 0.18s;
+          display: inline-flex; align-items: center; gap: 7px; }
+        .btn-medico:hover { background: #4F46E5; }
+        .toc-link { display: block; font-size: 13px; color: #6B7280; text-decoration: none;
+          padding: 7px 12px; border-radius: 6px; transition: all 0.15s;
+          border-left: 2px solid transparent; }
+        .toc-link:hover { background: #EEF2FF; color: #3730A3; border-left-color: #3730A3; }
+        .legal-h2 { font-family: 'Fraunces', serif; font-size: clamp(18px,3.5vw,22px);
+          font-weight: 900; color: #1E1B4B; margin: 0 0 14px;
+          padding-bottom: 10px; border-bottom: 2px solid #EEF2FF; }
+        .legal-h3 { font-size: 15px; font-weight: 600; color: #3730A3; margin: 20px 0 8px; }
+        .legal-p { font-size: 14px; color: #4B5563; line-height: 1.85; margin-bottom: 12px; }
+        .legal-ul { padding-left: 20px; margin-bottom: 14px; }
+        .legal-li { font-size: 14px; color: #4B5563; line-height: 1.8; margin-bottom: 5px; }
+        .legal-strong { color: #1A1A2E; font-weight: 600; }
+        .alert-box { background: #EEF2FF; border: 1.5px solid #C7D2FE; border-radius: 10px;
+          padding: 14px 18px; margin: 16px 0; }
+        .alert-box p { margin: 0; color: #3730A3; font-size: 13px; font-weight: 500; line-height: 1.6; }
+        .warning-box { background: #FFFBEB; border: 1.5px solid #FCD34D; border-radius: 10px;
+          padding: 14px 18px; margin: 16px 0; }
+        .warning-box p { margin: 0; color: #92400E; font-size: 13px; font-weight: 500; line-height: 1.6; }
+        .section-block { margin-bottom: 44px; scroll-margin-top: 80px; }
+        @media (max-width: 768px) {
+          .dsk { display: none !important; }
+          .mob-btn { display: flex !important; }
+          .sidebar-col { display: none !important; }
+        }
+        @media (min-width: 769px) {
+          .mob-btn { display: none !important; }
+          .mob-menu { display: none !important; }
+        }
       `}</style>
 
-      {/* NAV */}
-      <nav style={{ background: '#fff', borderBottom: '1px solid #F3F4F6', padding: '0 20px', position: 'sticky', top: 0, zIndex: 50 }}>
-        <div style={{ maxWidth: 800, margin: '0 auto', height: 54, display: 'flex', alignItems: 'center', gap: 12 }}>
-          <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 0 }}>
-            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 900, color: '#3730A3' }}>Salu</span>
-            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 600, color: '#F4623A' }}>rama</span>
+      {/* NAVBAR */}
+      <nav style={{ position: 'sticky', top: 0, zIndex: 100, background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(14px)', borderBottom: '1px solid #F3F4F6', padding: '0 20px' }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto', height: 58, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Link href="/" style={{ textDecoration: 'none' }}>
+            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, fontWeight: 900, color: '#3730A3', letterSpacing: '-0.5px' }}>Salu</span>
+            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, fontWeight: 600, color: '#F4623A', letterSpacing: '-0.5px' }}>rama</span>
           </Link>
+          <div className="dsk" style={{ display: 'flex', alignItems: 'center', gap: 28 }}>
+            <Link href="/buscar"             className="nav-link">Especialidades</Link>
+            <Link href="/como-elegir-medico" className="nav-link">¿Cómo elegir médico?</Link>
+            <Link href="/nosotros"           className="nav-link">Nosotros</Link>
+            <Link href="/registro"           className="btn-medico">👨‍⚕️ Soy Médico</Link>
+          </div>
+          <button className="mob-btn" onClick={() => setMobileMenuOpen(o => !o)}
+            style={{ display: 'none', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', padding: 8 }}>
+            {mobileMenuOpen ? <X size={24} color="#3730A3" /> : <Menu size={24} color="#3730A3" />}
+          </button>
         </div>
+        {mobileMenuOpen && (
+          <div className="mob-menu" style={{ padding: '12px 20px 20px', borderTop: '1px solid #F3F4F6', background: '#fff' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {[['Especialidades','/buscar'],['¿Cómo elegir médico?','/como-elegir-medico'],['Nosotros','/nosotros']].map(([l,h]) => (
+                <Link key={h} href={h} onClick={() => setMobileMenuOpen(false)}
+                  style={{ fontSize: 16, color: '#1A1A2E', textDecoration: 'none', padding: '12px 8px', display: 'block' }}>{l}</Link>
+              ))}
+              <Link href="/registro" onClick={() => setMobileMenuOpen(false)} className="btn-medico"
+                style={{ marginTop: 10, justifyContent: 'center', padding: '13px 20px', fontSize: 15 }}>
+                👨‍⚕️ Soy Médico
+              </Link>
+            </div>
+          </div>
+        )}
       </nav>
 
-      {/* CONTENT */}
-      <div className="container">
-        <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#6B7280', textDecoration: 'none', fontSize: 14, marginBottom: 20 }}>
-          <ArrowLeft size={16} /> Volver al inicio
-        </Link>
-
-        <div className="card">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-            <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <UserCheck size={24} color="#3730A3" />
-            </div>
-            <div>
-              <h1 style={{ fontSize: 24, fontWeight: 900, color: '#1A1A2E', marginBottom: 4 }}>Términos para Profesionales de la Salud</h1>
-              <p style={{ fontSize: 13, color: '#9CA3AF' }}>Última actualización: 21 de marzo de 2026</p>
-            </div>
-          </div>
-
-          <div className="section">
-            <h2 className="section-title">1. Identificación</h2>
-            <p className="text">
-              Este contrato regula la relación entre <strong>Salurama S.A.S. de C.V. (en constitución)</strong> y los profesionales de la salud que utilizan la plataforma.
-            </p>
-          </div>
-
-          <div className="section">
-            <h2 className="section-title">2. Naturaleza de la relación</h2>
-            
-            <p className="text">El profesional reconoce que:</p>
-            <ul className="list">
-              <li>Salurama es ÚNICAMENTE una plataforma tecnológica intermediaria</li>
-              <li>NO existe relación laboral, sociedad o representación legal</li>
-              <li>El profesional actúa de manera independiente</li>
-              <li>El profesional es responsable de sus actos profesionales</li>
-            </ul>
-
-            <p className="text">Salurama NO:</p>
-            <ul className="list">
-              <li>Ejerce la medicina</li>
-              <li>Supervisa actos médicos</li>
-              <li>Garantiza resultados de tratamientos</li>
-              <li>Interviene en la relación médico-paciente</li>
-            </ul>
-          </div>
-
-          <div className="section">
-            <h2 className="section-title">3. Registro y verificación</h2>
-            
-            <p className="text">El profesional se compromete a:</p>
-            <ul className="list">
-              <li>Proporcionar información VERAZ y ACTUALIZADA</li>
-              <li>Contar con cédula profesional VÁLIDA en México</li>
-              <li>Mantener actualizados sus datos de contacto</li>
-              <li>Notificar cambios en su situación profesional</li>
-            </ul>
-
-            <div className="warning">
-              <p style={{ fontSize: 14, color: '#065F46', margin: '0 0 8px 0' }}>
-                <strong>Proceso de verificación:</strong>
-              </p>
-              <ul className="list" style={{ marginBottom: 0 }}>
-                <li>Salurama verificará la cédula profesional ante la SEP</li>
-                <li>El proceso toma 24-48 horas hábiles</li>
-                <li>El profesional será notificado del resultado</li>
-                <li>Perfiles no verificados no serán visibles públicamente</li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="section">
-            <h2 className="section-title">4. Responsabilidad médica</h2>
-            
-            <p className="text">El profesional acepta que:</p>
-            <ul className="list">
-              <li>Es el ÚNICO responsable de los servicios médicos prestados</li>
-              <li>Salurama NO participa en diagnósticos ni tratamientos</li>
-              <li>La relación médico-paciente es directa entre las partes</li>
-              <li>Salurama NO es responsable de resultados médicos</li>
-            </ul>
-
-            <div className="highlight">
-              <p style={{ fontSize: 14, color: '#374151', margin: 0 }}>
-                <strong>Indemnización:</strong> El profesional indemnizará a Salurama S.A.S. de C.V. por cualquier reclamación, demanda o multa derivada de su actuación profesional.
-              </p>
-            </div>
-          </div>
-
-          <div className="section">
-            <h2 className="section-title">5. Reseñas y reputación</h2>
-            
-            <p className="text">Los pacientes podrán dejar reseñas y calificaciones.</p>
-            <p className="text">El profesional acepta que:</p>
-            <ul className="list">
-              <li>Las reseñas serán públicas</li>
-              <li>No podrá eliminar reseñas negativas legítimas</li>
-              <li>Podrá responder a las reseñas de manera profesional</li>
-            </ul>
-            <p className="text">Salurama se reserva el derecho de:</p>
-            <ul className="list">
-              <li>Eliminar contenido ofensivo o falso</li>
-              <li>Moderar reseñas sin previo aviso</li>
-              <li>Suspender cuentas con reseñas fraudulentas</li>
-            </ul>
-          </div>
-
-          <div className="section">
-            <h2 className="section-title">6. Monetización y servicios futuros</h2>
-            
-            <p className="text">El directorio básico es GRATUITO para médicos.</p>
-            <p className="text">Salurama podrá implementar servicios premium:</p>
-            <ul className="list">
-              <li>Posicionamiento destacado</li>
-              <li>Herramientas de gestión de agenda</li>
-              <li>Estadísticas de perfil</li>
-              <li>Procesamiento de pagos en línea (futuro)</li>
-            </ul>
-            <p className="text">
-              Las tarifas de servicios premium serán informadas previamente y requerirán aceptación expresa.
-            </p>
-          </div>
-
-          <div className="section">
-            <h2 className="section-title">7. Suspensión y cancelación</h2>
-            
-            <p className="text">Salurama podrá suspender o eliminar cuentas por:</p>
-            <ul className="list">
-              <li>Información falsa o engañosa</li>
-              <li>Mala conducta profesional</li>
-              <li>Violaciones a estos términos</li>
-              <li>Solicitud de la autoridad competente</li>
-              <li>Inactividad por más de 12 meses</li>
-            </ul>
-            <p className="text">
-              El profesional podrá cancelar su cuenta en cualquier momento notificando a: <strong>hola@salurama.com</strong>
-            </p>
-          </div>
-
-          <div className="section">
-            <h2 className="section-title">8. Jurisdicción y ley aplicable</h2>
-            
-            <p className="text">
-              Este contrato se rige por las leyes de México.
-            </p>
-            <p className="text">
-              Para controversias, las partes se someten a los tribunales de la Ciudad de México.
-            </p>
-            <p className="text">
-              Las controversias se resolverán primero mediante mediación.
-            </p>
-          </div>
-
-          <div className="section">
-            <h2 className="section-title">9. Vigencia</h2>
-            
-            <p className="text">
-              Estos términos entran en vigor el 21 de marzo de 2026.
-            </p>
-            <p className="text">
-              Salurama se reserva el derecho de modificar los términos con 15 días de anticipación.
-            </p>
-          </div>
-
-          <div style={{ borderTop: '1px solid #F3F4F6', paddingTop: 24, marginTop: 32 }}>
-            <p style={{ fontSize: 13, color: '#9CA3AF', textAlign: 'center' }}>
-              © 2026 Salurama S.A.S. de C.V. (en constitución) · Todos los derechos reservados
-            </p>
-          </div>
+      {/* HERO */}
+      <section style={{ background: 'linear-gradient(160deg, #EEF2FF 0%, #fff 60%)', padding: 'clamp(40px,6vw,60px) 20px 32px' }}>
+        <div style={{ maxWidth: 860, margin: '0 auto' }}>
+          <p style={{ fontSize: 11, fontWeight: 600, color: '#4F46E5', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 10 }}>
+            Para médicos y especialistas
+          </p>
+          <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(28px,6vw,40px)', fontWeight: 900, color: '#1E1B4B', marginBottom: 12 }}>
+            Términos para Profesionales de la Salud
+          </h1>
+          <p style={{ fontSize: 14, color: '#6B7280', marginBottom: 6 }}>
+            Última actualización: 31 de marzo de 2026
+          </p>
+          <p style={{ fontSize: 14, color: '#6B7280' }}>
+            Este contrato regula la relación entre <strong style={{ color: '#1A1A2E' }}>SALURAMA S.A.S.</strong> y los profesionales de la salud que utilizan la plataforma.
+          </p>
         </div>
+      </section>
+
+      {/* CONTENIDO */}
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '40px 20px 80px', display: 'grid', gridTemplateColumns: '220px 1fr', gap: 48, alignItems: 'start' }}>
+
+        <aside className="sidebar-col" style={{ position: 'sticky', top: 80 }}>
+          <p style={{ fontSize: 11, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Contenido</p>
+          <nav style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {SECTIONS.map(s => <a key={s.id} href={`#${s.id}`} className="toc-link">{s.title}</a>)}
+          </nav>
+        </aside>
+
+        <main>
+
+          {/* 1 */}
+          <div id="naturaleza" className="section-block">
+            <h2 className="legal-h2">1. Naturaleza de la relación</h2>
+            <p className="legal-p">
+              Al registrarse en Salurama, el profesional de la salud reconoce y acepta que:
+            </p>
+            <ul className="legal-ul">
+              <li className="legal-li">Salurama es <strong className="legal-strong">exclusivamente una plataforma tecnológica</strong> que facilita el acceso a información pública sobre profesionales de la salud.</li>
+              <li className="legal-li">No existe entre las partes relación laboral, de sociedad, de mandato, de agencia ni de representación legal de ningún tipo.</li>
+              <li className="legal-li">El profesional actúa en forma completamente independiente y bajo su propia responsabilidad.</li>
+            </ul>
+            <p className="legal-p">Salurama NO ejerce la medicina, NO supervisa actos médicos, NO garantiza resultados de tratamientos, NO interviene en la relación médico-paciente y NO es responsable de los actos u omisiones del profesional en el ejercicio de su profesión.</p>
+          </div>
+
+          {/* 2 */}
+          <div id="registro" className="section-block">
+            <h2 className="legal-h2">2. Registro y perfil</h2>
+            <p className="legal-p">Al registrarse, el profesional se compromete a:</p>
+            <ul className="legal-ul">
+              <li className="legal-li">Proporcionar información veraz, completa y actualizada en todos los campos del perfil.</li>
+              <li className="legal-li">Contar con cédula profesional válida y vigente expedida en México.</li>
+              <li className="legal-li">Mantener actualizados sus datos de contacto, especialidad y credenciales.</li>
+              <li className="legal-li">Notificar a Salurama de inmediato ante cualquier cambio relevante en sus credenciales o situación profesional.</li>
+            </ul>
+            <p className="legal-p">
+              El profesional otorga a Salurama una licencia no exclusiva para mostrar públicamente los datos de su perfil con la finalidad de conectarlo con pacientes. Esta licencia se revoca automáticamente al cancelar la cuenta.
+            </p>
+          </div>
+
+          {/* 3 */}
+          <div id="verificacion" className="section-block">
+            <h2 className="legal-h2">3. Verificación de credenciales — Transparencia al paciente</h2>
+            <div className="alert-box">
+              <p>El diferenciador central de Salurama es que los pacientes verifican las credenciales directamente en fuentes oficiales (SEP, consejos de especialidad), sin intermediarios. Salurama NO es un aval, NO certifica y NO garantiza la vigencia de ninguna credencial.</p>
+            </div>
+            <p className="legal-p">
+              En el perfil del profesional se incluirán botones de acceso directo al portal de cédulas de la SEP y al consejo de especialidad correspondiente. El profesional acepta que esta funcionalidad es fundamental para el servicio y no puede ser desactivada.
+            </p>
+            <p className="legal-p">
+              Salurama podrá incluir en el perfil la leyenda <strong className="legal-strong">"Cédula verificable en SEP"</strong> únicamente para indicar que el número de cédula reportado por el profesional es consultable en el portal oficial. Esta leyenda no implica que Salurama haya realizado verificación alguna ni que avale al profesional.
+            </p>
+            <p className="legal-p">
+              Salurama podrá suspender o eliminar perfiles cuando exista evidencia documentada de inconsistencias entre los datos declarados y la información disponible en fuentes oficiales, o ante denuncia fundada de información falsa.
+            </p>
+          </div>
+
+          {/* 4 */}
+          <div id="responsabilidad" className="section-block">
+            <h2 className="legal-h2">4. Responsabilidad médica e indemnización</h2>
+            <p className="legal-p">
+              El profesional acepta que es el <strong className="legal-strong">único responsable</strong> de los servicios médicos que presta a través de cualquier contacto generado desde la plataforma. Salurama no participa en diagnósticos, tratamientos ni en ningún acto médico.
+            </p>
+            <p className="legal-p">
+              <strong className="legal-strong">Indemnización:</strong> El profesional se obliga a indemnizar, defender y mantener en paz y a salvo a SALURAMA S.A.S., sus directivos, empleados y representantes, de cualquier reclamación, demanda, pérdida, multa o gasto (incluyendo honorarios legales razonables) que surja directamente de: (i) información falsa o engañosa proporcionada en su perfil, (ii) actos u omisiones en el ejercicio de su práctica médica, o (iii) incumplimiento de los presentes Términos. Esta obligación de indemnización estará limitada a daños directos y comprobables, excluyendo daños indirectos o lucro cesante.
+            </p>
+          </div>
+
+          {/* 5 */}
+          <div id="resenas" className="section-block">
+            <h2 className="legal-h2">5. Reseñas y calificaciones</h2>
+            <p className="legal-p">
+              Los pacientes podrán publicar reseñas y calificaciones en el perfil del profesional. El profesional acepta que:
+            </p>
+            <ul className="legal-ul">
+              <li className="legal-li">Las reseñas legítimas serán públicas y no podrán ser eliminadas a petición del profesional.</li>
+              <li className="legal-li">Podrá responder públicamente a las reseñas de manera profesional y respetuosa.</li>
+              <li className="legal-li">Las reseñas son opiniones de terceros; Salurama no las avala ni verifica su veracidad.</li>
+            </ul>
+            <p className="legal-p">
+              Salurama se reserva el derecho de eliminar reseñas que contengan: información falsa verificable, contenido difamatorio, datos personales de terceros sin consentimiento, o contenido contrario a la legislación mexicana. La moderación se realizará con criterios objetivos y no discriminatorios.
+            </p>
+            <div className="alert-box">
+              <p>Las reseñas nunca afectan el orden de aparición en búsquedas. Ningún médico aparece primero por tener más o mejores reseñas, ni por ningún pago. El orden de resultados refleja relevancia para la búsqueda del paciente.</p>
+            </div>
+          </div>
+
+          {/* 6 */}
+          <div id="conducta" className="section-block">
+            <h2 className="legal-h2">6. Conducta profesional</h2>
+            <p className="legal-p">El profesional se compromete a:</p>
+            <ul className="legal-ul">
+              <li className="legal-li">No publicar información engañosa, exagerada o no verificable sobre su práctica o credenciales.</li>
+              <li className="legal-li">No contactar a pacientes que no hayan iniciado el contacto a través de la plataforma para fines de prospección.</li>
+              <li className="legal-li">Respetar la normativa aplicable a su profesión, incluyendo el Código de Ética del sector.</li>
+              <li className="legal-li">No utilizar la plataforma para actividades contrarias a la Ley General de Salud y sus reglamentos.</li>
+            </ul>
+          </div>
+
+          {/* 7 */}
+          <div id="modelo" className="section-block">
+            <h2 className="legal-h2">7. Modelo gratuito y servicios opcionales futuros</h2>
+            <p className="legal-p">
+              El <strong className="legal-strong">registro y perfil básico en Salurama es gratuito</strong> para los profesionales de la salud. Salurama se financia mediante contratos con empresas del sector salud (farmacéuticas, aseguradoras, laboratorios) para contenido informativo, sin que esto afecte la visibilidad o el orden de aparición de los profesionales.
+            </p>
+            <p className="legal-p">
+              En el futuro, Salurama podrá ofrecer servicios adicionales opcionales como herramientas de gestión de agenda, estadísticas del perfil o funcionalidades avanzadas. Estos servicios serán siempre opcionales, se informarán previamente y requerirán aceptación expresa del profesional. <strong className="legal-strong">Ningún servicio de pago afectará el orden de aparición en resultados de búsqueda.</strong>
+            </p>
+          </div>
+
+          {/* 8 */}
+          <div id="suspension" className="section-block">
+            <h2 className="legal-h2">8. Suspensión y cancelación de cuenta</h2>
+            <h3 className="legal-h3">Causales de suspensión o eliminación por parte de Salurama</h3>
+            <ul className="legal-ul">
+              <li className="legal-li">Información falsa, engañosa o inconsistente con fuentes oficiales verificadas.</li>
+              <li className="legal-li">Conducta contraria al Código de Ética o que afecte a pacientes o terceros.</li>
+              <li className="legal-li">Violación reiterada de los presentes Términos.</li>
+              <li className="legal-li">Solicitud fundamentada de autoridad competente.</li>
+              <li className="legal-li">Inactividad del perfil por más de 24 meses sin actualización.</li>
+            </ul>
+            <p className="legal-p">
+              Salvo en casos de urgencia o riesgo para pacientes, Salurama notificará al profesional con al menos <strong className="legal-strong">5 días hábiles de anticipación</strong> antes de proceder a la suspensión, indicando la causal específica y el mecanismo para subsanarla.
+            </p>
+            <h3 className="legal-h3">Cancelación voluntaria</h3>
+            <p className="legal-p">
+              El profesional podrá cancelar su cuenta en cualquier momento enviando solicitud a <a href="mailto:hola@salurama.com" style={{ color: '#3730A3' }}>hola@salurama.com</a>. La cancelación se procesará en un plazo máximo de 5 días hábiles.
+            </p>
+          </div>
+
+          {/* 9 */}
+          <div id="jurisdiccion" className="section-block">
+            <h2 className="legal-h2">9. Jurisdicción y ley aplicable</h2>
+            <p className="legal-p">
+              El presente contrato se rige por las leyes de los Estados Unidos Mexicanos. Para cualquier controversia, las partes se someten a los tribunales competentes de la Ciudad de México, renunciando al fuero que pudiera corresponderles por razón de domicilio presente o futuro.
+            </p>
+            <p className="legal-p">
+              Las partes acuerdan intentar resolver cualquier diferencia mediante negociación directa en un plazo de 30 días. De no lograrse acuerdo, la controversia se someterá al Centro de Arbitraje de México (CAM) conforme a su reglamento vigente.
+            </p>
+            <p className="legal-p">
+              Estos Términos entran en vigor el 31 de marzo de 2026. Salurama se reserva el derecho de modificarlos con notificación previa de 15 días naturales.
+            </p>
+            <p className="legal-p" style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid #F3F4F6', fontSize: 12, color: '#9CA3AF' }}>
+              © 2026 SALURAMA S.A.S. · Todos los derechos reservados · salurama.com
+            </p>
+          </div>
+        </main>
       </div>
+
+      <footer style={{ background: '#1E1B4B', padding: 'clamp(32px,5vw,40px) 20px', textAlign: 'center' }}>
+        <div style={{ maxWidth: 860, margin: '0 auto' }}>
+          <div style={{ marginBottom: 10 }}>
+            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 900, color: '#fff' }}>Salu</span>
+            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 600, color: '#F4623A' }}>rama</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 20, flexWrap: 'wrap', marginBottom: 14 }}>
+            {[['Términos y Condiciones','/terminos-y-condiciones'],['Aviso de Privacidad','/aviso-de-privacidad'],
+              ['Política de Cookies','/politica-de-cookies'],['Inicio','/']]
+              .map(([l,h]) => <Link key={h} href={h} style={{ fontSize: 13, color: '#A5B4FC', textDecoration: 'none' }}>{l}</Link>)}
+          </div>
+          <p style={{ fontSize: 12, color: '#6B7280' }}>© 2026 SALURAMA S.A.S. · salurama.com · Hecho en México 🇲🇽</p>
+        </div>
+      </footer>
     </div>
   )
 }
