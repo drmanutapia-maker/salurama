@@ -9,8 +9,8 @@ import {
   FileText, AlertCircle
 } from 'lucide-react'
 
-// ✅ Contraseña desde variable de entorno (definida en .env.local y Vercel)
-const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'Salurama#Admin2026$Seguro!'
+// ✅ Contraseña desde variable de entorno
+const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || ''
 
 const CEDULA_SEP_URL = 'https://www.cedulaprofesional.sep.gob.mx/cedula/presidencia/indexAvanzada.action'
 
@@ -48,10 +48,12 @@ export default function AdminPanel() {
   const [copiado, setCopiado]           = useState<string | null>(null)
   const [procesando, setProcesando]     = useState<string | null>(null)
   const [adminEmail, setAdminEmail]     = useState('')
+  const [toast, setToast]               = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
   const [stats, setStats] = useState({
     pendientes: 0, revisados: 0, rechazados: 0, total: 0
   })
 
+  // Cargar sesión al montar
   useEffect(() => {
     const ok    = sessionStorage.getItem('salurama_admin')
     const email = sessionStorage.getItem('salurama_admin_email')
@@ -61,13 +63,23 @@ export default function AdminPanel() {
     }
   }, [])
 
+  // Cargar médicos cuando cambia vista o autenticación
   useEffect(() => {
     if (autenticado) cargarMedicos()
   }, [autenticado, vista])
 
+  // Auto-ocultar toast
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 3000)
+      return () => clearTimeout(timer)
+    }
+  }, [toast])
+
   async function cargarMedicos() {
     setLoading(true)
     try {
+      // Stats
       const { data: todos } = await supabase.from('doctors').select('review_status')
       if (todos) {
         setStats({
@@ -77,20 +89,24 @@ export default function AdminPanel() {
           total:      todos.length,
         })
       }
+      // Lista
       let query = supabase.from('doctors').select('*').order('created_at', { ascending: false })
       if (vista === 'pendientes') query = query.eq('review_status', 'pendiente')
-      const { data } = await query
+      const { data, error } = await query
+      if (error) throw error
       setMedicos(data || [])
-    } catch (e) {
-      console.error(e)
+    } catch (e: unknown) {
+      console.error('Error cargando médicos:', e)
+      setToast({ msg: 'Error al cargar médicos. Intenta recargar.', type: 'error' })
     } finally {
       setLoading(false)
     }
   }
 
   function login() {
+    // Validar que la variable de entorno esté configurada
     if (!ADMIN_PASSWORD) {
-      alert('Variable de entorno NEXT_PUBLIC_ADMIN_PASSWORD no configurada.')
+      setToast({ msg: 'Error: Contraseña de admin no configurada en entorno.', type: 'error' })
       return
     }
     if (passInput === ADMIN_PASSWORD) {
@@ -99,9 +115,11 @@ export default function AdminPanel() {
       setAutenticado(true)
       setPassError(false)
       setAdminEmail('admin@salurama.com')
+      setToast({ msg: '¡Bienvenido al panel de administración!', type: 'success' })
     } else {
       setPassError(true)
       setPassInput('')
+      setToast({ msg: 'Contraseña incorrecta', type: 'error' })
     }
   }
 
@@ -111,12 +129,14 @@ export default function AdminPanel() {
     setAutenticado(false)
     setPassInput('')
     setAdminEmail('')
+    setToast({ msg: 'Sesión cerrada', type: 'success' })
   }
 
   async function cambiarStatus(medico: Medico, nuevoStatus: 'revisado' | 'rechazado') {
     const accion = nuevoStatus === 'revisado'
       ? 'marcar cédula como consultable'
       : 'rechazar este perfil'
+    
     if (!confirm(`¿Confirmas ${accion} para ${medico.full_name}?`)) return
 
     setProcesando(medico.id)
@@ -127,21 +147,23 @@ export default function AdminPanel() {
         last_reviewed_at: new Date().toISOString(),
         last_reviewed_by: adminEmail || 'admin@salurama.com',
       }).eq('id', medico.id)
+      
       if (error) throw error
 
-      await supabase.from('admin_actions').insert({
-        action_type:  `revision_${nuevoStatus}`,
-        doctor_id:    medico.id,
-        doctor_name:  medico.full_name,
-        admin_email:  adminEmail || 'admin@salurama.com',
-        timestamp:    new Date().toISOString(),
-      }).catch(() => {}) // tabla opcional
+      // ✅ ELIMINADO: Referencia a admin_actions (tabla no existe)
+      // Si en el futuro creas la tabla, puedes agregarla aquí con try/catch separado
 
       await cargarMedicos()
-      alert(`Perfil actualizado: ${nuevoStatus}`)
-    } catch (e) {
-      console.error(e)
-      alert('Error al actualizar. Intenta de nuevo.')
+      setToast({ 
+        msg: `Perfil actualizado: ${nuevoStatus === 'revisado' ? 'Cédula consultable' : 'Rechazado'}`, 
+        type: 'success' 
+      })
+    } catch (e: unknown) {
+      console.error('Error actualizando médico:', e)
+      setToast({ 
+        msg: 'Error al actualizar. Verifica permisos en Supabase e intenta de nuevo.', 
+        type: 'error' 
+      })
     } finally {
       setProcesando(null)
     }
@@ -155,8 +177,12 @@ export default function AdminPanel() {
         .eq('id', medico.id)
       if (error) throw error
       await cargarMedicos()
+      setToast({ 
+        msg: `Médico ${!medico.is_active ? 'activado' : 'desactivado'}`, 
+        type: 'success' 
+      })
     } catch {
-      alert('Error al actualizar. Intenta de nuevo.')
+      setToast({ msg: 'Error al actualizar estado. Intenta de nuevo.', type: 'error' })
     } finally {
       setProcesando(null)
     }
@@ -185,6 +211,25 @@ export default function AdminPanel() {
     if (!licenseIssueDate) return 'No registrada'
     const anos = new Date().getFullYear() - new Date(licenseIssueDate).getFullYear()
     return `${anos} año${anos !== 1 ? 's' : ''}`
+  }
+
+  // ── TOAST NOTIFICATION ─────────────────────────────────────────────────────
+  if (toast) {
+    return (
+      <div style={{
+        position: 'fixed', top: 20, right: 20, zIndex: 9999,
+        background: toast.type === 'success' ? '#DCFCE7' : '#FEF2F2',
+        color: toast.type === 'success' ? '#059669' : '#DC2626',
+        border: `1px solid ${toast.type === 'success' ? '#86EFAC' : '#FECACA'}`,
+        borderRadius: 10, padding: '12px 18px', fontSize: 13, fontWeight: 500,
+        display: 'flex', alignItems: 'center', gap: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+        animation: 'slideIn 0.3s ease-out'
+      }}>
+        {toast.type === 'success' ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
+        {toast.msg}
+        <style>{`@keyframes slideIn { from{transform:translateX(100%);opacity:0} to{transform:translateX(0);opacity:1} }`}</style>
+      </div>
+    )
   }
 
   // ── LOGIN ──────────────────────────────────────────────────────────────────
