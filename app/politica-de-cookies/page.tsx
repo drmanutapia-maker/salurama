@@ -12,24 +12,17 @@ export default function PoliticaDeCookies() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;0,900;1,600&family=DM+Sans:wght@300;400;500;700&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        .nav-link { color: #1A1A2E; text-decoration: none; font-size: 15px; font-weight: 400;
-          padding: 6px 2px; border-bottom: 2px solid transparent; transition: color 0.15s, border-color 0.15s; }
+        .nav-link { color: #1A1A2E; text-decoration: none; font-size: 15px; font-weight: 400; padding: 6px 2px; border-bottom: 2px solid transparent; transition: color 0.15s, border-color 0.15s; }
         .nav-link:hover { color: #3730A3; border-color: #3730A3; }
-        .btn-medico { background: #3730A3; color: #fff; text-decoration: none;
-          padding: 10px 20px; border-radius: 50px; font-size: 14px; font-weight: 600;
-          font-family: 'DM Sans', sans-serif; transition: background 0.18s;
-          display: inline-flex; align-items: center; gap: 7px; }
+        .btn-medico { background: #3730A3; color: #fff; text-decoration: none; padding: 10px 20px; border-radius: 50px; font-size: 14px; font-weight: 600; font-family: 'DM Sans', sans-serif; transition: background 0.18s; display: inline-flex; align-items: center; gap: 7px; }
         .btn-medico:hover { background: #4F46E5; }
-        .legal-h2 { font-family: 'Fraunces', serif; font-size: clamp(18px,3.5vw,22px);
-          font-weight: 900; color: #1E1B4B; margin: 0 0 14px;
-          padding-bottom: 10px; border-bottom: 2px solid #EEF2FF; }
+        .legal-h2 { font-family: 'Fraunces', serif; font-size: clamp(18px,3.5vw,22px); font-weight: 900; color: #1E1B4B; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 2px solid #EEF2FF; }
         .legal-h3 { font-size: 15px; font-weight: 600; color: #3730A3; margin: 20px 0 8px; }
         .legal-p { font-size: 14px; color: #4B5563; line-height: 1.85; margin-bottom: 12px; }
         .legal-ul { padding-left: 20px; margin-bottom: 14px; }
         .legal-li { font-size: 14px; color: #4B5563; line-height: 1.8; margin-bottom: 5px; }
         .legal-strong { color: #1A1A2E; font-weight: 600; }
-        .alert-box { background: #EEF2FF; border: 1.5px solid #C7D2FE; border-radius: 10px;
-          padding: 14px 18px; margin: 16px 0; }
+        .alert-box { background: #EEF2FF; border: 1.5px solid #C7D2FE; border-radius: 10px; padding: 14px 18px; margin: 16px 0; }
         .alert-box p { margin: 0; color: #3730A3; font-size: 13px; font-weight: 500; line-height: 1.6; }
         .cookie-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 13px; }
         .cookie-table th { background: #1E1B4B; color: #fff; padding: 10px 14px; text-align: left; font-weight: 600; }
@@ -39,16 +32,8 @@ export default function PoliticaDeCookies() {
         .badge-green { background: #D1FAE5; color: #065F46; }
         .badge-yellow { background: #FEF3C7; color: #92400E; }
         .section-block { margin-bottom: 44px; scroll-margin-top: 80px; }
-        @media (max-width: 768px) {
-          .dsk { display: none !important; }
-          .mob-btn { display: flex !important; }
-          .cookie-table { font-size: 12px; }
-          .cookie-table td, .cookie-table th { padding: 7px 10px; }
-        }
-        @media (min-width: 769px) {
-          .mob-btn { display: none !important; }
-          .mob-menu { display: none !important; }
-        }
+        @media (max-width: 768px) { .dsk { display: none !important; } .mob-btn { display: flex !important; } .cookie-table { font-size: 12px; } .cookie-table td, .cookie-table th { padding: 7px 10px; } }
+        @media (min-width: 769px) { .mob-btn { display: none !important; } .mob-menu { display: none !important; } }
       `}</style>
 
       {/* NAVBAR */}
@@ -59,14 +44,14 @@ export default function PoliticaDeCookies() {
             <span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, fontWeight: 600, color: '#F4623A', letterSpacing: '-0.5px' }}>rama</span>
           </Link>
           <div className="dsk" style={{ display: 'flex', alignItems: 'center', gap: 28 }}>
-            <Link href="/buscar"             className="nav-link">Especialidades</Link>
+            <Link href="/buscar" className="nav-link">Especialidades</Link>
             <Link href="/como-elegir-medico" className="nav-link">¿Cómo elegir médico?</Link>
-            <Link href="/nosotros"           className="nav-link">Nosotros</Link>
-            <Link href="/registro"           className="btn-medico">👨‍⚕️ Soy Médico</Link>
+            <Link href="/nosotros" className="nav-link">Nosotros</Link>
+            <Link href="/registro" className="btn-medico">👨‍⚕️ Soy Médico</Link>
           </div>
           <button className="mob-btn" onClick={() => setMobileMenuOpen(o => !o)}
             style={{ display: 'none', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', padding: 8 }}>
-            {mobileMenuOpen ? <X size={24} color="#3730A3" /> : <Menu size={24} color="#3730A3" />}
+            {mobileMenuOpen ? <X size={24} color="#3730A3" /> : <Menu size={24} color="#3730A3"/>}
           </button>
         </div>
         {mobileMenuOpen && (
@@ -116,14 +101,14 @@ export default function PoliticaDeCookies() {
           <p className="legal-p">Son indispensables para el funcionamiento básico de la plataforma. No pueden desactivarse sin afectar el servicio.</p>
           <table className="cookie-table">
             <thead>
-              <tr><th>Cookie</th><th>Finalidad</th><th>Duración</th></tr>
+              <tr> <th>Cookie</th> <th>Finalidad</th> <th>Duración</th> </tr>
             </thead>
             <tbody>
               {[
                 ['sb-auth-token','Autenticación de sesión (Supabase)','Sesión'],
                 ['sb-refresh-token','Renovación de sesión activa','7 días'],
                 ['csrf-token','Protección contra ataques CSRF','Sesión'],
-              ].map(([n,f,d]) => <tr key={n}><td><code>{n}</code></td><td>{f}</td><td>{d}</td></tr>)}
+              ].map(([n,f,d]) => <tr key={n}> <td><code>{n}</code></td> <td>{f}</td> <td>{d}</td> </tr>)}
             </tbody>
           </table>
 
@@ -131,7 +116,7 @@ export default function PoliticaDeCookies() {
           <p className="legal-p">Nos permiten entender cómo los usuarios interactúan con la plataforma para mejorarla. Los datos se procesan de forma agregada y anónima.</p>
           <table className="cookie-table">
             <thead>
-              <tr><th>Proveedor</th><th>Finalidad</th><th>Duración</th><th>Política</th></tr>
+              <tr> <th>Proveedor</th> <th>Finalidad</th> <th>Duración</th> <th>Política</th> </tr>
             </thead>
             <tbody>
               <tr>
@@ -147,14 +132,14 @@ export default function PoliticaDeCookies() {
           <p className="legal-p">Permiten recordar preferencias del usuario entre sesiones.</p>
           <table className="cookie-table">
             <thead>
-              <tr><th>Cookie</th><th>Finalidad</th><th>Duración</th></tr>
+              <tr> <th>Cookie</th> <th>Finalidad</th> <th>Duración</th> </tr>
             </thead>
             <tbody>
               {[
                 ['salurama-city','Ciudad de búsqueda guardada','30 días'],
                 ['salurama-prefs','Prioridades de búsqueda seleccionadas','30 días'],
                 ['cookie-consent','Registro de preferencias de cookies','12 meses'],
-              ].map(([n,f,d]) => <tr key={n}><td><code>{n}</code></td><td>{f}</td><td>{d}</td></tr>)}
+              ].map(([n,f,d]) => <tr key={n}> <td><code>{n}</code></td> <td>{f}</td> <td>{d}</td> </tr>)}
             </tbody>
           </table>
         </div>
@@ -163,7 +148,7 @@ export default function PoliticaDeCookies() {
           <h2 className="legal-h2">3. Cookies de terceros</h2>
           <table className="cookie-table">
             <thead>
-              <tr><th>Proveedor</th><th>Servicio</th><th>Tipo</th><th>Política</th></tr>
+              <tr> <th>Proveedor</th> <th>Servicio</th> <th>Tipo</th> <th>Política</th> </tr>
             </thead>
             <tbody>
               {[

@@ -1,56 +1,52 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import CookieBanner from '@/components/CookieBanner'
 
 export const metadata: Metadata = {
   title: {
-    default: "Salurama — Salud en tus manos",
+    default: "Salurama — Verifico, luego elijo",
     template: "%s | Salurama",
   },
-  description: "Directorio médico gratuito. Especialistas verificados cerca de ti.",
-  
+  description: "Directorio médico gratuito. Verifica credenciales antes de elegir. Especialistas con cédula verificable en SEP.",
   metadataBase: new URL("https://salurama.com"),
   alternates: {
     canonical: "https://salurama.com",
   },
-  
   robots: {
-    index: true,
-    follow: true,
+    index: false,
+    follow: false,
     googleBot: {
-      index: true,
-      follow: true,
+      index: false,
+      follow: false,
       "max-video-preview": -1,
       "max-image-preview": "large",
       "max-snippet": -1,
     },
   },
-  
   icons: {
     icon: "/favicon.ico",
     apple: "/apple-touch-icon.png",
   },
-  
   openGraph: {
     type: "website",
     locale: "es_MX",
     url: "https://salurama.com",
     siteName: "Salurama",
-    title: "Salurama — Salud en tus manos",
-    description: "Directorio médico gratuito. Especialistas verificados cerca de ti.",
+    title: "Salurama — Verifico, luego elijo",
+    description: "Directorio médico gratuito. Verifica credenciales antes de elegir.",
     images: [
       {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "Salurama — Salud en tus manos",
+        alt: "Salurama — Verifico, luego elijo",
       },
     ],
   },
-  
   twitter: {
     card: "summary_large_image",
-    title: "Salurama — Salud en tus manos",
-    description: "Directorio médico gratuito. Especialistas verificados cerca de ti.",
+    title: "Salurama — Verifico, luego elijo",
+    description: "Directorio médico gratuito. Verifica credenciales antes de elegir.",
     creator: "@saluramamx",
   },
 };
@@ -71,8 +67,6 @@ export default function RootLayout({
   return (
     <html lang="es">
       <head>
-        <meta name="robots" content="noindex, nofollow" />
-<meta name="googlebot" content="noindex, nofollow" />
         <link
           rel="preload"
           href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;0,900;1,600&family=DM+Sans:wght@300;400;500;700&display=swap"
@@ -82,9 +76,7 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;0,900;1,600&family=DM+Sans:wght@300;400;500;700&display=swap"
           rel="stylesheet"
         />
-        
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes" />
-        
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
@@ -93,7 +85,7 @@ export default function RootLayout({
               "@type": "MedicalWebPage",
               "name": "Salurama",
               "url": "https://salurama.com",
-              "description": "Directorio médico gratuito. Especialistas verificados cerca de ti.",
+              "description": "Directorio médico gratuito. Verifica credenciales antes de elegir.",
               "inLanguage": "es-MX",
               "medicalAudience": {
                 "@type": "MedicalAudience",
@@ -111,6 +103,7 @@ export default function RootLayout({
       </head>
       <body className="antialiased bg-white text-[#1A1A2E]" style={{ margin: 0, padding: 0, overflowX: 'hidden' }}>
         {children}
+        <CookieBanner />
       </body>
     </html>
   );
