@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Mail, MapPin, Stethoscope, CheckCircle, AlertCircle, Eye, EyeOff, ShieldCheck } from 'lucide-react'
+import { Mail, MapPin, Stethoscope, CheckCircle, AlertCircle, Eye, EyeOff, ShieldCheck, Info } from 'lucide-react'
 
 const ESPECIALIDADES = [
   'Alergología','Anestesiología','Angiología','Cardiología',
@@ -17,26 +17,26 @@ const ESPECIALIDADES = [
   'Radiología','Reumatología','Urología','Otra especialidad'
 ]
 
-// Consejos de especialidad más frecuentes en México
+// Consejos de especialidad más frecuentes en México (auto-fill)
 const CONSEJOS_ESPECIALIDAD: Record<string, string> = {
-  'Cardiología':                  'Consejo Mexicano de Cardiología',
-  'Dermatología':                 'Consejo Mexicano de Dermatología',
-  'Ginecología y Obstetricia':    'Consejo Mexicano de Ginecología y Obstetricia',
-  'Hematología':                  'Consejo Mexicano de Hematología',
-  'Medicina Interna':             'Consejo Mexicano de Medicina Interna',
-  'Neurología':                   'Consejo Mexicano de Neurología',
-  'Oftalmología':                 'Consejo Mexicano de Oftalmología',
-  'Oncología':                    'Consejo Mexicano de Oncología',
-  'Ortopedia y Traumatología':    'Consejo Mexicano de Ortopedia y Traumatología',
-  'Pediatría':                    'Consejo Mexicano de Certificación en Pediatría',
-  'Psiquiatría':                  'Consejo Mexicano de Psiquiatría',
-  'Urología':                     'Consejo Mexicano de Urología',
-  'Cirugía General':              'Consejo Mexicano de Cirugía General',
-  'Endocrinología':               'Consejo Mexicano de Endocrinología',
-  'Gastroenterología':            'Consejo Mexicano de Gastroenterología',
-  'Neumología':                   'Consejo Mexicano de Neumología',
-  'Reumatología':                 'Consejo Mexicano de Reumatología',
-  'Radiología':                   'Consejo Mexicano de Radiología e Imagen',
+  'Cardiología': 'Consejo Mexicano de Cardiología',
+  'Dermatología': 'Consejo Mexicano de Dermatología',
+  'Ginecología y Obstetricia': 'Consejo Mexicano de Ginecología y Obstetricia',
+  'Hematología': 'Consejo Mexicano de Hematología',
+  'Medicina Interna': 'Consejo Mexicano de Medicina Interna',
+  'Neurología': 'Consejo Mexicano de Neurología',
+  'Oftalmología': 'Consejo Mexicano de Oftalmología',
+  'Oncología': 'Consejo Mexicano de Oncología',
+  'Ortopedia y Traumatología': 'Consejo Mexicano de Ortopedia y Traumatología',
+  'Pediatría': 'Consejo Mexicano de Certificación en Pediatría',
+  'Psiquiatría': 'Consejo Mexicano de Psiquiatría',
+  'Urología': 'Consejo Mexicano de Urología',
+  'Cirugía General': 'Consejo Mexicano de Cirugía General',
+  'Endocrinología': 'Consejo Mexicano de Endocrinología',
+  'Gastroenterología': 'Consejo Mexicano de Gastroenterología',
+  'Neumología': 'Consejo Mexicano de Neumología',
+  'Reumatología': 'Consejo Mexicano de Reumatología',
+  'Radiología': 'Consejo Mexicano de Radiología e Imagen',
 }
 
 const ESTADOS_MEXICO = [
@@ -50,80 +50,99 @@ const ESTADOS_MEXICO = [
 ]
 
 const CIUDADES_POR_ESTADO: Record<string, string[]> = {
-  'Aguascalientes':    ['Aguascalientes','Calvillo','Rincón de Romos'],
-  'Baja California':   ['Tijuana','Mexicali','Ensenada','Playas de Rosarito','Tecate'],
-  'Baja California Sur':['La Paz','Los Cabos','Loreto','Comondú'],
-  'Campeche':          ['Campeche','Ciudad del Carmen','Champotón'],
-  'Chiapas':           ['Tuxtla Gutiérrez','Tapachula','San Cristóbal de las Casas','Comitán'],
-  'Chihuahua':         ['Chihuahua','Ciudad Juárez','Delicias','Cuauhtémoc','Parral'],
-  'Ciudad de México':  ['Ciudad de México'],
-  'Coahuila':          ['Saltillo','Torreón','Monclova','Piedras Negras','Acuña'],
-  'Colima':            ['Colima','Manzanillo','Tecomán','Villa de Álvarez'],
-  'Durango':           ['Durango','Gómez Palacio','Lerdo','Santiago Papasquiaro'],
-  'Guanajuato':        ['León','Irapuato','Celaya','Salamanca','Guanajuato','Silao'],
-  'Guerrero':          ['Acapulco','Chilpancingo','Iguala','Taxco','Zihuatanejo'],
-  'Hidalgo':           ['Pachuca','Tulancingo','Huejutla','Ixmiquilpan'],
-  'Jalisco':           ['Guadalajara','Zapopan','Tlaquepaque','Tonalá','Puerto Vallarta','Tlajomulco'],
-  'México':            ['Toluca','Ecatepec','Nezahualcóyotl','Naucalpan','Tlalnepantla','Cuautitlán Izcalli'],
-  'Michoacán':         ['Morelia','Uruapan','Zamora','Lázaro Cárdenas','Apatzingán'],
-  'Morelos':           ['Cuernavaca','Jiutepec','Temixco','Cuautla'],
-  'Nayarit':           ['Tepic','Bahía de Banderas','Santiago Ixcuintla'],
-  'Nuevo León':        ['Monterrey','Guadalupe','San Nicolás de los Garza','Apodaca','Santa Catarina','San Pedro Garza García'],
-  'Oaxaca':            ['Oaxaca de Juárez','Salina Cruz','Tuxtepec','Juchitán'],
-  'Puebla':            ['Puebla','Tehuacán','San Martín Texmelucan','Atlixco','Cholula'],
-  'Querétaro':         ['Querétaro','San Juan del Río','Corregidora','El Marqués'],
-  'Quintana Roo':      ['Cancún','Playa del Carmen','Chetumal','Cozumel','Tulum'],
-  'San Luis Potosí':   ['San Luis Potosí','Soledad de Graciano Sánchez','Ciudad Valles','Matehuala'],
-  'Sinaloa':           ['Culiacán','Mazatlán','Los Mochis','Guasave','Guamúchil'],
-  'Sonora':            ['Hermosillo','Ciudad Obregón','Nogales','San Luis Río Colorado','Navojoa'],
-  'Tabasco':           ['Villahermosa','Cárdenas','Comalcalco','Huimanguillo'],
-  'Tamaulipas':        ['Ciudad Victoria','Reynosa','Matamoros','Tampico','Nuevo Laredo','Madero'],
-  'Tlaxcala':          ['Tlaxcala','Huamantla','Apizaco','Chiautempan'],
-  'Veracruz':          ['Veracruz','Xalapa','Coatzacoalcos','Poza Rica','Córdoba','Orizaba','Minatitlán'],
-  'Yucatán':           ['Mérida','Valladolid','Tizimín','Progreso','Ticul'],
-  'Zacatecas':         ['Zacatecas','Fresnillo','Guadalupe','Jerez']
+  'Aguascalientes': ['Aguascalientes','Calvillo','Rincón de Romos'],
+  'Baja California': ['Tijuana','Mexicali','Ensenada','Playas de Rosarito','Tecate'],
+  'Baja California Sur': ['La Paz','Los Cabos','Loreto','Comondú'],
+  'Campeche': ['Campeche','Ciudad del Carmen','Champotón'],
+  'Chiapas': ['Tuxtla Gutiérrez','Tapachula','San Cristóbal de las Casas','Comitán'],
+  'Chihuahua': ['Chihuahua','Ciudad Juárez','Delicias','Cuauhtémoc','Parral'],
+  'Ciudad de México': ['Ciudad de México'],
+  'Coahuila': ['Saltillo','Torreón','Monclova','Piedras Negras','Acuña'],
+  'Colima': ['Colima','Manzanillo','Tecomán','Villa de Álvarez'],
+  'Durango': ['Durango','Gómez Palacio','Lerdo','Santiago Papasquiaro'],
+  'Guanajuato': ['León','Irapuato','Celaya','Salamanca','Guanajuato','Silao'],
+  'Guerrero': ['Acapulco','Chilpancingo','Iguala','Taxco','Zihuatanejo'],
+  'Hidalgo': ['Pachuca','Tulancingo','Huejutla','Ixmiquilpan'],
+  'Jalisco': ['Guadalajara','Zapopan','Tlaquepaque','Tonalá','Puerto Vallarta','Tlajomulco'],
+  'México': ['Toluca','Ecatepec','Nezahualcóyotl','Naucalpan','Tlalnepantla','Cuautitlán Izcalli'],
+  'Michoacán': ['Morelia','Uruapan','Zamora','Lázaro Cárdenas','Apatzingán'],
+  'Morelos': ['Cuernavaca','Jiutepec','Temixco','Cuautla'],
+  'Nayarit': ['Tepic','Bahía de Banderas','Santiago Ixcuintla'],
+  'Nuevo León': ['Monterrey','Guadalupe','San Nicolás de los Garza','Apodaca','Santa Catarina','San Pedro Garza García'],
+  'Oaxaca': ['Oaxaca de Juárez','Salina Cruz','Tuxtepec','Juchitán'],
+  'Puebla': ['Puebla','Tehuacán','San Martín Texmelucan','Atlixco','Cholula'],
+  'Querétaro': ['Querétaro','San Juan del Río','Corregidora','El Marqués'],
+  'Quintana Roo': ['Cancún','Playa del Carmen','Chetumal','Cozumel','Tulum'],
+  'San Luis Potosí': ['San Luis Potosí','Soledad de Graciano Sánchez','Ciudad Valles','Matehuala'],
+  'Sinaloa': ['Culiacán','Mazatlán','Los Mochis','Guasave','Guamúchil'],
+  'Sonora': ['Hermosillo','Ciudad Obregón','Nogales','San Luis Río Colorado','Navojoa'],
+  'Tabasco': ['Villahermosa','Cárdenas','Comalcalco','Huimanguillo'],
+  'Tamaulipas': ['Ciudad Victoria','Reynosa','Matamoros','Tampico','Nuevo Laredo','Madero'],
+  'Tlaxcala': ['Tlaxcala','Huamantla','Apizaco','Chiautempan'],
+  'Veracruz': ['Veracruz','Xalapa','Coatzacoalcos','Poza Rica','Córdoba','Orizaba','Minatitlán'],
+  'Yucatán': ['Mérida','Valladolid','Tizimín','Progreso','Ticul'],
+  'Zacatecas': ['Zacatecas','Fresnillo','Guadalupe','Jerez']
 }
 
 interface FormData {
-  email: string; password: string; confirmPassword: string
-  full_name: string; specialty: string; professional_license: string
-  specialty_council: string; specialty_council_url: string
-  description: string; consultation_price: string
-  phone: string; location_state: string; location_city: string
-  location_neighborhood: string; address: string; terms_accepted: boolean
+  email: string
+  password: string
+  confirmPassword: string
+  full_name: string
+  specialty: string
+  professional_license: string
+  specialty_council: string
+  description: string
+  consultation_price: string
+  phone: string
+  location_state: string
+  location_city: string
+  location_neighborhood: string
+  address: string
+  terms_accepted: boolean
 }
 
 export default function RegistroMedico() {
   const router = useRouter()
-  const [step, setStep]           = useState(1)
-  const [loading, setLoading]     = useState(false)
-  const [error, setError]         = useState<string | null>(null)
-  const [success, setSuccess]     = useState(false)
-  const [showPass, setShowPass]   = useState(false)
+  const [step, setStep] = useState(1)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
+  const [showPass, setShowPass] = useState(false)
   const [showPass2, setShowPass2] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<Record<string, boolean>>({})
-  const [ciudades, setCiudades]   = useState<string[]>([])
-
+  const [ciudades, setCiudades] = useState<string[]>([])
+  const [showCouncilTooltip, setShowCouncilTooltip] = useState(false)
   const refPaso1 = useRef<HTMLInputElement>(null)
   const refPaso2 = useRef<HTMLInputElement>(null)
   const refPaso3 = useRef<HTMLInputElement>(null)
 
   const [form, setForm] = useState<FormData>({
-    email: '', password: '', confirmPassword: '',
-    full_name: '', specialty: '', professional_license: '',
-    specialty_council: '', specialty_council_url: '',
-    description: '', consultation_price: '',
-    phone: '', location_state: '', location_city: '',
-    location_neighborhood: '', address: '', terms_accepted: false,
+    email: '',
+    password: '',
+    confirmPassword: '',
+    full_name: '',
+    specialty: '',
+    professional_license: '',
+    specialty_council: '',
+    description: '',
+    consultation_price: '',
+    phone: '',
+    location_state: '',
+    location_city: '',
+    location_neighborhood: '',
+    address: '',
+    terms_accepted: false,
   })
 
-  // Autocompletar consejo cuando cambia especialidad
+  // Auto-fill consejo cuando cambia especialidad
   useEffect(() => {
     if (form.specialty && CONSEJOS_ESPECIALIDAD[form.specialty]) {
       setForm(p => ({ ...p, specialty_council: CONSEJOS_ESPECIALIDAD[form.specialty] }))
     }
   }, [form.specialty])
 
+  // Focus al cambiar de paso
   useEffect(() => {
     const timer = setTimeout(() => {
       if (step === 1) refPaso1.current?.focus()
@@ -133,6 +152,7 @@ export default function RegistroMedico() {
     return () => clearTimeout(timer)
   }, [step])
 
+  // Ciudades por estado
   useEffect(() => {
     if (form.location_state && CIUDADES_POR_ESTADO[form.location_state]) {
       setCiudades(CIUDADES_POR_ESTADO[form.location_state])
@@ -152,34 +172,35 @@ export default function RegistroMedico() {
     if (error) setError(null)
   }
 
+  // Validaciones por paso
   const validate: Record<number, () => { msg: string | null; errors: Record<string, boolean> }> = {
     1: () => {
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
-        return { msg: 'Ingresa un email válido', errors: { email: true } }
+        return { msg: 'El email no es válido. Ejemplo: tu@nombre.com', errors: { email: true } }
       if (form.password.length < 8)
-        return { msg: 'La contraseña debe tener mínimo 8 caracteres', errors: { password: true } }
+        return { msg: 'Mínimo 8 caracteres. Ejemplo: TuPassword2026!', errors: { password: true } }
       if (form.password !== form.confirmPassword)
         return { msg: 'Las contraseñas no coinciden', errors: { confirmPassword: true } }
       return { msg: null, errors: {} }
     },
     2: () => {
       if (!form.full_name.trim())
-        return { msg: 'El nombre completo es obligatorio', errors: { full_name: true } }
+        return { msg: 'Tu nombre completo es necesario', errors: { full_name: true } }
       if (!form.specialty)
         return { msg: 'Selecciona tu especialidad', errors: { specialty: true } }
-      if (!/^\d{7,8}$/.test(form.professional_license))
-        return { msg: 'La cédula debe tener 7 u 8 dígitos', errors: { professional_license: true } }
+      if (!/^\d{6,9}$/.test(form.professional_license.replace(/\s/g, '')))
+        return { msg: 'Cédula de 6 a 9 dígitos (sin espacios)', errors: { professional_license: true } }
       return { msg: null, errors: {} }
     },
     3: () => {
       if (!form.phone.replace(/\D/g, '').match(/^\d{10}$/))
-        return { msg: 'Ingresa un teléfono de 10 dígitos', errors: { phone: true } }
+        return { msg: '10 dígitos. Ejemplo: 55 1234 5678', errors: { phone: true } }
       if (!form.location_state)
         return { msg: 'Selecciona tu estado', errors: { location_state: true } }
       if (!form.location_city.trim())
         return { msg: 'Selecciona tu ciudad', errors: { location_city: true } }
       if (!form.terms_accepted)
-        return { msg: 'Debes aceptar los términos y el aviso de privacidad', errors: { terms_accepted: true } }
+        return { msg: 'Necesitas aceptar los términos para continuar', errors: { terms_accepted: true } }
       return { msg: null, errors: {} }
     }
   }
@@ -202,47 +223,58 @@ export default function RegistroMedico() {
     e.preventDefault()
     const { msg, errors } = validate[3]()
     if (msg) { setError(msg); setFieldErrors(errors); return }
+
     setLoading(true); setError(null)
     try {
-      const { error: ae } = await supabase.auth.signUp({ email: form.email, password: form.password })
+      const { error: ae } = await supabase.auth.signUp({
+        email: form.email,
+        password: form.password
+      })
       if (ae) throw ae
+
       const { error: de } = await supabase.from('doctors').insert({
-        email:                 form.email,
-        full_name:             form.full_name.trim(),
-        specialty:             form.specialty,
-        professional_license:  form.professional_license,
-        specialty_council:     form.specialty_council.trim() || null,
-        specialty_council_url: form.specialty_council_url.trim() || null,
-        description:           form.description.trim() || null,
-        consultation_price:    parseFloat(form.consultation_price) || 0,
-        phone:                 form.phone.replace(/\D/g, ''),
-        location_city:         form.location_city.trim(),
+        email: form.email,
+        full_name: form.full_name.trim(),
+        specialty: form.specialty,
+        professional_license: form.professional_license.replace(/\s/g, ''),
+        specialty_council: form.specialty_council.trim() || null,
+        description: form.description.trim() || null,
+        consultation_price: parseFloat(form.consultation_price) || 0,
+        phone: form.phone.replace(/\D/g, ''),
+        location_city: form.location_city.trim(),
         location_neighborhood: form.location_neighborhood.trim() || null,
-        address:               form.address.trim() || null,
-        license_verified:      false,
-        is_active:             true,
-        review_status:         'pendiente',
-        license_visible:       false,
+        address: form.address.trim() || null,
+        license_verified: false,
+        is_active: true,
+        review_status: 'pendiente',
+        license_visible: false,
       })
       if (de) throw de
+
       setSuccess(true)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Ocurrió un error. Intenta de nuevo.')
-    } finally { setLoading(false) }
+    } finally {
+      setLoading(false)
+    }
   }
 
   const fs = (name: string): React.CSSProperties => ({
-    width: '100%', padding: '13px 15px',
+    width: '100%',
+    padding: '13px 15px',
     border: `1.5px solid ${fieldErrors[name] ? '#DC2626' : '#E5E7EB'}`,
-    borderRadius: 10, fontSize: 15,
+    borderRadius: 10,
+    fontSize: 15,
     fontFamily: "'DM Sans', sans-serif",
-    color: '#1A1A2E', outline: 'none', background: '#fff',
+    color: '#1A1A2E',
+    outline: 'none',
+    background: '#fff',
   })
 
   // ── Pantalla de éxito ──────────────────────────────────────────────────────
   if (success) return (
     <div style={{ minHeight: '100vh', background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, fontFamily: "'DM Sans', sans-serif" }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@900&family=DM+Sans:wght@400;700&display=swap');`}</style>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@900&family=DM+Sans:wght@400;700&display=swap'); *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }`}</style>
       <div style={{ background: '#fff', borderRadius: 22, padding: 'clamp(32px, 8vw, 48px)', maxWidth: 440, width: '100%', textAlign: 'center', boxShadow: '0 16px 48px rgba(55,48,163,0.1)' }}>
         <div style={{ width: 76, height: 76, borderRadius: '50%', background: '#3730A3', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
           <CheckCircle size={38} color="#fff" />
@@ -268,7 +300,7 @@ export default function RegistroMedico() {
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #EEF2FF 0%, #fff 40%)', fontFamily: "'DM Sans', sans-serif", color: '#1A1A2E' }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;0,900&family=DM+Sans:wght@300;400;500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;0,900;1,600&family=DM+Sans:wght@300;400;500;700&display=swap');
         *, *::before, *::after { box-sizing: border-box; }
         input:focus, select:focus, textarea:focus { border-color: #3730A3 !important; box-shadow: 0 0 0 3px rgba(55,48,163,0.08) !important; outline: none; }
         input::placeholder, textarea::placeholder { color: #9CA3AF; font-weight: 300; }
@@ -293,14 +325,31 @@ export default function RegistroMedico() {
             <span style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(34px, 8vw, 42px)', fontWeight: 600, color: '#F4623A', letterSpacing: '-1px' }}>rama</span>
           </Link>
           <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(20px, 5vw, 28px)', fontWeight: 900, color: '#3730A3', marginBottom: 6 }}>
-            Registro de Médicos
+            Registro para Médicos
           </h1>
-          <p style={{ fontSize: 14, color: '#4F46E5', fontWeight: 500, marginBottom: 12 }}>
-            Tus pacientes te están buscando.
-          </p>
-          {/* Badge corregido — sin "para siempre" */}
+
+          {/* CTA CON IMPACTO */}
+          <div style={{
+            background: 'linear-gradient(135deg, #EEF2FF 0%, #F9FAFB 100%)',
+            border: '1px solid #C7D2FE',
+            borderRadius: 12,
+            padding: '14px 18px',
+            marginBottom: 8,
+          }}>
+            <p style={{
+              fontSize: 'clamp(15px, 4vw, 17px)',
+              color: '#3730A3',
+              fontWeight: 700,
+              margin: 0,
+              fontFamily: "'Fraunces', serif"
+            }}>
+              Tus pacientes te están buscando
+            </p>
+          </div>
+
+          {/* Badge */}
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: '#3730A3', color: '#fff', padding: '7px 18px', borderRadius: 50, fontSize: 12, fontWeight: 700, marginBottom: 4 }}>
-            REGISTRO GRATUITO PARA MÉDICOS
+            REGISTRO GRATUITO
           </div>
           <p style={{ fontSize: 12, color: '#9CA3AF' }}>Sin suscripciones · Sin comisiones por paciente · Sin costos ocultos</p>
         </div>
@@ -342,7 +391,7 @@ export default function RegistroMedico() {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 6 }}>Email profesional *</label>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 6 }}>Email *</label>
                   <input ref={refPaso1} name="email" type="email" style={fs('email')} value={form.email} onChange={handle} placeholder="tu@email.com" autoComplete="email" />
                 </div>
                 <div>
@@ -396,58 +445,67 @@ export default function RegistroMedico() {
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 6 }}>Cédula profesional *</label>
-                    <input name="professional_license" type="text" inputMode="numeric" style={fs('professional_license')} value={form.professional_license} onChange={handle} placeholder="12345678" maxLength={8} />
-                    <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>7 u 8 dígitos (SEP)</p>
+                    <input name="professional_license" type="text" inputMode="numeric" style={fs('professional_license')} value={form.professional_license} onChange={handle} placeholder="12345678" maxLength={9} />
+                    <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>6-9 dígitos (SEP)</p>
                   </div>
                 </div>
 
-                {/* Consejo de especialidad — nuevo campo */}
+                {/* Consejo de especialidad — EDITABLE con tooltip */}
                 <div style={{ background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 12, padding: '14px 16px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
                     <ShieldCheck size={14} color="#3730A3" />
                     <p style={{ fontSize: 13, fontWeight: 600, color: '#3730A3', margin: 0 }}>
-                      Verificación de especialidad
-                      <span style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 400 }}> (opcional pero recomendado)</span>
+                      Consejo de especialidad
+                      <span style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 400 }}> (opcional)</span>
                     </p>
-                  </div>
-                  <p style={{ fontSize: 12, color: '#6B7280', lineHeight: 1.6, marginBottom: 12 }}>
-                    Si estás certificado por un consejo de especialidad, los pacientes podrán verificarlo directamente desde tu perfil.
-                  </p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    <div>
-                      <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 5 }}>
-                        Nombre del consejo
-                      </label>
-                      <input
-                        name="specialty_council"
-                        type="text"
-                        style={{ ...fs('specialty_council'), fontSize: 14 }}
-                        value={form.specialty_council}
-                        onChange={handle}
-                        placeholder="Ej: Consejo Mexicano de Hematología"
+                    {/* Tooltip icon */}
+                    <div style={{ position: 'relative', display: 'inline-block' }}>
+                      <Info
+                        size={14}
+                        color="#9CA3AF"
+                        style={{ cursor: 'help' }}
+                        onMouseEnter={() => setShowCouncilTooltip(true)}
+                        onMouseLeave={() => setShowCouncilTooltip(false)}
                       />
-                      {form.specialty && CONSEJOS_ESPECIALIDAD[form.specialty] && (
-                        <p style={{ fontSize: 11, color: '#9CA3AF', marginTop: 3 }}>
-                          Autocompletado según tu especialidad. Puedes editarlo.
-                        </p>
+                      {showCouncilTooltip && (
+                        <div style={{
+                          position: 'absolute',
+                          bottom: 'calc(100% + 8px)',
+                          left: '50%',
+                          transform: 'translateX(-50%)',
+                          background: '#1A1A2E',
+                          color: '#fff',
+                          padding: '8px 12px',
+                          borderRadius: 8,
+                          fontSize: 11,
+                          lineHeight: 1.4,
+                          maxWidth: 200,
+                          textAlign: 'center',
+                          zIndex: 1000,
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                        }}>
+                          Se autocompleta según tu especialidad. Puedes editarlo si es necesario.
+                        </div>
                       )}
                     </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 5 }}>
-                        URL del consejo para verificación
-                      </label>
-                      <input
-                        name="specialty_council_url"
-                        type="url"
-                        style={{ ...fs('specialty_council_url'), fontSize: 14 }}
-                        value={form.specialty_council_url}
-                        onChange={handle}
-                        placeholder="https://www.consejomexicanodehematologia.org.mx"
-                      />
-                      <p style={{ fontSize: 11, color: '#9CA3AF', marginTop: 3 }}>
-                        El paciente podrá verificar tu certificación directamente en esa URL.
+                  </div>
+                  <p style={{ fontSize: 12, color: '#6B7280', lineHeight: 1.6, marginBottom: 12 }}>
+                    Si estás certificado, los pacientes podrán verificarlo desde tu perfil.
+                  </p>
+                  <div>
+                    <input
+                      name="specialty_council"
+                      type="text"
+                      style={{ ...fs('specialty_council'), fontSize: 14 }}
+                      value={form.specialty_council}
+                      onChange={handle}
+                      placeholder="Ej: Consejo Mexicano de Hematología"
+                    />
+                    {form.specialty && CONSEJOS_ESPECIALIDAD[form.specialty] && (
+                      <p style={{ fontSize: 11, color: '#059669', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <CheckCircle size={10} /> Autocompletado. Puedes editarlo.
                       </p>
-                    </div>
+                    )}
                   </div>
                 </div>
 
@@ -519,23 +577,32 @@ export default function RegistroMedico() {
                   <input name="address" type="text" style={fs('address')} value={form.address} onChange={handle} placeholder="Av. Reforma 123" />
                 </div>
 
-                {/* Consentimiento — vinculado a los documentos legales actualizados */}
-                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 11, cursor: 'pointer', padding: '8px 0' }}>
-                  <input
-                    type="checkbox" name="terms_accepted"
-                    checked={form.terms_accepted} onChange={handle}
-                    style={{ width: 17, height: 17, marginTop: 2, accentColor: '#3730A3', flexShrink: 0, cursor: 'pointer' }}
-                  />
-                  <span style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.7 }}>
-                    Acepto los{' '}
-                    <a href="/terminos-profesionales" target="_blank" style={{ color: '#3730A3', fontWeight: 500 }}>Términos para Profesionales</a>
-                    {', los '}
-                    <a href="/terminos-y-condiciones" target="_blank" style={{ color: '#3730A3', fontWeight: 500 }}>Términos y Condiciones</a>
-                    {' y el '}
-                    <a href="/aviso-de-privacidad" target="_blank" style={{ color: '#3730A3', fontWeight: 500 }}>Aviso de Privacidad</a>
-                    {'. Entiendo que los pacientes podrán verificar mi cédula directamente en la SEP. *'}
-                  </span>
-                </label>
+                {/* Consentimiento legal — SEPARADO de info de verificación */}
+                <div style={{ background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 12, padding: '14px 16px', marginBottom: 16 }}>
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: 11, cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      name="terms_accepted"
+                      checked={form.terms_accepted}
+                      onChange={handle}
+                      style={{ width: 17, height: 17, marginTop: 2, accentColor: '#3730A3', flexShrink: 0, cursor: 'pointer' }}
+                    />
+                    <span style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.7 }}>
+                      Acepto los{' '}
+                      <a href="/terminos-profesionales" target="_blank" style={{ color: '#3730A3', fontWeight: 500 }}>Términos para Profesionales</a>
+                      {', los '}
+                      <a href="/terminos-y-condiciones" target="_blank" style={{ color: '#3730A3', fontWeight: 500 }}>Términos y Condiciones</a>
+                      {' y el '}
+                      <a href="/aviso-de-privacidad" target="_blank" style={{ color: '#3730A3', fontWeight: 500 }}>Aviso de Privacidad</a>
+                      {' *'}
+                    </span>
+                  </label>
+                </div>
+
+                {/* Info de verificación — INFORMATIVA (no legal) */}
+                <p style={{ fontSize: 12, color: '#9CA3AF', lineHeight: 1.6, marginBottom: 16 }}>
+                  📋 Los pacientes podrán verificar tu cédula directamente en la SEP desde tu perfil público.
+                </p>
 
                 <button type="submit" className="btn-p" disabled={loading}>
                   {loading ? (

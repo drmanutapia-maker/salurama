@@ -7,15 +7,16 @@ import { useParams, useRouter } from 'next/navigation'
 import {
   MapPin, Phone, MessageCircle, Star, ArrowLeft, Camera, Clock,
   Building2, GraduationCap, FileText, Languages, ShieldCheck,
-  ExternalLink, AlertTriangle, BookOpen
+  ExternalLink, AlertTriangle, BookOpen, Copy, CheckCircle, Info
 } from 'lucide-react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || ''
 
-// URL base SEP — el número de cédula se agrega dinámicamente
-const SEP_BASE_URL = 'https://www.cedulaprofesional.sep.gob.mx/cedula/presidencia/indexAvanzada.action'
+// URLs oficiales de verificación
+const SEP_URL = 'https://www.cedulaprofesional.sep.gob.mx/cedula/presidencia/indexAvanzada.action'
+const CONACEM_URL = 'https://conacem.org.mx/buscador'
 
 interface Medico {
   id: string
@@ -59,23 +60,105 @@ interface Review {
 
 type TabId = 'info' | 'disponibilidad' | 'reviews' | 'ubicacion'
 
+// Componente Tooltip reutilizable
+function Tooltip({ text, children }: { text: string; children: React.ReactNode }) {
+  const [show, setShow] = useState(false)
+  
+  return (
+    <div 
+      style={{ position: 'relative', display: 'inline-block' }}
+      onMouseEnter={() => setShow(true)}
+      onMouseLeave={() => setShow(false)}
+    >
+      {children}
+      {show && (
+        <div style={{
+          position: 'absolute',
+          bottom: 'calc(100% + 8px)',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: '#1A1A2E',
+          color: '#fff',
+          padding: '8px 12px',
+          borderRadius: 8,
+          fontSize: 12,
+          lineHeight: 1.5,
+          maxWidth: 240,
+          textAlign: 'center',
+          zIndex: 1000,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          pointerEvents: 'none',
+          animation: 'fadeUp 0.2s ease-out'
+        }}>
+          {text}
+          <div style={{
+            position: 'absolute',
+            top: '100%',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: 0,
+            height: 0,
+            borderLeft: '6px solid transparent',
+            borderRight: '6px solid transparent',
+            borderTop: '6px solid #1A1A2E'
+          }} />
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Componente Botón de Copiar con Tooltip
+function CopyButton({ text, label }: { text: string; label: string }) {
+  const [copied, setCopied] = useState(false)
+  
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+  
+  const tooltipText = copied 
+    ? '¡Copiado!' 
+    : `Copiar ${label} para pegar en el buscador oficial`
+  
+  return (
+    <Tooltip text={tooltipText}>
+      <button
+        onClick={handleCopy}
+        style={{
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          color: copied ? '#059669' : '#9CA3AF',
+          padding: 4,
+          display: 'flex',
+          alignItems: 'center',
+          transition: 'color 0.2s'
+        }}
+        type="button"
+      >
+        {copied ? <CheckCircle size={15} /> : <Copy size={15} />}
+      </button>
+    </Tooltip>
+  )
+}
+
 export default function PerfilMedico() {
   const { id }  = useParams()
   const router  = useRouter()
-
   const [medico, setMedico]         = useState<Medico | null>(null)
   const [loading, setLoading]       = useState(true)
   const [error, setError]           = useState(false)
   const [uploading, setUploading]   = useState(false)
   const [isOwner, setIsOwner]       = useState(false)
-  const [tab, setTab]               = useState<TabId>('info')
+  const [tab, setTab]               = useState('info')
   const [reviews, setReviews]       = useState<Review[]>([])
   const [newReview, setNewReview]   = useState({ rating: 5, comment: '' })
   const [submitting, setSubmitting] = useState(false)
   const [isMobile, setIsMobile]     = useState(false)
-
-  const fileInputRef  = useRef<HTMLInputElement>(null)
-  const mapContainer  = useRef<HTMLDivElement>(null)
+  const fileInputRef  = useRef(null)
+  const mapContainer  = useRef(null)
   const map           = useRef<mapboxgl.Map | null>(null)
 
   useEffect(() => {
@@ -132,7 +215,7 @@ export default function PerfilMedico() {
     }
   }, [tab, medico])
 
-  async function handleFoto(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFoto(e: React.ChangeEvent) {
     const file = e.target.files?.[0]
     if (!file || !medico) return
     setUploading(true)
@@ -172,25 +255,6 @@ export default function PerfilMedico() {
     finally { setSubmitting(false) }
   }
 
-  // ── Helpers ──────────────────────────────────────────────────────────────
-  function buildSEPUrl(m: Medico): string {
-    // Lleva al portal de la SEP; si hay cédula, la pre-carga en búsqueda
-    if (m.professional_license) {
-      return `${SEP_BASE_URL}?numeroCedula=${m.professional_license}`
-    }
-    return SEP_BASE_URL
-  }
-
-  function buildWhatsAppUrl(m: Medico): string {
-    const phone = (m.whatsapp || m.phone || '').replace(/\D/g, '')
-    const msg   = `Hola Dr. ${m.full_name}, vi su perfil en Salurama y me gustaría agendar una consulta.`
-    return `https://wa.me/52${phone}?text=${encodeURIComponent(msg)}`
-  }
-
-  function buildMapsUrl(m: Medico): string {
-    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((m.address || '') + ', ' + m.location_city)}`
-  }
-
   const yearsExp = (medico?.years_of_experience ?? medico?.years_experience) ?? null
 
   // ── Loading / Error ───────────────────────────────────────────────────────
@@ -227,7 +291,6 @@ export default function PerfilMedico() {
   function ContactoCard() {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-
         {/* Precio */}
         {medico.consultation_price > 0 && (
           <div style={{ background: '#fff', borderRadius: 16, padding: '16px 18px', border: '1px solid #E5E7EB', textAlign: 'center' }}>
@@ -239,7 +302,7 @@ export default function PerfilMedico() {
           </div>
         )}
 
-        {/* ── BLOQUE DE VERIFICACIÓN — el diferenciador central ── */}
+        {/* ── BLOQUE DE VERIFICACIÓN — ACTUALIZADO ── */}
         <div style={{ background: '#F9FAFB', borderRadius: 16, padding: '16px 18px', border: '1.5px solid #E5E7EB' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 12 }}>
             <ShieldCheck size={15} color="#3730A3" />
@@ -251,51 +314,116 @@ export default function PerfilMedico() {
             Consulta directamente en fuentes oficiales antes de agendar tu cita.
           </p>
 
-          {/* Botón SEP */}
+          {/* Botón SEP con Copy Button */}
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'space-between', 
+            background: '#EEF2FF', 
+            color: '#3730A3', 
+            borderRadius: 10, 
+            padding: '10px 14px', 
+            marginBottom: 8, 
+            border: '1px solid #C7D2FE' 
+          }}>
+            <div style={{ flex: 1 }}>
+              <p style={{ fontSize: 13, fontWeight: 600, margin: '0 0 2px', color: '#3730A3' }}>Cédula profesional</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <p style={{ fontSize: 11, color: '#6366F1', margin: 0 }}>
+                  {medico.professional_license
+                    ? `No. ${medico.professional_license}`
+                    : 'Consultar en portal SEP'}
+                </p>
+                {medico.professional_license && (
+                  <CopyButton text={medico.professional_license} label="cédula" />
+                )}
+              </div>
+            </div>
+            <Tooltip text="Recomendamos verificar la cédula previo a concertar cita. Copia el número y pégalo en el buscador de la SEP.">
+              <Info size={16} color="#9CA3AF" style={{ cursor: 'help', flexShrink: 0, marginLeft: 8 }} />
+            </Tooltip>
+          </div>
+          
           <a
-            href={buildSEPUrl(medico)}
+            href={SEP_URL}
             target="_blank"
             rel="noopener noreferrer"
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#EEF2FF', color: '#3730A3', borderRadius: 10, padding: '10px 14px', textDecoration: 'none', marginBottom: 8, border: '1px solid #C7D2FE', transition: 'background 0.18s' }}
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              gap: 6,
+              background: '#fff', 
+              color: '#3730A3', 
+              borderRadius: 10, 
+              padding: '8px 14px', 
+              textDecoration: 'none', 
+              marginBottom: 12,
+              border: '1px solid #C7D2FE',
+              fontSize: 12,
+              fontWeight: 600,
+              transition: 'background 0.18s'
+            }}
           >
-            <div>
-              <p style={{ fontSize: 13, fontWeight: 600, margin: '0 0 2px', color: '#3730A3' }}>Cédula profesional</p>
-              <p style={{ fontSize: 11, color: '#6366F1', margin: 0 }}>
-                {medico.professional_license
-                  ? `No. ${medico.professional_license} · Verificar en SEP`
-                  : 'Consultar en portal SEP'}
-              </p>
-            </div>
-            <ExternalLink size={14} color="#3730A3" style={{ flexShrink: 0 }} />
+            <ExternalLink size={14} />
+            Ir a verificar en SEP
           </a>
 
-          {/* Botón Consejo de Especialidad */}
-          {medico.specialty_council_url ? (
-            <a
-              href={medico.specialty_council_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#EEF2FF', color: '#3730A3', borderRadius: 10, padding: '10px 14px', textDecoration: 'none', border: '1px solid #C7D2FE', transition: 'background 0.18s' }}
-            >
-              <div>
-                <p style={{ fontSize: 13, fontWeight: 600, margin: '0 0 2px', color: '#3730A3' }}>Certificación de especialidad</p>
+          {/* Botón CONACEM con Copy Button — CORREGIDO */}
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'space-between', 
+            background: '#EEF2FF', 
+            color: '#3730A3', 
+            borderRadius: 10, 
+            padding: '10px 14px', 
+            marginBottom: 8, 
+            border: '1px solid #C7D2FE' 
+          }}>
+            <div style={{ flex: 1 }}>
+              <p style={{ fontSize: 13, fontWeight: 600, margin: '0 0 2px', color: '#3730A3' }}>
+                Certificación de especialidad
+              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <p style={{ fontSize: 11, color: '#6366F1', margin: 0 }}>
-                  {medico.specialty_council || 'Consejo de especialidad'} · Verificar vigencia
+                  {medico.specialty_council || 'CONACEM'}
                 </p>
-              </div>
-              <ExternalLink size={14} color="#3730A3" style={{ flexShrink: 0 }} />
-            </a>
-          ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#F9FAFB', borderRadius: 10, padding: '10px 14px', border: '1px solid #E5E7EB' }}>
-              <GraduationCap size={14} color="#9CA3AF" />
-              <div>
-                <p style={{ fontSize: 13, fontWeight: 500, margin: '0 0 2px', color: '#9CA3AF' }}>Certificación de especialidad</p>
-                <p style={{ fontSize: 11, color: '#9CA3AF', margin: 0 }}>
-                  {medico.specialty_council || 'No registrado por el médico'}
-                </p>
+                {/* ✅ COPIA EL NOMBRE DEL MÉDICO, NO LA ESPECIALIDAD */}
+                {medico.full_name && (
+                  <CopyButton text={medico.full_name} label="nombre del médico" />
+                )}
               </div>
             </div>
-          )}
+            <Tooltip text="Copia el nombre del médico y pégalo en el buscador de CONACEM para validar su certificación vigente.">
+              <Info size={16} color="#9CA3AF" style={{ cursor: 'help', flexShrink: 0, marginLeft: 8 }} />
+            </Tooltip>
+          </div>
+          
+          <a
+            href={CONACEM_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              gap: 6,
+              background: '#fff', 
+              color: '#3730A3', 
+              borderRadius: 10, 
+              padding: '8px 14px', 
+              textDecoration: 'none', 
+              marginBottom: 12,
+              border: '1px solid #C7D2FE',
+              fontSize: 12,
+              fontWeight: 600,
+              transition: 'background 0.18s'
+            }}
+          >
+            <ExternalLink size={14} />
+            Ir a verificar en CONACEM
+          </a>
 
           {/* Enlace a guía */}
           <p style={{ fontSize: 11, color: '#9CA3AF', marginTop: 10, lineHeight: 1.5 }}>
@@ -312,13 +440,21 @@ export default function PerfilMedico() {
             <p style={{ fontSize: 13, fontWeight: 600, color: '#1A1A2E', textAlign: 'center', margin: 0 }}>
               Contactar directamente
             </p>
-            <a href={buildWhatsAppUrl(medico)} target="_blank" rel="noopener noreferrer"
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: '#25D366', color: '#fff', borderRadius: 50, padding: '13px', fontSize: 15, fontWeight: 700, textDecoration: 'none', width: '100%', fontFamily: "'DM Sans', sans-serif" }}>
-              <MessageCircle size={17} /> WhatsApp
-            </a>
+            {medico.whatsapp && (
+              <a
+                href={`https://wa.me/52${medico.whatsapp.replace(/\D/g, '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: '#25D366', color: '#fff', borderRadius: 50, padding: '13px', fontSize: 15, fontWeight: 700, textDecoration: 'none', width: '100%', fontFamily: "'DM Sans', sans-serif" }}
+              >
+                <MessageCircle size={17} /> WhatsApp
+              </a>
+            )}
             {medico.phone && (
-              <a href={`tel:+52${medico.phone.replace(/\D/g, '')}`}
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: '#fff', color: '#3730A3', border: '2px solid #3730A3', borderRadius: 50, padding: '11px', fontSize: 15, fontWeight: 600, textDecoration: 'none', width: '100%', fontFamily: "'DM Sans', sans-serif" }}>
+              <a
+                href={`tel:+52${medico.phone.replace(/\D/g, '')}`}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: '#fff', color: '#3730A3', border: '2px solid #3730A3', borderRadius: 50, padding: '11px', fontSize: 15, fontWeight: 600, textDecoration: 'none', width: '100%', fontFamily: "'DM Sans', sans-serif" }}
+              >
                 <Phone size={15} /> Llamar
               </a>
             )}
@@ -367,8 +503,8 @@ export default function PerfilMedico() {
         .tabs-wrap { display:flex; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
         .tabs-wrap::-webkit-scrollbar { display:none; }
         @keyframes spin { to { transform:rotate(360deg); } }
-        .verify-btn { display:flex; align-items:center; justify-content:space-between; border-radius:10px; padding:10px 14px; text-decoration:none; border:1px solid #C7D2FE; transition:background 0.18s; margin-bottom:8px; }
-        .verify-btn:hover { background:#E0E7FF !important; }
+        @keyframes fadeUp { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+        .fade-up { animation:fadeUp 0.3s ease-out; }
       `}</style>
 
       {/* NAV */}
@@ -380,11 +516,13 @@ export default function PerfilMedico() {
           </Link>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <Link href="/como-elegir-medico"
-              style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13, color: '#3730A3', fontWeight: 500, textDecoration: 'none' }}>
+              style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13, color: '#3730A3', fontWeight: 500, textDecoration: 'none' }}
+            >
               <BookOpen size={14} /> Cómo elegir médico
             </Link>
             <button onClick={() => router.back()}
-              style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#6B7280', background: 'none', border: 'none', fontSize: 14, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
+              style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#6B7280', background: 'none', border: 'none', fontSize: 14, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}
+            >
               <ArrowLeft size={15} /> Volver
             </button>
           </div>
@@ -436,7 +574,6 @@ export default function PerfilMedico() {
                     <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(19px, 5vw, 25px)', fontWeight: 900, color: '#1A1A2E' }}>
                       {medico.full_name}
                     </h1>
-                    {/* Badge: cédula verificable (no "verificado" — somos facilitadores) */}
                     {medico.professional_license && (
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#EEF2FF', color: '#3730A3', borderRadius: 20, padding: '3px 9px', fontSize: 11, fontWeight: 600 }}>
                         <ShieldCheck size={12} /> Cédula verificable
@@ -502,7 +639,7 @@ export default function PerfilMedico() {
                   <div>
                     {[
                       { icon: GraduationCap, label: 'Formación',          val: medico.education },
-                      { icon: Building2,    label: 'Institución',         val: medico.hospital_affiliation },
+                      { icon: Building2,    label: 'Institución',          val: medico.hospital_affiliation },
                       { icon: FileText,     label: 'Cédula profesional',  val: medico.professional_license },
                       { icon: GraduationCap,label: 'Consejo de especialidad', val: medico.specialty_council },
                       { icon: Languages,    label: 'Idiomas',             val: medico.languages },
@@ -601,7 +738,7 @@ export default function PerfilMedico() {
                     )}
                     <div ref={mapContainer} style={{ width: '100%', height: 200, borderRadius: 12, overflow: 'hidden', background: '#F3F4F6' }} />
                     {medico.address && (
-                      <a href={buildMapsUrl(medico)} target="_blank" rel="noopener noreferrer"
+                      <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(medico.address + ', ' + medico.location_city)}`} target="_blank" rel="noopener noreferrer"
                         style={{ fontSize: 13, color: '#3730A3', fontWeight: 600, textDecoration: 'none' }}>
                         Abrir en Google Maps →
                       </a>
