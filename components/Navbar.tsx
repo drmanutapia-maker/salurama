@@ -26,12 +26,30 @@ export default function Navbar() {
     return () => subscription.unsubscribe()
   }, [])
 
-  // Cerrar menú móvil al cambiar de página
+  // Cerrar menú al cambiar de página
   useEffect(() => {
     setMobileMenuOpen(false)
     setMobileSoyMedicoOpen(false)
     setSoyMedicoDropdown(false)
   }, [pathname])
+
+  // Cerrar dropdown al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement
+      if (!target.closest('.soy-medico-dropdown')) {
+        setSoyMedicoDropdown(false)
+      }
+    }
+
+    if (soyMedicoDropdown) {
+      document.addEventListener('click', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('click', handleClickOutside)
+    }
+  }, [soyMedicoDropdown])
 
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession()
@@ -53,6 +71,11 @@ export default function Navbar() {
   }
 
   const isActive = (path: string) => pathname === path
+
+  const toggleSoyMedicoDropdown = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setSoyMedicoDropdown(!soyMedicoDropdown)
+  }
 
   const toggleMobileSoyMedico = () => {
     setMobileSoyMedicoOpen(!mobileSoyMedicoOpen)
@@ -244,13 +267,10 @@ export default function Navbar() {
               </button>
             </>
           ) : (
-            /* NO HAY SESIÓN - Dropdown "Soy Médico" con HOVER - Desktop */
-            <div 
-              style={{ position: 'relative' }}
-              onMouseEnter={() => setSoyMedicoDropdown(true)}
-              onMouseLeave={() => setSoyMedicoDropdown(false)}
-            >
+            /* NO HAY SESIÓN - Dropdown "Soy Médico" con CLIC - Desktop */}
+            <div className="soy-medico-dropdown" style={{ position: 'relative' }}>
               <button
+                onClick={toggleSoyMedicoDropdown}
                 style={{ 
                   display: 'flex', 
                   alignItems: 'center', 
@@ -285,7 +305,7 @@ export default function Navbar() {
                 />
               </button>
               
-              {/* Dropdown Desktop - Aparece en hover y permanece mientras el cursor esté sobre él */}
+              {/* Dropdown Desktop - Aparece al hacer CLIC */}
               {soyMedicoDropdown && (
                 <div 
                   style={{
@@ -374,9 +394,8 @@ export default function Navbar() {
               Nosotros
             </Link>
             
-            {/* Mobile Auth Section - Diferente según estado de sesión */}
+            {/* Mobile Auth Section */}
             {user ? (
-              /* USUARIO LOGUEADO (Móvil) */
               <>
                 <Link href="/dashboard" onClick={() => { setMobileMenuOpen(false); setMobileSoyMedicoOpen(false); }} style={{ fontSize: 15, color: '#3730A3', fontWeight: 600, textDecoration: 'none', padding: '10px 8px' }}>
                   Mi Perfil
@@ -386,7 +405,6 @@ export default function Navbar() {
                 </button>
               </>
             ) : isAdmin ? (
-              /* ADMIN LOGUEADO (Móvil) */
               <>
                 <Link href="/admin" onClick={() => { setMobileMenuOpen(false); setMobileSoyMedicoOpen(false); }} style={{ fontSize: 15, color: '#F4623A', fontWeight: 600, textDecoration: 'none', padding: '10px 8px' }}>
                   Admin Panel
@@ -396,7 +414,6 @@ export default function Navbar() {
                 </button>
               </>
             ) : (
-              /* NO HAY SESIÓN - Acordeón "Soy Médico" (Móvil) */
               <div>
                 <button
                   onClick={toggleMobileSoyMedico}
@@ -426,7 +443,6 @@ export default function Navbar() {
                   />
                 </button>
                 
-                {/* Submenú Móvil - Acordeón */}
                 {mobileSoyMedicoOpen && (
                   <div style={{ 
                     paddingLeft: 16, 
