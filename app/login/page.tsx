@@ -32,9 +32,8 @@ export default function LoginMedico() {
       if (authError) {
         console.error('Auth error:', authError)
         
-        // Si el email no está confirmado, dar mensaje claro
         if (authError.message.includes('Email not confirmed')) {
-          throw new Error('Tu email no ha sido confirmado. Revisa tu bandeja de entrada o solicita un nuevo email de confirmación.')
+          throw new Error('Tu email no ha sido confirmado. Revisa tu bandeja o solicita un nuevo email de confirmación.')
         }
         
         throw new Error('Email o contraseña incorrectos')
@@ -44,12 +43,14 @@ export default function LoginMedico() {
         throw new Error('No se pudo autenticar. Intenta de nuevo.')
       }
 
-      // 2. Verificar en tabla doctors con mejor manejo de errores
+      // 2. Verificar en tabla doctors
       const { data: doctor, error: doctorError } = await supabase
         .from('doctors')
         .select('id, is_active, review_status, email')
         .eq('email', email)
         .single()
+
+      console.log('Doctor lookup:', { doctor, doctorError })
 
       if (doctorError) {
         console.error('Doctor lookup error:', doctorError)
@@ -96,13 +97,13 @@ export default function LoginMedico() {
       
       setRecoverySent(true)
     } catch (err: unknown) {
-      alert('Error al enviar email de recuperación: ' + (err instanceof Error ? err.message : 'Error desconocido'))
+      alert('Error al enviar email: ' + (err instanceof Error ? err.message : 'Error desconocido'))
     } finally {
       setLoading(false)
     }
   }
 
-  // Si está mostrando recovery
+  // Vista de recuperación
   if (showRecovery) {
     return (
       <div style={{ 
@@ -155,7 +156,7 @@ export default function LoginMedico() {
                 ✅ Email enviado
               </p>
               <p style={{ fontSize: 13, color: '#059669', marginTop: 8 }}>
-                Revisa tu bandeja de entrada (y spam) para restablecer tu contraseña.
+                Revisa tu bandeja (y spam) para restablecer tu contraseña.
               </p>
               <button
                 onClick={() => { setShowRecovery(false); setRecoverySent(false); }}
@@ -272,7 +273,6 @@ export default function LoginMedico() {
         width: '100%', 
         boxShadow: '0 16px 48px rgba(55,48,163,0.1)' 
       }}>
-        {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <Link href="/" style={{ textDecoration: 'none', display: 'inline-block', marginBottom: 16 }}>
             <span style={{ fontFamily: "'Fraunces', serif", fontSize: 28, fontWeight: 900, color: '#3730A3' }}>Salu</span>
@@ -286,7 +286,6 @@ export default function LoginMedico() {
           </p>
         </div>
 
-        {/* Error Message */}
         {error && (
           <div style={{ 
             background: '#FEF2F2', 
@@ -303,7 +302,6 @@ export default function LoginMedico() {
           </div>
         )}
 
-        {/* Form */}
         <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>
             <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
@@ -372,7 +370,6 @@ export default function LoginMedico() {
                 {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
-            {/* Link de recuperación MEJOR UBICADO */}
             <div style={{ textAlign: 'right', marginTop: 6 }}>
               <button
                 type="button"
