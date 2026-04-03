@@ -26,6 +26,13 @@ export default function Navbar() {
     return () => subscription.unsubscribe()
   }, [])
 
+  // Cerrar menú móvil al cambiar de página
+  useEffect(() => {
+    setMobileMenuOpen(false)
+    setMobileSoyMedicoOpen(false)
+    setSoyMedicoDropdown(false)
+  }, [pathname])
+
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession()
     setUser(session?.user || null)
@@ -49,12 +56,10 @@ export default function Navbar() {
 
   const toggleSoyMedicoDropdown = () => {
     setSoyMedicoDropdown(!soyMedicoDropdown)
-    setMobileSoyMedicoOpen(false)
   }
 
   const toggleMobileSoyMedico = () => {
     setMobileSoyMedicoOpen(!mobileSoyMedicoOpen)
-    setSoyMedicoDropdown(false)
   }
 
   if (loading) return null
@@ -86,8 +91,11 @@ export default function Navbar() {
               textDecoration: 'none', 
               fontWeight: isActive('/buscar') ? 600 : 400,
               borderBottom: isActive('/buscar') ? '2px solid #3730A3' : '2px solid transparent',
-              paddingBottom: '2px'
+              paddingBottom: '2px',
+              transition: 'color 0.15s, border-color 0.15s'
             }}
+            onMouseEnter={(e) => e.currentTarget.style.color = '#3730A3'}
+            onMouseLeave={(e) => e.currentTarget.style.color = isActive('/buscar') ? '#3730A3' : '#1A1A2E'}
           >
             Especialidades
           </Link>
@@ -99,8 +107,11 @@ export default function Navbar() {
               textDecoration: 'none', 
               fontWeight: isActive('/como-elegir-medico') ? 600 : 400,
               borderBottom: isActive('/como-elegir-medico') ? '2px solid #3730A3' : '2px solid transparent',
-              paddingBottom: '2px'
+              paddingBottom: '2px',
+              transition: 'color 0.15s, border-color 0.15s'
             }}
+            onMouseEnter={(e) => e.currentTarget.style.color = '#3730A3'}
+            onMouseLeave={(e) => e.currentTarget.style.color = isActive('/como-elegir-medico') ? '#3730A3' : '#1A1A2E'}
           >
             ¿Cómo elegir?
           </Link>
@@ -112,15 +123,18 @@ export default function Navbar() {
               textDecoration: 'none', 
               fontWeight: isActive('/nosotros') ? 600 : 400,
               borderBottom: isActive('/nosotros') ? '2px solid #3730A3' : '2px solid transparent',
-              paddingBottom: '2px'
+              paddingBottom: '2px',
+              transition: 'color 0.15s, border-color 0.15s'
             }}
+            onMouseEnter={(e) => e.currentTarget.style.color = '#3730A3'}
+            onMouseLeave={(e) => e.currentTarget.style.color = isActive('/nosotros') ? '#3730A3' : '#1A1A2E'}
           >
             Nosotros
           </Link>
           
           {/* Auth Section - Diferente según estado de sesión */}
           {user ? (
-            /* USUARIO LOGUEADO (Médico) */
+            /* USUARIO LOGUEADO (Médico) - Desktop */
             <>
               <Link 
                 href="/dashboard" 
@@ -134,11 +148,20 @@ export default function Navbar() {
                   textDecoration: 'none',
                   padding: '6px 12px',
                   borderRadius: 50,
-                  background: '#EEF2FF'
+                  background: '#EEF2FF',
+                  transition: 'background 0.18s, transform 0.12s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#C7D2FE'
+                  e.currentTarget.style.transform = 'scale(1.05)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = '#EEF2FF'
+                  e.currentTarget.style.transform = 'scale(1)'
                 }}
               >
                 <User size={14} />
-                <span className="dsk">Mi Dashboard</span>
+                <span>Mi Perfil</span>
               </Link>
               <button 
                 onClick={handleLogout}
@@ -154,15 +177,24 @@ export default function Navbar() {
                   fontWeight: 500, 
                   color: '#6B7280', 
                   cursor: 'pointer',
-                  fontFamily: "'DM Sans', sans-serif"
+                  fontFamily: "'DM Sans', sans-serif",
+                  transition: 'border-color 0.18s, color 0.18s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = '#DC2626'
+                  e.currentTarget.style.color = '#DC2626'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = '#E5E7EB'
+                  e.currentTarget.style.color = '#6B7280'
                 }}
               >
                 <LogOut size={14} />
-                <span className="dsk">Salir</span>
+                <span>Salir</span>
               </button>
             </>
           ) : isAdmin ? (
-            /* ADMIN LOGUEADO */
+            /* ADMIN LOGUEADO - Desktop */
             <>
               <Link 
                 href="/admin" 
@@ -176,11 +208,14 @@ export default function Navbar() {
                   borderRadius: 50,
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 6
+                  gap: 6,
+                  transition: 'background 0.18s'
                 }}
+                onMouseEnter={(e) => e.currentTarget.style.background = '#FEE2E2'}
+                onMouseLeave={(e) => e.currentTarget.style.background = '#FEF2F2'}
               >
                 <Shield size={14} />
-                <span className="dsk">Admin</span>
+                <span>Admin</span>
               </Link>
               <button 
                 onClick={handleLogout}
@@ -196,18 +231,30 @@ export default function Navbar() {
                   fontWeight: 500, 
                   color: '#6B7280', 
                   cursor: 'pointer',
-                  fontFamily: "'DM Sans', sans-serif"
+                  fontFamily: "'DM Sans', sans-serif",
+                  transition: 'border-color 0.18s, color 0.18s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = '#DC2626'
+                  e.currentTarget.style.color = '#DC2626'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = '#E5E7EB'
+                  e.currentTarget.style.color = '#6B7280'
                 }}
               >
                 <LogOut size={14} />
-                <span className="dsk">Salir</span>
+                <span>Salir</span>
               </button>
             </>
           ) : (
-            /* NO HAY SESIÓN - Mostrar Dropdown "Soy Médico" */
-            <div style={{ position: 'relative' }}>
+            /* NO HAY SESIÓN - Dropdown "Soy Médico" con HOVER - Desktop */
+            <div 
+              style={{ position: 'relative' }}
+              onMouseEnter={() => setSoyMedicoDropdown(true)}
+              onMouseLeave={() => setSoyMedicoDropdown(false)}
+            >
               <button
-                onClick={toggleSoyMedicoDropdown}
                 style={{ 
                   display: 'flex', 
                   alignItems: 'center', 
@@ -221,11 +268,18 @@ export default function Navbar() {
                   fontWeight: 600,
                   cursor: 'pointer',
                   fontFamily: "'DM Sans', sans-serif",
-                  transition: 'background 0.18s',
-                  whiteSpace: 'nowrap'
+                  transition: 'background 0.18s, transform 0.12s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#4F46E5'
+                  e.currentTarget.style.transform = 'scale(1.05)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = '#3730A3'
+                  e.currentTarget.style.transform = 'scale(1)'
                 }}
               >
-                👨‍⚕️ <span className="dsk">Soy Médico</span>
+                👨‍⚕️ <span>Soy Médico</span>
                 <ChevronDown 
                   size={14} 
                   style={{ 
@@ -235,69 +289,65 @@ export default function Navbar() {
                 />
               </button>
               
-              {/* Dropdown Desktop */}
+              {/* Dropdown Desktop - Aparece en hover */}
               {soyMedicoDropdown && (
-                <>
-                  <div 
-                    style={{ position: 'fixed', inset: 0, zIndex: 99 }} 
+                <div 
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 8px)',
+                    right: 0,
+                    background: '#fff',
+                    border: '1px solid #E5E7EB',
+                    borderRadius: 12,
+                    boxShadow: '0 10px 32px rgba(55,48,163,0.12)',
+                    padding: '8px 0',
+                    minWidth: 200,
+                    zIndex: 100,
+                    animation: 'fadeIn 0.15s ease-out'
+                  }}
+                >
+                  <Link
+                    href="/login"
                     onClick={() => setSoyMedicoDropdown(false)}
-                  />
-                  
-                  <div 
                     style={{
-                      position: 'absolute',
-                      top: 'calc(100% + 8px)',
-                      right: 0,
-                      background: '#fff',
-                      border: '1px solid #E5E7EB',
-                      borderRadius: 12,
-                      boxShadow: '0 10px 32px rgba(55,48,163,0.12)',
-                      padding: '8px 0',
-                      minWidth: 180,
-                      zIndex: 100,
-                      animation: 'fadeIn 0.15s ease-out'
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      padding: '10px 16px',
+                      color: '#1A1A2E',
+                      textDecoration: 'none',
+                      fontSize: 14,
+                      fontWeight: 500,
+                      transition: 'background 0.15s'
                     }}
-                    onMouseLeave={() => setSoyMedicoDropdown(false)}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#F9FAFB'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = '#fff'}
                   >
-                    <Link
-                      href="/login"
-                      onClick={() => setSoyMedicoDropdown(false)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 10,
-                        padding: '10px 16px',
-                        color: '#1A1A2E',
-                        textDecoration: 'none',
-                        fontSize: 14,
-                        fontWeight: 500,
-                        transition: 'background 0.15s'
-                      }}
-                    >
-                      <LogOut size={16} color="#3730A3" />
-                      Iniciar sesión
-                    </Link>
-                    <div style={{ height: '1px', background: '#F3F4F6', margin: '4px 0' }} />
-                    <Link
-                      href="/registro"
-                      onClick={() => setSoyMedicoDropdown(false)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 10,
-                        padding: '10px 16px',
-                        color: '#3730A3',
-                        textDecoration: 'none',
-                        fontSize: 14,
-                        fontWeight: 600,
-                        transition: 'background 0.15s'
-                      }}
-                    >
-                      <User size={16} />
-                      Registrarme
-                    </Link>
-                  </div>
-                </>
+                    <LogOut size={16} color="#3730A3" />
+                    Iniciar sesión
+                  </Link>
+                  <div style={{ height: '1px', background: '#F3F4F6', margin: '4px 0' }} />
+                  <Link
+                    href="/registro"
+                    onClick={() => setSoyMedicoDropdown(false)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      padding: '10px 16px',
+                      color: '#3730A3',
+                      textDecoration: 'none',
+                      fontSize: 14,
+                      fontWeight: 600,
+                      transition: 'background 0.15s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#EEF2FF'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = '#fff'}
+                  >
+                    <User size={16} />
+                    Registrarme
+                  </Link>
+                </div>
               )}
             </div>
           )}
@@ -333,7 +383,7 @@ export default function Navbar() {
               /* USUARIO LOGUEADO (Móvil) */
               <>
                 <Link href="/dashboard" onClick={() => { setMobileMenuOpen(false); setMobileSoyMedicoOpen(false); }} style={{ fontSize: 15, color: '#3730A3', fontWeight: 600, textDecoration: 'none', padding: '10px 8px' }}>
-                  Mi Dashboard
+                  Mi Perfil
                 </Link>
                 <button onClick={handleLogout} style={{ fontSize: 15, color: '#DC2626', background: 'none', border: 'none', cursor: 'pointer', padding: '10px 8px', textAlign: 'left', fontWeight: 500 }}>
                   Cerrar sesión
@@ -380,7 +430,7 @@ export default function Navbar() {
                   />
                 </button>
                 
-                {/* Submenú Móvil */}
+                {/* Submenú Móvil - Acordeón */}
                 {mobileSoyMedicoOpen && (
                   <div style={{ 
                     paddingLeft: 16, 

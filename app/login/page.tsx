@@ -13,6 +13,9 @@ export default function LoginMedico() {
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showRecovery, setShowRecovery] = useState(false)
+  const [recoveryEmail, setRecoveryEmail] = useState('')
+  const [recoverySent, setRecoverySent] = useState(false)
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -20,7 +23,7 @@ export default function LoginMedico() {
     setError(null)
 
     try {
-      // 1. Intentar login con Supabase Auth
+      // 1. Login con Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -28,6 +31,12 @@ export default function LoginMedico() {
 
       if (authError) {
         console.error('Auth error:', authError)
+        
+        // Si el email no está confirmado, dar mensaje claro
+        if (authError.message.includes('Email not confirmed')) {
+          throw new Error('Tu email no ha sido confirmado. Revisa tu bandeja de entrada o solicita un nuevo email de confirmación.')
+        }
+        
         throw new Error('Email o contraseña incorrectos')
       }
 
@@ -35,15 +44,25 @@ export default function LoginMedico() {
         throw new Error('No se pudo autenticar. Intenta de nuevo.')
       }
 
-      // 2. Verificar si existe en tabla doctors
+      // 2. Verificar en tabla doctors con mejor manejo de errores
       const { data: doctor, error: doctorError } = await supabase
         .from('doctors')
         .select('id, is_active, review_status, email')
         .eq('email', email)
         .single()
 
-      if (doctorError || !doctor) {
+      if (doctorError) {
         console.error('Doctor lookup error:', doctorError)
+        await supabase.auth.signOut()
+        
+        if (doctorError.code === 'PGRST116') {
+          throw new Error('No se encontró un perfil de médico con este email. Por favor regístrate primero.')
+        }
+        
+        throw new Error('Error al verificar tu perfil. Intenta de nuevo.')
+      }
+
+      if (!doctor) {
         await supabase.auth.signOut()
         throw new Error('No tienes un perfil de médico registrado. Por favor regístrate primero.')
       }
@@ -51,19 +70,181 @@ export default function LoginMedico() {
       // 3. Verificar si está activo
       if (!doctor.is_active) {
         await supabase.auth.signOut()
-        throw new Error('Tu perfil está inactivo. Contacta a soporte en privacidad@salurama.com')
+        throw new Error('Tu perfil está inactivo. Contacta a privacidad@salurama.com')
       }
 
-      // 4. Login exitoso - redirigir a dashboard
+      // 4. Login exitoso
       router.push('/dashboard')
     } catch (err: unknown) {
       console.error('Login error:', err)
-      setError(err instanceof Error ? err.message : 'Error al iniciar sesión. Verifica tus credenciales.')
+      setError(err instanceof Error ? err.message : 'Error al iniciar sesión.')
     } finally {
       setLoading(false)
     }
   }
 
+  const handleRecovery = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(recoveryEmail, {
+        redirectTo: `${window.location.origin}/dashboard`
+      })
+      
+      if (error) throw error
+      
+      setRecoverySent(true)
+    } catch (err: unknown) {
+      alert('Error al enviar email de recuperación: ' + (err instanceof Error ? err.message : 'Error desconocido'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Si está mostrando recovery
+  if (showRecovery) {
+    return (
+      <div style={{ 
+        minHeight: '100vh', 
+        background: 'linear-gradient(135deg, #EEF2FF 0%, #fff 100%)', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        padding: 20, 
+        fontFamily: "'DM Sans', sans-serif" 
+      }}>
+        <style>{`
+          @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@900&family=DM+Sans:wght@400;500;700&display=swap');
+          *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+          @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+          .fade-up { animation: fadeUp 0.4s ease-out; }
+        `}</style>
+
+        <div className="fade-up" style={{ 
+          background: '#fff', 
+          borderRadius: 20, 
+          padding: 'clamp(32px, 6vw, 48px)', 
+          maxWidth: 440, 
+          width: '100%', 
+          boxShadow: '0 16px 48px rgba(55,48,163,0.1)' 
+        }}>
+          <div style={{ textAlign: 'center', marginBottom: 32 }}>
+            <Link href="/" style={{ textDecoration: 'none', display: 'inline-block', marginBottom: 16 }}>
+              <span style={{ fontFamily: "'Fraunces', serif", fontSize: 28, fontWeight: 900, color: '#3730A3' }}>Salu</span>
+              <span style={{ fontFamily: "'Fraunces', serif", fontSize: 28, fontWeight: 600, color: '#F4623A' }}>rama</span>
+            </Link>
+            <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 22, fontWeight: 900, color: '#1A1A2E', marginBottom: 8 }}>
+              Recuperar contraseña
+            </h1>
+            <p style={{ fontSize: 14, color: '#6B7280' }}>
+              Te enviaremos un email para restablecer tu contraseña
+            </p>
+          </div>
+
+          {recoverySent ? (
+            <div style={{ 
+              background: '#DCFCE7', 
+              border: '1px solid #86EFAC', 
+              borderRadius: 10, 
+              padding: '16px', 
+              textAlign: 'center',
+              marginBottom: 20 
+            }}>
+              <p style={{ fontSize: 14, color: '#059669', margin: 0, fontWeight: 600 }}>
+                ✅ Email enviado
+              </p>
+              <p style={{ fontSize: 13, color: '#059669', marginTop: 8 }}>
+                Revisa tu bandeja de entrada (y spam) para restablecer tu contraseña.
+              </p>
+              <button
+                onClick={() => { setShowRecovery(false); setRecoverySent(false); }}
+                style={{
+                  marginTop: 16,
+                  background: '#059669',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 50,
+                  padding: '10px 20px',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontFamily: "'DM Sans', sans-serif"
+                }}
+              >
+                Volver al login
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={handleRecovery} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
+                  Email
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <Mail size={18} color="#9CA3AF" style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)' }} />
+                  <input
+                    type="email"
+                    value={recoveryEmail}
+                    onChange={e => setRecoveryEmail(e.target.value)}
+                    placeholder="tu@email.com"
+                    required
+                    style={{ 
+                      width: '100%', 
+                      padding: '12px 14px 12px 42px', 
+                      border: '1.5px solid #E5E7EB', 
+                      borderRadius: 10, 
+                      fontSize: 15, 
+                      fontFamily: "'DM Sans', sans-serif", 
+                      color: '#1A1A2E', 
+                      outline: 'none' 
+                    }}
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                style={{
+                  width: '100%',
+                  background: loading ? '#9CA3AF' : '#3730A3',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 50,
+                  padding: '14px',
+                  fontSize: 15,
+                  fontWeight: 700,
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  fontFamily: "'DM Sans', sans-serif",
+                }}
+              >
+                {loading ? 'Enviando...' : 'Enviar email de recuperación'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowRecovery(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#6B7280',
+                  fontSize: 13,
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                  fontFamily: "'DM Sans', sans-serif"
+                }}
+              >
+                ← Volver al login
+              </button>
+            </form>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // Login normal
   return (
     <div style={{ 
       minHeight: '100vh', 
@@ -191,10 +372,24 @@ export default function LoginMedico() {
                 {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
+            {/* Link de recuperación MEJOR UBICADO */}
             <div style={{ textAlign: 'right', marginTop: 6 }}>
-              <span style={{ fontSize: 12, color: '#9CA3AF' }}>
+              <button
+                type="button"
+                onClick={() => setShowRecovery(true)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#3730A3',
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                  fontFamily: "'DM Sans', sans-serif",
+                  fontWeight: 500
+                }}
+              >
                 ¿Olvidaste tu contraseña?
-              </span>
+              </button>
             </div>
           </div>
 
@@ -243,33 +438,6 @@ export default function LoginMedico() {
               Regístrate gratis
             </Link>
           </p>
-        </div>
-
-        {/* Botón de prueba - Resetear contraseña */}
-        <div style={{ textAlign: 'center', marginTop: 16 }}>
-          <button
-            onClick={async () => {
-              const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                redirectTo: 'https://salurama.com/dashboard'
-              })
-              if (error) {
-                alert('Error: ' + error.message)
-              } else {
-                alert('Email de recuperación enviado. Revisa tu bandeja.')
-              }
-            }}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#3730A3',
-              fontSize: 12,
-              cursor: 'pointer',
-              textDecoration: 'underline',
-              fontFamily: "'DM Sans', sans-serif"
-            }}
-          >
-            📧 Reenviar email de recuperación
-          </button>
         </div>
       </div>
     </div>
