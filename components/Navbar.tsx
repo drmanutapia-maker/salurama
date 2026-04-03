@@ -63,23 +63,24 @@ export default function Navbar() {
       position: 'sticky', 
       top: 0, 
       zIndex: 100, 
-      background: 'rgba(255,255,255,0.97)', 
+      background: 'rgba(255,255,255,0.98)', 
       backdropFilter: 'blur(14px)', 
       borderBottom: '1px solid #F3F4F6', 
-      padding: '0 20px' 
+      padding: '0 12px',
+      width: '100%'
     }}>
-      <div style={{ maxWidth: 1100, margin: '0 auto', height: 58, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Link href="/" style={{ textDecoration: 'none' }}>
-          <span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, fontWeight: 900, color: '#3730A3', letterSpacing: '-0.5px' }}>Salu</span>
-          <span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, fontWeight: 600, color: '#F4623A', letterSpacing: '-0.5px' }}>rama</span>
+      <div style={{ maxWidth: 1100, margin: '0 auto', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Link href="/" style={{ textDecoration: 'none', flexShrink: 0 }}>
+          <span style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 900, color: '#3730A3', letterSpacing: '-0.5px' }}>Salu</span>
+          <span style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 600, color: '#F4623A', letterSpacing: '-0.5px' }}>rama</span>
         </Link>
         
         {/* Desktop Navigation */}
-        <div className="dsk" style={{ display: 'flex', alignItems: 'center', gap: 20, position: 'relative' }}>
+        <div className="dsk" style={{ display: 'flex', alignItems: 'center', gap: 16, position: 'relative' }}>
           <Link 
             href="/buscar" 
             style={{ 
-              fontSize: 15, 
+              fontSize: 14, 
               color: isActive('/buscar') ? '#3730A3' : '#1A1A2E', 
               textDecoration: 'none', 
               fontWeight: isActive('/buscar') ? 600 : 400,
@@ -92,7 +93,7 @@ export default function Navbar() {
           <Link 
             href="/como-elegir-medico" 
             style={{ 
-              fontSize: 15, 
+              fontSize: 14, 
               color: isActive('/como-elegir-medico') ? '#3730A3' : '#1A1A2E', 
               textDecoration: 'none', 
               fontWeight: isActive('/como-elegir-medico') ? 600 : 400,
@@ -100,12 +101,12 @@ export default function Navbar() {
               paddingBottom: '2px'
             }}
           >
-            ¿Cómo elegir médico?
+            ¿Cómo elegir?
           </Link>
           <Link 
             href="/nosotros" 
             style={{ 
-              fontSize: 15, 
+              fontSize: 14, 
               color: isActive('/nosotros') ? '#3730A3' : '#1A1A2E', 
               textDecoration: 'none', 
               fontWeight: isActive('/nosotros') ? 600 : 400,
@@ -118,7 +119,6 @@ export default function Navbar() {
           
           {/* Auth Section */}
           {user ? (
-            // Usuario logueado (médico)
             <>
               <Link 
                 href="/dashboard" 
@@ -126,17 +126,17 @@ export default function Navbar() {
                   display: 'flex', 
                   alignItems: 'center', 
                   gap: 6,
-                  fontSize: 14, 
+                  fontSize: 13, 
                   color: '#3730A3', 
                   fontWeight: 600, 
                   textDecoration: 'none',
-                  padding: '8px 16px',
+                  padding: '6px 12px',
                   borderRadius: 50,
                   background: '#EEF2FF'
                 }}
               >
-                <User size={16} />
-                Mi Dashboard
+                <User size={14} />
+                <span className="dsk">Dashboard</span>
               </Link>
               <button 
                 onClick={handleLogout}
@@ -147,38 +147,37 @@ export default function Navbar() {
                   background: 'none', 
                   border: '1.5px solid #E5E7EB', 
                   borderRadius: 50, 
-                  padding: '8px 16px', 
-                  fontSize: 14, 
+                  padding: '6px 12px', 
+                  fontSize: 13, 
                   fontWeight: 500, 
                   color: '#6B7280', 
                   cursor: 'pointer',
                   fontFamily: "'DM Sans', sans-serif"
                 }}
               >
-                <LogOut size={16} />
-                Salir
+                <LogOut size={14} />
+                <span className="dsk">Salir</span>
               </button>
             </>
           ) : isAdmin ? (
-            // Admin logueado
             <>
               <Link 
                 href="/admin" 
                 style={{ 
-                  fontSize: 14, 
+                  fontSize: 13, 
                   color: '#F4623A', 
                   fontWeight: 700, 
                   textDecoration: 'none',
                   background: '#FEF2F2',
-                  padding: '8px 16px',
+                  padding: '6px 12px',
                   borderRadius: 50,
                   display: 'flex',
                   alignItems: 'center',
                   gap: 6
                 }}
               >
-                <Shield size={16} />
-                Admin
+                <Shield size={14} />
+                <span className="dsk">Admin</span>
               </Link>
               <button 
                 onClick={handleLogout}
@@ -189,43 +188,42 @@ export default function Navbar() {
                   background: 'none', 
                   border: '1.5px solid #E5E7EB', 
                   borderRadius: 50, 
-                  padding: '8px 16px', 
-                  fontSize: 14, 
+                  padding: '6px 12px', 
+                  fontSize: 13, 
                   fontWeight: 500, 
                   color: '#6B7280', 
                   cursor: 'pointer',
                   fontFamily: "'DM Sans', sans-serif"
                 }}
               >
-                <LogOut size={16} />
-                Salir
+                <LogOut size={14} />
+                <span className="dsk">Salir</span>
               </button>
             </>
           ) : (
-            // No hay sesión - Dropdown "Soy Médico"
             <div style={{ position: 'relative' }}>
               <button
                 onClick={toggleSoyMedicoDropdown}
                 style={{ 
                   display: 'flex', 
                   alignItems: 'center', 
-                  gap: 6,
+                  gap: 4,
                   background: '#3730A3', 
                   color: '#fff', 
                   border: 'none',
-                  padding: '10px 20px', 
+                  padding: '8px 14px', 
                   borderRadius: 50, 
-                  fontSize: 14, 
+                  fontSize: 13, 
                   fontWeight: 600,
                   cursor: 'pointer',
                   fontFamily: "'DM Sans', sans-serif",
-                  transition: 'background 0.18s'
+                  transition: 'background 0.18s',
+                  whiteSpace: 'nowrap'
                 }}
-                onMouseEnter={() => setSoyMedicoDropdown(true)}
               >
-                👨‍⚕️ Soy Médico
+                👨‍⚕️ <span className="dsk">Soy Médico</span>
                 <ChevronDown 
-                  size={16} 
+                  size={14} 
                   style={{ 
                     transform: soyMedicoDropdown ? 'rotate(180deg)' : 'rotate(0deg)',
                     transition: 'transform 0.2s'
@@ -233,16 +231,13 @@ export default function Navbar() {
                 />
               </button>
               
-              {/* Dropdown Menu */}
               {soyMedicoDropdown && (
                 <>
-                  {/* Overlay para cerrar al hacer clic fuera */}
                   <div 
                     style={{ position: 'fixed', inset: 0, zIndex: 99 }} 
                     onClick={() => setSoyMedicoDropdown(false)}
                   />
                   
-                  {/* Dropdown content */}
                   <div 
                     style={{
                       position: 'absolute',
@@ -253,7 +248,7 @@ export default function Navbar() {
                       borderRadius: 12,
                       boxShadow: '0 10px 32px rgba(55,48,163,0.12)',
                       padding: '8px 0',
-                      minWidth: 200,
+                      minWidth: 180,
                       zIndex: 100,
                       animation: 'fadeIn 0.15s ease-out'
                     }}
@@ -306,125 +301,122 @@ export default function Navbar() {
         {/* Mobile burger */}
         <button 
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          style={{ display: 'none', background: 'none', border: 'none', cursor: 'pointer', padding: 8 }}
+          style={{ display: 'none', background: 'none', border: 'none', cursor: 'pointer', padding: 8, flexShrink: 0 }}
           className="mob-btn"
+          aria-label={mobileMenuOpen ? 'Cerrar menú' : 'Abrir menú'}
         >
-          {mobileMenuOpen ? <X size={24} color="#3730A3" /> : <Menu size={24} color="#3730A3" />}
+          {mobileMenuOpen ? <X size={22} color="#3730A3" /> : <Menu size={22} color="#3730A3" />}
         </button>
       </div>
       
       {/* Mobile menu */}
       {mobileMenuOpen && (
-        <div className="mob-menu" style={{ padding: '12px 20px 20px', borderTop: '1px solid #F3F4F6', background: '#fff' }}>
+        <div className="mob-menu" style={{ padding: '12px 16px 20px', borderTop: '1px solid #F3F4F6', background: '#fff', position: 'absolute', left: 0, right: 0, boxShadow: '0 8px 24px rgba(0,0,0,0.08)' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Link href="/buscar" onClick={() => { setMobileMenuOpen(false); setMobileSoyMedicoOpen(false); }} style={{ fontSize: 16, color: '#1A1A2E', textDecoration: 'none', padding: '12px 8px' }}>
+            <Link href="/buscar" onClick={() => { setMobileMenuOpen(false); setMobileSoyMedicoOpen(false); }} style={{ fontSize: 15, color: '#1A1A2E', textDecoration: 'none', padding: '10px 8px', fontWeight: 500 }}>
               Especialidades
             </Link>
-            <Link href="/como-elegir-medico" onClick={() => { setMobileMenuOpen(false); setMobileSoyMedicoOpen(false); }} style={{ fontSize: 16, color: '#1A1A2E', textDecoration: 'none', padding: '12px 8px' }}>
+            <Link href="/como-elegir-medico" onClick={() => { setMobileMenuOpen(false); setMobileSoyMedicoOpen(false); }} style={{ fontSize: 15, color: '#1A1A2E', textDecoration: 'none', padding: '10px 8px', fontWeight: 500 }}>
               ¿Cómo elegir médico?
             </Link>
-            <Link href="/nosotros" onClick={() => { setMobileMenuOpen(false); setMobileSoyMedicoOpen(false); }} style={{ fontSize: 16, color: '#1A1A2E', textDecoration: 'none', padding: '12px 8px' }}>
+            <Link href="/nosotros" onClick={() => { setMobileMenuOpen(false); setMobileSoyMedicoOpen(false); }} style={{ fontSize: 15, color: '#1A1A2E', textDecoration: 'none', padding: '10px 8px', fontWeight: 500 }}>
               Nosotros
             </Link>
             
             {user ? (
               <>
-                <Link href="/dashboard" onClick={() => { setMobileMenuOpen(false); setMobileSoyMedicoOpen(false); }} style={{ fontSize: 16, color: '#3730A3', fontWeight: 600, textDecoration: 'none', padding: '12px 8px' }}>
+                <Link href="/dashboard" onClick={() => { setMobileMenuOpen(false); setMobileSoyMedicoOpen(false); }} style={{ fontSize: 15, color: '#3730A3', fontWeight: 600, textDecoration: 'none', padding: '10px 8px' }}>
                   Mi Dashboard
                 </Link>
-                <button onClick={handleLogout} style={{ fontSize: 16, color: '#DC2626', background: 'none', border: 'none', cursor: 'pointer', padding: '12px 8px', textAlign: 'left' }}>
+                <button onClick={handleLogout} style={{ fontSize: 15, color: '#DC2626', background: 'none', border: 'none', cursor: 'pointer', padding: '10px 8px', textAlign: 'left', fontWeight: 500 }}>
                   Cerrar sesión
                 </button>
               </>
             ) : isAdmin ? (
               <>
-                <Link href="/admin" onClick={() => { setMobileMenuOpen(false); setMobileSoyMedicoOpen(false); }} style={{ fontSize: 16, color: '#F4623A', fontWeight: 600, textDecoration: 'none', padding: '12px 8px' }}>
+                <Link href="/admin" onClick={() => { setMobileMenuOpen(false); setMobileSoyMedicoOpen(false); }} style={{ fontSize: 15, color: '#F4623A', fontWeight: 600, textDecoration: 'none', padding: '10px 8px' }}>
                   Admin Panel
                 </Link>
-                <button onClick={handleLogout} style={{ fontSize: 16, color: '#DC2626', background: 'none', border: 'none', cursor: 'pointer', padding: '12px 8px', textAlign: 'left' }}>
+                <button onClick={handleLogout} style={{ fontSize: 15, color: '#DC2626', background: 'none', border: 'none', cursor: 'pointer', padding: '10px 8px', textAlign: 'left', fontWeight: 500 }}>
                   Cerrar sesión
                 </button>
               </>
             ) : (
-              <>
-                {/* Mobile: Soy Médico expandible */}
-                <div>
-                  <button
-                    onClick={toggleMobileSoyMedico}
-                    style={{
-                      width: '100%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      fontSize: 16,
-                      color: '#1A1A2E',
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      padding: '12px 8px',
-                      textAlign: 'left',
-                      fontWeight: 500
-                    }}
-                  >
-                    <span>👨‍⚕️ Soy Médico</span>
-                    <ChevronDown 
-                      size={18} 
-                      style={{ 
-                        transform: mobileSoyMedicoOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                        transition: 'transform 0.2s',
-                        color: '#9CA3AF'
-                      }} 
-                    />
-                  </button>
-                  
-                  {/* Submenu móvil */}
-                  {mobileSoyMedicoOpen && (
-                    <div style={{ 
-                      paddingLeft: 16, 
-                      paddingTop: 8,
-                      animation: 'slideIn 0.2s ease-out'
-                    }}>
-                      <Link 
-                        href="/login" 
-                        onClick={() => { setMobileMenuOpen(false); setMobileSoyMedicoOpen(false); }}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 8,
-                          fontSize: 15,
-                          color: '#3730A3',
-                          fontWeight: 500,
-                          textDecoration: 'none',
-                          padding: '10px 8px',
-                          marginBottom: 4
-                        }}
-                      >
-                        <LogOut size={16} />
-                        Iniciar sesión
-                      </Link>
-                      <Link 
-                        href="/registro" 
-                        onClick={() => { setMobileMenuOpen(false); setMobileSoyMedicoOpen(false); }}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 8,
-                          fontSize: 15,
-                          color: '#3730A3',
-                          fontWeight: 600,
-                          textDecoration: 'none',
-                          padding: '10px 8px',
-                          background: '#EEF2FF',
-                          borderRadius: 8
-                        }}
-                      >
-                        <User size={16} />
-                        Registrarme
-                      </Link>
-                    </div>
-                  )}
-                </div>
-              </>
+              <div>
+                <button
+                  onClick={toggleMobileSoyMedico}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    fontSize: 15,
+                    color: '#1A1A2E',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: '10px 8px',
+                    textAlign: 'left',
+                    fontWeight: 500
+                  }}
+                >
+                  <span>👨‍⚕️ Soy Médico</span>
+                  <ChevronDown 
+                    size={16} 
+                    style={{ 
+                      transform: mobileSoyMedicoOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: 'transform 0.2s',
+                      color: '#9CA3AF'
+                    }} 
+                  />
+                </button>
+                
+                {mobileSoyMedicoOpen && (
+                  <div style={{ 
+                    paddingLeft: 16, 
+                    paddingTop: 8,
+                    animation: 'slideIn 0.2s ease-out'
+                  }}>
+                    <Link 
+                      href="/login" 
+                      onClick={() => { setMobileMenuOpen(false); setMobileSoyMedicoOpen(false); }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        fontSize: 14,
+                        color: '#3730A3',
+                        fontWeight: 500,
+                        textDecoration: 'none',
+                        padding: '8px 8px',
+                        marginBottom: 4
+                      }}
+                    >
+                      <LogOut size={14} />
+                      Iniciar sesión
+                    </Link>
+                    <Link 
+                      href="/registro" 
+                      onClick={() => { setMobileMenuOpen(false); setMobileSoyMedicoOpen(false); }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        fontSize: 14,
+                        color: '#3730A3',
+                        fontWeight: 600,
+                        textDecoration: 'none',
+                        padding: '8px 8px',
+                        background: '#EEF2FF',
+                        borderRadius: 8
+                      }}
+                    >
+                      <User size={14} />
+                      Registrarme
+                    </Link>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -438,6 +430,14 @@ export default function Navbar() {
         @keyframes slideIn {
           from { opacity: 0; max-height: 0; }
           to { opacity: 1; max-height: 200px; }
+        }
+        @media (max-width: 768px) {
+          .dsk { display: none !important; }
+          .mob-btn { display: flex !important; }
+        }
+        @media (min-width: 769px) {
+          .mob-btn { display: none !important; }
+          .mob-menu { display: none !important; }
         }
       `}</style>
     </nav>
