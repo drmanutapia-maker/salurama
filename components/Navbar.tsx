@@ -151,9 +151,8 @@ export default function Navbar() {
             Nosotros
           </Link>
           
-          {/* Auth Section - Diferente según estado de sesión */}
+          {/* Auth Section */}
           {user ? (
-            /* USUARIO LOGUEADO (Médico) - Desktop */
             <>
               <Link 
                 href="/dashboard" 
@@ -213,7 +212,6 @@ export default function Navbar() {
               </button>
             </>
           ) : isAdmin ? (
-            /* ADMIN LOGUEADO - Desktop */
             <>
               <Link 
                 href="/admin" 
@@ -267,7 +265,6 @@ export default function Navbar() {
               </button>
             </>
           ) : (
-            /* NO HAY SESIÓN - Dropdown "Soy Médico" con CLIC - Desktop */}
             <div className="soy-medico-dropdown" style={{ position: 'relative' }}>
               <button
                 onClick={toggleSoyMedicoDropdown}
@@ -305,7 +302,6 @@ export default function Navbar() {
                 />
               </button>
               
-              {/* Dropdown Desktop - Aparece al hacer CLIC */}
               {soyMedicoDropdown && (
                 <div 
                   style={{
