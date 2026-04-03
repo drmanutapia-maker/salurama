@@ -54,10 +54,6 @@ export default function Navbar() {
 
   const isActive = (path: string) => pathname === path
 
-  const toggleSoyMedicoDropdown = () => {
-    setSoyMedicoDropdown(!soyMedicoDropdown)
-  }
-
   const toggleMobileSoyMedico = () => {
     setMobileSoyMedicoOpen(!mobileSoyMedicoOpen)
   }
@@ -289,7 +285,7 @@ export default function Navbar() {
                 />
               </button>
               
-              {/* Dropdown Desktop - Aparece en hover */}
+              {/* Dropdown Desktop - Aparece en hover y permanece mientras el cursor esté sobre él */}
               {soyMedicoDropdown && (
                 <div 
                   style={{
