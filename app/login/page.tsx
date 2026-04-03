@@ -20,24 +20,30 @@ export default function LoginMedico() {
     setError(null)
 
     try {
-      // 1. Intentar login
+      // 1. Intentar login con Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
-      if (authError) throw authError
-      if (!authData.user) throw new Error('Credenciales incorrectas')
+      if (authError) {
+        console.error('Auth error:', authError)
+        throw new Error('Email o contraseña incorrectos')
+      }
+
+      if (!authData.user) {
+        throw new Error('No se pudo autenticar. Intenta de nuevo.')
+      }
 
       // 2. Verificar si existe en tabla doctors
       const { data: doctor, error: doctorError } = await supabase
         .from('doctors')
-        .select('id, is_active, review_status')
+        .select('id, is_active, review_status, email')
         .eq('email', email)
         .single()
 
       if (doctorError || !doctor) {
-        // Usuario existe en auth pero no en doctors
+        console.error('Doctor lookup error:', doctorError)
         await supabase.auth.signOut()
         throw new Error('No tienes un perfil de médico registrado. Por favor regístrate primero.')
       }
@@ -51,6 +57,7 @@ export default function LoginMedico() {
       // 4. Login exitoso - redirigir a dashboard
       router.push('/dashboard')
     } catch (err: unknown) {
+      console.error('Login error:', err)
       setError(err instanceof Error ? err.message : 'Error al iniciar sesión. Verifica tus credenciales.')
     } finally {
       setLoading(false)
@@ -72,6 +79,8 @@ export default function LoginMedico() {
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
         .fade-up { animation: fadeUp 0.4s ease-out; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spin { animation: spin 0.7s linear infinite; }
       `}</style>
 
       <div className="fade-up" style={{ 
@@ -218,8 +227,7 @@ export default function LoginMedico() {
                   border: '2px solid rgba(255,255,255,0.3)', 
                   borderTopColor: '#fff', 
                   borderRadius: '50%', 
-                  animation: 'spin 0.7s linear infinite' 
-                }} />
+                }} className="spin" />
                 Iniciando sesión...
               </>
             ) : (
@@ -235,6 +243,33 @@ export default function LoginMedico() {
               Regístrate gratis
             </Link>
           </p>
+        </div>
+
+        {/* Botón de prueba - Resetear contraseña */}
+        <div style={{ textAlign: 'center', marginTop: 16 }}>
+          <button
+            onClick={async () => {
+              const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                redirectTo: 'https://salurama.com/dashboard'
+              })
+              if (error) {
+                alert('Error: ' + error.message)
+              } else {
+                alert('Email de recuperación enviado. Revisa tu bandeja.')
+              }
+            }}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#3730A3',
+              fontSize: 12,
+              cursor: 'pointer',
+              textDecoration: 'underline',
+              fontFamily: "'DM Sans', sans-serif"
+            }}
+          >
+            📧 Reenviar email de recuperación
+          </button>
         </div>
       </div>
     </div>
