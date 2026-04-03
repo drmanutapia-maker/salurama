@@ -41,6 +41,7 @@ export default function Navbar() {
     sessionStorage.removeItem('salurama_admin_email')
     setSoyMedicoDropdown(false)
     setMobileMenuOpen(false)
+    setMobileSoyMedicoOpen(false)
     router.push('/')
   }
 
@@ -117,8 +118,9 @@ export default function Navbar() {
             Nosotros
           </Link>
           
-          {/* Auth Section */}
+          {/* Auth Section - Diferente según estado de sesión */}
           {user ? (
+            /* USUARIO LOGUEADO (Médico) */
             <>
               <Link 
                 href="/dashboard" 
@@ -136,7 +138,7 @@ export default function Navbar() {
                 }}
               >
                 <User size={14} />
-                <span className="dsk">Dashboard</span>
+                <span className="dsk">Mi Dashboard</span>
               </Link>
               <button 
                 onClick={handleLogout}
@@ -160,6 +162,7 @@ export default function Navbar() {
               </button>
             </>
           ) : isAdmin ? (
+            /* ADMIN LOGUEADO */
             <>
               <Link 
                 href="/admin" 
@@ -201,6 +204,7 @@ export default function Navbar() {
               </button>
             </>
           ) : (
+            /* NO HAY SESIÓN - Mostrar Dropdown "Soy Médico" */
             <div style={{ position: 'relative' }}>
               <button
                 onClick={toggleSoyMedicoDropdown}
@@ -231,6 +235,7 @@ export default function Navbar() {
                 />
               </button>
               
+              {/* Dropdown Desktop */}
               {soyMedicoDropdown && (
                 <>
                   <div 
@@ -323,7 +328,9 @@ export default function Navbar() {
               Nosotros
             </Link>
             
+            {/* Mobile Auth Section - Diferente según estado de sesión */}
             {user ? (
+              /* USUARIO LOGUEADO (Móvil) */
               <>
                 <Link href="/dashboard" onClick={() => { setMobileMenuOpen(false); setMobileSoyMedicoOpen(false); }} style={{ fontSize: 15, color: '#3730A3', fontWeight: 600, textDecoration: 'none', padding: '10px 8px' }}>
                   Mi Dashboard
@@ -333,6 +340,7 @@ export default function Navbar() {
                 </button>
               </>
             ) : isAdmin ? (
+              /* ADMIN LOGUEADO (Móvil) */
               <>
                 <Link href="/admin" onClick={() => { setMobileMenuOpen(false); setMobileSoyMedicoOpen(false); }} style={{ fontSize: 15, color: '#F4623A', fontWeight: 600, textDecoration: 'none', padding: '10px 8px' }}>
                   Admin Panel
@@ -342,6 +350,7 @@ export default function Navbar() {
                 </button>
               </>
             ) : (
+              /* NO HAY SESIÓN - Acordeón "Soy Médico" (Móvil) */
               <div>
                 <button
                   onClick={toggleMobileSoyMedico}
@@ -371,6 +380,7 @@ export default function Navbar() {
                   />
                 </button>
                 
+                {/* Submenú Móvil */}
                 {mobileSoyMedicoOpen && (
                   <div style={{ 
                     paddingLeft: 16, 
