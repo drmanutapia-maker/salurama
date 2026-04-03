@@ -56,44 +56,74 @@ export default function DashboardMedico() {
   }
 
   const handleFoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file || !medico) return
+  const file = e.target.files?.[0]
+  if (!file || !medico) return
 
-    setUploading(true)
-    try {
-      const ext = file.name.split('.').pop()
-      const name = `${medico.id}-${Date.now()}.${ext}`
-      
-      const { error: uploadError } = await supabase.storage
-        .from('doctor-photos')
-        .upload(name, file, { upsert: true })
+  // Validar tipo
+  if (!file.type.startsWith('image/')) {
+    alert('Por favor selecciona una imagen (JPG, PNG, etc.)')
+    return
+  }
 
-      if (uploadError) throw uploadError
+  // Validar tamaño (5MB max)
+  if (file.size > 5 * 1024 * 1024) {
+    alert('La imagen no debe pesar más de 5MB')
+    return
+  }
 
-      const { data: urlData } = supabase.storage
-        .from('doctor-photos')
-        .getPublicUrl(name)
-
-      await supabase.from('doctors').update({ photo_url: urlData.publicUrl }).eq('id', medico.id)
-      setMedico(p => p ? { ...p, photo_url: urlData.publicUrl } : null)
-    } catch {
-      alert('Error al subir la foto')
-    } finally {
-      setUploading(false)
+  setUploading(true)
+  try {
+    const ext = file.name.split('.').pop()
+    // Usar ID del médico como nombre de carpeta + archivo
+    const fileName = `${medico.id}/profile.${ext}`
+    
+    // Eliminar foto anterior si existe
+    if (medico.photo_url) {
+      const oldPath = medico.photo_url.split('/doctor-photos/')[1]
+      if (oldPath) {
+        await supabase.storage
+          .from('doctor-photos')
+          .remove([oldPath])
+      }
     }
-  }
 
-  if (loading) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif" }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ width: 40, height: 40, border: '3px solid #EEF2FF', borderTopColor: '#3730A3', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
-          <p style={{ color: '#9CA3AF', fontSize: 14 }}>Cargando dashboard...</p>
-        </div>
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      </div>
-    )
+    // Subir nueva foto
+    const { error: uploadError } = await supabase.storage
+      .from('doctor-photos')
+      .upload(fileName, file, { 
+        upsert: true,
+        cacheControl: '3600'
+      })
+
+    if (uploadError) {
+      console.error('Upload error:', uploadError)
+      throw uploadError
+    }
+
+    // Obtener URL pública
+    const { data: urlData } = supabase.storage
+      .from('doctor-photos')
+      .getPublicUrl(fileName)
+
+    // Actualizar en base de datos
+    const { error: updateError } = await supabase
+      .from('doctors')
+      .update({ photo_url: urlData.publicUrl })
+      .eq('id', medico.id)
+
+    if (updateError) {
+      console.error('Update error:', updateError)
+      throw updateError
+    }
+
+    setMedico(p => p ? { ...p, photo_url: urlData.publicUrl } : null)
+  } catch (err) {
+    console.error('Error completo:', err)
+    alert('Error al subir la foto: ' + (err instanceof Error ? err.message : 'Error desconocido'))
+  } finally {
+    setUploading(false)
   }
+}
 
   if (!medico) return null
 
