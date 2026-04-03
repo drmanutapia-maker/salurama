@@ -297,22 +297,6 @@ export default function AdminPanel() {
         }
       `}</style>
 
-      {/* NAV */}
-      <nav style={{ background: '#fff', borderBottom: '1px solid #F3F4F6', padding: '0 20px', position: 'sticky', top: 0, zIndex: 50 }}>
-        <div style={{ maxWidth: 1100, margin: '0 auto', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <Link href="/" style={{ textDecoration: 'none' }}>
-              <span style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 900, color: '#3730A3' }}>Salu</span>
-              <span style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 600, color: '#F4623A' }}>rama</span>
-            </Link>
-            <span style={{ fontSize: 12, background: '#F4623A', color: '#fff', borderRadius: 20, padding: '2px 10px', fontWeight: 700 }}>ADMIN</span>
-          </div>
-          <button onClick={logout} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: '1.5px solid #E5E7EB', borderRadius: 50, padding: '7px 14px', fontSize: 13, fontWeight: 500, color: '#6B7280', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
-            <LogOut size={14} /> Salir
-          </button>
-        </div>
-      </nav>
-
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 16px 60px' }}>
 
         {/* INSTRUCCIONES */}

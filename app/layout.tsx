@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import CookieBanner from '@/components/CookieBanner'
+import Navbar from '@/components/Navbar'  // ← AGREGAR ESTO
 
 export const metadata: Metadata = {
   title: {
@@ -102,6 +103,7 @@ export default function RootLayout({
         />
       </head>
       <body className="antialiased bg-white text-[#1A1A2E]" style={{ margin: 0, padding: 0, overflowX: 'hidden' }}>
+        <Navbar />  {/* ← AGREGAR ESTO */}
         {children}
         <CookieBanner />
       </body>

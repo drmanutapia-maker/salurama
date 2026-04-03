@@ -507,28 +507,6 @@ export default function PerfilMedico() {
         .fade-up { animation:fadeUp 0.3s ease-out; }
       `}</style>
 
-      {/* NAV */}
-      <nav style={{ background: '#fff', borderBottom: '1px solid #F3F4F6', padding: '0 16px', position: 'sticky', top: 0, zIndex: 50 }}>
-        <div style={{ maxWidth: 1100, margin: '0 auto', height: 54, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Link href="/" style={{ textDecoration: 'none' }}>
-            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 900, color: '#3730A3' }}>Salu</span>
-            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 600, color: '#F4623A' }}>rama</span>
-          </Link>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <Link href="/como-elegir-medico"
-              style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13, color: '#3730A3', fontWeight: 500, textDecoration: 'none' }}
-            >
-              <BookOpen size={14} /> Cómo elegir médico
-            </Link>
-            <button onClick={() => router.back()}
-              style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#6B7280', background: 'none', border: 'none', fontSize: 14, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}
-            >
-              <ArrowLeft size={15} /> Volver
-            </button>
-          </div>
-        </div>
-      </nav>
-
       <div style={{ maxWidth: 1060, margin: '0 auto', padding: '18px 16px 60px' }}>
 
         {/* En móvil: tarjeta de contacto primero */}

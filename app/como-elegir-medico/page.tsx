@@ -179,40 +179,6 @@ export default function ComoElegirMedico() {
         .fade-up { animation:fadeUp 0.3s ease-out; }
       `}</style>
 
-      {/* ── NAVBAR ── */}
-      <nav style={{ position: 'sticky', top: 0, zIndex: 100, background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(12px)', borderBottom: '1px solid #F3F4F6', padding: '0 20px' }}>
-        <div style={{ maxWidth: 1100, margin: '0 auto', height: 58, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Link href="/" style={{ textDecoration: 'none' }}>
-            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, fontWeight: 900, color: '#3730A3', letterSpacing: '-0.5px' }}>Salu</span>
-            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, fontWeight: 600, color: '#F4623A', letterSpacing: '-0.5px' }}>rama</span>
-          </Link>
-          <div className="dsk" style={{ display: 'flex', alignItems: 'center', gap: 28 }}>
-            <Link href="/buscar" className="nav-link">Especialidades</Link>
-            <Link href="/como-elegir-medico" className="nav-link active">¿Cómo elegir médico?</Link>
-            <Link href="/nosotros" className="nav-link">Nosotros</Link>
-            <Link href="/registro" className="btn-medico">👨‍⚕️ Soy Médico</Link>
-          </div>
-          <button
-            className="mob-btn"
-            onClick={() => setMobileMenuOpen(o => !o)}
-            style={{ display: 'none', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer', padding: 8 }}
-            aria-label={mobileMenuOpen ? 'Cerrar menú' : 'Abrir menú'}
-          >
-            {mobileMenuOpen ? <X size={24} color="#3730A3" /> : <Menu size={24} color="#3730A3" />}
-          </button>
-        </div>
-        {mobileMenuOpen && (
-          <div className="mob-menu" style={{ padding: '16px 20px 20px', borderTop: '1px solid #F3F4F6', background: '#fff' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <Link href="/buscar" onClick={() => setMobileMenuOpen(false)} style={{ fontSize: 16, color: '#1A1A2E', textDecoration: 'none', padding: '12px 8px', display: 'block' }}>Especialidades</Link>
-              <Link href="/como-elegir-medico" onClick={() => setMobileMenuOpen(false)} style={{ fontSize: 16, color: '#3730A3', fontWeight: 600, textDecoration: 'none', padding: '12px 8px', display: 'block' }}>¿Cómo elegir médico?</Link>
-              <Link href="/nosotros" onClick={() => setMobileMenuOpen(false)} style={{ fontSize: 16, color: '#1A1A2E', textDecoration: 'none', padding: '12px 8px', display: 'block' }}>Nosotros</Link>
-              <Link href="/registro" onClick={() => setMobileMenuOpen(false)} className="btn-medico" style={{ marginTop: 8, justifyContent: 'center', padding: '13px 20px', fontSize: 15 }}>👨‍⚕️ Soy Médico</Link>
-            </div>
-          </div>
-        )}
-      </nav>
-
       {/* ── HERO ── */}
       <section style={{ padding: 'clamp(48px, 8vw, 72px) 20px 40px', textAlign: 'center', background: 'linear-gradient(160deg, #EEF2FF 0%, #fff 60%)' }}>
         <div style={{ maxWidth: 640, margin: '0 auto' }}>

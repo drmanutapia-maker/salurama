@@ -106,24 +106,6 @@ export default function DashboardMedico() {
         .fade-up { animation: fadeUp 0.4s ease-out; }
       `}</style>
 
-      {/* NAV */}
-      <nav style={{ background: '#fff', borderBottom: '1px solid #F3F4F6', padding: '0 20px', position: 'sticky', top: 0, zIndex: 100 }}>
-        <div style={{ maxWidth: 1100, margin: '0 auto', height: 58, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Link href="/" style={{ textDecoration: 'none' }}>
-            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 900, color: '#3730A3' }}>Salu</span>
-            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 600, color: '#F4623A' }}>rama</span>
-          </Link>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <Link href={`/doctor/${medico.id}`} target="_blank" style={{ fontSize: 13, color: '#3730A3', fontWeight: 500, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
-              <Eye size={14} /> Ver perfil público
-            </Link>
-            <button onClick={handleLogout} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: '1.5px solid #E5E7EB', borderRadius: 50, padding: '7px 14px', fontSize: 13, fontWeight: 500, color: '#6B7280', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
-              <LogOut size={14} /> Salir
-            </button>
-          </div>
-        </div>
-      </nav>
-
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 16px 60px' }}>
         {/* HEADER */}
         <div className="fade-up" style={{ background: '#fff', borderRadius: 16, padding: '24px 20px', marginBottom: 20, border: '1px solid #E5E7EB' }}>
