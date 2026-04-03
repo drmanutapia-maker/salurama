@@ -1,6 +1,5 @@
 'use client'
-
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -24,6 +23,7 @@ export default function DashboardMedico() {
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [editing, setEditing] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     async function load() {
@@ -32,18 +32,15 @@ export default function DashboardMedico() {
         router.push('/login')
         return
       }
-
       const { data, error } = await supabase
         .from('doctors')
         .select('*')
         .eq('email', user.email)
         .single()
-
       if (error || !data) {
         router.push('/login')
         return
       }
-
       setMedico(data)
       setLoading(false)
     }
@@ -56,74 +53,92 @@ export default function DashboardMedico() {
   }
 
   const handleFoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
-  const file = e.target.files?.[0]
-  if (!file || !medico) return
+    const file = e.target.files?.[0]
+    if (!file || !medico) return
 
-  // Validar tipo
-  if (!file.type.startsWith('image/')) {
-    alert('Por favor selecciona una imagen (JPG, PNG, etc.)')
-    return
-  }
+    // Validar tipo de archivo
+    if (!file.type.startsWith('image/')) {
+      alert('Por favor selecciona una imagen válida (JPG, PNG, etc.)')
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      return
+    }
 
-  // Validar tamaño (5MB max)
-  if (file.size > 5 * 1024 * 1024) {
-    alert('La imagen no debe pesar más de 5MB')
-    return
-  }
+    // Validar tamaño (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('La imagen no debe pesar más de 5MB')
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      return
+    }
 
-  setUploading(true)
-  try {
-    const ext = file.name.split('.').pop()
-    // Usar ID del médico como nombre de carpeta + archivo
-    const fileName = `${medico.id}/profile.${ext}`
-    
-    // Eliminar foto anterior si existe
-    if (medico.photo_url) {
-      const oldPath = medico.photo_url.split('/doctor-photos/')[1]
-      if (oldPath) {
-        await supabase.storage
-          .from('doctor-photos')
-          .remove([oldPath])
+    setUploading(true)
+    try {
+      const ext = file.name.split('.').pop()
+      const name = `${medico.id}/profile.${ext}`
+      
+      // Eliminar foto anterior si existe
+      if (medico.photo_url) {
+        const oldPath = medico.photo_url.split('/doctor-photos/')[1]
+        if (oldPath) {
+          await supabase.storage
+            .from('doctor-photos')
+            .remove([oldPath])
+        }
       }
+
+      // Subir nueva foto
+      const { error: uploadError } = await supabase.storage
+        .from('doctor-photos')
+        .upload(name, file, { 
+          upsert: true,
+          cacheControl: '3600'
+        })
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError)
+        throw uploadError
+      }
+
+      // Obtener URL pública
+      const { data: urlData } = supabase.storage
+        .from('doctor-photos')
+        .getPublicUrl(name)
+
+      // Actualizar en base de datos
+      const { error: updateError } = await supabase
+        .from('doctors')
+        .update({ photo_url: urlData.publicUrl })
+        .eq('id', medico.id)
+
+      if (updateError) {
+        console.error('Update error:', updateError)
+        throw updateError
+      }
+
+      setMedico(p => p ? { ...p, photo_url: urlData.publicUrl } : null)
+      
+      // Limpiar input para permitir subir la misma foto de nuevo
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    } catch (err) {
+      console.error('Error completo:', err)
+      alert('Error al subir la foto: ' + (err instanceof Error ? err.message : 'Error desconocido'))
+    } finally {
+      setUploading(false)
     }
-
-    // Subir nueva foto
-    const { error: uploadError } = await supabase.storage
-      .from('doctor-photos')
-      .upload(fileName, file, { 
-        upsert: true,
-        cacheControl: '3600'
-      })
-
-    if (uploadError) {
-      console.error('Upload error:', uploadError)
-      throw uploadError
-    }
-
-    // Obtener URL pública
-    const { data: urlData } = supabase.storage
-      .from('doctor-photos')
-      .getPublicUrl(fileName)
-
-    // Actualizar en base de datos
-    const { error: updateError } = await supabase
-      .from('doctors')
-      .update({ photo_url: urlData.publicUrl })
-      .eq('id', medico.id)
-
-    if (updateError) {
-      console.error('Update error:', updateError)
-      throw updateError
-    }
-
-    setMedico(p => p ? { ...p, photo_url: urlData.publicUrl } : null)
-  } catch (err) {
-    console.error('Error completo:', err)
-    alert('Error al subir la foto: ' + (err instanceof Error ? err.message : 'Error desconocido'))
-  } finally {
-    setUploading(false)
   }
-}
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif" }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ width: 40, height: 40, border: '3px solid #EEF2FF', borderTopColor: '#3730A3', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
+          <p style={{ color: '#9CA3AF', fontSize: 14 }}>Cargando dashboard...</p>
+        </div>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    )
+  }
 
   if (!medico) return null
 
@@ -135,7 +150,6 @@ export default function DashboardMedico() {
         @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
         .fade-up { animation: fadeUp 0.4s ease-out; }
       `}</style>
-
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 16px 60px' }}>
         {/* HEADER */}
         <div className="fade-up" style={{ background: '#fff', borderRadius: 16, padding: '24px 20px', marginBottom: 20, border: '1px solid #E5E7EB' }}>
@@ -149,12 +163,33 @@ export default function DashboardMedico() {
                   {(medico.full_name || '?')[0].toUpperCase()}
                 </div>
               )}
-              <label style={{ position: 'absolute', bottom: 0, right: 0, background: '#3730A3', borderRadius: '50%', padding: 8, cursor: 'pointer', border: '3px solid #fff' }}>
-                <Upload size={16} color="#fff" />
-                <input type="file" accept="image/*" onChange={handleFoto} style={{ display: 'none' }} disabled={uploading} />
+              <label style={{ 
+                position: 'absolute', 
+                bottom: 0, 
+                right: 0, 
+                background: uploading ? '#9CA3AF' : '#3730A3', 
+                borderRadius: '50%', 
+                padding: 8, 
+                cursor: uploading ? 'not-allowed' : 'pointer', 
+                border: '3px solid #fff',
+                opacity: uploading ? 0.6 : 1
+              }}>
+                {uploading ? (
+                  <div style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                ) : (
+                  <Upload size={16} color="#fff" />
+                )}
+                <input 
+                  ref={fileInputRef}
+                  type="file" 
+                  accept="image/*" 
+                  capture="environment"
+                  onChange={handleFoto} 
+                  style={{ display: 'none' }} 
+                  disabled={uploading} 
+                />
               </label>
             </div>
-
             {/* Info */}
             <div style={{ flex: 1, minWidth: 250 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
@@ -176,7 +211,6 @@ export default function DashboardMedico() {
               <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 8 }}>{medico.location_city}</p>
               <p style={{ fontSize: 13, color: '#6B7280' }}>{medico.email}</p>
             </div>
-
             {/* Botón Editar */}
             <button
               onClick={() => setEditing(!editing)}
@@ -187,7 +221,6 @@ export default function DashboardMedico() {
             </button>
           </div>
         </div>
-
         {/* MENSAJE DE ESTADO */}
         {medico.review_status === 'pendiente' && (
           <div className="fade-up" style={{ background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: 12, padding: '16px 18px', marginBottom: 20, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
@@ -202,7 +235,6 @@ export default function DashboardMedico() {
             </div>
           </div>
         )}
-
         {/* GRID DE SECCIONES */}
         <div className="fade-up" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
           {/* Información Básica */}
@@ -228,7 +260,6 @@ export default function DashboardMedico() {
               Editar información →
             </Link>
           </div>
-
           {/* Estado del Perfil */}
           <div style={{ background: '#fff', borderRadius: 16, padding: '20px', border: '1px solid #E5E7EB' }}>
             <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 900, color: '#1A1A2E', marginBottom: 16 }}>
@@ -249,11 +280,10 @@ export default function DashboardMedico() {
               </div>
             </div>
           </div>
-
           {/* Próximas Funciones (Premium) */}
           <div style={{ background: 'linear-gradient(135deg, #EEF2FF 0%, #F9FAFB 100%)', borderRadius: 16, padding: '20px', border: '1.5px solid #C7D2FE' }}>
             <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 900, color: '#3730A3', marginBottom: 12 }}>
-              🔒 Próxidamente: Premium
+              🔒 Próximamente: Premium
             </h2>
             <ul style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
               {[
