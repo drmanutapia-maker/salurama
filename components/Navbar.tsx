@@ -160,7 +160,7 @@ export default function Navbar() {
           
           {/* Auth Section */}
           {user ? (
-            /* USUARIO LOGUEADO - Dropdown "Mi Perfil" con 3 opciones */
+            /* USUARIO LOGUEADO - Dropdown "Mi Perfil" */}
             <div className="perfil-dropdown" style={{ position: 'relative' }}>
               <button
                 onClick={togglePerfilDropdown}
@@ -203,6 +203,26 @@ export default function Navbar() {
                   animation: 'fadeIn 0.15s ease-out'
                 }}>
                   <Link
+                    href="/dashboard"
+                    onClick={() => setPerfilDropdown(false)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      padding: '10px 16px',
+                      color: '#1A1A2E',
+                      textDecoration: 'none',
+                      fontSize: 14,
+                      fontWeight: 500,
+                      transition: 'background 0.15s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#F9FAFB'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = '#fff'}
+                  >
+                    <User size={16} color="#3730A3" />
+                    Perfil
+                  </Link>
+                  <Link
                     href={`/doctor/${user.id}`}
                     onClick={() => setPerfilDropdown(false)}
                     style={{
@@ -220,7 +240,7 @@ export default function Navbar() {
                     onMouseLeave={(e) => e.currentTarget.style.background = '#fff'}
                   >
                     <Eye size={16} color="#3730A3" />
-                    Ver perfil público
+                    Cómo me ven
                   </Link>
                   <Link
                     href="/dashboard/perfil"
@@ -443,8 +463,11 @@ export default function Navbar() {
             
             {user ? (
               <>
+                <Link href="/dashboard" onClick={() => { setMobileMenuOpen(false); }} style={{ fontSize: 15, color: '#3730A3', fontWeight: 600, textDecoration: 'none', padding: '10px 8px' }}>
+                  Perfil
+                </Link>
                 <Link href={`/doctor/${user.id}`} onClick={() => { setMobileMenuOpen(false); }} style={{ fontSize: 15, color: '#3730A3', fontWeight: 600, textDecoration: 'none', padding: '10px 8px' }}>
-                  Ver perfil público
+                  Cómo me ven
                 </Link>
                 <Link href="/dashboard/perfil" onClick={() => { setMobileMenuOpen(false); }} style={{ fontSize: 15, color: '#3730A3', fontWeight: 600, textDecoration: 'none', padding: '10px 8px' }}>
                   Configuración

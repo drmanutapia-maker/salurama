@@ -3,11 +3,10 @@ import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { Search, MapPin, Filter, ChevronDown, Star, Clock, Info, X, ExternalLink } from 'lucide-react'
+import { Search, MapPin, Star, Clock, Info, X, Copy, Check } from 'lucide-react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 
-// Proteger acceso a env vars durante SSR
 if (typeof window !== 'undefined') {
   mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || ''
 }
@@ -44,7 +43,7 @@ const DICCIONARIO_MEDICO: Record<string, string[]> = {
   'cirugia cardiovascular': ['cirujano cardiovascular', 'corazón', 'cardiovascular'],
 }
 
-// 🎯 PRIORIDADES CON TOOLTIPS
+// 🎯 PRIORIDADES CON TOOLTIPS - INCLUYE "ATIENDE NIÑOS"
 const PRIORIDADES = [
   {
     label: 'Cerca de mí',
@@ -76,6 +75,23 @@ const PRIORIDADES = [
     icon: Star,
     tooltip: 'Muestra primero a los médicos con mejores reseñas'
   },
+  {
+    label: 'Atiende niños',
+    value: 'atiende_ninos',
+    icon: Star,
+    tooltip: 'Muestra médicos que atienden pacientes pediátricos'
+  },
+]
+
+const ESPECIALIDADES = [
+  'Alergología','Anestesiología','Angiología','Cardiología',
+  'Cirugía Cardiovascular','Cirugía General','Cirugía Plástica','Dermatología',
+  'Endocrinología','Gastroenterología','Geriatría','Ginecología y Obstetricia',
+  'Hematología','Infectología','Medicina Familiar','Medicina Física y Rehabilitación',
+  'Medicina Interna','Nefrología','Neumología','Neurología',
+  'Neurocirugía','Nutriología','Oftalmología','Oncología',
+  'Ortopedia y Traumatología','Otorrinolaringología','Pediatría',
+  'Psiquiatría','Reumatología','Urología','Otra especialidad'
 ]
 
 const COORDS: Record<string, [number, number]> = {
@@ -162,7 +178,7 @@ function Tooltip({ text, children }: { text: string; children: React.ReactNode }
 
 // Calcular distancia entre dos coordenadas (km)
 function calcularDistancia(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371 // Radio de la Tierra en km
+  const R = 6371
   const dLat = (lat2 - lat1) * Math.PI / 180
   const dLon = (lon2 - lon1) * Math.PI / 180
   const a = 
@@ -170,10 +186,9 @@ function calcularDistancia(lat1: number, lon1: number, lat2: number, lon2: numbe
     Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
     Math.sin(dLon/2) * Math.sin(dLon/2)
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
-  return Math.round(R * c * 10) / 10 // Redondear a 1 decimal
+  return Math.round(R * c * 10) / 10
 }
 
-// Componente que usa useSearchParams (envuelto en Suspense)
 function BuscarContent() {
   const searchParams = useSearchParams()
   const mapRefD = useRef<HTMLDivElement>(null)
@@ -195,6 +210,8 @@ function BuscarContent() {
   const [filtros, setFiltros] = useState<Filtros>({ q: '', especialidad: '', ciudad: '', precio_max: '' })
   const [prioridades, setPrioridades] = useState<string[]>([])
   const [tooltipAbierto, setTooltipAbierto] = useState<string | null>(null)
+  const [sugerencias, setSugerencias] = useState<string[]>([])
+  const [copiedLicense, setCopiedLicense] = useState<string | null>(null)
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768)
@@ -202,18 +219,6 @@ function BuscarContent() {
     window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
   }, [])
-
-  // Obtener ubicación del usuario si selecciona "Cerca de mí"
-  useEffect(() => {
-    if (prioridades.includes('ubicacion') && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude })
-        },
-        () => console.log('No se pudo obtener ubicación')
-      )
-    }
-  }, [prioridades])
 
   useEffect(() => {
     const q = searchParams.get('q') || ''
@@ -241,6 +246,18 @@ function BuscarContent() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [filtrosOpen, tooltipAbierto])
 
+  // Obtener ubicación del usuario si selecciona "Cerca de mí"
+  useEffect(() => {
+    if (prioridades.includes('ubicacion') && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+        },
+        () => console.log('No se pudo obtener ubicación')
+      )
+    }
+  }, [prioridades])
+
   const normalizarTexto = (texto: string) => {
     return texto.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
   }
@@ -254,6 +271,19 @@ function BuscarContent() {
     }
     return query
   }
+
+  // Mostrar sugerencias mientras escribe
+  useEffect(() => {
+    if (filtros.q.length >= 2) {
+      const normalized = normalizarTexto(filtros.q)
+      const matches = ESPECIALIDADES.filter(esp => 
+        normalizarTexto(esp).includes(normalized)
+      ).slice(0, 5)
+      setSugerencias(matches)
+    } else {
+      setSugerencias([])
+    }
+  }, [filtros.q])
 
   const addMarkers = useCallback((
     data: Medico[],
@@ -338,6 +368,8 @@ function BuscarContent() {
         q = q.order('rating_avg', { ascending: false, nullsLast: true })
       } else if (prioridades.includes('precio')) {
         q = q.order('consultation_price', { ascending: true })
+      } else if (prioridades.includes('atiende_ninos')) {
+        q = q.eq('atiende_ninos', true)
       } else {
         q = q.order('rating_avg', { ascending: false, nullsLast: true })
       }
@@ -412,6 +444,18 @@ function BuscarContent() {
     )
   }
 
+  const handleCopyLicense = async (license: string, e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    try {
+      await navigator.clipboard.writeText(license)
+      setCopiedLicense(license)
+      setTimeout(() => setCopiedLicense(null), 2000)
+    } catch (err) {
+      console.error('Error al copiar:', err)
+    }
+  }
+
   const MedicoCard = ({ m }: { m: Medico }) => {
     const distancia = userLocation && m.latitude && m.longitude 
       ? calcularDistancia(userLocation.lat, userLocation.lng, m.latitude, m.longitude)
@@ -461,33 +505,57 @@ function BuscarContent() {
               {m.sub_specialty && <span style={{ color: '#6B7280', fontWeight: 400 }}> · {m.sub_specialty}</span>}
             </p>
             
-            {/* Cédula + Link SEP */}
+            {/* Cédula + Botón Copiar + Link SEP */}
             {m.professional_license && (
-              <div style={{ marginBottom: 8 }}>
-                <Tooltip text="Verificar cédula profesional en el portal de la SEP">
-                  <a 
-                    href={`https://www.cedulaprofesional.sep.gob.mx/cedula/`} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    style={{ 
-                      fontSize: 12, 
-                      color: '#3730A3', 
-                      textDecoration: 'underline', 
-                      fontWeight: 500,
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 4
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    📋 Cédula: {m.professional_license}
-                    <ExternalLink size={10} />
-                  </a>
-                </Tooltip>
+              <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 12, color: '#6B7280' }}>
+                  📋 Cédula: {m.professional_license}
+                </span>
+                <button
+                  onClick={(e) => handleCopyLicense(m.professional_license!, e)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    background: copiedLicense === m.professional_license ? '#DCFCE7' : '#EEF2FF',
+                    border: '1px solid #C7D2FE',
+                    borderRadius: 4,
+                    padding: '2px 8px',
+                    cursor: 'pointer',
+                    fontSize: 11,
+                    color: copiedLicense === m.professional_license ? '#059669' : '#3730A3',
+                    fontWeight: 500,
+                    transition: 'all 0.2s'
+                  }}
+                  title="Copiar número de cédula"
+                >
+                  {copiedLicense === m.professional_license ? (
+                    <><Check size={10} /> Copiado</>
+                  ) : (
+                    <><Copy size={10} /> Copiar</>
+                  )}
+                </button>
+                <a
+                  href="https://www.cedulaprofesional.sep.gob.mx/cedula/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    fontSize: 12,
+                    color: '#3730A3',
+                    textDecoration: 'underline',
+                    fontWeight: 500,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 3
+                  }}
+                >
+                  Verificar en SEP →
+                </a>
               </div>
             )}
             
-            {/* Precio · Ubicación · Rating · Distancia */}
+            {/* Precio · Ubicación · Distancia · Rating · Atiende niños */}
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', fontSize: 13 }}>
               {m.consultation_price > 0 && (
                 <span style={{ color: '#F4623A', fontWeight: 700 }}>
@@ -549,8 +617,8 @@ function BuscarContent() {
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         @keyframes fadeUp { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
         .fade-up { animation:fadeUp 0.18s ease-out; }
-        .sbar { flex:1; padding:10px 14px 10px 42px; border:1.5px solid #E5E7EB; border-radius:50px; font-size:14px; font-family:'DM Sans',sans-serif; color:#1A1A2E; outline:none; background:#fff; transition:border-color 0.2s; min-width:0; }
-        .sbar:focus { border-color:#3730A3; box-shadow:0 0 0 3px #3730A314; }
+        .sbar { flex:1; padding:12px 16px 12px 48px; border:2px solid #E5E7EB; border-radius:50px; font-size:15px; font-family:'DM Sans',sans-serif; color:#1A1A2E; outline:none; background:#fff; transition:all 0.2s; min-width:0; }
+        .sbar:focus { border-color:#3730A3; box-shadow:0 0 0 4px #3730A314; }
         .priority-chip {
           display: inline-flex; align-items: center; gap: 6px;
           padding: 10px 16px; border-radius: 50px;
@@ -580,16 +648,107 @@ function BuscarContent() {
         .tab-mv.off { background:#fff; color:#6B7280; border:1.5px solid #E5E7EB; }
       `}</style>
 
+      {/* 🔍 BARRA DE BÚSQUEDA - Estilo Google (SIEMPRE VISIBLE) */}
+      <div style={{
+        background: '#fff',
+        borderBottom: '1px solid #E5E7EB',
+        padding: '20px 16px',
+        position: 'sticky',
+        top: 0,
+        zIndex: 50
+      }}>
+        <div style={{
+          maxWidth: 700,
+          margin: '0 auto',
+          position: 'relative'
+        }}>
+          <div style={{
+            position: 'relative',
+            background: '#fff',
+            borderRadius: 50,
+            boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+            display: 'flex',
+            alignItems: 'center',
+            padding: '12px 20px',
+            border: '2px solid #E5E7EB',
+            transition: 'all 0.2s'
+          }}>
+            <Search size={20} color="#9CA3AF" style={{ position: 'absolute', left: 20 }} />
+            <input
+              type="text"
+              className="sbar"
+              placeholder="Buscar por especialidad, síntoma o nombre del médico..."
+              value={filtros.q}
+              onChange={(e) => setFiltros({ ...filtros, q: e.target.value })}
+              style={{ position: 'static', paddingLeft: 0, border: 'none', flex: 1 }}
+            />
+            {filtros.q && (
+              <button
+                onClick={() => setFiltros({ ...filtros, q: '' })}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: 4
+                }}
+              >
+                <X size={16} color="#9CA3AF" />
+              </button>
+            )}
+          </div>
+          
+          {/* Sugerencias mientras escribe */}
+          {sugerencias.length > 0 && (
+            <div style={{
+              background: '#fff',
+              borderRadius: 12,
+              marginTop: 8,
+              boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
+              overflow: 'hidden',
+              border: '1px solid #E5E7EB'
+            }}>
+              {sugerencias.map(esp => (
+                <button
+                  key={esp}
+                  onClick={() => {
+                    setFiltros({ ...filtros, q: esp, especialidad: esp })
+                    setSugerencias([])
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '10px 16px',
+                    background: 'none',
+                    border: 'none',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    fontSize: 14,
+                    borderBottom: '1px solid #F3F4F6',
+                    transition: 'background 0.15s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = '#F9FAFB'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = '#fff'}
+                >
+                  🔍 {esp}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* 🎯 SECCIÓN DE PRIORIDADES */}
       <section style={{
         background: 'linear-gradient(135deg, #EEF2FF 0%, #F9FAFB 100%)',
-        padding: '28px 16px 24px',
+        padding: '24px 16px',
         borderBottom: '1px solid #E5E7EB',
         textAlign: 'center'
       }}>
         <div style={{ maxWidth: 900, margin: '0 auto' }}>
           {/* PREGUNTA CON COLORES OFICIALES */}
-          <div style={{ marginBottom: 20 }}>
+          <div style={{ marginBottom: 16 }}>
             <h2 style={{
               fontFamily: "'Fraunces', serif",
               fontSize: 'clamp(20px, 5vw, 26px)',
@@ -649,7 +808,7 @@ function BuscarContent() {
         </div>
       </section>
 
-      {/* TABS MÓVIL - Toggle explícito */}
+      {/* TABS MÓVIL */}
       {isMobile && (
         <div style={{ display: 'flex', background: '#fff', borderBottom: '1px solid #F3F4F6', padding: '10px 16px', gap: 8 }}>
           <button className={'tab-mv ' + (vista === 'lista' ? 'on' : 'off')} onClick={() => setVista('lista')}>
@@ -721,7 +880,6 @@ function BuscarContent() {
   )
 }
 
-// Componente principal que envuelve en Suspense
 export default function BuscarPage() {
   return (
     <Suspense fallback={
