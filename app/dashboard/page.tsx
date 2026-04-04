@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { User, LogOut, Edit3, CheckCircle, AlertCircle, Upload, Camera, Image as ImageIcon, X } from 'lucide-react'
+import { User, LogOut, Edit3, CheckCircle, AlertCircle, Upload, X, ZoomIn } from 'lucide-react'
 
 interface Medico {
   id: string
@@ -24,6 +24,7 @@ export default function DashboardMedico() {
   const [uploading, setUploading] = useState(false)
   const [editing, setEditing] = useState(false)
   const [showPhotoMenu, setShowPhotoMenu] = useState(false)
+  const [showPhotoModal, setShowPhotoModal] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const cameraInputRef = useRef<HTMLInputElement>(null)
 
@@ -57,9 +58,9 @@ export default function DashboardMedico() {
   const handleFoto = async (file: File) => {
     if (!medico) return
 
-    // Validar tipo de archivo
+    // Validar tipo
     if (!file.type.startsWith('image/')) {
-      alert('Por favor selecciona una imagen válida (JPG, PNG, etc.)')
+      alert('Por favor selecciona una imagen válida')
       return
     }
 
@@ -74,53 +75,44 @@ export default function DashboardMedico() {
       const ext = file.name.split('.').pop()
       const name = `${medico.id}/profile.${ext}`
       
-      // Eliminar foto anterior si existe
+      // Eliminar foto anterior
       if (medico.photo_url) {
         const oldPath = medico.photo_url.split('/doctor-photos/')[1]
         if (oldPath) {
-          await supabase.storage
-            .from('doctor-photos')
-            .remove([oldPath])
+          await supabase.storage.from('doctor-photos').remove([oldPath])
         }
       }
 
       // Subir nueva foto
       const { error: uploadError } = await supabase.storage
         .from('doctor-photos')
-        .upload(name, file, { 
-          upsert: true,
-          cacheControl: '3600'
-        })
+        .upload(name, file, { upsert: true, cacheControl: '0' })
 
-      if (uploadError) {
-        console.error('Upload error:', uploadError)
-        throw uploadError
-      }
+      if (uploadError) throw uploadError
 
-      // Obtener URL pública
+      // Obtener URL pública con timestamp para forzar recarga
       const { data: urlData } = supabase.storage
         .from('doctor-photos')
         .getPublicUrl(name)
 
-      // Actualizar en base de datos
+      const urlWithTimestamp = `${urlData.publicUrl}?t=${Date.now()}`
+
+      // Actualizar en BD
       const { error: updateError } = await supabase
         .from('doctors')
-        .update({ photo_url: urlData.publicUrl })
+        .update({ photo_url: urlWithTimestamp })
         .eq('id', medico.id)
 
-      if (updateError) {
-        console.error('Update error:', updateError)
-        throw updateError
-      }
+      if (updateError) throw updateError
 
-      setMedico(p => p ? { ...p, photo_url: urlData.publicUrl } : null)
+      setMedico(p => p ? { ...p, photo_url: urlWithTimestamp } : null)
       setShowPhotoMenu(false)
       
       // Limpiar inputs
       if (fileInputRef.current) fileInputRef.current.value = ''
       if (cameraInputRef.current) cameraInputRef.current.value = ''
     } catch (err) {
-      console.error('Error completo:', err)
+      console.error('Error:', err)
       alert('Error al subir la foto: ' + (err instanceof Error ? err.message : 'Error desconocido'))
     } finally {
       setUploading(false)
@@ -166,10 +158,36 @@ export default function DashboardMedico() {
         {/* HEADER */}
         <div className="fade-up" style={{ background: '#fff', borderRadius: 16, padding: '24px 20px', marginBottom: 20, border: '1px solid #E5E7EB' }}>
           <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-            {/* Foto */}
+            {/* Foto con click para ampliar */}
             <div style={{ position: 'relative' }}>
               {medico.photo_url ? (
-                <img src={medico.photo_url} alt={medico.full_name} style={{ width: 96, height: 96, borderRadius: '50%', objectFit: 'cover', border: '3px solid #EEF2FF' }} />
+                <div 
+                  onClick={() => setShowPhotoModal(true)}
+                  style={{ cursor: 'pointer', position: 'relative' }}
+                >
+                  <img 
+                    src={`${medico.photo_url}?t=${Date.now()}`} 
+                    alt={medico.full_name} 
+                    style={{ width: 96, height: 96, borderRadius: '50%', objectFit: 'cover', border: '3px solid #EEF2FF' }} 
+                  />
+                  <div style={{ 
+                    position: 'absolute', 
+                    top: '50%', 
+                    left: '50%', 
+                    transform: 'translate(-50%, -50%)',
+                    background: 'rgba(55, 48, 163, 0.9)',
+                    borderRadius: '50%',
+                    width: 32,
+                    height: 32,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    opacity: 0,
+                    transition: 'opacity 0.2s'
+                  }}>
+                    <ZoomIn size={16} color="#fff" />
+                  </div>
+                </div>
               ) : (
                 <div style={{ width: 96, height: 96, borderRadius: '50%', background: 'linear-gradient(135deg, #3730A3, #F4623A)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Fraunces', serif", fontSize: 36, fontWeight: 900, color: '#fff', border: '3px solid #EEF2FF' }}>
                   {(medico.full_name || '?')[0].toUpperCase()}
@@ -188,7 +206,8 @@ export default function DashboardMedico() {
                   opacity: uploading ? 0.6 : 1,
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center'
+                  justifyContent: 'center',
+                  zIndex: 10
                 }}
               >
                 {uploading ? (
@@ -308,12 +327,7 @@ export default function DashboardMedico() {
               🔒 Próximamente: Premium
             </h2>
             <ul style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-              {[
-                '📊 Analytics detallados',
-                '📅 Agenda avanzada (Google Calendar)',
-                '💬 Recordatorios automáticos (WhatsApp/SMS)',
-                '📥 Exportación de datos',
-              ].map((item, i) => (
+              {['📊 Analytics detallados','📅 Agenda avanzada (Google Calendar)','💬 Recordatorios automáticos (WhatsApp/SMS)','📥 Exportación de datos',].map((item, i) => (
                 <li key={i} style={{ fontSize: 13, color: '#374151', display: 'flex', alignItems: 'center', gap: 8 }}>
                   {item}
                 </li>
@@ -332,126 +346,47 @@ export default function DashboardMedico() {
       {/* MODAL DE SELECCIÓN DE FOTO */}
       {showPhotoMenu && (
         <div className="fade-in" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
-          {/* Overlay para cerrar */}
           <div style={{ position: 'absolute', inset: 0 }} onClick={() => setShowPhotoMenu(false)} />
-          
-          {/* Modal content */}
-          <div style={{ 
-            background: '#fff', 
-            borderRadius: '20px 20px 0 0', 
-            padding: '24px 20px', 
-            maxWidth: 500, 
-            width: '100%', 
-            position: 'relative',
-            boxShadow: '0 -4px 24px rgba(0,0,0,0.1)'
-          }}>
-            {/* Close button */}
-            <button 
-              onClick={() => setShowPhotoMenu(false)}
-              style={{ 
-                position: 'absolute', 
-                top: 16, 
-                right: 16, 
-                background: '#F3F4F6', 
-                border: 'none', 
-                borderRadius: '50%', 
-                width: 32, 
-                height: 32, 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center',
-                cursor: 'pointer'
-              }}
-            >
+          <div style={{ background: '#fff', borderRadius: '20px 20px 0 0', padding: '24px 20px', maxWidth: 500, width: '100%', position: 'relative', boxShadow: '0 -4px 24px rgba(0,0,0,0.1)' }}>
+            <button onClick={() => setShowPhotoMenu(false)} style={{ position: 'absolute', top: 16, right: 16, background: '#F3F4F6', border: 'none', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
               <X size={18} color="#6B7280" />
             </button>
-
             <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 900, color: '#1A1A2E', marginBottom: 20, textAlign: 'center' }}>
               Actualizar foto de perfil
             </h3>
-
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {/* Opción Cámara */}
-              <label 
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: 16, 
-                  padding: '16px 20px', 
-                  background: '#F9FAFB', 
-                  borderRadius: 12, 
-                  cursor: 'pointer',
-                  border: '1.5px solid #E5E7EB',
-                  transition: 'all 0.15s'
-                }}
-              >
+              <label style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px', background: '#F9FAFB', borderRadius: 12, cursor: 'pointer', border: '1.5px solid #E5E7EB' }}>
                 <div style={{ width: 48, height: 48, borderRadius: 12, background: '#3730A3', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Camera size={24} color="#fff" />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <p style={{ fontSize: 15, fontWeight: 600, color: '#1A1A2E' }}>Tomar foto</p>
-                  <p style={{ fontSize: 13, color: '#6B7280' }}>Usar la cámara del dispositivo</p>
-                </div>
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  capture="environment"
-                  onChange={handleCameraSelect}
-                  style={{ display: 'none' }}
-                  ref={cameraInputRef}
-                />
-              </label>
-
-              {/* Opción Álbum */}
-              <label 
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: 16, 
-                  padding: '16px 20px', 
-                  background: '#F9FAFB', 
-                  borderRadius: 12, 
-                  cursor: 'pointer',
-                  border: '1.5px solid #E5E7EB',
-                  transition: 'all 0.15s'
-                }}
-              >
-                <div style={{ width: 48, height: 48, borderRadius: 12, background: '#F4623A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <ImageIcon size={24} color="#fff" />
+                  <Upload size={24} color="#fff" />
                 </div>
                 <div style={{ flex: 1 }}>
                   <p style={{ fontSize: 15, fontWeight: 600, color: '#1A1A2E' }}>Elegir del álbum</p>
                   <p style={{ fontSize: 13, color: '#6B7280' }}>Seleccionar de la galería</p>
                 </div>
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  onChange={handleFileSelect}
-                  style={{ display: 'none' }}
-                  ref={fileInputRef}
-                />
+                <input type="file" accept="image/*" onChange={handleFileSelect} style={{ display: 'none' }} ref={fileInputRef} />
               </label>
             </div>
-
-            <button
-              onClick={() => setShowPhotoMenu(false)}
-              style={{ 
-                width: '100%', 
-                background: '#F3F4F6', 
-                color: '#6B7280', 
-                border: 'none', 
-                borderRadius: 50, 
-                padding: '14px', 
-                fontSize: 14, 
-                fontWeight: 600, 
-                cursor: 'pointer', 
-                fontFamily: "'DM Sans', sans-serif",
-                marginTop: 16
-              }}
-            >
+            <button onClick={() => setShowPhotoMenu(false)} style={{ width: '100%', background: '#F3F4F6', color: '#6B7280', border: 'none', borderRadius: 50, padding: '14px', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", marginTop: 16 }}>
               Cancelar
             </button>
           </div>
+        </div>
+      )}
+
+      {/* MODAL DE FOTO AMPLIADA */}
+      {showPhotoModal && medico.photo_url && (
+        <div className="fade-in" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <button 
+            onClick={() => setShowPhotoModal(false)}
+            style={{ position: 'absolute', top: 20, right: 20, background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', width: 48, height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+          >
+            <X size={24} color="#fff" />
+          </button>
+          <img 
+            src={`${medico.photo_url}?t=${Date.now()}`} 
+            alt={medico.full_name}
+            style={{ maxWidth: '100%', maxHeight: '90vh', borderRadius: 12, objectFit: 'contain' }}
+          />
         </div>
       )}
     </div>
