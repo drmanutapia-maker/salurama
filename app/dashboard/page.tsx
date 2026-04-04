@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { User, LogOut, Edit3, CheckCircle, AlertCircle, Upload, Eye } from 'lucide-react'
+import { User, LogOut, Edit3, CheckCircle, AlertCircle, Upload, Camera, Image as ImageIcon, X } from 'lucide-react'
 
 interface Medico {
   id: string
@@ -23,7 +23,9 @@ export default function DashboardMedico() {
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [editing, setEditing] = useState(false)
+  const [showPhotoMenu, setShowPhotoMenu] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     async function load() {
@@ -52,21 +54,18 @@ export default function DashboardMedico() {
     router.push('/')
   }
 
-  const handleFoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file || !medico) return
+  const handleFoto = async (file: File) => {
+    if (!medico) return
 
     // Validar tipo de archivo
     if (!file.type.startsWith('image/')) {
       alert('Por favor selecciona una imagen válida (JPG, PNG, etc.)')
-      if (fileInputRef.current) fileInputRef.current.value = ''
       return
     }
 
     // Validar tamaño (5MB max)
     if (file.size > 5 * 1024 * 1024) {
       alert('La imagen no debe pesar más de 5MB')
-      if (fileInputRef.current) fileInputRef.current.value = ''
       return
     }
 
@@ -115,17 +114,27 @@ export default function DashboardMedico() {
       }
 
       setMedico(p => p ? { ...p, photo_url: urlData.publicUrl } : null)
+      setShowPhotoMenu(false)
       
-      // Limpiar input para permitir subir la misma foto de nuevo
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
-      }
+      // Limpiar inputs
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      if (cameraInputRef.current) cameraInputRef.current.value = ''
     } catch (err) {
       console.error('Error completo:', err)
       alert('Error al subir la foto: ' + (err instanceof Error ? err.message : 'Error desconocido'))
     } finally {
       setUploading(false)
     }
+  }
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) handleFoto(file)
+  }
+
+  const handleCameraSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) handleFoto(file)
   }
 
   if (loading) {
@@ -149,7 +158,10 @@ export default function DashboardMedico() {
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
         .fade-up { animation: fadeUp 0.4s ease-out; }
+        @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+        .fade-in { animation: fadeIn 0.2s ease-out; }
       `}</style>
+      
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 16px 60px' }}>
         {/* HEADER */}
         <div className="fade-up" style={{ background: '#fff', borderRadius: 16, padding: '24px 20px', marginBottom: 20, border: '1px solid #E5E7EB' }}>
@@ -163,33 +175,38 @@ export default function DashboardMedico() {
                   {(medico.full_name || '?')[0].toUpperCase()}
                 </div>
               )}
-              <label style={{ 
-                position: 'absolute', 
-                bottom: 0, 
-                right: 0, 
-                background: uploading ? '#9CA3AF' : '#3730A3', 
-                borderRadius: '50%', 
-                padding: 8, 
-                cursor: uploading ? 'not-allowed' : 'pointer', 
-                border: '3px solid #fff',
-                opacity: uploading ? 0.6 : 1
-              }}>
+              <label 
+                style={{ 
+                  position: 'absolute', 
+                  bottom: 0, 
+                  right: 0, 
+                  background: uploading ? '#9CA3AF' : '#3730A3', 
+                  borderRadius: '50%', 
+                  padding: 8, 
+                  cursor: uploading ? 'not-allowed' : 'pointer', 
+                  border: '3px solid #fff',
+                  opacity: uploading ? 0.6 : 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
                 {uploading ? (
                   <div style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
                 ) : (
                   <Upload size={16} color="#fff" />
                 )}
                 <input 
-                  ref={fileInputRef}
                   type="file" 
                   accept="image/*" 
-                  capture="environment"
-                  onChange={handleFoto} 
+                  onChange={handleFileSelect} 
                   style={{ display: 'none' }} 
                   disabled={uploading} 
+                  ref={fileInputRef}
                 />
               </label>
             </div>
+            
             {/* Info */}
             <div style={{ flex: 1, minWidth: 250 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
@@ -211,6 +228,7 @@ export default function DashboardMedico() {
               <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 8 }}>{medico.location_city}</p>
               <p style={{ fontSize: 13, color: '#6B7280' }}>{medico.email}</p>
             </div>
+            
             {/* Botón Editar */}
             <button
               onClick={() => setEditing(!editing)}
@@ -221,6 +239,7 @@ export default function DashboardMedico() {
             </button>
           </div>
         </div>
+
         {/* MENSAJE DE ESTADO */}
         {medico.review_status === 'pendiente' && (
           <div className="fade-up" style={{ background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: 12, padding: '16px 18px', marginBottom: 20, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
@@ -235,6 +254,7 @@ export default function DashboardMedico() {
             </div>
           </div>
         )}
+
         {/* GRID DE SECCIONES */}
         <div className="fade-up" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
           {/* Información Básica */}
@@ -260,6 +280,7 @@ export default function DashboardMedico() {
               Editar información →
             </Link>
           </div>
+
           {/* Estado del Perfil */}
           <div style={{ background: '#fff', borderRadius: 16, padding: '20px', border: '1px solid #E5E7EB' }}>
             <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 900, color: '#1A1A2E', marginBottom: 16 }}>
@@ -280,6 +301,7 @@ export default function DashboardMedico() {
               </div>
             </div>
           </div>
+
           {/* Próximas Funciones (Premium) */}
           <div style={{ background: 'linear-gradient(135deg, #EEF2FF 0%, #F9FAFB 100%)', borderRadius: 16, padding: '20px', border: '1.5px solid #C7D2FE' }}>
             <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 900, color: '#3730A3', marginBottom: 12 }}>
@@ -306,6 +328,132 @@ export default function DashboardMedico() {
           </div>
         </div>
       </div>
+
+      {/* MODAL DE SELECCIÓN DE FOTO */}
+      {showPhotoMenu && (
+        <div className="fade-in" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+          {/* Overlay para cerrar */}
+          <div style={{ position: 'absolute', inset: 0 }} onClick={() => setShowPhotoMenu(false)} />
+          
+          {/* Modal content */}
+          <div style={{ 
+            background: '#fff', 
+            borderRadius: '20px 20px 0 0', 
+            padding: '24px 20px', 
+            maxWidth: 500, 
+            width: '100%', 
+            position: 'relative',
+            boxShadow: '0 -4px 24px rgba(0,0,0,0.1)'
+          }}>
+            {/* Close button */}
+            <button 
+              onClick={() => setShowPhotoMenu(false)}
+              style={{ 
+                position: 'absolute', 
+                top: 16, 
+                right: 16, 
+                background: '#F3F4F6', 
+                border: 'none', 
+                borderRadius: '50%', 
+                width: 32, 
+                height: 32, 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                cursor: 'pointer'
+              }}
+            >
+              <X size={18} color="#6B7280" />
+            </button>
+
+            <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 900, color: '#1A1A2E', marginBottom: 20, textAlign: 'center' }}>
+              Actualizar foto de perfil
+            </h3>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {/* Opción Cámara */}
+              <label 
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: 16, 
+                  padding: '16px 20px', 
+                  background: '#F9FAFB', 
+                  borderRadius: 12, 
+                  cursor: 'pointer',
+                  border: '1.5px solid #E5E7EB',
+                  transition: 'all 0.15s'
+                }}
+              >
+                <div style={{ width: 48, height: 48, borderRadius: 12, background: '#3730A3', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Camera size={24} color="#fff" />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: 15, fontWeight: 600, color: '#1A1A2E' }}>Tomar foto</p>
+                  <p style={{ fontSize: 13, color: '#6B7280' }}>Usar la cámara del dispositivo</p>
+                </div>
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  capture="environment"
+                  onChange={handleCameraSelect}
+                  style={{ display: 'none' }}
+                  ref={cameraInputRef}
+                />
+              </label>
+
+              {/* Opción Álbum */}
+              <label 
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: 16, 
+                  padding: '16px 20px', 
+                  background: '#F9FAFB', 
+                  borderRadius: 12, 
+                  cursor: 'pointer',
+                  border: '1.5px solid #E5E7EB',
+                  transition: 'all 0.15s'
+                }}
+              >
+                <div style={{ width: 48, height: 48, borderRadius: 12, background: '#F4623A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <ImageIcon size={24} color="#fff" />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: 15, fontWeight: 600, color: '#1A1A2E' }}>Elegir del álbum</p>
+                  <p style={{ fontSize: 13, color: '#6B7280' }}>Seleccionar de la galería</p>
+                </div>
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  onChange={handleFileSelect}
+                  style={{ display: 'none' }}
+                  ref={fileInputRef}
+                />
+              </label>
+            </div>
+
+            <button
+              onClick={() => setShowPhotoMenu(false)}
+              style={{ 
+                width: '100%', 
+                background: '#F3F4F6', 
+                color: '#6B7280', 
+                border: 'none', 
+                borderRadius: 50, 
+                padding: '14px', 
+                fontSize: 14, 
+                fontWeight: 600, 
+                cursor: 'pointer', 
+                fontFamily: "'DM Sans', sans-serif",
+                marginTop: 16
+              }}
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
