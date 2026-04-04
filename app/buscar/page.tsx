@@ -179,6 +179,13 @@ function calcularDistancia(lat1: number, lon1: number, lat2: number, lon2: numbe
 }
 
 function BuscarContent() {
+  // 🔄 RESET SCROLL AL MONTAR LA PÁGINA
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.scrollTo(0, 0)
+    }
+  }, [])
+
   const searchParams = useSearchParams()
   const mapRefD = useRef<HTMLDivElement>(null)
   const mapRefM = useRef<HTMLDivElement>(null)
@@ -660,7 +667,7 @@ function BuscarContent() {
               onChange={(e) => setFiltros({ ...filtros, q: e.target.value })}
               style={{ width: '100%' }}
             />
-            {/* Lupa a la derecha */}
+            {/* X para limpiar a la derecha */}
             {filtros.q && (
               <button
                 onClick={() => setFiltros({ ...filtros, q: '' })}
