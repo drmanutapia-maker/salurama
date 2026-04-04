@@ -43,7 +43,7 @@ const DICCIONARIO_MEDICO: Record<string, string[]> = {
   'cirugia cardiovascular': ['cirujano cardiovascular', 'corazón', 'cardiovascular'],
 }
 
-// 🎯 PRIORIDADES CON TOOLTIPS - INCLUYE "ATIENDE NIÑOS"
+// 🎯 PRIORIDADES CON TOOLTIPS
 const PRIORIDADES = [
   {
     label: 'Cerca de mí',
@@ -81,17 +81,6 @@ const PRIORIDADES = [
     icon: Star,
     tooltip: 'Muestra médicos que atienden pacientes pediátricos'
   },
-]
-
-const ESPECIALIDADES = [
-  'Alergología','Anestesiología','Angiología','Cardiología',
-  'Cirugía Cardiovascular','Cirugía General','Cirugía Plástica','Dermatología',
-  'Endocrinología','Gastroenterología','Geriatría','Ginecología y Obstetricia',
-  'Hematología','Infectología','Medicina Familiar','Medicina Física y Rehabilitación',
-  'Medicina Interna','Nefrología','Neumología','Neurología',
-  'Neurocirugía','Nutriología','Oftalmología','Oncología',
-  'Ortopedia y Traumatología','Otorrinolaringología','Pediatría',
-  'Psiquiatría','Reumatología','Urología','Otra especialidad'
 ]
 
 const COORDS: Record<string, [number, number]> = {
@@ -210,7 +199,6 @@ function BuscarContent() {
   const [filtros, setFiltros] = useState<Filtros>({ q: '', especialidad: '', ciudad: '', precio_max: '' })
   const [prioridades, setPrioridades] = useState<string[]>([])
   const [tooltipAbierto, setTooltipAbierto] = useState<string | null>(null)
-  const [sugerencias, setSugerencias] = useState<string[]>([])
   const [copiedLicense, setCopiedLicense] = useState<string | null>(null)
 
   useEffect(() => {
@@ -271,19 +259,6 @@ function BuscarContent() {
     }
     return query
   }
-
-  // Mostrar sugerencias mientras escribe
-  useEffect(() => {
-    if (filtros.q.length >= 2) {
-      const normalized = normalizarTexto(filtros.q)
-      const matches = ESPECIALIDADES.filter(esp => 
-        normalizarTexto(esp).includes(normalized)
-      ).slice(0, 5)
-      setSugerencias(matches)
-    } else {
-      setSugerencias([])
-    }
-  }, [filtros.q])
 
   const addMarkers = useCallback((
     data: Medico[],
@@ -617,8 +592,20 @@ function BuscarContent() {
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         @keyframes fadeUp { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
         .fade-up { animation:fadeUp 0.18s ease-out; }
-        .sbar { flex:1; padding:12px 16px 12px 48px; border:2px solid #E5E7EB; border-radius:50px; font-size:15px; font-family:'DM Sans',sans-serif; color:#1A1A2E; outline:none; background:#fff; transition:all 0.2s; min-width:0; }
-        .sbar:focus { border-color:#3730A3; box-shadow:0 0 0 4px #3730A314; }
+        .sbar { 
+          flex:1; 
+          padding:8px 48px 8px 14px; 
+          border:1.5px solid #E5E7EB; 
+          border-radius:50px; 
+          font-size:14px; 
+          font-family:'DM Sans',sans-serif; 
+          color:#1A1A2E; 
+          outline:none; 
+          background:#fff; 
+          transition:all 0.2s; 
+          min-width:0; 
+        }
+        .sbar:focus { border-color:#3730A3; box-shadow:0 0 0 3px #3730A314; }
         .priority-chip {
           display: inline-flex; align-items: center; gap: 6px;
           padding: 10px 16px; border-radius: 50px;
@@ -648,94 +635,49 @@ function BuscarContent() {
         .tab-mv.off { background:#fff; color:#6B7280; border:1.5px solid #E5E7EB; }
       `}</style>
 
-      {/* 🔍 BARRA DE BÚSQUEDA - Estilo Google (SIEMPRE VISIBLE) */}
+      {/* 🔍 BARRA DE BÚSQUEDA - Más pequeña, a la izquierda, lupa a la derecha */}
       <div style={{
         background: '#fff',
         borderBottom: '1px solid #E5E7EB',
-        padding: '20px 16px',
-        position: 'sticky',
-        top: 0,
-        zIndex: 50
+        padding: '16px',
       }}>
         <div style={{
-          maxWidth: 700,
-          margin: '0 auto',
-          position: 'relative'
+          maxWidth: 1100,
+          margin: '0 auto'
         }}>
           <div style={{
             position: 'relative',
-            background: '#fff',
-            borderRadius: 50,
-            boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
             display: 'flex',
             alignItems: 'center',
-            padding: '12px 20px',
-            border: '2px solid #E5E7EB',
-            transition: 'all 0.2s'
+            maxWidth: 450,
+            margin: '0 auto'
           }}>
-            <Search size={20} color="#9CA3AF" style={{ position: 'absolute', left: 20 }} />
             <input
               type="text"
               className="sbar"
-              placeholder="Buscar por especialidad, síntoma o nombre del médico..."
+              placeholder="Buscar por especialidad, síntoma o nombre..."
               value={filtros.q}
               onChange={(e) => setFiltros({ ...filtros, q: e.target.value })}
-              style={{ position: 'static', paddingLeft: 0, border: 'none', flex: 1 }}
+              style={{ width: '100%' }}
             />
+            {/* Lupa a la derecha */}
             {filtros.q && (
               <button
                 onClick={() => setFiltros({ ...filtros, q: '' })}
                 style={{
+                  position: 'absolute',
+                  right: 12,
                   background: 'none',
                   border: 'none',
                   cursor: 'pointer',
-                  padding: 4
+                  padding: 4,
+                  color: '#9CA3AF'
                 }}
               >
-                <X size={16} color="#9CA3AF" />
+                <X size={16} />
               </button>
             )}
           </div>
-          
-          {/* Sugerencias mientras escribe */}
-          {sugerencias.length > 0 && (
-            <div style={{
-              background: '#fff',
-              borderRadius: 12,
-              marginTop: 8,
-              boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
-              overflow: 'hidden',
-              border: '1px solid #E5E7EB'
-            }}>
-              {sugerencias.map(esp => (
-                <button
-                  key={esp}
-                  onClick={() => {
-                    setFiltros({ ...filtros, q: esp, especialidad: esp })
-                    setSugerencias([])
-                  }}
-                  style={{
-                    width: '100%',
-                    padding: '10px 16px',
-                    background: 'none',
-                    border: 'none',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    fontSize: 14,
-                    borderBottom: '1px solid #F3F4F6',
-                    transition: 'background 0.15s',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = '#F9FAFB'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = '#fff'}
-                >
-                  🔍 {esp}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
       </div>
 
