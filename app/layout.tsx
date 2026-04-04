@@ -104,7 +104,7 @@ export default function RootLayout({
         />
 </head>
 <body className="antialiased bg-white text-[#1A1A2E]" style={{ margin: 0, padding: 0, overflowX: 'hidden' }}>
-  <ScrollToTop />  {/* ← AGREGAR ESTA LÍNEA AQUÍ */}
+  <ScrollToTop /> 
   <Navbar />
   {children}
   <CookieBanner />
