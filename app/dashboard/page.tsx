@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { User, LogOut, Edit3, CheckCircle, AlertCircle, Upload, X, ZoomIn } from 'lucide-react'
+import { User, LogOut, Edit3, Upload, X, ZoomIn } from 'lucide-react'
 
 interface Medico {
   id: string
@@ -26,7 +26,6 @@ export default function DashboardMedico() {
   const [showPhotoMenu, setShowPhotoMenu] = useState(false)
   const [showPhotoModal, setShowPhotoModal] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const cameraInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     async function load() {
@@ -58,13 +57,11 @@ export default function DashboardMedico() {
   const handleFoto = async (file: File) => {
     if (!medico) return
 
-    // Validar tipo
     if (!file.type.startsWith('image/')) {
       alert('Por favor selecciona una imagen válida')
       return
     }
 
-    // Validar tamaño (5MB max)
     if (file.size > 5 * 1024 * 1024) {
       alert('La imagen no debe pesar más de 5MB')
       return
@@ -75,7 +72,6 @@ export default function DashboardMedico() {
       const ext = file.name.split('.').pop()
       const name = `${medico.id}/profile.${ext}`
       
-      // Eliminar foto anterior
       if (medico.photo_url) {
         const oldPath = medico.photo_url.split('/doctor-photos/')[1]
         if (oldPath) {
@@ -83,21 +79,18 @@ export default function DashboardMedico() {
         }
       }
 
-      // Subir nueva foto
       const { error: uploadError } = await supabase.storage
         .from('doctor-photos')
         .upload(name, file, { upsert: true, cacheControl: '0' })
 
       if (uploadError) throw uploadError
 
-      // Obtener URL pública con timestamp para forzar recarga
       const { data: urlData } = supabase.storage
         .from('doctor-photos')
         .getPublicUrl(name)
 
       const urlWithTimestamp = `${urlData.publicUrl}?t=${Date.now()}`
 
-      // Actualizar en BD
       const { error: updateError } = await supabase
         .from('doctors')
         .update({ photo_url: urlWithTimestamp })
@@ -108,9 +101,7 @@ export default function DashboardMedico() {
       setMedico(p => p ? { ...p, photo_url: urlWithTimestamp } : null)
       setShowPhotoMenu(false)
       
-      // Limpiar inputs
       if (fileInputRef.current) fileInputRef.current.value = ''
-      if (cameraInputRef.current) cameraInputRef.current.value = ''
     } catch (err) {
       console.error('Error:', err)
       alert('Error al subir la foto: ' + (err instanceof Error ? err.message : 'Error desconocido'))
@@ -120,11 +111,6 @@ export default function DashboardMedico() {
   }
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) handleFoto(file)
-  }
-
-  const handleCameraSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) handleFoto(file)
   }
@@ -194,6 +180,7 @@ export default function DashboardMedico() {
                 </div>
               )}
               <label 
+                onClick={() => setShowPhotoMenu(true)}
                 style={{ 
                   position: 'absolute', 
                   bottom: 0, 
@@ -215,14 +202,6 @@ export default function DashboardMedico() {
                 ) : (
                   <Upload size={16} color="#fff" />
                 )}
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  onChange={handleFileSelect} 
-                  style={{ display: 'none' }} 
-                  disabled={uploading} 
-                  ref={fileInputRef}
-                />
               </label>
             </div>
             
@@ -232,16 +211,6 @@ export default function DashboardMedico() {
                 <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(20px, 5vw, 26px)', fontWeight: 900, color: '#1A1A2E' }}>
                   {medico.full_name}
                 </h1>
-                {medico.review_status === 'revisado' && (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#DCFCE7', color: '#059669', borderRadius: 20, padding: '4px 10px', fontSize: 11, fontWeight: 600 }}>
-                    <CheckCircle size={12} /> Perfil verificado
-                  </span>
-                )}
-                {medico.review_status === 'pendiente' && (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#FEF3C7', color: '#D97706', borderRadius: 20, padding: '4px 10px', fontSize: 11, fontWeight: 600 }}>
-                    <AlertCircle size={12} /> Pendiente de revisión
-                  </span>
-                )}
               </div>
               <p style={{ fontSize: 15, color: '#4F46E5', fontWeight: 600, marginBottom: 4 }}>{medico.specialty}</p>
               <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 8 }}>{medico.location_city}</p>
@@ -258,21 +227,6 @@ export default function DashboardMedico() {
             </button>
           </div>
         </div>
-
-        {/* MENSAJE DE ESTADO */}
-        {medico.review_status === 'pendiente' && (
-          <div className="fade-up" style={{ background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: 12, padding: '16px 18px', marginBottom: 20, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-            <AlertCircle size={20} color="#92400E" style={{ flexShrink: 0, marginTop: 1 }} />
-            <div>
-              <p style={{ fontSize: 14, fontWeight: 600, color: '#92400E', marginBottom: 4 }}>
-                Tu perfil está en revisión
-              </p>
-              <p style={{ fontSize: 13, color: '#92400E', lineHeight: 1.6 }}>
-                Estamos verificando tu información. Esto toma 24-48 horas. Recibirás un email cuando tu perfil esté activo y visible para los pacientes.
-              </p>
-            </div>
-          </div>
-        )}
 
         {/* GRID DE SECCIONES */}
         <div className="fade-up" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
@@ -314,8 +268,8 @@ export default function DashboardMedico() {
               </div>
               <div>
                 <p style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 600, marginBottom: 4 }}>Verificación</p>
-                <p style={{ fontSize: 14, color: '#1A1A2E' }}>
-                  {medico.review_status === 'revisado' ? '✓ Verificado' : medico.review_status === 'pendiente' ? '⏳ Pendiente' : '✗ Rechazado'}
+                <p style={{ fontSize: 14, color: '#059669', fontWeight: 600 }}>
+                  ✓ Activo
                 </p>
               </div>
             </div>
@@ -340,6 +294,13 @@ export default function DashboardMedico() {
               Disponible pronto
             </button>
           </div>
+        </div>
+
+        {/* Mensaje discreto de verificación */}
+        <div style={{ textAlign: 'center', marginTop: 40, paddingTop: 24, borderTop: '1px solid #E5E7EB' }}>
+          <p style={{ fontSize: 12, color: '#9CA3AF' }}>
+            🔍 Los pacientes pueden verificar tus credenciales en canales oficiales (SEP, CONACEM)
+          </p>
         </div>
       </div>
 
@@ -376,7 +337,7 @@ export default function DashboardMedico() {
       {/* MODAL DE FOTO AMPLIADA */}
       {showPhotoModal && medico.photo_url && (
         <div className="fade-in" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <button 
+          <button
             onClick={() => setShowPhotoModal(false)}
             style={{ position: 'absolute', top: 20, right: 20, background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', width: 48, height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
           >

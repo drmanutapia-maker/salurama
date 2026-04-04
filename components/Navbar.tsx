@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
-import { Menu, X, LogOut, User, Shield, ChevronDown } from 'lucide-react'
+import { Menu, X, LogOut, User, Shield, ChevronDown, Settings } from 'lucide-react'
 
 export default function Navbar() {
   const router = useRouter()
@@ -15,6 +15,7 @@ export default function Navbar() {
   const [loading, setLoading] = useState(true)
   const [soyMedicoDropdown, setSoyMedicoDropdown] = useState(false)
   const [mobileSoyMedicoOpen, setMobileSoyMedicoOpen] = useState(false)
+  const [perfilDropdown, setPerfilDropdown] = useState(false)
 
   useEffect(() => {
     checkAuth()
@@ -26,30 +27,30 @@ export default function Navbar() {
     return () => subscription.unsubscribe()
   }, [])
 
-  // Cerrar menú al cambiar de página
   useEffect(() => {
     setMobileMenuOpen(false)
     setMobileSoyMedicoOpen(false)
     setSoyMedicoDropdown(false)
+    setPerfilDropdown(false)
   }, [pathname])
 
-  // Cerrar dropdown al hacer clic fuera
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement
-      if (!target.closest('.soy-medico-dropdown')) {
+      if (!target.closest('.perfil-dropdown') && !target.closest('.soy-medico-dropdown')) {
+        setPerfilDropdown(false)
         setSoyMedicoDropdown(false)
       }
     }
 
-    if (soyMedicoDropdown) {
+    if (perfilDropdown || soyMedicoDropdown) {
       document.addEventListener('click', handleClickOutside)
     }
 
     return () => {
       document.removeEventListener('click', handleClickOutside)
     }
-  }, [soyMedicoDropdown])
+  }, [perfilDropdown, soyMedicoDropdown])
 
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession()
@@ -64,6 +65,7 @@ export default function Navbar() {
     await supabase.auth.signOut()
     sessionStorage.removeItem('salurama_admin')
     sessionStorage.removeItem('salurama_admin_email')
+    setPerfilDropdown(false)
     setSoyMedicoDropdown(false)
     setMobileMenuOpen(false)
     setMobileSoyMedicoOpen(false)
@@ -75,6 +77,11 @@ export default function Navbar() {
   const toggleSoyMedicoDropdown = (e: React.MouseEvent) => {
     e.stopPropagation()
     setSoyMedicoDropdown(!soyMedicoDropdown)
+  }
+
+  const togglePerfilDropdown = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setPerfilDropdown(!perfilDropdown)
   }
 
   const toggleMobileSoyMedico = () => {
@@ -153,9 +160,10 @@ export default function Navbar() {
           
           {/* Auth Section */}
           {user ? (
-            <>
-              <Link 
-                href="/dashboard" 
+            /* USUARIO LOGUEADO - Dropdown "Mi Perfil" */
+            <div className="perfil-dropdown" style={{ position: 'relative' }}>
+              <button
+                onClick={togglePerfilDropdown}
                 style={{ 
                   display: 'flex', 
                   alignItems: 'center', 
@@ -167,50 +175,101 @@ export default function Navbar() {
                   padding: '6px 12px',
                   borderRadius: 50,
                   background: '#EEF2FF',
-                  transition: 'background 0.18s, transform 0.12s'
+                  cursor: 'pointer',
+                  border: 'none',
+                  fontFamily: "'DM Sans', sans-serif",
+                  transition: 'background 0.18s'
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = '#C7D2FE'
-                  e.currentTarget.style.transform = 'scale(1.05)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = '#EEF2FF'
-                  e.currentTarget.style.transform = 'scale(1)'
-                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = '#C7D2FE'}
+                onMouseLeave={(e) => e.currentTarget.style.background = '#EEF2FF'}
               >
                 <User size={14} />
                 <span>Mi Perfil</span>
-              </Link>
-              <button 
-                onClick={handleLogout}
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: 6,
-                  background: 'none', 
-                  border: '1.5px solid #E5E7EB', 
-                  borderRadius: 50, 
-                  padding: '6px 12px', 
-                  fontSize: 13, 
-                  fontWeight: 500, 
-                  color: '#6B7280', 
-                  cursor: 'pointer',
-                  fontFamily: "'DM Sans', sans-serif",
-                  transition: 'border-color 0.18s, color 0.18s'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = '#DC2626'
-                  e.currentTarget.style.color = '#DC2626'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = '#E5E7EB'
-                  e.currentTarget.style.color = '#6B7280'
-                }}
-              >
-                <LogOut size={14} />
-                <span>Salir</span>
+                <ChevronDown size={14} style={{ transform: perfilDropdown ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
               </button>
-            </>
+              
+              {perfilDropdown && (
+                <div style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 8px)',
+                  right: 0,
+                  background: '#fff',
+                  border: '1px solid #E5E7EB',
+                  borderRadius: 12,
+                  boxShadow: '0 10px 32px rgba(55,48,163,0.12)',
+                  padding: '8px 0',
+                  minWidth: 200,
+                  zIndex: 100,
+                  animation: 'fadeIn 0.15s ease-out'
+                }}>
+                  <Link
+                    href="/dashboard"
+                    onClick={() => setPerfilDropdown(false)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      padding: '10px 16px',
+                      color: '#1A1A2E',
+                      textDecoration: 'none',
+                      fontSize: 14,
+                      fontWeight: 500,
+                      transition: 'background 0.15s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#F9FAFB'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = '#fff'}
+                  >
+                    <User size={16} color="#3730A3" />
+                    Dashboard
+                  </Link>
+                  <Link
+                    href="/dashboard/perfil"
+                    onClick={() => setPerfilDropdown(false)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      padding: '10px 16px',
+                      color: '#1A1A2E',
+                      textDecoration: 'none',
+                      fontSize: 14,
+                      fontWeight: 500,
+                      transition: 'background 0.15s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#F9FAFB'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = '#fff'}
+                  >
+                    <Settings size={16} color="#3730A3" />
+                    Configuración
+                  </Link>
+                  <div style={{ height: '1px', background: '#F3F4F6', margin: '4px 0' }} />
+                  <button
+                    onClick={handleLogout}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      padding: '10px 16px',
+                      color: '#DC2626',
+                      background: 'none',
+                      border: 'none',
+                      textDecoration: 'none',
+                      fontSize: 14,
+                      fontWeight: 500,
+                      cursor: 'pointer',
+                      fontFamily: "'DM Sans', sans-serif",
+                      transition: 'background 0.15s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#FEF2F2'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = '#fff'}
+                  >
+                    <LogOut size={16} />
+                    Cerrar sesión
+                  </button>
+                </div>
+              )}
+            </div>
           ) : isAdmin ? (
             <>
               <Link 
@@ -293,31 +352,23 @@ export default function Navbar() {
                 }}
               >
                 👨‍⚕️ <span>Soy Médico</span>
-                <ChevronDown 
-                  size={14} 
-                  style={{ 
-                    transform: soyMedicoDropdown ? 'rotate(180deg)' : 'rotate(0deg)',
-                    transition: 'transform 0.2s'
-                  }} 
-                />
+                <ChevronDown size={14} style={{ transform: soyMedicoDropdown ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
               </button>
               
               {soyMedicoDropdown && (
-                <div 
-                  style={{
-                    position: 'absolute',
-                    top: 'calc(100% + 8px)',
-                    right: 0,
-                    background: '#fff',
-                    border: '1px solid #E5E7EB',
-                    borderRadius: 12,
-                    boxShadow: '0 10px 32px rgba(55,48,163,0.12)',
-                    padding: '8px 0',
-                    minWidth: 200,
-                    zIndex: 100,
-                    animation: 'fadeIn 0.15s ease-out'
-                  }}
-                >
+                <div style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 8px)',
+                  right: 0,
+                  background: '#fff',
+                  border: '1px solid #E5E7EB',
+                  borderRadius: 12,
+                  boxShadow: '0 10px 32px rgba(55,48,163,0.12)',
+                  padding: '8px 0',
+                  minWidth: 200,
+                  zIndex: 100,
+                  animation: 'fadeIn 0.15s ease-out'
+                }}>
                   <Link
                     href="/login"
                     onClick={() => setSoyMedicoDropdown(false)}
@@ -390,11 +441,13 @@ export default function Navbar() {
               Nosotros
             </Link>
             
-            {/* Mobile Auth Section */}
             {user ? (
               <>
-                <Link href="/dashboard" onClick={() => { setMobileMenuOpen(false); setMobileSoyMedicoOpen(false); }} style={{ fontSize: 15, color: '#3730A3', fontWeight: 600, textDecoration: 'none', padding: '10px 8px' }}>
-                  Mi Perfil
+                <Link href="/dashboard" onClick={() => { setMobileMenuOpen(false); }} style={{ fontSize: 15, color: '#3730A3', fontWeight: 600, textDecoration: 'none', padding: '10px 8px' }}>
+                  Dashboard
+                </Link>
+                <Link href="/dashboard/perfil" onClick={() => { setMobileMenuOpen(false); }} style={{ fontSize: 15, color: '#3730A3', fontWeight: 600, textDecoration: 'none', padding: '10px 8px' }}>
+                  Configuración
                 </Link>
                 <button onClick={handleLogout} style={{ fontSize: 15, color: '#DC2626', background: 'none', border: 'none', cursor: 'pointer', padding: '10px 8px', textAlign: 'left', fontWeight: 500 }}>
                   Cerrar sesión
@@ -402,7 +455,7 @@ export default function Navbar() {
               </>
             ) : isAdmin ? (
               <>
-                <Link href="/admin" onClick={() => { setMobileMenuOpen(false); setMobileSoyMedicoOpen(false); }} style={{ fontSize: 15, color: '#F4623A', fontWeight: 600, textDecoration: 'none', padding: '10px 8px' }}>
+                <Link href="/admin" onClick={() => { setMobileMenuOpen(false); }} style={{ fontSize: 15, color: '#F4623A', fontWeight: 600, textDecoration: 'none', padding: '10px 8px' }}>
                   Admin Panel
                 </Link>
                 <button onClick={handleLogout} style={{ fontSize: 15, color: '#DC2626', background: 'none', border: 'none', cursor: 'pointer', padding: '10px 8px', textAlign: 'left', fontWeight: 500 }}>
@@ -429,56 +482,16 @@ export default function Navbar() {
                   }}
                 >
                   <span>👨‍⚕️ Soy Médico</span>
-                  <ChevronDown 
-                    size={16} 
-                    style={{ 
-                      transform: mobileSoyMedicoOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                      transition: 'transform 0.2s',
-                      color: '#9CA3AF'
-                    }} 
-                  />
+                  <ChevronDown size={16} style={{ transform: mobileSoyMedicoOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s', color: '#9CA3AF' }} />
                 </button>
                 
                 {mobileSoyMedicoOpen && (
-                  <div style={{ 
-                    paddingLeft: 16, 
-                    paddingTop: 8,
-                    animation: 'slideIn 0.2s ease-out'
-                  }}>
-                    <Link 
-                      href="/login" 
-                      onClick={() => { setMobileMenuOpen(false); setMobileSoyMedicoOpen(false); }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        fontSize: 14,
-                        color: '#3730A3',
-                        fontWeight: 500,
-                        textDecoration: 'none',
-                        padding: '8px 8px',
-                        marginBottom: 4
-                      }}
-                    >
+                  <div style={{ paddingLeft: 16, paddingTop: 8, animation: 'slideIn 0.2s ease-out' }}>
+                    <Link href="/login" onClick={() => { setMobileMenuOpen(false); setMobileSoyMedicoOpen(false); }} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: '#3730A3', fontWeight: 500, textDecoration: 'none', padding: '8px 8px', marginBottom: 4 }}>
                       <LogOut size={14} />
                       Iniciar sesión
                     </Link>
-                    <Link 
-                      href="/registro" 
-                      onClick={() => { setMobileMenuOpen(false); setMobileSoyMedicoOpen(false); }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        fontSize: 14,
-                        color: '#3730A3',
-                        fontWeight: 600,
-                        textDecoration: 'none',
-                        padding: '8px 8px',
-                        background: '#EEF2FF',
-                        borderRadius: 8
-                      }}
-                    >
+                    <Link href="/registro" onClick={() => { setMobileMenuOpen(false); setMobileSoyMedicoOpen(false); }} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: '#3730A3', fontWeight: 600, textDecoration: 'none', padding: '8px 8px', background: '#EEF2FF', borderRadius: 8 }}>
                       <User size={14} />
                       Registrarme
                     </Link>
@@ -491,22 +504,10 @@ export default function Navbar() {
       )}
       
       <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(-8px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes slideIn {
-          from { opacity: 0; max-height: 0; }
-          to { opacity: 1; max-height: 200px; }
-        }
-        @media (max-width: 768px) {
-          .dsk { display: none !important; }
-          .mob-btn { display: flex !important; }
-        }
-        @media (min-width: 769px) {
-          .mob-btn { display: none !important; }
-          .mob-menu { display: none !important; }
-        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideIn { from { opacity: 0; max-height: 0; } to { opacity: 1; max-height: 200px; } }
+        @media (max-width: 768px) { .dsk { display: none !important; } .mob-btn { display: flex !important; } }
+        @media (min-width: 769px) { .mob-btn { display: none !important; } .mob-menu { display: none !important; } }
       `}</style>
     </nav>
   )
