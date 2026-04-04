@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
-import { Menu, X, LogOut, User, Shield, ChevronDown, Settings } from 'lucide-react'
+import { Menu, X, LogOut, User, Shield, ChevronDown, Settings, Eye } from 'lucide-react'
 
 export default function Navbar() {
   const router = useRouter()
@@ -160,7 +160,7 @@ export default function Navbar() {
           
           {/* Auth Section */}
           {user ? (
-            /* USUARIO LOGUEADO - Dropdown "Mi Perfil" */
+            /* USUARIO LOGUEADO - Dropdown "Mi Perfil" con 3 opciones */
             <div className="perfil-dropdown" style={{ position: 'relative' }}>
               <button
                 onClick={togglePerfilDropdown}
@@ -198,12 +198,12 @@ export default function Navbar() {
                   borderRadius: 12,
                   boxShadow: '0 10px 32px rgba(55,48,163,0.12)',
                   padding: '8px 0',
-                  minWidth: 200,
+                  minWidth: 220,
                   zIndex: 100,
                   animation: 'fadeIn 0.15s ease-out'
                 }}>
                   <Link
-                    href="/dashboard"
+                    href={`/doctor/${user.id}`}
                     onClick={() => setPerfilDropdown(false)}
                     style={{
                       display: 'flex',
@@ -219,8 +219,8 @@ export default function Navbar() {
                     onMouseEnter={(e) => e.currentTarget.style.background = '#F9FAFB'}
                     onMouseLeave={(e) => e.currentTarget.style.background = '#fff'}
                   >
-                    <User size={16} color="#3730A3" />
-                    Dashboard
+                    <Eye size={16} color="#3730A3" />
+                    Ver perfil público
                   </Link>
                   <Link
                     href="/dashboard/perfil"
@@ -443,8 +443,8 @@ export default function Navbar() {
             
             {user ? (
               <>
-                <Link href="/dashboard" onClick={() => { setMobileMenuOpen(false); }} style={{ fontSize: 15, color: '#3730A3', fontWeight: 600, textDecoration: 'none', padding: '10px 8px' }}>
-                  Dashboard
+                <Link href={`/doctor/${user.id}`} onClick={() => { setMobileMenuOpen(false); }} style={{ fontSize: 15, color: '#3730A3', fontWeight: 600, textDecoration: 'none', padding: '10px 8px' }}>
+                  Ver perfil público
                 </Link>
                 <Link href="/dashboard/perfil" onClick={() => { setMobileMenuOpen(false); }} style={{ fontSize: 15, color: '#3730A3', fontWeight: 600, textDecoration: 'none', padding: '10px 8px' }}>
                   Configuración

@@ -254,7 +254,7 @@ export default function DashboardMedico() {
             </Link>
           </div>
 
-          {/* Estado del Perfil */}
+          {/* Estado del Perfil - SIMPLIFICADO */}
           <div style={{ background: '#fff', borderRadius: 16, padding: '20px', border: '1px solid #E5E7EB' }}>
             <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 900, color: '#1A1A2E', marginBottom: 16 }}>
               Estado del perfil
@@ -264,12 +264,6 @@ export default function DashboardMedico() {
                 <p style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 600, marginBottom: 4 }}>Visibilidad</p>
                 <p style={{ fontSize: 14, color: medico.is_active ? '#059669' : '#DC2626', fontWeight: 600 }}>
                   {medico.is_active ? '✓ Visible para pacientes' : '✗ Oculto'}
-                </p>
-              </div>
-              <div>
-                <p style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 600, marginBottom: 4 }}>Verificación</p>
-                <p style={{ fontSize: 14, color: '#059669', fontWeight: 600 }}>
-                  ✓ Activo
                 </p>
               </div>
             </div>
