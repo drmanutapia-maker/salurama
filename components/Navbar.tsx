@@ -160,7 +160,7 @@ export default function Navbar() {
           
           {/* Auth Section */}
           {user ? (
-            /* USUARIO LOGUEADO - Dropdown "Mi Perfil" */}
+            /* USUARIO LOGUEADO - Dropdown "Mi Perfil" */
             <div className="perfil-dropdown" style={{ position: 'relative' }}>
               <button
                 onClick={togglePerfilDropdown}
