@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { User, LogOut, Edit3, Upload, X, ZoomIn } from 'lucide-react'
+import { User, LogOut, CheckCircle, AlertCircle, Upload, X, ZoomIn } from 'lucide-react'
 
 interface Medico {
   id: string
@@ -22,7 +22,6 @@ export default function DashboardMedico() {
   const [medico, setMedico] = useState<Medico | null>(null)
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
-  const [editing, setEditing] = useState(false)
   const [showPhotoMenu, setShowPhotoMenu] = useState(false)
   const [showPhotoModal, setShowPhotoModal] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -216,15 +215,20 @@ export default function DashboardMedico() {
               <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 8 }}>{medico.location_city}</p>
               <p style={{ fontSize: 13, color: '#6B7280' }}>{medico.email}</p>
             </div>
-            
-            {/* Botón Editar */}
-            <button
-              onClick={() => setEditing(!editing)}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, background: editing ? '#3730A3' : '#fff', color: editing ? '#fff' : '#3730A3', border: '1.5px solid #3730A3', borderRadius: 50, padding: '10px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}
-            >
-              <Edit3 size={14} />
-              {editing ? 'Cancelar' : 'Editar perfil'}
-            </button>
+          </div>
+        </div>
+
+        {/* MENSAJE DE ESTADO */}
+        <div className="fade-up" style={{ background: '#DCFCE7', border: '1px solid #86EFAC', borderRadius: 12, padding: '16px 18px', marginBottom: 20, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+          <CheckCircle size={20} color="#059669" style={{ flexShrink: 0, marginTop: 1 }} />
+          <div>
+            <p style={{ fontSize: 14, fontWeight: 600, color: '#059669', marginBottom: 4 }}>
+              ✅ Perfil activo y visible para pacientes
+            </p>
+            <p style={{ fontSize: 13, color: '#059669', lineHeight: 1.6 }}>
+              Los pacientes pueden verificar tus credenciales directamente en el portal de la SEP. 
+              Tu información es pública y verificable en cualquier momento.
+            </p>
           </div>
         </div>
 
@@ -254,7 +258,7 @@ export default function DashboardMedico() {
             </Link>
           </div>
 
-          {/* Estado del Perfil - SIMPLIFICADO */}
+          {/* Estado del Perfil */}
           <div style={{ background: '#fff', borderRadius: 16, padding: '20px', border: '1px solid #E5E7EB' }}>
             <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 900, color: '#1A1A2E', marginBottom: 16 }}>
               Estado del perfil
