@@ -23,34 +23,39 @@ export default function Navbar() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
       checkAuth()
     })
-    
-    return () => subscription.unsubscribe()
-  }, [])
 
-  useEffect(() => {
-    setMobileMenuOpen(false)
-    setMobileSoyMedicoOpen(false)
-    setSoyMedicoDropdown(false)
-    setPerfilDropdown(false)
-  }, [pathname])
+    // 🔒 LOGOUT AUTOMÁTICO POR INACTIVIDAD (1 HORA)
+    const handleActivity = () => {
+      localStorage.setItem('salurama_last_activity', Date.now().toString())
+    }
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement
-      if (!target.closest('.perfil-dropdown') && !target.closest('.soy-medico-dropdown')) {
-        setPerfilDropdown(false)
-        setSoyMedicoDropdown(false)
+    const checkInactivity = () => {
+      const lastActivity = localStorage.getItem('salurama_last_activity')
+      const now = Date.now()
+      const ONE_HOUR = 60 * 60 * 1000 // 1 hora en milisegundos
+
+      if (lastActivity && (now - parseInt(lastActivity) > ONE_HOUR)) {
+        handleLogout()
+        alert('Tu sesión expiró por inactividad. Por seguridad, debes volver a iniciar sesión.')
       }
     }
 
-    if (perfilDropdown || soyMedicoDropdown) {
-      document.addEventListener('click', handleClickOutside)
-    }
+    // Escuchar eventos de actividad
+    window.addEventListener('mousemove', handleActivity)
+    window.addEventListener('keydown', handleActivity)
+    window.addEventListener('click', handleActivity)
+    
+    // Revisar inactividad cada 5 minutos
+    const interval = setInterval(checkInactivity, 5 * 60 * 1000)
 
     return () => {
-      document.removeEventListener('click', handleClickOutside)
+      subscription.unsubscribe()
+      window.removeEventListener('mousemove', handleActivity)
+      window.removeEventListener('keydown', handleActivity)
+      window.removeEventListener('click', handleActivity)
+      clearInterval(interval)
     }
-  }, [perfilDropdown, soyMedicoDropdown])
+  }, [])
 
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession()
@@ -65,6 +70,7 @@ export default function Navbar() {
     await supabase.auth.signOut()
     sessionStorage.removeItem('salurama_admin')
     sessionStorage.removeItem('salurama_admin_email')
+    localStorage.removeItem('salurama_last_activity')
     setPerfilDropdown(false)
     setSoyMedicoDropdown(false)
     setMobileMenuOpen(false)
@@ -160,7 +166,6 @@ export default function Navbar() {
           
           {/* Auth Section */}
           {user ? (
-            /* USUARIO LOGUEADO - Dropdown "Mi Perfil" */
             <div className="perfil-dropdown" style={{ position: 'relative' }}>
               <button
                 onClick={togglePerfilDropdown}
