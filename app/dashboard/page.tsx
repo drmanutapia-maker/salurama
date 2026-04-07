@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { User, LogOut, CheckCircle, AlertCircle, Upload, X, ZoomIn } from 'lucide-react'
+import { User, LogOut, CheckCircle, Upload, X, ZoomIn } from 'lucide-react'
 
 interface Medico {
   id: string
@@ -13,8 +13,9 @@ interface Medico {
   photo_url: string | null
   phone: string
   location_city: string
+  clinic_name: string | null
+  clinic_address: string | null
   is_active: boolean
-  review_status: string
 }
 
 export default function DashboardMedico() {
@@ -55,51 +56,39 @@ export default function DashboardMedico() {
 
   const handleFoto = async (file: File) => {
     if (!medico) return
-
     if (!file.type.startsWith('image/')) {
       alert('Por favor selecciona una imagen válida')
       return
     }
-
     if (file.size > 5 * 1024 * 1024) {
       alert('La imagen no debe pesar más de 5MB')
       return
     }
-
     setUploading(true)
     try {
       const ext = file.name.split('.').pop()
       const name = `${medico.id}/profile.${ext}`
-      
       if (medico.photo_url) {
         const oldPath = medico.photo_url.split('/doctor-photos/')[1]
         if (oldPath) {
           await supabase.storage.from('doctor-photos').remove([oldPath])
         }
       }
-
       const { error: uploadError } = await supabase.storage
         .from('doctor-photos')
         .upload(name, file, { upsert: true, cacheControl: '0' })
-
       if (uploadError) throw uploadError
-
       const { data: urlData } = supabase.storage
         .from('doctor-photos')
         .getPublicUrl(name)
-
       const urlWithTimestamp = `${urlData.publicUrl}?t=${Date.now()}`
-
       const { error: updateError } = await supabase
         .from('doctors')
         .update({ photo_url: urlWithTimestamp })
         .eq('id', medico.id)
-
       if (updateError) throw updateError
-
       setMedico(p => p ? { ...p, photo_url: urlWithTimestamp } : null)
       setShowPhotoMenu(false)
-      
       if (fileInputRef.current) fileInputRef.current.value = ''
     } catch (err) {
       console.error('Error:', err)
@@ -143,33 +132,12 @@ export default function DashboardMedico() {
         {/* HEADER */}
         <div className="fade-up" style={{ background: '#fff', borderRadius: 16, padding: '24px 20px', marginBottom: 20, border: '1px solid #E5E7EB' }}>
           <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-            {/* Foto con click para ampliar */}
+            {/* Foto */}
             <div style={{ position: 'relative' }}>
               {medico.photo_url ? (
-                <div 
-                  onClick={() => setShowPhotoModal(true)}
-                  style={{ cursor: 'pointer', position: 'relative' }}
-                >
-                  <img 
-                    src={`${medico.photo_url}?t=${Date.now()}`} 
-                    alt={medico.full_name} 
-                    style={{ width: 96, height: 96, borderRadius: '50%', objectFit: 'cover', border: '3px solid #EEF2FF' }} 
-                  />
-                  <div style={{ 
-                    position: 'absolute', 
-                    top: '50%', 
-                    left: '50%', 
-                    transform: 'translate(-50%, -50%)',
-                    background: 'rgba(55, 48, 163, 0.9)',
-                    borderRadius: '50%',
-                    width: 32,
-                    height: 32,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    opacity: 0,
-                    transition: 'opacity 0.2s'
-                  }}>
+                <div onClick={() => setShowPhotoModal(true)} style={{ cursor: 'pointer', position: 'relative' }}>
+                  <img src={`${medico.photo_url}?t=${Date.now()}`} alt={medico.full_name} style={{ width: 96, height: 96, borderRadius: '50%', objectFit: 'cover', border: '3px solid #EEF2FF' }} />
+                  <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: 'rgba(55, 48, 163, 0.9)', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 0.2s' }}>
                     <ZoomIn size={16} color="#fff" />
                   </div>
                 </div>
@@ -178,39 +146,21 @@ export default function DashboardMedico() {
                   {(medico.full_name || '?')[0].toUpperCase()}
                 </div>
               )}
-              <label 
-                onClick={() => setShowPhotoMenu(true)}
-                style={{ 
-                  position: 'absolute', 
-                  bottom: 0, 
-                  right: 0, 
-                  background: uploading ? '#9CA3AF' : '#3730A3', 
-                  borderRadius: '50%', 
-                  padding: 8, 
-                  cursor: uploading ? 'not-allowed' : 'pointer', 
-                  border: '3px solid #fff',
-                  opacity: uploading ? 0.6 : 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  zIndex: 10
-                }}
-              >
+              <label onClick={() => setShowPhotoMenu(true)} style={{ position: 'absolute', bottom: 0, right: 0, background: uploading ? '#9CA3AF' : '#3730A3', borderRadius: '50%', padding: 8, cursor: uploading ? 'not-allowed' : 'pointer', border: '3px solid #fff', opacity: uploading ? 0.6 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>
                 {uploading ? (
                   <div style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
                 ) : (
                   <Upload size={16} color="#fff" />
                 )}
+                <input type="file" accept="image/*" onChange={handleFileSelect} style={{ display: 'none' }} ref={fileInputRef} />
               </label>
             </div>
             
             {/* Info */}
             <div style={{ flex: 1, minWidth: 250 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
-                <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(20px, 5vw, 26px)', fontWeight: 900, color: '#1A1A2E' }}>
-                  {medico.full_name}
-                </h1>
-              </div>
+              <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(20px, 5vw, 26px)', fontWeight: 900, color: '#1A1A2E', marginBottom: 4 }}>
+                {medico.full_name}
+              </h1>
               <p style={{ fontSize: 15, color: '#4F46E5', fontWeight: 600, marginBottom: 4 }}>{medico.specialty}</p>
               <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 8 }}>{medico.location_city}</p>
               <p style={{ fontSize: 13, color: '#6B7280' }}>{medico.email}</p>
@@ -226,8 +176,7 @@ export default function DashboardMedico() {
               ✅ Perfil activo y visible para pacientes
             </p>
             <p style={{ fontSize: 13, color: '#059669', lineHeight: 1.6 }}>
-              Los pacientes pueden verificar tus credenciales directamente en el portal de la SEP. 
-              Tu información es pública y verificable en cualquier momento.
+              Los pacientes pueden verificar tus credenciales directamente en el portal de la SEP.
             </p>
           </div>
         </div>
@@ -236,9 +185,7 @@ export default function DashboardMedico() {
         <div className="fade-up" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
           {/* Información Básica */}
           <div style={{ background: '#fff', borderRadius: 16, padding: '20px', border: '1px solid #E5E7EB' }}>
-            <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 900, color: '#1A1A2E', marginBottom: 16 }}>
-              Información básica
-            </h2>
+            <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 900, color: '#1A1A2E', marginBottom: 16 }}>Información básica</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
                 <p style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 600, marginBottom: 4 }}>Nombre completo</p>
@@ -249,8 +196,20 @@ export default function DashboardMedico() {
                 <p style={{ fontSize: 14, color: '#1A1A2E' }}>{medico.specialty}</p>
               </div>
               <div>
-                <p style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 600, marginBottom: 4 }}>Teléfono</p>
+                <p style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 600, marginBottom: 4 }}>Teléfono (privado)</p>
                 <p style={{ fontSize: 14, color: '#1A1A2E' }}>{medico.phone || 'No registrado'}</p>
+              </div>
+              <div>
+                <p style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 600, marginBottom: 4 }}>Email (privado)</p>
+                <p style={{ fontSize: 14, color: '#1A1A2E' }}>{medico.email}</p>
+              </div>
+              <div>
+                <p style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 600, marginBottom: 4 }}>Clínica/Consultorio</p>
+                <p style={{ fontSize: 14, color: '#1A1A2E' }}>{medico.clinic_name || 'No registrado'}</p>
+              </div>
+              <div>
+                <p style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 600, marginBottom: 4 }}>Dirección completa</p>
+                <p style={{ fontSize: 14, color: '#1A1A2E' }}>{medico.clinic_address || 'No registrada'}</p>
               </div>
             </div>
             <Link href="/dashboard/perfil" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 16, fontSize: 13, color: '#3730A3', fontWeight: 600, textDecoration: 'none' }}>
@@ -260,9 +219,7 @@ export default function DashboardMedico() {
 
           {/* Estado del Perfil */}
           <div style={{ background: '#fff', borderRadius: 16, padding: '20px', border: '1px solid #E5E7EB' }}>
-            <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 900, color: '#1A1A2E', marginBottom: 16 }}>
-              Estado del perfil
-            </h2>
+            <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 900, color: '#1A1A2E', marginBottom: 16 }}>Estado del perfil</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
                 <p style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 600, marginBottom: 4 }}>Visibilidad</p>
@@ -275,9 +232,7 @@ export default function DashboardMedico() {
 
           {/* Próximas Funciones (Premium) */}
           <div style={{ background: 'linear-gradient(135deg, #EEF2FF 0%, #F9FAFB 100%)', borderRadius: 16, padding: '20px', border: '1.5px solid #C7D2FE' }}>
-            <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 900, color: '#3730A3', marginBottom: 12 }}>
-              🔒 Próximamente: Premium
-            </h2>
+            <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 900, color: '#3730A3', marginBottom: 12 }}>🔒 Próximamente: Premium</h2>
             <ul style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
               {['📊 Analytics detallados','📅 Agenda avanzada (Google Calendar)','💬 Recordatorios automáticos (WhatsApp/SMS)','📥 Exportación de datos',].map((item, i) => (
                 <li key={i} style={{ fontSize: 13, color: '#374151', display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -335,17 +290,10 @@ export default function DashboardMedico() {
       {/* MODAL DE FOTO AMPLIADA */}
       {showPhotoModal && medico.photo_url && (
         <div className="fade-in" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <button
-            onClick={() => setShowPhotoModal(false)}
-            style={{ position: 'absolute', top: 20, right: 20, background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', width: 48, height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-          >
+          <button onClick={() => setShowPhotoModal(false)} style={{ position: 'absolute', top: 20, right: 20, background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', width: 48, height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
             <X size={24} color="#fff" />
           </button>
-          <img 
-            src={`${medico.photo_url}?t=${Date.now()}`} 
-            alt={medico.full_name}
-            style={{ maxWidth: '100%', maxHeight: '90vh', borderRadius: 12, objectFit: 'contain' }}
-          />
+          <img src={`${medico.photo_url}?t=${Date.now()}`} alt={medico.full_name} style={{ maxWidth: '100%', maxHeight: '90vh', borderRadius: 12, objectFit: 'contain' }} />
         </div>
       )}
     </div>
