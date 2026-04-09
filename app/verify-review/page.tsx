@@ -4,6 +4,8 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { CheckCircle, XCircle, Star } from 'lucide-react'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 export default function VerifyReviewPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
