@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { User, LogOut, CheckCircle, Upload, X, ZoomIn } from 'lucide-react'
+import { User, LogOut, CheckCircle, Upload, X, ZoomIn, Calendar, MessageCircle } from 'lucide-react'
 
 interface Medico {
   id: string
@@ -15,7 +15,18 @@ interface Medico {
   location_city: string
   clinic_name: string | null
   clinic_address: string | null
+  whatsapp_available: boolean
+  whatsapp: string | null
   is_active: boolean
+}
+
+interface CitaResumen {
+  count: number
+  ultima_cita: {
+    patient_name: string
+    requested_date: string
+    requested_time: string
+  } | null
 }
 
 export default function DashboardMedico() {
@@ -25,6 +36,7 @@ export default function DashboardMedico() {
   const [uploading, setUploading] = useState(false)
   const [showPhotoMenu, setShowPhotoMenu] = useState(false)
   const [showPhotoModal, setShowPhotoModal] = useState(false)
+  const [citasResumen, setCitasResumen] = useState<CitaResumen | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -44,6 +56,27 @@ export default function DashboardMedico() {
         return
       }
       setMedico(data)
+
+      // Obtener resumen de citas
+      const { data: citasData } = await supabase
+        .from('appointment_requests')
+        .select('patient_name, requested_date, requested_time')
+        .eq('doctor_id', data.id)
+        .eq('status', 'solicitada')
+        .order('requested_date', { ascending: false })
+        .limit(1)
+
+      const { count } = await supabase
+        .from('appointment_requests')
+        .select('*', { count: 'exact', head: true })
+        .eq('doctor_id', data.id)
+        .eq('status', 'solicitada')
+
+      setCitasResumen({
+        count: count || 0,
+        ultima_cita: citasData && citasData.length > 0 ? citasData[0] : null
+      })
+
       setLoading(false)
     }
     load()
@@ -127,7 +160,7 @@ export default function DashboardMedico() {
         @keyframes fadeIn { from{opacity:0} to{opacity:1} }
         .fade-in { animation: fadeIn 0.2s ease-out; }
       `}</style>
-      
+
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 16px 60px' }}>
         {/* HEADER */}
         <div className="fade-up" style={{ background: '#fff', borderRadius: 16, padding: '24px 20px', marginBottom: 20, border: '1px solid #E5E7EB' }}>
@@ -155,7 +188,7 @@ export default function DashboardMedico() {
                 <input type="file" accept="image/*" onChange={handleFileSelect} style={{ display: 'none' }} ref={fileInputRef} />
               </label>
             </div>
-            
+
             {/* Info */}
             <div style={{ flex: 1, minWidth: 250 }}>
               <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(20px, 5vw, 26px)', fontWeight: 900, color: '#1A1A2E', marginBottom: 4 }}>
@@ -168,7 +201,7 @@ export default function DashboardMedico() {
           </div>
         </div>
 
-        {/* MENSAJE DE ESTADO */}
+        {/* MENSAJE DE ESTADO - ACTUALIZADO */}
         <div className="fade-up" style={{ background: '#DCFCE7', border: '1px solid #86EFAC', borderRadius: 12, padding: '16px 18px', marginBottom: 20, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
           <CheckCircle size={20} color="#059669" style={{ flexShrink: 0, marginTop: 1 }} />
           <div>
@@ -176,13 +209,14 @@ export default function DashboardMedico() {
               ✅ Perfil activo y visible para pacientes
             </p>
             <p style={{ fontSize: 13, color: '#059669', lineHeight: 1.6 }}>
-              Los pacientes pueden verificar tus credenciales directamente en el portal de la SEP.
+              Los pacientes pueden verificar tus credenciales directamente en los portales de SEP y CONACEM.
             </p>
           </div>
         </div>
 
-        {/* GRID DE SECCIONES */}
-        <div className="fade-up" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
+        {/* GRID DE SECCIONES - SIMPLIFICADO */}
+        <div className="fade-up" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: 16 }}>
+          
           {/* Información Básica */}
           <div style={{ background: '#fff', borderRadius: 16, padding: '20px', border: '1px solid #E5E7EB' }}>
             <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 900, color: '#1A1A2E', marginBottom: 16 }}>Información básica</h2>
@@ -217,44 +251,90 @@ export default function DashboardMedico() {
             </Link>
           </div>
 
-          {/* Estado del Perfil */}
+          {/* Citas Solicitadas - NUEVA SECCIÓN */}
           <div style={{ background: '#fff', borderRadius: 16, padding: '20px', border: '1px solid #E5E7EB' }}>
-            <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 900, color: '#1A1A2E', marginBottom: 16 }}>Estado del perfil</h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div>
-                <p style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 600, marginBottom: 4 }}>Visibilidad</p>
-                <p style={{ fontSize: 14, color: medico.is_active ? '#059669' : '#DC2626', fontWeight: 600 }}>
-                  {medico.is_active ? '✓ Visible para pacientes' : '✗ Oculto'}
-                </p>
-              </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+              <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 900, color: '#1A1A2E' }}>
+                📅 Citas Solicitadas
+              </h2>
+              {citasResumen && citasResumen.count > 0 && (
+                <span style={{ background: '#FEE2E2', color: '#DC2626', borderRadius: 20, padding: '2px 10px', fontSize: 12, fontWeight: 700 }}>
+                  {citasResumen.count} {citasResumen.count === 1 ? 'nueva' : 'nuevas'}
+                </span>
+              )}
             </div>
+            
+            {citasResumen && citasResumen.count > 0 ? (
+              <div style={{ marginBottom: 16 }}>
+                {citasResumen.ultima_cita && (
+                  <div style={{ background: '#F9FAFB', borderRadius: 8, padding: 12, marginBottom: 12 }}>
+                    <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 4 }}>Última solicitud:</p>
+                    <p style={{ fontSize: 14, fontWeight: 600, color: '#1A1A2E', marginBottom: 2 }}>{citasResumen.ultima_cita.patient_name}</p>
+                    <p style={{ fontSize: 13, color: '#6B7280' }}>
+                      {new Date(citasResumen.ultima_cita.requested_date).toLocaleDateString('es-MX')} a las {citasResumen.ultima_cita.requested_time}
+                    </p>
+                  </div>
+                )}
+                <Link
+                  href="/dashboard/citas"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    background: 'linear-gradient(135deg, #3730A3 0%, #4F46E5 100%)',
+                    color: '#fff',
+                    borderRadius: 8,
+                    padding: '12px',
+                    fontSize: 14,
+                    fontWeight: 600,
+                    textDecoration: 'none'
+                  }}
+                >
+                  <Calendar size={16} />
+                  Ver todas las citas
+                </Link>
+              </div>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '32px 20px', background: '#F9FAFB', borderRadius: 8, marginBottom: 16 }}>
+                <Calendar size={40} color="#9CA3AF" style={{ margin: '0 auto 8px' }} />
+                <p style={{ fontSize: 14, color: '#6B7280', marginBottom: 4 }}>Sin citas pendientes</p>
+                <p style={{ fontSize: 12, color: '#9CA3AF' }}>Cuando los pacientes soliciten citas, aparecerán aquí</p>
+              </div>
+            )}
+
+            {/* WhatsApp disponible */}
+            {medico.whatsapp_available && medico.whatsapp && (
+              <div style={{ borderTop: '1px solid #F3F4F6', paddingTop: 16 }}>
+                <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 8 }}>Contacto directo:</p>
+                <a
+                  href={`https://wa.me/52${medico.whatsapp.replace(/\D/g, '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    background: '#25D366',
+                    color: '#fff',
+                    borderRadius: 8,
+                    padding: '10px',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    textDecoration: 'none'
+                  }}
+                >
+                  <MessageCircle size={16} />
+                  Contactar por WhatsApp
+                </a>
+              </div>
+            )}
           </div>
 
-          {/* Próximas Funciones (Premium) */}
-          <div style={{ background: 'linear-gradient(135deg, #EEF2FF 0%, #F9FAFB 100%)', borderRadius: 16, padding: '20px', border: '1.5px solid #C7D2FE' }}>
-            <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 900, color: '#3730A3', marginBottom: 12 }}>🔒 Próximamente: Premium</h2>
-            <ul style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-              {['📊 Analytics detallados','📅 Agenda avanzada (Google Calendar)','💬 Recordatorios automáticos (WhatsApp/SMS)','📥 Exportación de datos',].map((item, i) => (
-                <li key={i} style={{ fontSize: 13, color: '#374151', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  {item}
-                </li>
-              ))}
-            </ul>
-            <p style={{ fontSize: 12, color: '#6B7280', marginBottom: 12 }}>
-              Pronto podrás acceder a estas funciones con Salurama Premium.
-            </p>
-            <button disabled style={{ width: '100%', background: '#9CA3AF', color: '#fff', border: 'none', borderRadius: 50, padding: '12px', fontSize: 13, fontWeight: 600, cursor: 'not-allowed', fontFamily: "'DM Sans', sans-serif" }}>
-              Disponible pronto
-            </button>
-          </div>
         </div>
 
-        {/* Mensaje discreto de verificación */}
-        <div style={{ textAlign: 'center', marginTop: 40, paddingTop: 24, borderTop: '1px solid #E5E7EB' }}>
-          <p style={{ fontSize: 12, color: '#9CA3AF' }}>
-            🔍 Los pacientes pueden verificar tus credenciales en canales oficiales (SEP, CONACEM)
-          </p>
-        </div>
+        {/* Mensaje discreto de verificación - ELIMINADO (redundante) */}
       </div>
 
       {/* MODAL DE SELECCIÓN DE FOTO */}

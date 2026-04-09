@@ -1,10 +1,9 @@
 'use client'
-
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
-import { Menu, X, LogOut, User, Shield, ChevronDown, Settings, Eye } from 'lucide-react'
+import { Menu, X, LogOut, User, Shield, ChevronDown, Eye } from 'lucide-react'
 
 export default function Navbar() {
   const router = useRouter()
@@ -16,6 +15,8 @@ export default function Navbar() {
   const [soyMedicoDropdown, setSoyMedicoDropdown] = useState(false)
   const [mobileSoyMedicoOpen, setMobileSoyMedicoOpen] = useState(false)
   const [perfilDropdown, setPerfilDropdown] = useState(false)
+  
+  const navbarRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     checkAuth()
@@ -32,7 +33,7 @@ export default function Navbar() {
     const checkInactivity = () => {
       const lastActivity = localStorage.getItem('salurama_last_activity')
       const now = Date.now()
-      const ONE_HOUR = 60 * 60 * 1000 // 1 hora en milisegundos
+      const ONE_HOUR = 60 * 60 * 1000
 
       if (lastActivity && (now - parseInt(lastActivity) > ONE_HOUR)) {
         handleLogout()
@@ -40,12 +41,10 @@ export default function Navbar() {
       }
     }
 
-    // Escuchar eventos de actividad
     window.addEventListener('mousemove', handleActivity)
     window.addEventListener('keydown', handleActivity)
     window.addEventListener('click', handleActivity)
     
-    // Revisar inactividad cada 5 minutos
     const interval = setInterval(checkInactivity, 5 * 60 * 1000)
 
     return () => {
@@ -55,6 +54,21 @@ export default function Navbar() {
       window.removeEventListener('click', handleActivity)
       clearInterval(interval)
     }
+  }, [])
+
+  // 🔥 CERRAR DROPDOWNS AL HACER CLIC FUERA DEL NAVBAR
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (navbarRef.current && !navbarRef.current.contains(event.target as Node)) {
+        setPerfilDropdown(false)
+        setSoyMedicoDropdown(false)
+        setMobileMenuOpen(false)
+        setMobileSoyMedicoOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
   const checkAuth = async () => {
@@ -97,16 +111,19 @@ export default function Navbar() {
   if (loading) return null
 
   return (
-    <nav style={{ 
-      position: 'sticky', 
-      top: 0, 
-      zIndex: 100, 
-      background: 'rgba(255,255,255,0.98)', 
-      backdropFilter: 'blur(14px)', 
-      borderBottom: '1px solid #F3F4F6', 
-      padding: '0 12px',
-      width: '100%'
-    }}>
+    <nav 
+      ref={navbarRef}
+      style={{ 
+        position: 'sticky', 
+        top: 0, 
+        zIndex: 100, 
+        background: 'rgba(255,255,255,0.98)', 
+        backdropFilter: 'blur(14px)', 
+        borderBottom: '1px solid #F3F4F6', 
+        padding: '0 12px',
+        width: '100%'
+      }}
+    >
       <div style={{ maxWidth: 1100, margin: '0 auto', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Link href="/" style={{ textDecoration: 'none', flexShrink: 0 }}>
           <span style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 900, color: '#3730A3', letterSpacing: '-0.5px' }}>Salu</span>
@@ -145,7 +162,7 @@ export default function Navbar() {
             onMouseEnter={(e) => e.currentTarget.style.color = '#3730A3'}
             onMouseLeave={(e) => e.currentTarget.style.color = isActive('/como-elegir-medico') ? '#3730A3' : '#1A1A2E'}
           >
-            ¿Cómo elegir?
+            ¿Cómo elegir médico?
           </Link>
           <Link 
             href="/nosotros" 
@@ -248,7 +265,7 @@ export default function Navbar() {
                     Cómo me ven
                   </Link>
                   <Link
-                    href="/dashboard/perfil"
+                    href="/dashboard/citas"
                     onClick={() => setPerfilDropdown(false)}
                     style={{
                       display: 'flex',
@@ -264,8 +281,8 @@ export default function Navbar() {
                     onMouseEnter={(e) => e.currentTarget.style.background = '#F9FAFB'}
                     onMouseLeave={(e) => e.currentTarget.style.background = '#fff'}
                   >
-                    <Settings size={16} color="#3730A3" />
-                    Configuración
+                    <Eye size={16} color="#3730A3" />
+                    Citas solicitadas
                   </Link>
                   <div style={{ height: '1px', background: '#F3F4F6', margin: '4px 0' }} />
                   <button
@@ -465,7 +482,6 @@ export default function Navbar() {
             <Link href="/nosotros" onClick={() => { setMobileMenuOpen(false); setMobileSoyMedicoOpen(false); }} style={{ fontSize: 15, color: '#1A1A2E', textDecoration: 'none', padding: '10px 8px', fontWeight: 500 }}>
               Nosotros
             </Link>
-            
             {user ? (
               <>
                 <Link href="/dashboard" onClick={() => { setMobileMenuOpen(false); }} style={{ fontSize: 15, color: '#3730A3', fontWeight: 600, textDecoration: 'none', padding: '10px 8px' }}>
@@ -474,8 +490,8 @@ export default function Navbar() {
                 <Link href={`/doctor/${user.id}`} onClick={() => { setMobileMenuOpen(false); }} style={{ fontSize: 15, color: '#3730A3', fontWeight: 600, textDecoration: 'none', padding: '10px 8px' }}>
                   Cómo me ven
                 </Link>
-                <Link href="/dashboard/perfil" onClick={() => { setMobileMenuOpen(false); }} style={{ fontSize: 15, color: '#3730A3', fontWeight: 600, textDecoration: 'none', padding: '10px 8px' }}>
-                  Configuración
+                <Link href="/dashboard/citas" onClick={() => { setMobileMenuOpen(false); }} style={{ fontSize: 15, color: '#3730A3', fontWeight: 600, textDecoration: 'none', padding: '10px 8px' }}>
+                  Citas solicitadas
                 </Link>
                 <button onClick={handleLogout} style={{ fontSize: 15, color: '#DC2626', background: 'none', border: 'none', cursor: 'pointer', padding: '10px 8px', textAlign: 'left', fontWeight: 500 }}>
                   Cerrar sesión
