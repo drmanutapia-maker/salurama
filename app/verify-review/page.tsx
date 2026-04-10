@@ -4,13 +4,10 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { CheckCircle, XCircle, Star } from 'lucide-react'
 
-// ✅ Forzar renderizado dinámico - NO static generation
+// ✅ SOLO ESTE EXPORT - NO agregues revalidate ni fetchCache
 export const dynamic = 'force-dynamic'
-export const revalidate = 0
-export const fetchCache = 'force-no-store'
 
-// Componente interno que usa useSearchParams (envuelto en Suspense por el layout)
-function VerifyReviewContent() {
+export default function VerifyReviewPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
@@ -133,11 +130,7 @@ function VerifyReviewContent() {
                     onClick={() => setRating(star)}
                     style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}
                   >
-                    <Star
-                      size={32}
-                      fill={star <= rating ? '#F59E0B' : 'none'}
-                      color={star <= rating ? '#F59E0B' : '#D1D5DB'}
-                    />
+                    <Star size={32} fill={star <= rating ? '#F59E0B' : 'none'} color={star <= rating ? '#F59E0B' : '#D1D5DB'} />
                   </button>
                 ))}
               </div>
@@ -178,9 +171,4 @@ function VerifyReviewContent() {
       </div>
     </div>
   )
-}
-
-// Componente principal - solo exporta el contenido
-export default function VerifyReviewPage() {
-  return <VerifyReviewContent />
 }
