@@ -1,15 +1,15 @@
 'use client'
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { CheckCircle, XCircle, Star } from 'lucide-react'
 
-// ✅ Export para forzar renderizado dinámico
+// ✅ Forzar renderizado dinámico - NO static generation
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 export const fetchCache = 'force-no-store'
 
-// Componente interno que usa useSearchParams
+// Componente interno que usa useSearchParams (envuelto en Suspense por el layout)
 function VerifyReviewContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -28,10 +28,7 @@ function VerifyReviewContent() {
 
     supabase
       .from('appointment_requests')
-      .select(`
-        *,
-        doctors (full_name)
-      `)
+      .select(`*, doctors (full_name)`)
       .eq('review_token', token)
       .eq('review_sent', true)
       .eq('review_verified', false)
@@ -86,7 +83,7 @@ function VerifyReviewContent() {
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif" }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ width: 40, height: 40, border: '3px solid #EEF2FF', borderTopColor: '#3730A3', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
-          <p style={{ color: '#9CA3AF', marginTop: 12 }}>Cargando...</p>
+          <p style={{ color: '#9CA3AF' }}>Cargando...</p>
         </div>
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
@@ -183,21 +180,7 @@ function VerifyReviewContent() {
   )
 }
 
-// Componente principal que envuelve en Suspense
+// Componente principal - solo exporta el contenido
 export default function VerifyReviewPage() {
-  return (
-    <Suspense
-      fallback={
-        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif" }}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ width: 40, height: 40, border: '3px solid #EEF2FF', borderTopColor: '#3730A3', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
-            <p style={{ color: '#9CA3AF', marginTop: 12 }}>Cargando...</p>
-          </div>
-          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-        </div>
-      }
-    >
-      <VerifyReviewContent />
-    </Suspense>
-  )
+  return <VerifyReviewContent />
 }
