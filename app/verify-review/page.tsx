@@ -1,12 +1,16 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { CheckCircle, XCircle, Star } from 'lucide-react'
 
+// ✅ Export para forzar renderizado dinámico
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
-export default function VerifyReviewPage() {
+export const fetchCache = 'force-no-store'
+
+// Componente interno que usa useSearchParams
+function VerifyReviewContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
@@ -48,7 +52,6 @@ export default function VerifyReviewPage() {
 
     setSubmitting(true)
     try {
-      // Insertar reseña verificada
       const { error: reviewError } = await supabase.from('reviews').insert({
         doctor_id: appointmentData.doctor_id,
         user_name: appointmentData.patient_name,
@@ -63,7 +66,6 @@ export default function VerifyReviewPage() {
 
       if (reviewError) throw reviewError
 
-      // Marcar cita como verificada
       await supabase
         .from('appointment_requests')
         .update({ review_verified: true })
@@ -84,7 +86,7 @@ export default function VerifyReviewPage() {
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif" }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ width: 40, height: 40, border: '3px solid #EEF2FF', borderTopColor: '#3730A3', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
-          <p style={{ color: '#9CA3AF' }}>Cargando...</p>
+          <p style={{ color: '#9CA3AF', marginTop: 12 }}>Cargando...</p>
         </div>
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
@@ -178,5 +180,24 @@ export default function VerifyReviewPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+// Componente principal que envuelve en Suspense
+export default function VerifyReviewPage() {
+  return (
+    <Suspense
+      fallback={
+        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif" }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ width: 40, height: 40, border: '3px solid #EEF2FF', borderTopColor: '#3730A3', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
+            <p style={{ color: '#9CA3AF', marginTop: 12 }}>Cargando...</p>
+          </div>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      }
+    >
+      <VerifyReviewContent />
+    </Suspense>
   )
 }
