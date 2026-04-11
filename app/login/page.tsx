@@ -1,5 +1,4 @@
 'use client'
-
 import { useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import Link from 'next/link'
@@ -31,11 +30,9 @@ export default function LoginMedico() {
 
       if (authError) {
         console.error('Auth error:', authError)
-        
         if (authError.message.includes('Email not confirmed')) {
           throw new Error('Tu email no ha sido confirmado. Revisa tu bandeja o solicita un nuevo email de confirmación.')
         }
-        
         throw new Error('Email o contraseña incorrectos')
       }
 
@@ -55,11 +52,9 @@ export default function LoginMedico() {
       if (doctorError) {
         console.error('Doctor lookup error:', doctorError)
         await supabase.auth.signOut()
-        
         if (doctorError.code === 'PGRST116') {
           throw new Error('No se encontró un perfil de médico con este email. Por favor regístrate primero.')
         }
-        
         throw new Error('Error al verificar tu perfil. Intenta de nuevo.')
       }
 
@@ -87,14 +82,15 @@ export default function LoginMedico() {
   const handleRecovery = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    
+
     try {
+      // ✅ CAMBIO CLAVE: redirectTo apunta a /reset-password (NO /dashboard)
       const { error } = await supabase.auth.resetPasswordForEmail(recoveryEmail, {
-        redirectTo: `${window.location.origin}/dashboard`
+        redirectTo: `${window.location.origin}/reset-password`
       })
-      
+
       if (error) throw error
-      
+
       setRecoverySent(true)
     } catch (err: unknown) {
       alert('Error al enviar email: ' + (err instanceof Error ? err.message : 'Error desconocido'))
@@ -106,14 +102,14 @@ export default function LoginMedico() {
   // Vista de recuperación
   if (showRecovery) {
     return (
-      <div style={{ 
-        minHeight: '100vh', 
-        background: 'linear-gradient(135deg, #EEF2FF 0%, #fff 100%)', 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center', 
-        padding: 20, 
-        fontFamily: "'DM Sans', sans-serif" 
+      <div style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #EEF2FF 0%, #fff 100%)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 20,
+        fontFamily: "'DM Sans', sans-serif"
       }}>
         <style>{`
           @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@900&family=DM+Sans:wght@400;500;700&display=swap');
@@ -122,13 +118,13 @@ export default function LoginMedico() {
           .fade-up { animation: fadeUp 0.4s ease-out; }
         `}</style>
 
-        <div className="fade-up" style={{ 
-          background: '#fff', 
-          borderRadius: 20, 
-          padding: 'clamp(32px, 6vw, 48px)', 
-          maxWidth: 440, 
-          width: '100%', 
-          boxShadow: '0 16px 48px rgba(55,48,163,0.1)' 
+        <div className="fade-up" style={{
+          background: '#fff',
+          borderRadius: 20,
+          padding: 'clamp(32px, 6vw, 48px)',
+          maxWidth: 440,
+          width: '100%',
+          boxShadow: '0 16px 48px rgba(55,48,163,0.1)'
         }}>
           <div style={{ textAlign: 'center', marginBottom: 32 }}>
             <Link href="/" style={{ textDecoration: 'none', display: 'inline-block', marginBottom: 16 }}>
@@ -144,13 +140,13 @@ export default function LoginMedico() {
           </div>
 
           {recoverySent ? (
-            <div style={{ 
-              background: '#DCFCE7', 
-              border: '1px solid #86EFAC', 
-              borderRadius: 10, 
-              padding: '16px', 
+            <div style={{
+              background: '#DCFCE7',
+              border: '1px solid #86EFAC',
+              borderRadius: 10,
+              padding: '16px',
               textAlign: 'center',
-              marginBottom: 20 
+              marginBottom: 20
             }}>
               <p style={{ fontSize: 14, color: '#059669', margin: 0, fontWeight: 600 }}>
                 ✅ Email enviado
@@ -190,15 +186,15 @@ export default function LoginMedico() {
                     onChange={e => setRecoveryEmail(e.target.value)}
                     placeholder="tu@email.com"
                     required
-                    style={{ 
-                      width: '100%', 
-                      padding: '12px 14px 12px 42px', 
-                      border: '1.5px solid #E5E7EB', 
-                      borderRadius: 10, 
-                      fontSize: 15, 
-                      fontFamily: "'DM Sans', sans-serif", 
-                      color: '#1A1A2E', 
-                      outline: 'none' 
+                    style={{
+                      width: '100%',
+                      padding: '12px 14px 12px 42px',
+                      border: '1.5px solid #E5E7EB',
+                      borderRadius: 10,
+                      fontSize: 15,
+                      fontFamily: "'DM Sans', sans-serif",
+                      color: '#1A1A2E',
+                      outline: 'none'
                     }}
                   />
                 </div>
@@ -247,14 +243,14 @@ export default function LoginMedico() {
 
   // Login normal
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      background: 'linear-gradient(135deg, #EEF2FF 0%, #fff 100%)', 
-      display: 'flex', 
-      alignItems: 'center', 
-      justifyContent: 'center', 
-      padding: 20, 
-      fontFamily: "'DM Sans', sans-serif" 
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #EEF2FF 0%, #fff 100%)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 20,
+      fontFamily: "'DM Sans', sans-serif"
     }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@900&family=DM+Sans:wght@400;500;700&display=swap');
@@ -265,13 +261,13 @@ export default function LoginMedico() {
         .spin { animation: spin 0.7s linear infinite; }
       `}</style>
 
-      <div className="fade-up" style={{ 
-        background: '#fff', 
-        borderRadius: 20, 
-        padding: 'clamp(32px, 6vw, 48px)', 
-        maxWidth: 440, 
-        width: '100%', 
-        boxShadow: '0 16px 48px rgba(55,48,163,0.1)' 
+      <div className="fade-up" style={{
+        background: '#fff',
+        borderRadius: 20,
+        padding: 'clamp(32px, 6vw, 48px)',
+        maxWidth: 440,
+        width: '100%',
+        boxShadow: '0 16px 48px rgba(55,48,163,0.1)'
       }}>
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <Link href="/" style={{ textDecoration: 'none', display: 'inline-block', marginBottom: 16 }}>
@@ -287,15 +283,15 @@ export default function LoginMedico() {
         </div>
 
         {error && (
-          <div style={{ 
-            background: '#FEF2F2', 
-            border: '1px solid #FECACA', 
-            borderRadius: 10, 
-            padding: '12px 14px', 
-            marginBottom: 20, 
-            display: 'flex', 
-            gap: 10, 
-            alignItems: 'flex-start' 
+          <div style={{
+            background: '#FEF2F2',
+            border: '1px solid #FECACA',
+            borderRadius: 10,
+            padding: '12px 14px',
+            marginBottom: 20,
+            display: 'flex',
+            gap: 10,
+            alignItems: 'flex-start'
           }}>
             <AlertCircle size={18} color="#DC2626" style={{ flexShrink: 0, marginTop: 1 }} />
             <p style={{ fontSize: 13, color: '#DC2626', margin: 0 }}>{error}</p>
@@ -315,15 +311,15 @@ export default function LoginMedico() {
                 onChange={e => setEmail(e.target.value)}
                 placeholder="tu@email.com"
                 required
-                style={{ 
-                  width: '100%', 
-                  padding: '12px 14px 12px 42px', 
-                  border: '1.5px solid #E5E7EB', 
-                  borderRadius: 10, 
-                  fontSize: 15, 
-                  fontFamily: "'DM Sans', sans-serif", 
-                  color: '#1A1A2E', 
-                  outline: 'none' 
+                style={{
+                  width: '100%',
+                  padding: '12px 14px 12px 42px',
+                  border: '1.5px solid #E5E7EB',
+                  borderRadius: 10,
+                  fontSize: 15,
+                  fontFamily: "'DM Sans', sans-serif",
+                  color: '#1A1A2E',
+                  outline: 'none'
                 }}
               />
             </div>
@@ -341,30 +337,30 @@ export default function LoginMedico() {
                 onChange={e => setPassword(e.target.value)}
                 placeholder="••••••••"
                 required
-                style={{ 
-                  width: '100%', 
-                  padding: '12px 14px 12px 42px', 
-                  border: '1.5px solid #E5E7EB', 
-                  borderRadius: 10, 
-                  fontSize: 15, 
-                  fontFamily: "'DM Sans', sans-serif", 
-                  color: '#1A1A2E', 
+                style={{
+                  width: '100%',
+                  padding: '12px 14px 12px 42px',
+                  border: '1.5px solid #E5E7EB',
+                  borderRadius: 10,
+                  fontSize: 15,
+                  fontFamily: "'DM Sans', sans-serif",
+                  color: '#1A1A2E',
                   outline: 'none',
-                  paddingRight: 44 
+                  paddingRight: 44
                 }}
               />
               <button
                 type="button"
                 onClick={() => setShowPass(p => !p)}
-                style={{ 
-                  position: 'absolute', 
-                  right: 13, 
-                  top: '50%', 
-                  transform: 'translateY(-50%)', 
-                  background: 'none', 
-                  border: 'none', 
-                  cursor: 'pointer', 
-                  color: '#9CA3AF' 
+                style={{
+                  position: 'absolute',
+                  right: 13,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: '#9CA3AF'
                 }}
               >
                 {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -413,12 +409,12 @@ export default function LoginMedico() {
           >
             {loading ? (
               <>
-                <div style={{ 
-                  width: 18, 
-                  height: 18, 
-                  border: '2px solid rgba(255,255,255,0.3)', 
-                  borderTopColor: '#fff', 
-                  borderRadius: '50%', 
+                <div style={{
+                  width: 18,
+                  height: 18,
+                  border: '2px solid rgba(255,255,255,0.3)',
+                  borderTopColor: '#fff',
+                  borderRadius: '50%',
                 }} className="spin" />
                 Iniciando sesión...
               </>

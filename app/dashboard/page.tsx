@@ -1,9 +1,9 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { User, LogOut, CheckCircle, X, ZoomIn, Calendar, MessageCircle } from 'lucide-react'
+import { CheckCircle, X, ZoomIn, Calendar, MessageCircle, Edit2 } from 'lucide-react'
 
 interface Medico {
   id: string
@@ -118,7 +118,7 @@ export default function DashboardMedico() {
         <div className="fade-up" style={{ background: '#fff', borderRadius: 16, padding: '24px 20px', marginBottom: 20, border: '1px solid #E5E7EB' }}>
           <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
             
-            {/* Foto - SOLO CLICK PARA ZOOM */}
+            {/* Foto */}
             <div style={{ position: 'relative' }}>
               {medico.photo_url ? (
                 <div onClick={() => setShowPhotoModal(true)} style={{ cursor: 'pointer', position: 'relative' }}>
@@ -132,8 +132,6 @@ export default function DashboardMedico() {
                   {(medico.full_name || '?')[0].toUpperCase()}
                 </div>
               )}
-              
-              {/* ✅ ÍCONO DE UPLOAD ELIMINADO - Solo foto clicable para zoom */}
             </div>
 
             {/* Info */}
@@ -164,9 +162,35 @@ export default function DashboardMedico() {
         {/* GRID DE SECCIONES */}
         <div className="fade-up" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: 16 }}>
           
-          {/* Información Básica */}
+          {/* Información Básica - CON LINK EDIT ARRIBA */}
           <div style={{ background: '#fff', borderRadius: 16, padding: '20px', border: '1px solid #E5E7EB' }}>
-            <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 900, color: '#1A1A2E', marginBottom: 16 }}>Información básica</h2>
+            {/* ✅ HEADER DE TARJETA CON BOTÓN EDIT */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 900, color: '#1A1A2E', margin: 0 }}>
+                Información básica
+              </h2>
+              <Link 
+                href="/dashboard/editar-perfil" 
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  background: '#EEF2FF',
+                  color: '#3730A3',
+                  border: '1.5px solid #C7D2FE',
+                  borderRadius: 8,
+                  padding: '6px 12px',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  textDecoration: 'none',
+                  transition: 'all 0.2s'
+                }}
+              >
+                <Edit2 size={14} /> Editar
+              </Link>
+            </div>
+
+            {/* Contenido de información */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
                 <p style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 600, marginBottom: 4 }}>Nombre completo</p>
@@ -193,10 +217,7 @@ export default function DashboardMedico() {
                 <p style={{ fontSize: 14, color: '#1A1A2E' }}>{medico.clinic_address || 'No registrada'}</p>
               </div>
             </div>
-            {/* ✅ Link actualizado a editar-perfil */}
-            <Link href="/dashboard/editar-perfil" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 16, fontSize: 13, color: '#3730A3', fontWeight: 600, textDecoration: 'none' }}>
-              Editar información →
-            </Link>
+            {/* ✅ LINK EDIT ELIMINADO DE ABAJO (ya está arriba) */}
           </div>
 
           {/* Citas Solicitadas */}
@@ -282,7 +303,7 @@ export default function DashboardMedico() {
         </div>
       </div>
 
-      {/* ✅ MODAL DE FOTO AMPLIADA (solo para ver) */}
+      {/* MODAL DE FOTO AMPLIADA */}
       {showPhotoModal && medico.photo_url && (
         <div className="fade-in" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
           <button onClick={() => setShowPhotoModal(false)} style={{ position: 'absolute', top: 20, right: 20, background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', width: 48, height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>

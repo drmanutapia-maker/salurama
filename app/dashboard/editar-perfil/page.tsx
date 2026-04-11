@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
-import { X, Edit2, Save, Plus, Trash2, ExternalLink, Phone, MessageCircle, Clock, MapPin, DollarSign, CreditCard, Shield, Calendar, Users, Accessibility, Camera, Upload } from 'lucide-react'
+import { X, Edit2, Save, Plus, Trash2, ExternalLink, Phone, MessageCircle, Clock, MapPin, DollarSign, CreditCard, Shield, Calendar, Users, Accessibility, Camera } from 'lucide-react'
 
 interface Medico {
   id: string
@@ -98,6 +98,11 @@ export default function EditarPerfilPage() {
   const [activeModal, setActiveModal] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // ✅ SCROLL AL INICIO CUANDO CARGA LA PÁGINA
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [])
+
   useEffect(() => {
     loadData()
   }, [])
@@ -141,22 +146,6 @@ export default function EditarPerfilPage() {
       console.error('Error loading data:', error)
     } finally {
       setLoading(false)
-    }
-  }
-
-  const handleSaveBasicInfo = async (data: Partial<Medico>) => {
-    if (!medico) return
-    setSaving(true)
-    try {
-      const { error } = await supabase.from('doctors').update(data).eq('id', medico.id)
-      if (error) throw error
-      await loadData()
-      setActiveModal(null)
-    } catch (error) {
-      console.error('Error saving:', error)
-      alert('Error al guardar: ' + (error as any).message)
-    } finally {
-      setSaving(false)
     }
   }
 
@@ -214,6 +203,22 @@ export default function EditarPerfilPage() {
       alert('Error al subir la foto: ' + (err instanceof Error ? err.message : 'Error desconocido'))
     } finally {
       setUploading(false)
+    }
+  }
+
+  const handleSaveBasicInfo = async (data: Partial<Medico>) => {
+    if (!medico) return
+    setSaving(true)
+    try {
+      const { error } = await supabase.from('doctors').update(data).eq('id', medico.id)
+      if (error) throw error
+      await loadData()
+      setActiveModal(null)
+    } catch (error) {
+      console.error('Error saving:', error)
+      alert('Error al guardar: ' + (error as any).message)
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -384,9 +389,12 @@ export default function EditarPerfilPage() {
         .fade-up { animation: fadeUp 0.4s ease-out; }
         .foto-ov { position: absolute; inset: 0; border-radius: 50%; background: rgba(55, 48, 163, 0.75); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; cursor: pointer; }
         .foto-wr:hover .foto-ov { opacity: 1; }
+        @keyframes spin { to { transform: rotate(360deg); } }
         input, select, textarea { font-family: 'DM Sans', sans-serif; }
       `}</style>
+
       <div style={{ maxWidth: 800, margin: '0 auto', padding: '24px 16px 60px' }}>
+        
         {/* Header */}
         <div className="fade-up" style={{ marginBottom: 24 }}>
           <button
@@ -410,12 +418,15 @@ export default function EditarPerfilPage() {
             Editar perfil
           </h1>
         </div>
+
         {/* 10 Tarjetas */}
         <div className="fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          
           {/* 1. Información Básica - CON UPLOAD DE FOTO */}
           <Card title="Información básica" onEdit={() => setActiveModal('basic')}>
             <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-              {/* ✅ FOTO CON HOVER OVERLAY */}
+              
+              {/* ✅ FOTO CON HOVER OVERLAY PARA UPLOAD */}
               <div className="foto-wr" style={{ position: 'relative' }}>
                 {medico.photo_url ? (
                   <img src={medico.photo_url} alt={medico.full_name} style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover' }} />
@@ -452,10 +463,12 @@ export default function EditarPerfilPage() {
               </div>
             </div>
           </Card>
+
           {/* 2. Introducción */}
           <Card title="Introducción" onEdit={() => setActiveModal('intro')}>
             <p style={{ fontSize: 14, color: medico.about_me ? '#1A1A2E' : '#9CA3AF' }}>{medico.about_me || '--'}</p>
           </Card>
+
           {/* 3. Datos Legales */}
           <Card title="Datos legales" onEdit={() => setActiveModal('licenses')}>
             {licenses.length > 0 ? (
@@ -476,10 +489,12 @@ export default function EditarPerfilPage() {
               <p style={{ fontSize: 14, color: '#9CA3AF' }}>--</p>
             )}
           </Card>
+
           {/* 4. Especialidades */}
           <Card title="Especialidades" onEdit={() => setActiveModal('specialties')}>
             <p style={{ fontSize: 14, color: '#1A1A2E' }}>{medico.specialty}</p>
           </Card>
+
           {/* 5. Enfermedades tratadas */}
           <Card title="Enfermedades tratadas" onEdit={() => setActiveModal('conditions')}>
             {conditions.length > 0 ? (
@@ -505,6 +520,7 @@ export default function EditarPerfilPage() {
               <p style={{ fontSize: 14, color: '#9CA3AF' }}>--</p>
             )}
           </Card>
+
           {/* 6. Tu experiencia */}
           <Card title="Tu experiencia" onEdit={() => setActiveModal('experience')}>
             {experience.length > 0 ? (
@@ -520,6 +536,7 @@ export default function EditarPerfilPage() {
               <p style={{ fontSize: 14, color: '#9CA3AF' }}>--</p>
             )}
           </Card>
+
           {/* 7. Educación */}
           <Card title="Educación" onEdit={() => setActiveModal('education')}>
             {education.length > 0 ? (
@@ -535,6 +552,7 @@ export default function EditarPerfilPage() {
               <p style={{ fontSize: 14, color: '#9CA3AF' }}>--</p>
             )}
           </Card>
+
           {/* 8. Idiomas */}
           <Card title="Idiomas" onEdit={() => setActiveModal('languages')}>
             {Array.isArray(medico.languages) && medico.languages.length > 0 ? (
@@ -545,6 +563,7 @@ export default function EditarPerfilPage() {
               <p style={{ fontSize: 14, color: '#9CA3AF' }}>--</p>
             )}
           </Card>
+
           {/* 9. Redes sociales */}
           <Card title="Redes sociales" onEdit={() => setActiveModal('social')}>
             {socialMedia.length > 0 ? (
@@ -562,6 +581,7 @@ export default function EditarPerfilPage() {
               <p style={{ fontSize: 14, color: '#9CA3AF' }}>--</p>
             )}
           </Card>
+
           {/* 10. Información para reservar */}
           <Card title="Información para reservar por teléfono" onEdit={() => setActiveModal('booking')}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -596,6 +616,7 @@ export default function EditarPerfilPage() {
           </Card>
         </div>
       </div>
+
       {/* Modales */}
       {activeModal && (
         <Modal onClose={() => setActiveModal(null)} title={getModalTitle(activeModal)}>
