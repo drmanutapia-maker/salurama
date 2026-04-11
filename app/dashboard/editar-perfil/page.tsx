@@ -1,9 +1,8 @@
 'use client'
-
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
-import { X, Edit2, Save, Plus, Trash2, ExternalLink, Phone, MessageCircle, Clock, MapPin, DollarSign, CreditCard, Shield, Calendar, Users, Accessibility } from 'lucide-react'
+import { X, Edit2, Save, Plus, Trash2, ExternalLink, Phone, MessageCircle, Clock, MapPin, DollarSign, CreditCard, Shield, Calendar, Users, Accessibility, Camera, Upload } from 'lucide-react'
 
 interface Medico {
   id: string
@@ -89,6 +88,7 @@ export default function EditarPerfilPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [medico, setMedico] = useState<Medico | null>(null)
   const [licenses, setLicenses] = useState<License[]>([])
   const [education, setEducation] = useState<Education[]>([])
@@ -96,6 +96,7 @@ export default function EditarPerfilPage() {
   const [socialMedia, setSocialMedia] = useState<SocialMedia[]>([])
   const [conditions, setConditions] = useState<Condition[]>([])
   const [activeModal, setActiveModal] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     loadData()
@@ -156,6 +157,63 @@ export default function EditarPerfilPage() {
       alert('Error al guardar: ' + (error as any).message)
     } finally {
       setSaving(false)
+    }
+  }
+
+  // ✅ FUNCIÓN PARA SUBIR FOTO
+  const handleFoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !medico) return
+    
+    if (!file.type.startsWith('image/')) {
+      alert('Por favor selecciona una imagen válida')
+      return
+    }
+    
+    if (file.size > 5 * 1024 * 1024) {
+      alert('La imagen no debe pesar más de 5MB')
+      return
+    }
+
+    setUploading(true)
+    try {
+      const ext = file.name.split('.').pop()
+      const name = `${medico.id}/profile.${ext}`
+
+      if (medico.photo_url) {
+        const oldPath = medico.photo_url.split('/doctor-photos/')[1]
+        if (oldPath) {
+          await supabase.storage.from('doctor-photos').remove([oldPath])
+        }
+      }
+
+      const { error: uploadError } = await supabase.storage
+        .from('doctor-photos')
+        .upload(name, file, { upsert: true, cacheControl: '0' })
+
+      if (uploadError) throw uploadError
+
+      const { data: urlData } = supabase.storage
+        .from('doctor-photos')
+        .getPublicUrl(name)
+
+      const urlWithTimestamp = `${urlData.publicUrl}?t=${Date.now()}`
+
+      const { error: updateError } = await supabase
+        .from('doctors')
+        .update({ photo_url: urlWithTimestamp })
+        .eq('id', medico.id)
+
+      if (updateError) throw updateError
+
+      setMedico(p => p ? { ...p, photo_url: urlWithTimestamp } : null)
+      
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    } catch (err) {
+      console.error('Error:', err)
+      alert('Error al subir la foto: ' + (err instanceof Error ? err.message : 'Error desconocido'))
+    } finally {
+      setUploading(false)
     }
   }
 
@@ -324,9 +382,10 @@ export default function EditarPerfilPage() {
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
         .fade-up { animation: fadeUp 0.4s ease-out; }
+        .foto-ov { position: absolute; inset: 0; border-radius: 50%; background: rgba(55, 48, 163, 0.75); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; cursor: pointer; }
+        .foto-wr:hover .foto-ov { opacity: 1; }
         input, select, textarea { font-family: 'DM Sans', sans-serif; }
       `}</style>
-
       <div style={{ maxWidth: 800, margin: '0 auto', padding: '24px 16px 60px' }}>
         {/* Header */}
         <div className="fade-up" style={{ marginBottom: 24 }}>
@@ -351,20 +410,40 @@ export default function EditarPerfilPage() {
             Editar perfil
           </h1>
         </div>
-
         {/* 10 Tarjetas */}
         <div className="fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          
-          {/* 1. Información Básica */}
+          {/* 1. Información Básica - CON UPLOAD DE FOTO */}
           <Card title="Información básica" onEdit={() => setActiveModal('basic')}>
             <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-              {medico.photo_url ? (
-                <img src={medico.photo_url} alt={medico.full_name} style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover' }} />
-              ) : (
-                <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'linear-gradient(135deg,#3730A3,#F4623A)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 28, color: '#fff' }}>
-                  {(medico.full_name || '?')[0].toUpperCase()}
+              {/* ✅ FOTO CON HOVER OVERLAY */}
+              <div className="foto-wr" style={{ position: 'relative' }}>
+                {medico.photo_url ? (
+                  <img src={medico.photo_url} alt={medico.full_name} style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover' }} />
+                ) : (
+                  <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'linear-gradient(135deg,#3730A3,#F4623A)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 28, color: '#fff' }}>
+                    {(medico.full_name || '?')[0].toUpperCase()}
+                  </div>
+                )}
+                
+                {/* Overlay con ícono de cámara */}
+                <div className="foto-ov" onClick={() => fileInputRef.current?.click()}>
+                  {uploading ? (
+                    <div style={{ width: 24, height: 24, border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+                  ) : (
+                    <Camera size={24} color="#fff" />
+                  )}
                 </div>
-              )}
+                
+                {/* Input file oculto */}
+                <input 
+                  ref={fileInputRef} 
+                  type="file" 
+                  accept="image/*" 
+                  onChange={handleFoto} 
+                  style={{ display: 'none' }} 
+                />
+              </div>
+
               <div style={{ flex: 1 }}>
                 <p style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>{medico.full_name}</p>
                 <p style={{ fontSize: 14, color: '#6B7280', marginBottom: 2 }}>{medico.specialty}</p>
@@ -373,12 +452,10 @@ export default function EditarPerfilPage() {
               </div>
             </div>
           </Card>
-
           {/* 2. Introducción */}
           <Card title="Introducción" onEdit={() => setActiveModal('intro')}>
             <p style={{ fontSize: 14, color: medico.about_me ? '#1A1A2E' : '#9CA3AF' }}>{medico.about_me || '--'}</p>
           </Card>
-
           {/* 3. Datos Legales */}
           <Card title="Datos legales" onEdit={() => setActiveModal('licenses')}>
             {licenses.length > 0 ? (
@@ -399,12 +476,10 @@ export default function EditarPerfilPage() {
               <p style={{ fontSize: 14, color: '#9CA3AF' }}>--</p>
             )}
           </Card>
-
           {/* 4. Especialidades */}
           <Card title="Especialidades" onEdit={() => setActiveModal('specialties')}>
             <p style={{ fontSize: 14, color: '#1A1A2E' }}>{medico.specialty}</p>
           </Card>
-
           {/* 5. Enfermedades tratadas */}
           <Card title="Enfermedades tratadas" onEdit={() => setActiveModal('conditions')}>
             {conditions.length > 0 ? (
@@ -430,7 +505,6 @@ export default function EditarPerfilPage() {
               <p style={{ fontSize: 14, color: '#9CA3AF' }}>--</p>
             )}
           </Card>
-
           {/* 6. Tu experiencia */}
           <Card title="Tu experiencia" onEdit={() => setActiveModal('experience')}>
             {experience.length > 0 ? (
@@ -446,7 +520,6 @@ export default function EditarPerfilPage() {
               <p style={{ fontSize: 14, color: '#9CA3AF' }}>--</p>
             )}
           </Card>
-
           {/* 7. Educación */}
           <Card title="Educación" onEdit={() => setActiveModal('education')}>
             {education.length > 0 ? (
@@ -462,7 +535,6 @@ export default function EditarPerfilPage() {
               <p style={{ fontSize: 14, color: '#9CA3AF' }}>--</p>
             )}
           </Card>
-
           {/* 8. Idiomas */}
           <Card title="Idiomas" onEdit={() => setActiveModal('languages')}>
             {Array.isArray(medico.languages) && medico.languages.length > 0 ? (
@@ -473,7 +545,6 @@ export default function EditarPerfilPage() {
               <p style={{ fontSize: 14, color: '#9CA3AF' }}>--</p>
             )}
           </Card>
-
           {/* 9. Redes sociales */}
           <Card title="Redes sociales" onEdit={() => setActiveModal('social')}>
             {socialMedia.length > 0 ? (
@@ -491,7 +562,6 @@ export default function EditarPerfilPage() {
               <p style={{ fontSize: 14, color: '#9CA3AF' }}>--</p>
             )}
           </Card>
-
           {/* 10. Información para reservar */}
           <Card title="Información para reservar por teléfono" onEdit={() => setActiveModal('booking')}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -524,10 +594,8 @@ export default function EditarPerfilPage() {
               )}
             </div>
           </Card>
-
         </div>
       </div>
-
       {/* Modales */}
       {activeModal && (
         <Modal onClose={() => setActiveModal(null)} title={getModalTitle(activeModal)}>
@@ -548,7 +616,6 @@ export default function EditarPerfilPage() {
 }
 
 // ==================== COMPONENTES AUXILIARES ====================
-
 function Card({ title, children, onEdit }: { title: string; children: React.ReactNode; onEdit: () => void }) {
   return (
     <div style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1.5px solid #E5E7EB' }}>
@@ -594,8 +661,7 @@ function Modal({ children, onClose, title }: { children: React.ReactNode; onClos
   )
 }
 
-// ==================== FORMULARIOS ====================
-
+// ==================== FORMULARIOS (mismos que antes) ====================
 function BasicInfoForm({ medico, onSave, saving }: { medico: Medico; onSave: (data: any) => void; saving: boolean }) {
   const [formData, setFormData] = useState({
     full_name: medico.full_name,
@@ -604,12 +670,10 @@ function BasicInfoForm({ medico, onSave, saving }: { medico: Medico; onSave: (da
     clinic_address: medico.clinic_address || '',
     website_url: medico.website_url || '',
   })
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     onSave(formData)
   }
-
   return (
     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div>
@@ -1285,7 +1349,6 @@ function BookingForm({ medico, onSave, saving }: { medico: Medico; onSave: (data
     max_patient_age: medico.max_patient_age || '',
     cancellation_policy: medico.cancellation_policy || '',
   })
-
   const togglePaymentMethod = (method: string) => {
     setFormData(prev => ({
       ...prev,
@@ -1294,7 +1357,6 @@ function BookingForm({ medico, onSave, saving }: { medico: Medico; onSave: (data
         : [...prev.payment_methods, method]
     }))
   }
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     onSave({
@@ -1306,10 +1368,8 @@ function BookingForm({ medico, onSave, saving }: { medico: Medico; onSave: (data
       max_patient_age: formData.max_patient_age ? Number(formData.max_patient_age) : null,
     })
   }
-
   return (
     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      
       {/* Costos */}
       <div>
         <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -1377,7 +1437,6 @@ function BookingForm({ medico, onSave, saving }: { medico: Medico; onSave: (data
           </div>
         </div>
       </div>
-
       {/* Seguros */}
       <div>
         <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -1429,7 +1488,6 @@ function BookingForm({ medico, onSave, saving }: { medico: Medico; onSave: (data
           </div>
         )}
       </div>
-
       {/* Contacto */}
       <div>
         <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -1467,7 +1525,6 @@ function BookingForm({ medico, onSave, saving }: { medico: Medico; onSave: (data
           <MessageCircle size={16} color="#25D366" /> Disponible por WhatsApp
         </label>
       </div>
-
       {/* Pacientes */}
       <div>
         <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -1496,7 +1553,6 @@ function BookingForm({ medico, onSave, saving }: { medico: Medico; onSave: (data
           </div>
         </div>
       </div>
-
       {/* Botón Guardar */}
       <button
         type="submit"

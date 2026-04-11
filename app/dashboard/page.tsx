@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { User, LogOut, CheckCircle, Upload, X, ZoomIn, Calendar, MessageCircle } from 'lucide-react'
+import { User, LogOut, CheckCircle, X, ZoomIn, Calendar, MessageCircle } from 'lucide-react'
 
 interface Medico {
   id: string
@@ -33,11 +33,8 @@ export default function DashboardMedico() {
   const router = useRouter()
   const [medico, setMedico] = useState<Medico | null>(null)
   const [loading, setLoading] = useState(true)
-  const [uploading, setUploading] = useState(false)
-  const [showPhotoMenu, setShowPhotoMenu] = useState(false)
   const [showPhotoModal, setShowPhotoModal] = useState(false)
   const [citasResumen, setCitasResumen] = useState<CitaResumen | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     async function load() {
@@ -46,15 +43,18 @@ export default function DashboardMedico() {
         router.push('/login')
         return
       }
+
       const { data, error } = await supabase
         .from('doctors')
         .select('*')
         .eq('email', user.email)
         .single()
+
       if (error || !data) {
         router.push('/login')
         return
       }
+
       setMedico(data)
 
       // Obtener resumen de citas
@@ -87,55 +87,6 @@ export default function DashboardMedico() {
     router.push('/')
   }
 
-  const handleFoto = async (file: File) => {
-    if (!medico) return
-    if (!file.type.startsWith('image/')) {
-      alert('Por favor selecciona una imagen válida')
-      return
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      alert('La imagen no debe pesar más de 5MB')
-      return
-    }
-    setUploading(true)
-    try {
-      const ext = file.name.split('.').pop()
-      const name = `${medico.id}/profile.${ext}`
-      if (medico.photo_url) {
-        const oldPath = medico.photo_url.split('/doctor-photos/')[1]
-        if (oldPath) {
-          await supabase.storage.from('doctor-photos').remove([oldPath])
-        }
-      }
-      const { error: uploadError } = await supabase.storage
-        .from('doctor-photos')
-        .upload(name, file, { upsert: true, cacheControl: '0' })
-      if (uploadError) throw uploadError
-      const { data: urlData } = supabase.storage
-        .from('doctor-photos')
-        .getPublicUrl(name)
-      const urlWithTimestamp = `${urlData.publicUrl}?t=${Date.now()}`
-      const { error: updateError } = await supabase
-        .from('doctors')
-        .update({ photo_url: urlWithTimestamp })
-        .eq('id', medico.id)
-      if (updateError) throw updateError
-      setMedico(p => p ? { ...p, photo_url: urlWithTimestamp } : null)
-      setShowPhotoMenu(false)
-      if (fileInputRef.current) fileInputRef.current.value = ''
-    } catch (err) {
-      console.error('Error:', err)
-      alert('Error al subir la foto: ' + (err instanceof Error ? err.message : 'Error desconocido'))
-    } finally {
-      setUploading(false)
-    }
-  }
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) handleFoto(file)
-  }
-
   if (loading) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif" }}>
@@ -162,10 +113,12 @@ export default function DashboardMedico() {
       `}</style>
 
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 16px 60px' }}>
+
         {/* HEADER */}
         <div className="fade-up" style={{ background: '#fff', borderRadius: 16, padding: '24px 20px', marginBottom: 20, border: '1px solid #E5E7EB' }}>
           <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-            {/* Foto */}
+            
+            {/* Foto - SOLO CLICK PARA ZOOM */}
             <div style={{ position: 'relative' }}>
               {medico.photo_url ? (
                 <div onClick={() => setShowPhotoModal(true)} style={{ cursor: 'pointer', position: 'relative' }}>
@@ -179,14 +132,8 @@ export default function DashboardMedico() {
                   {(medico.full_name || '?')[0].toUpperCase()}
                 </div>
               )}
-              <label onClick={() => setShowPhotoMenu(true)} style={{ position: 'absolute', bottom: 0, right: 0, background: uploading ? '#9CA3AF' : '#3730A3', borderRadius: '50%', padding: 8, cursor: uploading ? 'not-allowed' : 'pointer', border: '3px solid #fff', opacity: uploading ? 0.6 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>
-                {uploading ? (
-                  <div style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-                ) : (
-                  <Upload size={16} color="#fff" />
-                )}
-                <input type="file" accept="image/*" onChange={handleFileSelect} style={{ display: 'none' }} ref={fileInputRef} />
-              </label>
+              
+              {/* ✅ ÍCONO DE UPLOAD ELIMINADO - Solo foto clicable para zoom */}
             </div>
 
             {/* Info */}
@@ -201,7 +148,7 @@ export default function DashboardMedico() {
           </div>
         </div>
 
-        {/* MENSAJE DE ESTADO - ACTUALIZADO */}
+        {/* MENSAJE DE ESTADO */}
         <div className="fade-up" style={{ background: '#DCFCE7', border: '1px solid #86EFAC', borderRadius: 12, padding: '16px 18px', marginBottom: 20, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
           <CheckCircle size={20} color="#059669" style={{ flexShrink: 0, marginTop: 1 }} />
           <div>
@@ -214,7 +161,7 @@ export default function DashboardMedico() {
           </div>
         </div>
 
-        {/* GRID DE SECCIONES - SIMPLIFICADO */}
+        {/* GRID DE SECCIONES */}
         <div className="fade-up" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: 16 }}>
           
           {/* Información Básica */}
@@ -246,12 +193,13 @@ export default function DashboardMedico() {
                 <p style={{ fontSize: 14, color: '#1A1A2E' }}>{medico.clinic_address || 'No registrada'}</p>
               </div>
             </div>
-            <Link href="/dashboard/perfil" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 16, fontSize: 13, color: '#3730A3', fontWeight: 600, textDecoration: 'none' }}>
+            {/* ✅ Link actualizado a editar-perfil */}
+            <Link href="/dashboard/editar-perfil" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 16, fontSize: 13, color: '#3730A3', fontWeight: 600, textDecoration: 'none' }}>
               Editar información →
             </Link>
           </div>
 
-          {/* Citas Solicitadas - NUEVA SECCIÓN */}
+          {/* Citas Solicitadas */}
           <div style={{ background: '#fff', borderRadius: 16, padding: '20px', border: '1px solid #E5E7EB' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
               <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 900, color: '#1A1A2E' }}>
@@ -263,7 +211,7 @@ export default function DashboardMedico() {
                 </span>
               )}
             </div>
-            
+
             {citasResumen && citasResumen.count > 0 ? (
               <div style={{ marginBottom: 16 }}>
                 {citasResumen.ultima_cita && (
@@ -331,43 +279,10 @@ export default function DashboardMedico() {
               </div>
             )}
           </div>
-
         </div>
-
-        {/* Mensaje discreto de verificación - ELIMINADO (redundante) */}
       </div>
 
-      {/* MODAL DE SELECCIÓN DE FOTO */}
-      {showPhotoMenu && (
-        <div className="fade-in" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
-          <div style={{ position: 'absolute', inset: 0 }} onClick={() => setShowPhotoMenu(false)} />
-          <div style={{ background: '#fff', borderRadius: '20px 20px 0 0', padding: '24px 20px', maxWidth: 500, width: '100%', position: 'relative', boxShadow: '0 -4px 24px rgba(0,0,0,0.1)' }}>
-            <button onClick={() => setShowPhotoMenu(false)} style={{ position: 'absolute', top: 16, right: 16, background: '#F3F4F6', border: 'none', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-              <X size={18} color="#6B7280" />
-            </button>
-            <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 900, color: '#1A1A2E', marginBottom: 20, textAlign: 'center' }}>
-              Actualizar foto de perfil
-            </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px', background: '#F9FAFB', borderRadius: 12, cursor: 'pointer', border: '1.5px solid #E5E7EB' }}>
-                <div style={{ width: 48, height: 48, borderRadius: 12, background: '#3730A3', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Upload size={24} color="#fff" />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <p style={{ fontSize: 15, fontWeight: 600, color: '#1A1A2E' }}>Elegir del álbum</p>
-                  <p style={{ fontSize: 13, color: '#6B7280' }}>Seleccionar de la galería</p>
-                </div>
-                <input type="file" accept="image/*" onChange={handleFileSelect} style={{ display: 'none' }} ref={fileInputRef} />
-              </label>
-            </div>
-            <button onClick={() => setShowPhotoMenu(false)} style={{ width: '100%', background: '#F3F4F6', color: '#6B7280', border: 'none', borderRadius: 50, padding: '14px', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", marginTop: 16 }}>
-              Cancelar
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL DE FOTO AMPLIADA */}
+      {/* ✅ MODAL DE FOTO AMPLIADA (solo para ver) */}
       {showPhotoModal && medico.photo_url && (
         <div className="fade-in" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
           <button onClick={() => setShowPhotoModal(false)} style={{ position: 'absolute', top: 20, right: 20, background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', width: 48, height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>

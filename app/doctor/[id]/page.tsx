@@ -232,6 +232,9 @@ export default function PerfilMedico() {
   // Verificación CONACEM — modal informativo intencional
   const [showConacemModal, setShowConacemModal] = useState(false)
 
+  // ✅ NUEVO: Modal para ver foto (móvil, no owner)
+  const [showPhotoModal, setShowPhotoModal] = useState(false)
+
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -687,7 +690,6 @@ export default function PerfilMedico() {
   // ─────────────────────────────────────────────
   // RENDER PRINCIPAL
   // ─────────────────────────────────────────────
-
   // Snippet "Sobre mí": máximo 180 caracteres + "..."
   const snippetAboutMe = medico.about_me
     ? medico.about_me.length > 180
@@ -733,7 +735,27 @@ export default function PerfilMedico() {
               <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
                 <div style={{ position: 'relative', flexShrink: 0 }} className="foto-wr">
                   {medico.photo_url
-                    ? <img src={medico.photo_url} alt={medico.full_name} style={{ width: 84, height: 84, borderRadius: '50%', objectFit: 'cover', border: '3px solid #EEF2FF' }} />
+                    ? <img
+                        src={medico.photo_url}
+                        alt={medico.full_name}
+                        style={{
+                          width: 84,
+                          height: 84,
+                          borderRadius: '50%',
+                          objectFit: 'cover',
+                          border: '3px solid #EEF2FF',
+                          cursor: isMobile ? 'pointer' : 'default'
+                        }}
+                        onClick={() => {
+                          if (isMobile && !isOwner) {
+                            // ✅ En móvil, si NO es owner, abrir modal para ver foto
+                            setShowPhotoModal(true)
+                          } else if (isOwner) {
+                            // ✅ Si es owner, subir foto
+                            fileInputRef.current?.click()
+                          }
+                        }}
+                      />
                     : <div style={{ width: 84, height: 84, borderRadius: '50%', background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Fraunces', serif", fontSize: 32, fontWeight: 900, color: '#3730A3' }}>
                         {(medico.full_name || '?')[0].toUpperCase()}
                       </div>
@@ -1262,6 +1284,31 @@ export default function PerfilMedico() {
                 <ExternalLink size={14} /> Abrir portal CONACEM
               </a>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ NUEVO: MODAL PARA VER FOTO (móvil, no owner) */}
+      {showPhotoModal && medico.photo_url && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 4000, padding: 20 }}
+          onClick={() => setShowPhotoModal(false)}
+        >
+          <div
+            style={{ position: 'relative', maxWidth: '100%', maxHeight: '100%' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setShowPhotoModal(false)}
+              style={{ position: 'absolute', top: -40, right: 0, background: 'none', border: 'none', color: '#fff', cursor: 'pointer', zIndex: 10 }}
+            >
+              <X size={32} />
+            </button>
+            <img
+              src={medico.photo_url}
+              alt={medico.full_name}
+              style={{ maxWidth: '100%', maxHeight: '80vh', borderRadius: 16, boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}
+            />
           </div>
         </div>
       )}
