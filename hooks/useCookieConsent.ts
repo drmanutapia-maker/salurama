@@ -18,6 +18,20 @@ export function useCookieConsent() {
   const [isBannerVisible, setIsBannerVisible] = useState(false)
 
   useEffect(() => {
+    if (typeof window === 'undefined') return
+    
+    // Reset por URL para desarrollo: ?reset-cookies
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('reset-cookies')) {
+      localStorage.removeItem(COOKIE_CONSENT_KEY)
+      document.cookie = `${COOKIE_CONSENT_KEY}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`
+      setConsent(null)
+      setIsBannerVisible(true)
+      // Limpiar URL sin recargar
+      window.history.replaceState({}, '', window.location.pathname)
+      return
+    }
+    
     const stored = localStorage.getItem(COOKIE_CONSENT_KEY)
     if (stored) {
       try {

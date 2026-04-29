@@ -1,87 +1,57 @@
 'use client'
-
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Mail, MapPin, Stethoscope, CheckCircle, AlertCircle, Eye, EyeOff, ShieldCheck, Info } from 'lucide-react'
+import { useCP } from '@/hooks/useCP'
 
+// Especialidades médicas - TODAS incluidas
 const ESPECIALIDADES = [
-  'Alergología','Anestesiología','Angiología','Cardiología',
-  'Cirugía Cardiovascular','Cirugía General','Cirugía Plástica','Dermatología',
-  'Endocrinología','Gastroenterología','Geriatría','Ginecología y Obstetricia',
-  'Hematología','Infectología','Medicina Familiar','Medicina Física y Rehabilitación',
-  'Medicina Interna','Nefrología','Neumología','Neurología',
-  'Neurocirugía','Nutriología','Oftalmología','Oncología',
-  'Ortopedia y Traumatología','Otorrinolaringología','Pediatría','Psiquiatría',
-  'Radiología','Reumatología','Urología','Otra especialidad'
+  'Alergología', 'Anestesiología', 'Angiología', 'Cardiología',
+  'Cirugía Cardiovascular', 'Cirugía General', 'Cirugía Plástica', 'Dermatología',
+  'Endocrinología', 'Gastroenterología', 'Geriatría', 'Ginecología y Obstetricia',
+  'Hematología', 'Infectología', 'Medicina Familiar', 'Medicina Física y Rehabilitación',
+  'Medicina Interna', 'Nefrología', 'Neumología', 'Neurología',
+  'Neurocirugía', 'Nutriología', 'Oftalmología', 'Oncología',
+  'Ortopedia y Traumatología', 'Otorrinolaringología', 'Pediatría', 'Psiquiatría',
+  'Radiología', 'Reumatología', 'Urología', 'Otra especialidad'
 ]
 
-// Consejos de especialidad más frecuentes en México (auto-fill)
+// Consejos de especialidad - TODAS las especialidades incluidas
 const CONSEJOS_ESPECIALIDAD: Record<string, string> = {
+  'Alergología': 'Consejo Mexicano de Alergología e Inmunología',
+  'Anestesiología': 'Consejo Mexicano de Anestesiología',
+  'Angiología': 'Consejo Mexicano de Angiología y Cirugía Vascular',
   'Cardiología': 'Consejo Mexicano de Cardiología',
+  'Cirugía Cardiovascular': 'Consejo Mexicano de Cirugía Cardiovascular',
+  'Cirugía General': 'Consejo Mexicano de Cirugía General',
+  'Cirugía Plástica': 'Consejo Mexicano de Cirugía Plástica, Estética y Reconstructiva',
   'Dermatología': 'Consejo Mexicano de Dermatología',
+  'Endocrinología': 'Consejo Mexicano de Endocrinología',
+  'Gastroenterología': 'Consejo Mexicano de Gastroenterología',
+  'Geriatría': 'Consejo Mexicano de Geriatría',
   'Ginecología y Obstetricia': 'Consejo Mexicano de Ginecología y Obstetricia',
   'Hematología': 'Consejo Mexicano de Hematología',
+  'Infectología': 'Consejo Mexicano de Infectología',
+  'Medicina Familiar': 'Consejo Mexicano de Medicina Familiar',
+  'Medicina Física y Rehabilitación': 'Consejo Mexicano de Medicina Física y Rehabilitación',
   'Medicina Interna': 'Consejo Mexicano de Medicina Interna',
+  'Nefrología': 'Consejo Mexicano de Nefrología',
+  'Neumología': 'Consejo Mexicano de Neumología',
   'Neurología': 'Consejo Mexicano de Neurología',
+  'Neurocirugía': 'Consejo Mexicano de Neurocirugía',
+  'Nutriología': 'Consejo Mexicano de Nutriología',
   'Oftalmología': 'Consejo Mexicano de Oftalmología',
   'Oncología': 'Consejo Mexicano de Oncología',
   'Ortopedia y Traumatología': 'Consejo Mexicano de Ortopedia y Traumatología',
-  'Pediatría': 'Consejo Mexicano de Certificación en Pediatría',
+  'Otorrinolaringología': 'Consejo Mexicano de Otorrinolaringología y Cirugía de Cabeza y Cuello',
+  'Pediatría': 'Consejo Mexicano de Pediatría',
   'Psiquiatría': 'Consejo Mexicano de Psiquiatría',
-  'Urología': 'Consejo Mexicano de Urología',
-  'Cirugía General': 'Consejo Mexicano de Cirugía General',
-  'Endocrinología': 'Consejo Mexicano de Endocrinología',
-  'Gastroenterología': 'Consejo Mexicano de Gastroenterología',
-  'Neumología': 'Consejo Mexicano de Neumología',
-  'Reumatología': 'Consejo Mexicano de Reumatología',
   'Radiología': 'Consejo Mexicano de Radiología e Imagen',
-}
-
-const ESTADOS_MEXICO = [
-  'Aguascalientes','Baja California','Baja California Sur','Campeche',
-  'Chiapas','Chihuahua','Ciudad de México','Coahuila','Colima',
-  'Durango','Guanajuato','Guerrero','Hidalgo','Jalisco',
-  'México','Michoacán','Morelos','Nayarit','Nuevo León',
-  'Oaxaca','Puebla','Querétaro','Quintana Roo','San Luis Potosí',
-  'Sinaloa','Sonora','Tabasco','Tamaulipas','Tlaxcala',
-  'Veracruz','Yucatán','Zacatecas'
-]
-
-const CIUDADES_POR_ESTADO: Record<string, string[]> = {
-  'Aguascalientes': ['Aguascalientes','Calvillo','Rincón de Romos'],
-  'Baja California': ['Tijuana','Mexicali','Ensenada','Playas de Rosarito','Tecate'],
-  'Baja California Sur': ['La Paz','Los Cabos','Loreto','Comondú'],
-  'Campeche': ['Campeche','Ciudad del Carmen','Champotón'],
-  'Chiapas': ['Tuxtla Gutiérrez','Tapachula','San Cristóbal de las Casas','Comitán'],
-  'Chihuahua': ['Chihuahua','Ciudad Juárez','Delicias','Cuauhtémoc','Parral'],
-  'Ciudad de México': ['Ciudad de México'],
-  'Coahuila': ['Saltillo','Torreón','Monclova','Piedras Negras','Acuña'],
-  'Colima': ['Colima','Manzanillo','Tecomán','Villa de Álvarez'],
-  'Durango': ['Durango','Gómez Palacio','Lerdo','Santiago Papasquiaro'],
-  'Guanajuato': ['León','Irapuato','Celaya','Salamanca','Guanajuato','Silao'],
-  'Guerrero': ['Acapulco','Chilpancingo','Iguala','Taxco','Zihuatanejo'],
-  'Hidalgo': ['Pachuca','Tulancingo','Huejutla','Ixmiquilpan'],
-  'Jalisco': ['Guadalajara','Zapopan','Tlaquepaque','Tonalá','Puerto Vallarta','Tlajomulco'],
-  'México': ['Toluca','Ecatepec','Nezahualcóyotl','Naucalpan','Tlalnepantla','Cuautitlán Izcalli'],
-  'Michoacán': ['Morelia','Uruapan','Zamora','Lázaro Cárdenas','Apatzingán'],
-  'Morelos': ['Cuernavaca','Jiutepec','Temixco','Cuautla'],
-  'Nayarit': ['Tepic','Bahía de Banderas','Santiago Ixcuintla'],
-  'Nuevo León': ['Monterrey','Guadalupe','San Nicolás de los Garza','Apodaca','Santa Catarina','San Pedro Garza García'],
-  'Oaxaca': ['Oaxaca de Juárez','Salina Cruz','Tuxtepec','Juchitán'],
-  'Puebla': ['Puebla','Tehuacán','San Martín Texmelucan','Atlixco','Cholula'],
-  'Querétaro': ['Querétaro','San Juan del Río','Corregidora','El Marqués'],
-  'Quintana Roo': ['Cancún','Playa del Carmen','Chetumal','Cozumel','Tulum'],
-  'San Luis Potosí': ['San Luis Potosí','Soledad de Graciano Sánchez','Ciudad Valles','Matehuala'],
-  'Sinaloa': ['Culiacán','Mazatlán','Los Mochis','Guasave','Guamúchil'],
-  'Sonora': ['Hermosillo','Ciudad Obregón','Nogales','San Luis Río Colorado','Navojoa'],
-  'Tabasco': ['Villahermosa','Cárdenas','Comalcalco','Huimanguillo'],
-  'Tamaulipas': ['Ciudad Victoria','Reynosa','Matamoros','Tampico','Nuevo Laredo','Madero'],
-  'Tlaxcala': ['Tlaxcala','Huamantla','Apizaco','Chiautempan'],
-  'Veracruz': ['Veracruz','Xalapa','Coatzacoalcos','Poza Rica','Córdoba','Orizaba','Minatitlán'],
-  'Yucatán': ['Mérida','Valladolid','Tizimín','Progreso','Ticul'],
-  'Zacatecas': ['Zacatecas','Fresnillo','Guadalupe','Jerez']
+  'Reumatología': 'Consejo Mexicano de Reumatología',
+  'Urología': 'Consejo Mexicano de Urología',
+  'Otra especialidad': '',
 }
 
 interface FormData {
@@ -92,9 +62,7 @@ interface FormData {
   specialty: string
   professional_license: string
   specialty_council: string
-  description: string
-  consultation_price: string
-  phone: string
+  license_not_current: boolean
   location_state: string
   location_city: string
   location_neighborhood: string
@@ -111,12 +79,16 @@ export default function RegistroMedico() {
   const [showPass, setShowPass] = useState(false)
   const [showPass2, setShowPass2] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<Record<string, boolean>>({})
-  const [ciudades, setCiudades] = useState<string[]>([])
   const [showCouncilTooltip, setShowCouncilTooltip] = useState(false)
+  const [coloniasManuales, setColoniasManuales] = useState(false)
+  
   const refPaso1 = useRef<HTMLInputElement>(null)
   const refPaso2 = useRef<HTMLInputElement>(null)
   const refPaso3 = useRef<HTMLInputElement>(null)
-
+  
+  // Hook para CP
+  const { loading: loadingCP, error: errorCP, cpData, search, formatCP } = useCP()
+  
   const [form, setForm] = useState<FormData>({
     email: '',
     password: '',
@@ -125,9 +97,7 @@ export default function RegistroMedico() {
     specialty: '',
     professional_license: '',
     specialty_council: '',
-    description: '',
-    consultation_price: '',
-    phone: '',
+    license_not_current: false,
     location_state: '',
     location_city: '',
     location_neighborhood: '',
@@ -135,12 +105,39 @@ export default function RegistroMedico() {
     terms_accepted: false,
   })
 
+  // ✅ SCROLL AL TOP - Al montar el componente (primera carga)
+  useEffect(() => {
+    window.scrollTo(0, 0)
+    if (document.body) document.body.scrollTop = 0
+    if (document.documentElement) document.documentElement.scrollTop = 0
+  }, [])
+
+  // ✅ SCROLL AL TOP - Cuando cambia el paso
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+    setTimeout(() => window.scrollTo(0, 0), 100)
+  }, [step])
+
   // Auto-fill consejo cuando cambia especialidad
   useEffect(() => {
     if (form.specialty && CONSEJOS_ESPECIALIDAD[form.specialty]) {
       setForm(p => ({ ...p, specialty_council: CONSEJOS_ESPECIALIDAD[form.specialty] }))
     }
   }, [form.specialty])
+
+  // Auto-fill estado y municipio cuando cambia CP
+  useEffect(() => {
+    if (cpData) {
+      setForm(p => ({
+        ...p,
+        location_state: cpData.estado,
+        location_city: cpData.municipio,
+      }))
+      if (cpData.colonias.length === 1) {
+        setForm(p => ({ ...p, location_neighborhood: cpData.colonias[0].nombre }))
+      }
+    }
+  }, [cpData])
 
   // Focus al cambiar de paso
   useEffect(() => {
@@ -151,18 +148,6 @@ export default function RegistroMedico() {
     }, 100)
     return () => clearTimeout(timer)
   }, [step])
-
-  // Ciudades por estado
-  useEffect(() => {
-    if (form.location_state && CIUDADES_POR_ESTADO[form.location_state]) {
-      setCiudades(CIUDADES_POR_ESTADO[form.location_state])
-      if (!CIUDADES_POR_ESTADO[form.location_state].includes(form.location_city)) {
-        setForm(p => ({ ...p, location_city: '' }))
-      }
-    } else {
-      setCiudades([])
-    }
-  }, [form.location_state])
 
   const handle = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target
@@ -193,12 +178,12 @@ export default function RegistroMedico() {
       return { msg: null, errors: {} }
     },
     3: () => {
-      if (!form.phone.replace(/\D/g, '').match(/^\d{10}$/))
-        return { msg: '10 dígitos. Ejemplo: 55 1234 5678', errors: { phone: true } }
       if (!form.location_state)
-        return { msg: 'Selecciona tu estado', errors: { location_state: true } }
+        return { msg: 'Ingresa un código postal válido', errors: { location_state: true } }
       if (!form.location_city.trim())
         return { msg: 'Selecciona tu ciudad', errors: { location_city: true } }
+      if (!form.location_neighborhood.trim())
+        return { msg: 'Selecciona o escribe tu colonia', errors: { location_neighborhood: true } }
       if (!form.terms_accepted)
         return { msg: 'Necesitas aceptar los términos para continuar', errors: { terms_accepted: true } }
       return { msg: null, errors: {} }
@@ -238,9 +223,8 @@ export default function RegistroMedico() {
         specialty: form.specialty,
         professional_license: form.professional_license.replace(/\s/g, ''),
         specialty_council: form.specialty_council.trim() || null,
-        description: form.description.trim() || null,
-        consultation_price: parseFloat(form.consultation_price) || 0,
-        phone: form.phone.replace(/\D/g, ''),
+        license_not_current: form.license_not_current,
+        location_state: form.location_state.trim(),
         location_city: form.location_city.trim(),
         location_neighborhood: form.location_neighborhood.trim() || null,
         address: form.address.trim() || null,
@@ -262,7 +246,7 @@ export default function RegistroMedico() {
   const fs = (name: string): React.CSSProperties => ({
     width: '100%',
     padding: '13px 15px',
-    border: `1.5px solid ${fieldErrors[name] ? '#DC2626' : '#E5E7EB'}`,
+    border: `1.5px solid ${fieldErrors[name] ? '#EF4444' : '#E5E7EB'}`,
     borderRadius: 10,
     fontSize: 15,
     fontFamily: "'DM Sans', sans-serif",
@@ -275,11 +259,11 @@ export default function RegistroMedico() {
   if (success) return (
     <div style={{ minHeight: '100vh', background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, fontFamily: "'DM Sans', sans-serif" }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@900&family=DM+Sans:wght@400;700&display=swap'); *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }`}</style>
-      <div style={{ background: '#fff', borderRadius: 22, padding: 'clamp(32px, 8vw, 48px)', maxWidth: 440, width: '100%', textAlign: 'center', boxShadow: '0 16px 48px rgba(55,48,163,0.1)' }}>
-        <div style={{ width: 76, height: 76, borderRadius: '50%', background: '#3730A3', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+      <div style={{ background: '#fff', borderRadius: 22, padding: 'clamp(32px, 8vw, 48px)', maxWidth: 440, width: '100%', textAlign: 'center', boxShadow: '0 16px 48px rgba(30,58,95,0.1)' }}>
+        <div style={{ width: 76, height: 76, borderRadius: '50%', background: '#1E3A5F', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
           <CheckCircle size={38} color="#fff" />
         </div>
-        <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 28, fontWeight: 900, color: '#3730A3', marginBottom: 10 }}>
+        <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 28, fontWeight: 900, color: '#1E3A5F', marginBottom: 10 }}>
           ¡Bienvenido a Salurama!
         </h2>
         <p style={{ color: '#6B7280', fontSize: 14, lineHeight: 1.75, marginBottom: 6 }}>
@@ -289,7 +273,7 @@ export default function RegistroMedico() {
         <p style={{ color: '#9CA3AF', fontSize: 13, marginBottom: 28 }}>
           Te avisaremos por email cuando estés visible para los pacientes.
         </p>
-        <Link href="/" style={{ display: 'inline-block', background: '#3730A3', color: '#fff', padding: '12px 28px', borderRadius: 50, textDecoration: 'none', fontWeight: 700, fontSize: 14 }}>
+        <Link href="/" style={{ display: 'inline-block', background: '#1E3A5F', color: '#fff', padding: '12px 28px', borderRadius: 50, textDecoration: 'none', fontWeight: 700, fontSize: 14 }}>
           Ir al inicio
         </Link>
       </div>
@@ -298,36 +282,33 @@ export default function RegistroMedico() {
 
   // ── Formulario ─────────────────────────────────────────────────────────────
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #EEF2FF 0%, #fff 40%)', fontFamily: "'DM Sans', sans-serif", color: '#1A1A2E' }}>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #EEF2FF 0%, #fff 40%)', fontFamily: "'DM Sans', sans-serif", color: '#1A1A2E', paddingTop: 80 }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;0,900;1,600&family=DM+Sans:wght@300;400;500;700&display=swap');
         *, *::before, *::after { box-sizing: border-box; }
-        input:focus, select:focus, textarea:focus { border-color: #3730A3 !important; box-shadow: 0 0 0 3px rgba(55,48,163,0.08) !important; outline: none; }
-        input::placeholder, textarea::placeholder { color: #9CA3AF; font-weight: 300; }
+        input:focus, select:focus, textarea:focus { border-color: #1E3A5F !important; box-shadow: 0 0 0 3px rgba(30,58,95,0.08) !important; outline: none; }
+        input::placeholder, textarea::placeholder { color: '#9CA3AF'; font-weight: 300; }
         select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 13px center; padding-right: 38px !important; cursor: pointer; }
-        .btn-p { width:100%; background:#3730A3; color:#fff; border:none; border-radius:50px; padding:14px 24px; font-size:16px; font-family:'DM Sans',sans-serif; font-weight:700; cursor:pointer; transition:background 0.18s; }
-        .btn-p:hover:not(:disabled) { background:#4F46E5; }
+        .btn-p { width:100%; background:#1E3A5F; color:#fff; border:none; border-radius:50px; padding:14px 24px; font-size:16px; font-family:'DM Sans',sans-serif; font-weight:700; cursor:pointer; transition:background 0.18s; }
+        .btn-p:hover:not(:disabled) { background:#2A9D8F; }
         .btn-p:disabled { opacity:0.5; cursor:not-allowed; }
         .btn-b { width:100%; background:transparent; color:#6B7280; border:1.5px solid #E5E7EB; border-radius:50px; padding:12px 24px; font-size:14px; font-family:'DM Sans',sans-serif; font-weight:500; cursor:pointer; transition:all 0.18s; margin-top:10px; }
-        .btn-b:hover { border-color:#3730A3; color:#3730A3; }
+        .btn-b:hover { border-color:#1E3A5F; color:#1E3A5F; }
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes fi { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
         .fi { animation: fi 0.22s ease-out; }
         @media (max-width: 560px) { .g2 { grid-template-columns: 1fr !important; } }
       `}</style>
-
       <div style={{ maxWidth: 560, margin: '0 auto', padding: 'clamp(28px, 6vw, 44px) 16px 56px' }}>
-
         {/* HEADER */}
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <Link href="/" style={{ textDecoration: 'none', display: 'inline-block', marginBottom: 6 }}>
-            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(34px, 8vw, 42px)', fontWeight: 900, color: '#3730A3', letterSpacing: '-1px' }}>Salu</span>
-            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(34px, 8vw, 42px)', fontWeight: 600, color: '#F4623A', letterSpacing: '-1px' }}>rama</span>
+            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(34px, 8vw, 42px)', fontWeight: 900, color: '#1E3A5F', letterSpacing: '-1px' }}>Salu</span>
+            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(34px, 8vw, 42px)', fontWeight: 600, color: '#2A9D8F', letterSpacing: '-1px' }}>rama</span>
           </Link>
-          <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(20px, 5vw, 28px)', fontWeight: 900, color: '#3730A3', marginBottom: 6 }}>
+          <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(20px, 5vw, 28px)', fontWeight: 900, color: '#1E3A5F', marginBottom: 6 }}>
             Registro para Médicos
           </h1>
-
           {/* CTA CON IMPACTO */}
           <div style={{
             background: 'linear-gradient(135deg, #EEF2FF 0%, #F9FAFB 100%)',
@@ -338,7 +319,7 @@ export default function RegistroMedico() {
           }}>
             <p style={{
               fontSize: 'clamp(15px, 4vw, 17px)',
-              color: '#3730A3',
+              color: '#1E3A5F',
               fontWeight: 700,
               margin: 0,
               fontFamily: "'Fraunces', serif"
@@ -346,9 +327,8 @@ export default function RegistroMedico() {
               Tus pacientes te están buscando
             </p>
           </div>
-
           {/* Badge */}
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: '#3730A3', color: '#fff', padding: '7px 18px', borderRadius: 50, fontSize: 12, fontWeight: 700, marginBottom: 4 }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: '#1E3A5F', color: '#fff', padding: '7px 18px', borderRadius: 50, fontSize: 12, fontWeight: 700, marginBottom: 4 }}>
             REGISTRO GRATUITO
           </div>
           <p style={{ fontSize: 12, color: '#9CA3AF' }}>Sin suscripciones · Sin comisiones por paciente · Sin costos ocultos</p>
@@ -359,10 +339,10 @@ export default function RegistroMedico() {
           {[{ n: 1, label: 'Cuenta' }, { n: 2, label: 'Perfil' }, { n: 3, label: 'Ubicación' }].map((s, i) => (
             <div key={s.n} style={{ display: 'flex', alignItems: 'center' }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                <div style={{ width: 34, height: 34, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, transition: 'all 0.3s', background: step > s.n ? '#10B981' : step === s.n ? '#3730A3' : '#E5E7EB', color: step >= s.n ? '#fff' : '#9CA3AF' }}>
+                <div style={{ width: 34, height: 34, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, transition: 'all 0.3s', background: step > s.n ? '#10B981' : step === s.n ? '#1E3A5F' : '#E5E7EB', color: step >= s.n ? '#fff' : '#9CA3AF' }}>
                   {step > s.n ? <CheckCircle size={16} /> : s.n}
                 </div>
-                <span style={{ fontSize: 10, fontWeight: step === s.n ? 600 : 400, color: step >= s.n ? '#3730A3' : '#9CA3AF' }}>{s.label}</span>
+                <span style={{ fontSize: 10, fontWeight: step === s.n ? 600 : 400, color: step >= s.n ? '#1E3A5F' : '#9CA3AF' }}>{s.label}</span>
               </div>
               {i < 2 && <div style={{ width: 56, height: 2, background: step > s.n ? '#10B981' : '#E5E7EB', margin: '0 6px 16px', transition: 'background 0.3s' }} />}
             </div>
@@ -371,21 +351,20 @@ export default function RegistroMedico() {
 
         {/* ERROR */}
         {error && (
-          <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderLeft: '4px solid #DC2626', borderRadius: 10, padding: '11px 14px', marginBottom: 16, display: 'flex', gap: 9, alignItems: 'flex-start' }}>
-            <AlertCircle size={16} color="#DC2626" style={{ flexShrink: 0, marginTop: 1 }} />
-            <p style={{ fontSize: 13, color: '#DC2626', margin: 0 }}>{error}</p>
+          <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderLeft: '4px solid #EF4444', borderRadius: 10, padding: '11px 14px', marginBottom: 16, display: 'flex', gap: 9, alignItems: 'flex-start' }}>
+            <AlertCircle size={16} color="#EF4444" style={{ flexShrink: 0, marginTop: 1 }} />
+            <p style={{ fontSize: 13, color: '#EF4444', margin: 0 }}>{error}</p>
           </div>
         )}
 
         {/* CARD */}
-        <div style={{ background: '#fff', borderRadius: 18, boxShadow: '0 4px 20px rgba(55,48,163,0.06)', padding: 'clamp(20px, 5vw, 36px)' }}>
-
+        <div style={{ background: '#fff', borderRadius: 18, boxShadow: '0 4px 20px rgba(30,58,95,0.06)', padding: 'clamp(20px, 5vw, 36px)' }}>
           {/* ── PASO 1: Cuenta ── */}
           {step === 1 && (
             <div className="fi">
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 22 }}>
                 <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <Mail size={16} color="#3730A3" />
+                  <Mail size={16} color="#1E3A5F" />
                 </div>
                 <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 19, fontWeight: 900, color: '#1A1A2E', margin: 0 }}>Crea tu cuenta</h2>
               </div>
@@ -424,7 +403,7 @@ export default function RegistroMedico() {
             <div className="fi">
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 22 }}>
                 <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <Stethoscope size={16} color="#3730A3" />
+                  <Stethoscope size={16} color="#1E3A5F" />
                 </div>
                 <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 19, fontWeight: 900, color: '#1A1A2E', margin: 0 }}>Tu perfil profesional</h2>
               </div>
@@ -434,7 +413,6 @@ export default function RegistroMedico() {
                   <input ref={refPaso2} name="full_name" type="text" style={fs('full_name')} value={form.full_name} onChange={handle} placeholder="Juan Pérez García" autoComplete="name" />
                   <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>Sin abreviaciones</p>
                 </div>
-
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }} className="g2">
                   <div>
                     <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 6 }}>Especialidad *</label>
@@ -449,16 +427,14 @@ export default function RegistroMedico() {
                     <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>6-9 dígitos (SEP)</p>
                   </div>
                 </div>
-
                 {/* Consejo de especialidad — EDITABLE con tooltip */}
                 <div style={{ background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 12, padding: '14px 16px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-                    <ShieldCheck size={14} color="#3730A3" />
-                    <p style={{ fontSize: 13, fontWeight: 600, color: '#3730A3', margin: 0 }}>
+                    <ShieldCheck size={14} color="#1E3A5F" />
+                    <p style={{ fontSize: 13, fontWeight: 600, color: '#1E3A5F', margin: 0 }}>
                       Consejo de especialidad
                       <span style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 400 }}> (opcional)</span>
                     </p>
-                    {/* Tooltip icon */}
                     <div style={{ position: 'relative', display: 'inline-block' }}>
                       <Info
                         size={14}
@@ -507,20 +483,26 @@ export default function RegistroMedico() {
                       </p>
                     )}
                   </div>
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 6 }}>
-                    Descripción <span style={{ color: '#9CA3AF', fontWeight: 300 }}>(opcional)</span>
-                  </label>
-                  <textarea name="description" style={{ ...fs('description'), resize: 'vertical', lineHeight: 1.6 }} value={form.description} onChange={handle} rows={3} placeholder="Cuéntale a tus pacientes sobre tu experiencia..." />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 6 }}>
-                    Costo de consulta <span style={{ color: '#9CA3AF', fontWeight: 300 }}>(MXN, opcional)</span>
-                  </label>
-                  <input name="consultation_price" type="number" inputMode="numeric" style={fs('consultation_price')} value={form.consultation_price} onChange={handle} placeholder="800" min="0" step="50" />
-                  <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>Deja vacío si varía</p>
+                  {/* Checkbox Certificación no vigente */}
+                  <div style={{ marginTop: 12 }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 9, cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        name="license_not_current"
+                        checked={form.license_not_current}
+                        onChange={handle}
+                        style={{ width: 16, height: 16, accentColor: '#1E3A5F', cursor: 'pointer' }}
+                      />
+                      <span style={{ fontSize: 13, color: '#6B7280' }}>
+                        Mi certificación <strong>no está vigente</strong> actualmente
+                      </span>
+                    </label>
+                    {form.license_not_current && (
+                      <p style={{ fontSize: 11, color: '#F59E0B', marginTop: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <AlertCircle size={10} /> Los pacientes verán que tu certificación requiere actualización
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
               <div style={{ marginTop: 22 }}>
@@ -530,54 +512,135 @@ export default function RegistroMedico() {
             </div>
           )}
 
-          {/* ── PASO 3: Ubicación y contacto ── */}
+          {/* ── PASO 3: Ubicación ── */}
           {step === 3 && (
             <form className="fi" onSubmit={handleSubmit}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 22 }}>
                 <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <MapPin size={16} color="#3730A3" />
+                  <MapPin size={16} color="#1E3A5F" />
                 </div>
-                <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 19, fontWeight: 900, color: '#1A1A2E', margin: 0 }}>Ubicación y contacto</h2>
+                <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 19, fontWeight: 900, color: '#1A1A2E', margin: 0 }}>Ubicación</h2>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {/* Código Postal */}
+                <div>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 6 }}>Código Postal *</label>
+                  <input
+                    ref={refPaso3}
+                    type="text"
+                    inputMode="numeric"
+                    style={fs('location_state')}
+                    value={cpData ? '' : form.location_state}
+                    onChange={e => {
+                      const cp = formatCP(e.target.value)
+                      setForm(p => ({ ...p, location_state: cp }))
+                      if (cp.length === 5) {
+                        search(cp)
+                      }
+                    }}
+                    placeholder="06600"
+                    maxLength={5}
+                    disabled={!!cpData}
+                  />
+                  {loadingCP && <p style={{ fontSize: 12, color: '#1E3A5F', marginTop: 4 }}>Buscando...</p>}
+                  {errorCP && <p style={{ fontSize: 12, color: '#EF4444', marginTop: 4 }}>{errorCP}</p>}
+                  {cpData && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForm(p => ({ ...p, location_state: '', location_city: '', location_neighborhood: '' }))
+                      }}
+                      style={{ fontSize: 12, color: '#1E3A5F', background: 'none', border: 'none', cursor: 'pointer', marginTop: 4, textDecoration: 'underline' }}
+                    >
+                      Cambiar CP
+                    </button>
+                  )}
+                </div>
+
+                {/* Estado y Municipio (auto-fill, disabled) */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }} className="g2">
-                  <div>
-                    <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 6 }}>Teléfono *</label>
-                    <input ref={refPaso3} name="phone" type="tel" inputMode="tel" style={fs('phone')} value={form.phone} onChange={handle} placeholder="55 1234 5678" />
-                    <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>10 dígitos</p>
-                  </div>
                   <div>
                     <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 6 }}>Estado *</label>
-                    <select name="location_state" style={fs('location_state')} value={form.location_state} onChange={handle}>
-                      <option value="">Selecciona</option>
-                      {ESTADOS_MEXICO.map(e => <option key={e} value={e}>{e}</option>)}
-                    </select>
-                  </div>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }} className="g2">
-                  <div>
-                    <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 6 }}>Ciudad *</label>
-                    <select name="location_city" style={{ ...fs('location_city'), opacity: !form.location_state ? 0.6 : 1 }} value={form.location_city} onChange={handle} disabled={!form.location_state}>
-                      <option value="">Selecciona</option>
-                      {ciudades.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                    {!form.location_state && <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>Primero selecciona el estado</p>}
+                    <input
+                      type="text"
+                      value={form.location_state || ''}
+                      disabled
+                      style={{ ...fs('location_state'), background: '#F3F4F6', cursor: 'not-allowed' }}
+                      placeholder="Auto-completado"
+                    />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 6 }}>
-                      Colonia <span style={{ color: '#9CA3AF', fontWeight: 300 }}>(opcional)</span>
-                    </label>
-                    <input name="location_neighborhood" type="text" style={fs('location_neighborhood')} value={form.location_neighborhood} onChange={handle} placeholder="Polanco" />
+                    <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 6 }}>Municipio/Alcaldía *</label>
+                    <input
+                      type="text"
+                      value={form.location_city || ''}
+                      disabled
+                      style={{ ...fs('location_city'), background: '#F3F4F6', cursor: 'not-allowed' }}
+                      placeholder="Auto-completado"
+                    />
                   </div>
                 </div>
+
+                {/* Colonia (dropdown o editable) */}
+                <div>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 6 }}>Colonia *</label>
+                  {!coloniasManuales && cpData && cpData.colonias.length > 0 ? (
+                    <>
+                      <select
+                        name="location_neighborhood"
+                        style={fs('location_neighborhood')}
+                        value={form.location_neighborhood}
+                        onChange={handle}
+                      >
+                        <option value="">Selecciona tu colonia</option>
+                        {cpData.colonias.slice(0, 5).map((colonia, index) => (
+                          <option key={index} value={colonia.nombre}>{colonia.nombre}</option>
+                        ))}
+                        {cpData.colonias.length > 5 && (
+                          <option value="otra">Otra colonia (no aparece en la lista)</option>
+                        )}
+                      </select>
+                      {form.location_neighborhood === 'otra' && (
+                        <input
+                          type="text"
+                          placeholder="Escribe tu colonia"
+                          style={{ ...fs('location_neighborhood'), marginTop: 8 }}
+                          value={form.location_neighborhood === 'otra' ? '' : form.location_neighborhood}
+                          onChange={e => {
+                            setForm(p => ({ ...p, location_neighborhood: e.target.value }))
+                            setColoniasManuales(true)
+                          }}
+                        />
+                      )}
+                    </>
+                  ) : (
+                    <input
+                      name="location_neighborhood"
+                      type="text"
+                      style={fs('location_neighborhood')}
+                      value={form.location_neighborhood}
+                      onChange={handle}
+                      placeholder="Ej: Polanco, Juárez, etc."
+                    />
+                  )}
+                </div>
+
+                {/* Dirección completa (opcional) */}
                 <div>
                   <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 6 }}>
                     Dirección <span style={{ color: '#9CA3AF', fontWeight: 300 }}>(opcional)</span>
                   </label>
-                  <input name="address" type="text" style={fs('address')} value={form.address} onChange={handle} placeholder="Av. Reforma 123" />
+                  <input
+                    name="address"
+                    type="text"
+                    style={fs('address')}
+                    value={form.address}
+                    onChange={handle}
+                    placeholder="Calle, número, piso, etc."
+                  />
                 </div>
 
-                {/* Consentimiento legal — SEPARADO de info de verificación */}
+                {/* Consentimiento legal */}
                 <div style={{ background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 12, padding: '14px 16px', marginBottom: 16 }}>
                   <label style={{ display: 'flex', alignItems: 'flex-start', gap: 11, cursor: 'pointer' }}>
                     <input
@@ -585,21 +648,21 @@ export default function RegistroMedico() {
                       name="terms_accepted"
                       checked={form.terms_accepted}
                       onChange={handle}
-                      style={{ width: 17, height: 17, marginTop: 2, accentColor: '#3730A3', flexShrink: 0, cursor: 'pointer' }}
+                      style={{ width: 17, height: 17, marginTop: 2, accentColor: '#1E3A5F', flexShrink: 0, cursor: 'pointer' }}
                     />
                     <span style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.7 }}>
                       Acepto los{' '}
-                      <a href="/terminos-profesionales" target="_blank" style={{ color: '#3730A3', fontWeight: 500 }}>Términos para Profesionales</a>
+                      <a href="/terminos-profesionales" target="_blank" style={{ color: '#1E3A5F', fontWeight: 500 }}>Términos para Profesionales</a>
                       {', los '}
-                      <a href="/terminos-y-condiciones" target="_blank" style={{ color: '#3730A3', fontWeight: 500 }}>Términos y Condiciones</a>
+                      <a href="/terminos-y-condiciones" target="_blank" style={{ color: '#1E3A5F', fontWeight: 500 }}>Términos y Condiciones</a>
                       {' y el '}
-                      <a href="/aviso-de-privacidad" target="_blank" style={{ color: '#3730A3', fontWeight: 500 }}>Aviso de Privacidad</a>
+                      <a href="/aviso-de-privacidad" target="_blank" style={{ color: '#1E3A5F', fontWeight: 500 }}>Aviso de Privacidad</a>
                       {' *'}
                     </span>
                   </label>
                 </div>
 
-                {/* Info de verificación — INFORMATIVA (no legal) */}
+                {/* Info de verificación */}
                 <p style={{ fontSize: 12, color: '#9CA3AF', lineHeight: 1.6, marginBottom: 16 }}>
                   📋 Los pacientes podrán verificar tu cédula directamente en la SEP desde tu perfil público.
                 </p>
@@ -625,7 +688,7 @@ export default function RegistroMedico() {
         <div style={{ textAlign: 'center', marginTop: 20 }}>
           <p style={{ fontSize: 13, color: '#9CA3AF' }}>
             ¿Ya tienes cuenta?{' '}
-            <Link href="/login" style={{ color: '#3730A3', fontWeight: 600, textDecoration: 'none' }}>
+            <Link href="/login" style={{ color: '#1E3A5F', fontWeight: 600, textDecoration: 'none' }}>
               Inicia sesión
             </Link>
           </p>

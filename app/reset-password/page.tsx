@@ -1,8 +1,8 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
-import { Eye, EyeOff, Shield, CheckCircle, AlertCircle } from 'lucide-react'
+import { Eye, EyeOff, Shield, CheckCircle } from 'lucide-react'
 
 export default function ResetPasswordPage() {
   const router = useRouter()
@@ -14,8 +14,18 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
 
+  // Redirigir después de éxito con cleanup
   useEffect(() => {
+    if (!success) return
+    const timeout = setTimeout(() => {
+      router.push('/login?password_changed=true')
+    }, 2000)
+    return () => clearTimeout(timeout)
+  }, [success, router])
+
+   useEffect(() => {
     // Verificar si hay un hash de recuperación en la URL
+    if (typeof window === 'undefined') return
     const hash = window.location.hash
     if (hash) {
       // Extraer access_token del hash
@@ -63,9 +73,10 @@ export default function ResetPasswordPage() {
       setSuccess(true)
       
       // Esperar 2 segundos y redirigir al login
-      setTimeout(() => {
+      const timeout = setTimeout(() => {
         router.push('/login?password_changed=true')
       }, 2000)
+      return () => clearTimeout(timeout)
     } catch (err: any) {
       setError(err.message || 'Error al cambiar la contraseña')
     } finally {
@@ -80,7 +91,7 @@ export default function ResetPasswordPage() {
           <div style={{ width: 64, height: 64, background: '#DCFCE7', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
             <CheckCircle size={32} color="#059669" />
           </div>
-          <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 900, color: '#1A1A2E', marginBottom: 12 }}>
+          <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 900, color: '#111827', marginBottom: 12 }}>
             ¡Contraseña actualizada!
           </h1>
           <p style={{ color: '#6B7280', marginBottom: 24 }}>
@@ -103,10 +114,10 @@ export default function ResetPasswordPage() {
       <div className="fade-up" style={{ background: '#fff', borderRadius: 16, padding: 40, maxWidth: 440, width: '100%', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{ width: 56, height: 56, background: 'linear-gradient(135deg, #3730A3 0%, #F4623A 100%)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+          <div style={{ width: 56, height: 56, background: 'linear-gradient(135deg, #1E3A5F 0%, #2A9D8F 100%)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
             <Shield size={28} color="#fff" />
           </div>
-          <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 900, color: '#1A1A2E' }}>
+          <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 900, color: '#111827' }}>
             Nueva contraseña
           </h1>
           <p style={{ color: '#6B7280', fontSize: 14, marginTop: 8 }}>
@@ -125,7 +136,7 @@ export default function ResetPasswordPage() {
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {/* Contraseña nueva */}
           <div>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#1A1A2E', marginBottom: 6 }}>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#111827', marginBottom: 6 }}>
               Contraseña nueva *
             </label>
             <div style={{ position: 'relative' }}>
@@ -147,6 +158,7 @@ export default function ResetPasswordPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                 style={{
                   position: 'absolute',
                   right: 12,
@@ -165,7 +177,7 @@ export default function ResetPasswordPage() {
 
           {/* Confirmar contraseña */}
           <div>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#1A1A2E', marginBottom: 6 }}>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#111827', marginBottom: 6 }}>
               Confirmar contraseña *
             </label>
             <div style={{ position: 'relative' }}>
@@ -187,6 +199,7 @@ export default function ResetPasswordPage() {
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                aria-label={showConfirmPassword ? 'Ocultar confirmación' : 'Mostrar confirmación'}
                 style={{
                   position: 'absolute',
                   right: 12,
@@ -216,7 +229,7 @@ export default function ResetPasswordPage() {
             type="submit"
             disabled={loading}
             style={{
-              background: loading ? '#9CA3AF' : 'linear-gradient(135deg, #3730A3 0%, #4F46E5 100%)',
+              background: loading ? '#9CA3AF' : 'linear-gradient(135deg, #1E3A5F 0%, #2A9D8F 100%)',
               color: '#fff',
               border: 'none',
               borderRadius: 8,
@@ -234,7 +247,7 @@ export default function ResetPasswordPage() {
 
         {/* Link volver */}
         <p style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: '#6B7280' }}>
-          <a href="/login" style={{ color: '#3730A3', textDecoration: 'none', fontWeight: 600 }}>
+          <a href="/login" style={{ color: '#1E3A5F', textDecoration: 'none', fontWeight: 600 }}>
             ← Volver al login
           </a>
         </p>

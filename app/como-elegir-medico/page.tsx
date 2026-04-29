@@ -98,48 +98,48 @@ export default function ComoElegirMedico() {
   }
 
   return (
-    <div style={{ fontFamily: "'DM Sans', sans-serif", background: '#fff', minHeight: '100vh', color: '#1A1A2E' }}>
+    <div style={{ fontFamily: "'DM Sans', sans-serif", background: '#fff', minHeight: '100vh', color: '#111827' }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;0,900;1,600&family=DM+Sans:wght@300;400;500;700&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         .nav-link {
-          color: #1A1A2E; text-decoration: none; font-size: 15px; font-weight: 400;
+          color: #111827; text-decoration: none; font-size: 15px; font-weight: 400;
           padding: 6px 2px; border-bottom: 2px solid transparent; transition: color 0.15s, border-color 0.15s;
         }
-        .nav-link:hover, .nav-link.active { color: #3730A3; border-color: #3730A3; }
+        .nav-link:hover, .nav-link.active { color: #1E3A5F; border-color: #1E3A5F; }
         .btn-medico {
-          background: #3730A3; color: #fff; text-decoration: none;
+          background: #1E3A5F; color: #fff; text-decoration: none;
           padding: 10px 20px; border-radius: 50px; font-size: 14px; font-weight: 600;
           font-family: 'DM Sans', sans-serif; transition: background 0.18s;
           display: inline-flex; align-items: center; gap: 7px;
         }
-        .btn-medico:hover { background: #4F46E5; }
+        .btn-medico:hover { background: #526894; }
         .paso-card {
           background: #fff; border: 1.5px solid #E5E7EB; border-radius: 16px;
           padding: 24px 20px; transition: box-shadow 0.2s, border-color 0.2s;
         }
-        .paso-card:hover { box-shadow: 0 4px 20px #3730A30F; border-color: #3730A322; }
-        .paso-card.destacado { border-color: #3730A3; background: #F9FAFB; }
+        .paso-card:hover { box-shadow: 0 4px 20px #1E3A5F0F; border-color: #1E3A5F22; }
+        .paso-card.destacado { border-color: #1E3A5F; background: #F9FAFB; }
         .paso-num {
-          width: 40px; height: 40px; border-radius: 50%; background: #3730A3; color: #fff;
+          width: 40px; height: 40px; border-radius: 50%; background: #1E3A5F; color: #fff;
           font-family: 'Fraunces', serif; font-size: 18px; font-weight: 900;
           display: flex; align-items: center; justify-content: center; flex-shrink: 0;
         }
-        .paso-num.destacado { background: #F4623A; }
+        .paso-num.destacado { background: #2A9D8F; }
         .btn-accion {
           display: inline-flex; align-items: center; gap: 6px;
-          background: #3730A3; color: #fff; text-decoration: none;
+          background: #1E3A5F; color: #fff; text-decoration: none;
           padding: 10px 20px; border-radius: 50px; font-size: 13px; font-weight: 600;
           font-family: 'DM Sans', sans-serif; transition: background 0.18s; border: none; cursor: pointer;
         }
-        .btn-accion:hover { background: #4F46E5; }
+        .btn-accion:hover { background: #526894; }
         .faq-item {
           border-bottom: 1px solid #F3F4F6; padding: 18px 0; cursor: pointer;
         }
         .faq-item:first-child { border-top: 1px solid #F3F4F6; }
         .faq-q {
           display: flex; justify-content: space-between; align-items: center; gap: 12px;
-          font-size: 15px; font-weight: 500; color: #1A1A2E;
+          font-size: 15px; font-weight: 500; color: #111827;
         }
         .faq-a {
           font-size: 14px; color: '#6B7280'; line-height: 1.7; font-weight: 300;
@@ -147,7 +147,7 @@ export default function ComoElegirMedico() {
         }
         .checklist-item {
           display: flex; align-items: flex-start; gap: 10px;
-          font-size: 14px; color: '#374151'; line-height: 1.6; padding: 8px 0;
+          font-size: 14px; color: '#4A5568'; line-height: 1.6; padding: 8px 0;
           border-bottom: 0.5px solid #F3F4F6; cursor: pointer;
         }
         .checklist-item:last-child { border-bottom: none; }
@@ -162,7 +162,7 @@ export default function ComoElegirMedico() {
         }
         .verification-badge {
           display: inline-flex; align-items: center; gap: 6px;
-          background: #EEF2FF; color: #3730A3;
+          background: #E8ECF3; color: #1E3A5F;
           padding: 6px 12px; border-radius: 20px;
           font-size: 12px; font-weight: 600;
         }
@@ -180,15 +180,15 @@ export default function ComoElegirMedico() {
       `}</style>
 
       {/* ── HERO ── */}
-      <section style={{ padding: 'clamp(48px, 8vw, 72px) 20px 40px', textAlign: 'center', background: 'linear-gradient(160deg, #EEF2FF 0%, #fff 60%)' }}>
+      <section style={{ padding: 'clamp(48px, 8vw, 72px) 20px 40px', textAlign: 'center', background: 'linear-gradient(160deg, #E8ECF3 0%, #fff 60%)' }}>
         <div style={{ maxWidth: 640, margin: '0 auto' }}>
-          <p style={{ fontSize: 11, fontWeight: 600, color: '#4F46E5', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 14 }}>
+          <p style={{ fontSize: 11, fontWeight: 600, color: '#2A9D8F', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 14 }}>
             Guía para pacientes
           </p>
-          <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(32px, 7vw, 52px)', fontWeight: 900, color: '#3730A3', lineHeight: 1.15, marginBottom: 16 }}>
+          <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(32px, 7vw, 52px)', fontWeight: 900, color: '#1E3A5F', lineHeight: 1.15, marginBottom: 16 }}>
             ¿Cómo elegir médico?
           </h1>
-          <p style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(16px, 3.5vw, 20px)', fontWeight: 600, fontStyle: 'italic', color: '#4F46E5', marginBottom: 16 }}>
+          <p style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(16px, 3.5vw, 20px)', fontWeight: 600, fontStyle: 'italic', color: '#2A9D8F', marginBottom: 16 }}>
             No es lo mismo que elegir un restaurante.
           </p>
           <p style={{ fontSize: 'clamp(14px, 3vw, 16px)', color: '#6B7280', lineHeight: 1.75, maxWidth: 520, margin: '0 auto 28px' }}>
@@ -216,7 +216,7 @@ export default function ComoElegirMedico() {
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, marginBottom: 16 }}>
                 <div className={`paso-num${paso.destacado ? ' destacado' : ''}`}>{paso.num}</div>
                 <div style={{ paddingTop: 8, flex: 1 }}>
-                  <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(17px, 3.5vw, 21px)', fontWeight: 900, color: '#1A1A2E', lineHeight: 1.25 }}>
+                  <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(17px, 3.5vw, 21px)', fontWeight: 900, color: '#111827', lineHeight: 1.25 }}>
                     {paso.titulo}
                   </h2>
                 </div>
@@ -226,8 +226,8 @@ export default function ComoElegirMedico() {
               <div style={{ paddingLeft: 54 }}>
                 <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
                   {paso.contenido.map((item, j) => (
-                    <li key={j} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 14, color: '#374151', lineHeight: 1.65 }}>
-                      <span style={{ color: '#3730A3', marginTop: 2, flexShrink: 0 }}>→</span>
+                    <li key={j} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 14, color: '#4A5568', lineHeight: 1.65 }}>
+                      <span style={{ color: '#1E3A5F', marginTop: 2, flexShrink: 0 }}>→</span>
                       {item}
                     </li>
                   ))}
@@ -235,12 +235,12 @@ export default function ComoElegirMedico() {
 
                 {/* Tip */}
                 <div style={{
-                  background: paso.destacado ? '#EEF2FF' : '#F9FAFB',
-                  border: `1px solid ${paso.destacado ? '#C7D2FE' : '#E5E7EB'}`,
+                  background: paso.destacado ? '#E8ECF3' : '#F9FAFB',
+                  border: `1px solid ${paso.destacado ? '#C5D0E0' : '#E5E7EB'}`,
                   borderRadius: 10,
                   padding: '12px 16px',
                   fontSize: 13,
-                  color: paso.destacado ? '#3730A3' : '#6B7280',
+                  color: paso.destacado ? '#1E3A5F' : '#6B7280',
                   lineHeight: 1.65,
                   marginBottom: paso.accion ? 16 : 0,
                 }}>
@@ -263,12 +263,12 @@ export default function ComoElegirMedico() {
       </section>
 
       {/* ── SECCIÓN DE VERIFICACIÓN VISUAL ── */}
-      <section style={{ padding: 'clamp(40px, 6vw, 60px) 20px', background: 'linear-gradient(160deg, #EEF2FF 0%, #F9FAFB 100%)' }}>
+      <section style={{ padding: 'clamp(40px, 6vw, 60px) 20px', background: 'linear-gradient(160deg, #E8ECF3 0%, #F9FAFB 100%)' }}>
         <div style={{ maxWidth: 820, margin: '0 auto' }}>
-          <p style={{ fontSize: 11, fontWeight: 600, color: '#4F46E5', textTransform: 'uppercase', letterSpacing: '0.1em', textAlign: 'center', marginBottom: 10 }}>
+          <p style={{ fontSize: 11, fontWeight: 600, color: '#2A9D8F', textTransform: 'uppercase', letterSpacing: '0.1em', textAlign: 'center', marginBottom: 10 }}>
             Tu herramienta de decisión
           </p>
-          <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(22px, 4vw, 30px)', fontWeight: 900, color: '#3730A3', textAlign: 'center', marginBottom: 10, lineHeight: 1.25 }}>
+          <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(22px, 4vw, 30px)', fontWeight: 900, color: '#1E3A5F', textAlign: 'center', marginBottom: 10, lineHeight: 1.25 }}>
             Tú verificas, tú decides
           </h2>
           <p style={{ fontSize: 'clamp(14px, 3vw, 16px)', color: '#6B7280', lineHeight: 1.75, textAlign: 'center', marginBottom: 32, maxWidth: 620, margin: '0 auto 32px' }}>
@@ -278,10 +278,10 @@ export default function ComoElegirMedico() {
           <div className="trust-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
             {/* Cédula SEP */}
             <div style={{ background: '#fff', border: '1.5px solid #E5E7EB', borderRadius: 14, padding: '20px 18px', transition: 'border-color 0.2s, box-shadow 0.2s' }}>
-              <div style={{ width: 40, height: 40, borderRadius: 10, background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
-                <ShieldCheck size={20} color="#3730A3" />
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: '#E8ECF3', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+                <ShieldCheck size={20} color="#1E3A5F" />
               </div>
-              <p style={{ fontSize: 14, fontWeight: 600, color: '#1A1A2E', marginBottom: 8 }}>Cédula profesional</p>
+              <p style={{ fontSize: 14, fontWeight: 600, color: '#111827', marginBottom: 8 }}>Cédula profesional</p>
               <p style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.6, fontWeight: 300, marginBottom: 12 }}>
                 Te lleva al registro oficial de la SEP. Confirma que el médico tiene título registrado y vigente.
               </p>
@@ -293,10 +293,10 @@ export default function ComoElegirMedico() {
 
             {/* Certificación CONACEM */}
             <div style={{ background: '#fff', border: '1.5px solid #E5E7EB', borderRadius: 14, padding: '20px 18px', transition: 'border-color 0.2s, box-shadow 0.2s' }}>
-              <div style={{ width: 40, height: 40, borderRadius: 10, background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
-                <GraduationCap size={20} color="#3730A3" />
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: '#E8ECF3', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+                <GraduationCap size={20} color="#1E3A5F" />
               </div>
-              <p style={{ fontSize: 14, fontWeight: 600, color: '#1A1A2E', marginBottom: 8 }}>Certificación de especialidad</p>
+              <p style={{ fontSize: 14, fontWeight: 600, color: '#111827', marginBottom: 8 }}>Certificación de especialidad</p>
               <p style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.6, fontWeight: 300, marginBottom: 12 }}>
                 Te lleva a CONACEM, la autoridad que regula todos los consejos de especialidad en México.
               </p>
@@ -310,8 +310,8 @@ export default function ComoElegirMedico() {
           <div style={{ textAlign: 'center', marginTop: 28 }}>
             <Link href="/buscar" style={{
               display: 'inline-flex', alignItems: 'center', gap: 6,
-              fontSize: 14, color: '#3730A3', fontWeight: 600,
-              textDecoration: 'none', borderBottom: '1px solid #3730A344', paddingBottom: 2
+              fontSize: 14, color: '#1E3A5F', fontWeight: 600,
+              textDecoration: 'none', borderBottom: '1px solid #1E3A5F44', paddingBottom: 2
             }}>
               Ver médicos y verificar credenciales →
             </Link>
@@ -322,7 +322,7 @@ export default function ComoElegirMedico() {
       {/* ── CHECKLIST INTERACTIVA ── */}
       <section style={{ padding: 'clamp(32px, 5vw, 48px) 20px', background: '#F9FAFB' }}>
         <div style={{ maxWidth: 720, margin: '0 auto' }}>
-          <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(20px, 4vw, 26px)', fontWeight: 900, color: '#3730A3', marginBottom: 6 }}>
+          <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(20px, 4vw, 26px)', fontWeight: 900, color: '#1E3A5F', marginBottom: 6 }}>
             Lista de verificación
           </h2>
           <p style={{ fontSize: 14, color: '#6B7280', marginBottom: 20 }}>
@@ -348,7 +348,7 @@ export default function ComoElegirMedico() {
       {/* ── POR QUÉ SALURAMA ── */}
       <section style={{ padding: 'clamp(40px, 6vw, 56px) 20px' }}>
         <div style={{ maxWidth: 720, margin: '0 auto' }}>
-          <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(20px, 4vw, 26px)', fontWeight: 900, color: '#3730A3', marginBottom: 16 }}>
+          <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(20px, 4vw, 26px)', fontWeight: 900, color: '#1E3A5F', marginBottom: 16 }}>
             ¿Por qué Salurama es diferente?
           </h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
@@ -367,7 +367,7 @@ export default function ComoElegirMedico() {
               },
             ].map((item, i) => (
               <div key={i} style={{ background: '#F9FAFB', borderRadius: 12, padding: '18px 16px', border: '1px solid #E5E7EB' }}>
-                <p style={{ fontSize: 14, fontWeight: 600, color: '#1A1A2E', marginBottom: 6 }}>{item.titulo}</p>
+                <p style={{ fontSize: 14, fontWeight: 600, color: '#111827', marginBottom: 6 }}>{item.titulo}</p>
                 <p style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.65, fontWeight: 300 }}>{item.texto}</p>
               </div>
             ))}
@@ -378,7 +378,7 @@ export default function ComoElegirMedico() {
       {/* ── PREGUNTAS FRECUENTES ── */}
       <section style={{ padding: 'clamp(32px, 5vw, 48px) 20px', background: '#F9FAFB' }}>
         <div style={{ maxWidth: 720, margin: '0 auto' }}>
-          <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(20px, 4vw, 26px)', fontWeight: 900, color: '#3730A3', marginBottom: 24 }}>
+          <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(20px, 4vw, 26px)', fontWeight: 900, color: '#1E3A5F', marginBottom: 24 }}>
             Preguntas frecuentes
           </h2>
           {PREGUNTAS.map((item, i) => (
@@ -404,28 +404,28 @@ export default function ComoElegirMedico() {
       </section>
 
       {/* ── CTA FINAL ── */}
-      <section style={{ background: '#3730A3', padding: 'clamp(40px, 6vw, 52px) 20px', textAlign: 'center' }}>
+      <section style={{ background: '#1E3A5F', padding: 'clamp(40px, 6vw, 52px) 20px', textAlign: 'center' }}>
         <div style={{ maxWidth: 500, margin: '0 auto' }}>
           <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(20px, 5vw, 28px)', fontWeight: 900, color: '#fff', marginBottom: 10, lineHeight: 1.3 }}>
             Tu salud merece más que opiniones
           </h2>
-          <p style={{ color: '#A5B4FC', fontSize: 14, marginBottom: 24, fontWeight: 300 }}>
+          <p style={{ color: '#9FB0C9', fontSize: 14, marginBottom: 24, fontWeight: 300 }}>
             Busca, verifica y contacta. La decisión es tuya.
           </p>
-          <Link href="/buscar" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#F4623A', color: '#fff', fontWeight: 700, textDecoration: 'none', padding: '13px 28px', borderRadius: '50px', fontSize: 15, fontFamily: "'DM Sans', sans-serif" }}>
+          <Link href="/buscar" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#2A9D8F', color: '#fff', fontWeight: 700, textDecoration: 'none', padding: '13px 28px', borderRadius: '50px', fontSize: 15, fontFamily: "'DM Sans', sans-serif" }}>
             Buscar médico ahora <ArrowRight size={16} />
           </Link>
         </div>
       </section>
 
       {/* ── FOOTER ── */}
-      <footer style={{ background: '#1E1B4B', padding: 'clamp(32px, 5vw, 40px) 20px', textAlign: 'center' }}>
+      <footer style={{ background: '#0D1829', padding: 'clamp(32px, 5vw, 40px) 20px', textAlign: 'center' }}>
         <div style={{ maxWidth: 860, margin: '0 auto' }}>
           <div style={{ marginBottom: 10 }}>
             <span style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 900, color: '#fff' }}>Salu</span>
-            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 600, color: '#F4623A' }}>rama</span>
+            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 600, color: '#2A9D8F' }}>rama</span>
           </div>
-          <p style={{ fontSize: 13, color: '#A5B4FC', fontStyle: 'italic', marginBottom: 16 }}>"Más que opiniones, evidencia"</p>
+          <p style={{ fontSize: 13, color: '#9FB0C9', fontStyle: 'italic', marginBottom: 16 }}>"Más que opiniones, evidencia"</p>
           <div style={{ display: 'flex', justifyContent: 'center', gap: 20, flexWrap: 'wrap', marginBottom: 16 }}>
             {[
               { label: 'Inicio',                  href: '/'                         },
@@ -436,7 +436,7 @@ export default function ComoElegirMedico() {
               { label: 'Términos y Condiciones',   href: '/terminos-y-condiciones'   },
               { label: 'Aviso de Privacidad',      href: '/aviso-de-privacidad'      },
             ].map(l => (
-              <Link key={l.label} href={l.href} style={{ fontSize: 13, color: '#A5B4FC', textDecoration: 'none' }}>
+              <Link key={l.label} href={l.href} style={{ fontSize: 13, color: '#9FB0C9', textDecoration: 'none' }}>
                 {l.label}
               </Link>
             ))}

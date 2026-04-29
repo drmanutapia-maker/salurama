@@ -1,455 +1,913 @@
 'use client'
-
 import { useState, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import Link from 'next/link'
-import { Menu, X, ShieldCheck, GraduationCap, Clock, ArrowRight } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { 
+  Search, 
+  MapPin, 
+  Stethoscope, 
+  Shield, 
+  Star, 
+  MessageCircle, 
+  ChevronDown, 
+  LogIn, 
+  UserPlus, 
+  HelpCircle 
+} from 'lucide-react'
+import { STATES } from '@/lib/locations'
+import BottomNav from '@/components/BottomNav'
 
-const ESPECIALIDADES = [
-  { nombre: 'Cardiología',       emoji: '🫀' },
-  { nombre: 'Pediatría',         emoji: '👶' },
-  { nombre: 'Dermatología',      emoji: '🔬' },
-  { nombre: 'Ginecología',       emoji: '🌸' },
-  { nombre: 'Hematología',       emoji: '🩸' },
-  { nombre: 'Neurología',        emoji: '🧠' },
-  { nombre: 'Ortopedia',         emoji: '🦴' },
-  { nombre: 'Oftalmología',      emoji: '👁️' },
-  { nombre: 'Psiquiatría',       emoji: '🧘' },
-  { nombre: 'Endocrinología',    emoji: '⚗️' },
-  { nombre: 'Gastroenterología', emoji: '🩺' },
-  { nombre: 'Oncología',         emoji: '🎗️' },
-]
-
-const SUGERENCIAS = [
-  'cardiólogo en CDMX',
-  'pediatra cerca de mí',
-  'dermatóloga verificada',
-  'me duele la cabeza',
-  'revisión general',
-  'ginecóloga mujer',
-  'hematólogo adultos',
+// TODAS LAS ESPECIALIDADES DE CONACEM
+const ESPECIALIDADES_CONACEM = [
+  'Alergología',
+  'Anestesiología',
+  'Angiología y Cirugía Vascular',
+  'Cardiología',
+  'Cardiología Pediátrica',
+  'Cirugía Cardiovascular',
+  'Cirugía General',
+  'Cirugía Maxilofacial',
+  'Cirugía Pediátrica',
+  'Cirugía Plástica y Reconstructiva',
+  'Dermatología',
+  'Endocrinología',
+  'Endocrinología Pediátrica',
+  'Gastroenterología',
+  'Gastroenterología y Endoscopia Pediátrica',
+  'Geriatría',
+  'Hematología',
+  'Hematología Pediátrica',
+  'Infectología',
+  'Infectología Pediátrica',
+  'Medicina Crítica',
+  'Medicina Familiar',
+  'Medicina Física y Rehabilitación',
+  'Medicina Interna',
+  'Nefrología',
+  'Nefrología Pediátrica',
+  'Neonatología',
+  'Neumología',
+  'Neumología Pediátrica',
+  'Neurocirugía',
+  'Neurología',
+  'Neurología Pediátrica',
+  'Oncología',
+  'Oncología Pediátrica',
+  'Oftalmología',
+  'Ortopedia y Traumatología',
+  'Otorrinolaringología',
+  'Pediatría',
+  'Psiquiatría',
+  'Psiquiatría Infantil y de la Adolescencia',
+  'Radiología e Imagen',
+  'Reumatología',
+  'Reumatología Pediátrica',
+  'Urología',
+  'Ginecología y Obstetricia',
+  'Medicina General',
+  'Nutrición',
+  'Oncología Radioterápica',
+  'Patología',
+  'Pediatría del Desarrollo y Conducta',
 ]
 
 interface Medico {
   id: string
   full_name: string
   specialty: string
+  photo_url: string | null
   location_city: string
-  consultation_price: number
-  license_verified: boolean
+  location_state: string
+  clinic_name: string | null
+  consultation_price_general: number | null
+  whatsapp_available: boolean
+}
+
+// Función para normalizar texto
+const normalizarTexto = (texto: string): string => {
+  return texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 }
 
 export default function HomePage() {
   const router = useRouter()
-  const [query, setQuery]               = useState('')
-  const [medicos, setMedicos]           = useState<Medico[]>([])
-  const [loading, setLoading]           = useState(true)
-  const [placeholder, setPlaceholder]   = useState('')
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-
-  const phIdx   = useRef(0)
-  const phChar  = useRef(0)
-  const phTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const [selectedSpecialty, setSelectedSpecialty] = useState('')
+  const [selectedState, setSelectedState] = useState('')
+  const [especialidades, setEspecialidades] = useState<string[]>(ESPECIALIDADES_CONACEM)
+  const [medicos, setMedicos] = useState<Medico[]>([])
+  const [loading, setLoading] = useState(true)
+  const [doctorDropdownOpen, setDoctorDropdownOpen] = useState(false)
+  const [showAyudaModal, setShowAyudaModal] = useState(false)
+  
+  // Para autocomplete
+  const [sugerencias, setSugerencias] = useState<string[]>([])
+  const [showSugerencias, setShowSugerencias] = useState(false)
+  const [userTyped, setUserTyped] = useState(false)
+  const [inputValue, setInputValue] = useState('')
 
   useEffect(() => {
-    function type() {
-      const current = SUGERENCIAS[phIdx.current]
-      if (phChar.current < current.length) {
-        setPlaceholder('Ej: ' + current.slice(0, phChar.current + 1))
-        phChar.current++
-        phTimer.current = setTimeout(type, 55)
-      } else {
-        phTimer.current = setTimeout(() => {
-          phChar.current = 0
-          phIdx.current  = (phIdx.current + 1) % SUGERENCIAS.length
-          type()
-        }, 2200)
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setDoctorDropdownOpen(false)
+      }
+      // Cerrar sugerencias si click fuera
+      if (!dropdownRef.current?.closest('.sugerencias-wrapper')) {
+        setShowSugerencias(false)
       }
     }
-    type()
-    return () => { if (phTimer.current) clearTimeout(phTimer.current) }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
   useEffect(() => {
-    supabase
-      .from('doctors')
-      .select('*')
-      .eq('license_verified', true)
-      .eq('is_active', true)
-      .limit(6)
-      .then(({ data }) => { setMedicos(data || []); setLoading(false) })
-      .catch(() => { setMedicos([]); setLoading(false) })
+    async function loadEspecialidades() {
+      try {
+        const { data, error } = await supabase
+          .from('doctors')
+          .select('specialty')
+          .not('specialty', 'is', null)
+        if (error) throw error
+        
+        const especialidadesUnicas = Array.from(
+          new Set(data.map(d => d.specialty).filter(Boolean))
+        ) as string[]
+        
+        // Agregar especialidades de la BD que no estén en CONACEM
+        const extras = especialidadesUnicas.filter(
+          esp => !ESPECIALIDADES_CONACEM.includes(esp)
+        )
+        
+        setEspecialidades([
+          ...ESPECIALIDADES_CONACEM,
+          ...extras.sort()
+        ])
+      } catch (error) {
+        console.error('Error loading especialidades:', error)
+      }
+    }
+    loadEspecialidades()
   }, [])
 
-  const handleBuscar = () => {
-    if (!query.trim()) return
-    router.push(`/buscar?q=${encodeURIComponent(query.trim())}`)
+  useEffect(() => {
+    async function loadMedicos() {
+      try {
+        const { data, error } = await supabase
+          .from('doctors')
+          .select(`
+            id, full_name, specialty, photo_url, location_city, location_state,
+            clinic_name, consultation_price_general, whatsapp_available
+          `)
+          .eq('is_active', true)
+          .order('created_at', { ascending: false })
+          .limit(50)
+        
+        if (error) throw error
+        setMedicos(data || [])
+      } catch (error) {
+        console.error('Error loading medicos:', error)
+        setMedicos([])
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadMedicos()
+  }, [])
+
+  // Generar sugerencias
+  useEffect(() => {
+    if (inputValue.trim().length >= 2 && userTyped) {
+      const busquedaLower = inputValue.toLowerCase()
+      const sugerenciasFiltradas = especialidades
+        .filter(esp => normalizarTexto(esp).includes(normalizarTexto(busquedaLower)))
+        .slice(0, 8)
+      setSugerencias(sugerenciasFiltradas)
+      setShowSugerencias(sugerenciasFiltradas.length > 0)
+    } else {
+      setShowSugerencias(false)
+    }
+  }, [inputValue, especialidades, userTyped])
+
+  const handleSearch = () => {
+    const params = new URLSearchParams()
+    // Usar inputValue (lo que está escrito) o selectedSpecialty (lo seleccionado)
+    const especialidadFinal = selectedSpecialty || inputValue
+    if (especialidadFinal) params.set('especialidad', especialidadFinal)
+    if (selectedState) params.set('estado', selectedState)
+    router.push(`/buscar?${params.toString()}`)
+  }
+
+  const handleSugerenciaClick = (sugerencia: string) => {
+    setSelectedSpecialty(sugerencia)
+    setInputValue(sugerencia)  // ✅ ACTUALIZAR EL INPUT
+    setUserTyped(true)
+    setShowSugerencias(false)
+  }
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setInputValue(value)
+    setSelectedSpecialty('')  // Limpiar selección si escribe
+    setUserTyped(true)
   }
 
   return (
-    <div style={{ fontFamily: "'DM Sans', sans-serif", background: '#fff', minHeight: '100vh', color: '#1A1A2E' }}>
+    <div style={{ minHeight: '100vh', background: '#F9FAFB', fontFamily: "'DM Sans', sans-serif", color: '#111827' }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;0,900;1,600&family=DM+Sans:wght@300;400;500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@600;900&family=DM+Sans:wght@400;500;700&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        ::selection { background: #3730A322; }
-        .search-input {
-          width: 100%; padding: 16px 100px 16px 20px;
-          font-size: 17px; font-family: 'DM Sans', sans-serif; font-weight: 400;
-          color: #1A1A2E; background: #fff;
-          border: 2px solid #E5E7EB; border-radius: 50px; outline: none;
-          transition: border-color 0.2s, box-shadow 0.2s; caret-color: #3730A3;
+        @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+        .fade-up { animation: fadeUp 0.4s ease-out; }
+        @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+        .fade-in { animation: fadeIn 0.3s ease-out; }
+        h1, h2, h3, h4, h5, h6 { font-family: 'Fraunces', serif; }
+        
+        .nav-link:hover { color: #8B5CF6; }
+        
+        .btn-violeta {
+          background: #8B5CF6;
+          color: white;
+          border: none;
+          transition: all 0.2s ease;
         }
-        .search-input:focus { border-color: #3730A3; box-shadow: 0 0 0 4px #3730A314; }
-        .search-input::placeholder { color: #9CA3AF; font-weight: 300; }
-        .btn-buscar {
-          position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
-          background: #3730A3; color: #fff; border: none; border-radius: 50px;
-          padding: 9px 22px; font-size: 14px; font-family: 'DM Sans', sans-serif;
-          font-weight: 600; cursor: pointer; transition: background 0.18s; white-space: nowrap;
+        .btn-violeta:hover {
+          background: #7C3AED;
+          transform: translateY(-2px);
+          box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
         }
-        .btn-buscar:hover { background: #4F46E5; }
-        .chip {
-          display: inline-flex; align-items: center; gap: 6px;
-          padding: 9px 16px; border-radius: 50px;
-          border: 1.5px solid #E5E7EB; background: #fff;
-          font-size: 13px; font-family: 'DM Sans', sans-serif;
-          color: #1A1A2E; cursor: pointer; transition: all 0.18s; white-space: nowrap;
+        
+        .chip:hover {
+          background: #8B5CF6;
+          color: white;
+          border-color: #8B5CF6;
+          transform: translateY(-2px);
         }
-        .chip:hover { border-color: #3730A3; background: #EEF2FF; color: #3730A3; transform: translateY(-1px); }
-        .mcard {
-          background: #fff; border: 1.5px solid #E5E7EB; border-radius: 14px;
-          padding: 18px; transition: box-shadow 0.2s, transform 0.2s, border-color 0.2s;
-          text-decoration: none; display: block; color: inherit;
+        
+        .card-medico {
+          transition: all 0.3s ease;
+          border: 1px solid #2A9D8F;
         }
-        .mcard:hover { box-shadow: 0 6px 24px #3730A314; transform: translateY(-2px); border-color: #3730A344; }
-        .avatar {
-          width: 48px; height: 48px; border-radius: 50%; background: #EEF2FF;
-          display: flex; align-items: center; justify-content: center;
-          font-family: 'Fraunces', serif; font-size: 20px; font-weight: 900; color: #3730A3; flex-shrink: 0;
+        .card-medico:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 12px 24px rgba(42, 157, 143, 0.15);
+          border-color: #8B5CF6;
         }
-        .nav-link {
-          color: #1A1A2E; text-decoration: none; font-size: 15px; font-weight: 400;
-          padding: 6px 2px; border-bottom: 2px solid transparent; transition: color 0.15s, border-color 0.15s;
+        
+        @media (min-width: 768px) {
+          .desktop-only { display: flex !important; }
+          .mobile-only { display: none !important; }
         }
-        .nav-link:hover { color: #3730A3; border-color: #3730A3; }
-        .btn-medico {
-          background: #3730A3; color: #fff; text-decoration: none;
-          padding: 10px 20px; border-radius: 50px; font-size: 14px; font-weight: 600;
-          font-family: 'DM Sans', sans-serif; transition: background 0.18s;
-          display: inline-flex; align-items: center; gap: 7px;
-        }
-        .btn-medico:hover { background: #4F46E5; }
-        .paso-num {
-          width: 42px; height: 42px; border-radius: 50%; background: #3730A3; color: #fff;
-          font-family: 'Fraunces', serif; font-size: 19px; font-weight: 900;
-          display: flex; align-items: center; justify-content: center; margin: 0 auto 12px;
-        }
-        .trust-card {
-          background: #fff; border: 1.5px solid #E5E7EB; border-radius: 14px;
-          padding: 20px 18px; display: flex; flex-direction: column; gap: 8px;
-          transition: border-color 0.2s, box-shadow 0.2s;
-        }
-        .trust-card:hover { border-color: #3730A344; box-shadow: 0 4px 16px #3730A30D; }
-        @media (max-width: 768px) {
-          .dsk           { display: none !important; }
-          .mob-btn       { display: flex !important; }
-          .pasos-grid    { grid-template-columns: 1fr !important; }
-          .medicos-grid  { grid-template-columns: 1fr !important; }
-          .trust-grid    { grid-template-columns: 1fr !important; }
-        }
-        @media (min-width: 769px) {
-          .mob-btn  { display: none !important; }
-          .mob-menu { display: none !important; }
+        @media (max-width: 767px) {
+          .desktop-only { display: none !important; }
+          .mobile-only { display: flex !important; }
         }
       `}</style>
 
-      {/* ── HERO ── */}
-      <section style={{ padding: 'clamp(48px, 8vw, 80px) 20px 40px', textAlign: 'center' }}>
-        <div style={{ maxWidth: 640, margin: '0 auto' }}>
-          {/* Logotipo grande */}
-          <div style={{ marginBottom: 10 }}>
-            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(48px, 11vw, 76px)', fontWeight: 900, color: '#3730A3', letterSpacing: '-2px' }}>Salu</span>
-            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(48px, 11vw, 76px)', fontWeight: 600, color: '#F4623A', letterSpacing: '-2px' }}>rama</span>
+      {/* HEADER */}
+      <header className="desktop-only" style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        background: 'rgba(255, 255, 255, 0.95)',
+        backdropFilter: 'blur(12px)',
+        borderBottom: '1px solid #E5E7EB',
+        zIndex: 1000
+      }}>
+        <div style={{
+          maxWidth: 1400,
+          margin: '0 auto',
+          padding: '16px 40px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 40
+        }}>
+          <Link href="/" style={{ textDecoration: 'none' }}>
+            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 900, color: '#1E3A5F' }}>Salu</span>
+            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 600, color: '#2A9D8F' }}>rama</span>
+          </Link>
+
+          <nav style={{ display: 'flex', alignItems: 'center', gap: 40 }}>
+            <Link href="/buscar" className="nav-link" style={{ color: '#4A5568', textDecoration: 'none', fontSize: 14, fontWeight: 500 }}>
+              Especialidades
+            </Link>
+            <Link href="/como-elegir-medico" className="nav-link" style={{ color: '#4A5568', textDecoration: 'none', fontSize: 14, fontWeight: 500 }}>
+              ¿Cómo elegir médico?
+            </Link>
+            <button
+              onClick={() => setShowAyudaModal(true)}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: '#4A5568',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                fontSize: 14,
+                fontWeight: 500
+              }}
+            >
+              <HelpCircle size={18} />
+              Ayuda
+            </button>
+          </nav>
+
+          <div ref={dropdownRef} className="doctor-dropdown" style={{ position: 'relative' }}>
+            <button
+              onClick={() => setDoctorDropdownOpen(!doctorDropdownOpen)}
+              style={{
+                background: 'linear-gradient(135deg, #1E3A5F 0%, #1A3254 100%)',
+                color: '#fff',
+                padding: '10px 24px',
+                borderRadius: 50,
+                fontSize: 14,
+                fontWeight: 600,
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                transition: 'all 0.2s'
+              }}
+            >
+              Soy Médico
+              <ChevronDown size={16} style={{ transition: 'transform 0.2s', transform: doctorDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)' }} />
+            </button>
+
+            {doctorDropdownOpen && (
+              <div className="fade-in" style={{
+                position: 'absolute',
+                top: '100%',
+                right: 0,
+                marginTop: 8,
+                background: '#fff',
+                borderRadius: 12,
+                border: '1px solid #E5E7EB',
+                boxShadow: '0 10px 40px rgba(30, 58, 95, 0.15)',
+                minWidth: 200,
+                overflow: 'hidden',
+                zIndex: 1001
+              }}>
+                <Link
+                  href="/login"
+                  onClick={() => setDoctorDropdownOpen(false)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    padding: '12px 16px',
+                    color: '#1E3A5F',
+                    textDecoration: 'none',
+                    fontSize: 14,
+                    fontWeight: 500,
+                    borderBottom: '1px solid #F3F4F6',
+                    transition: 'background 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#F5F3FF'
+                    e.currentTarget.style.color = '#8B5CF6'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = '#fff'
+                    e.currentTarget.style.color = '#1E3A5F'
+                  }}
+                >
+                  <LogIn size={18} />
+                  Iniciar sesión
+                </Link>
+                <Link
+                  href="/registro"
+                  onClick={() => setDoctorDropdownOpen(false)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    padding: '12px 16px',
+                    color: '#1E3A5F',
+                    textDecoration: 'none',
+                    fontSize: 14,
+                    fontWeight: 500,
+                    transition: 'background 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#F5F3FF'
+                    e.currentTarget.style.color = '#8B5CF6'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = '#fff'
+                    e.currentTarget.style.color = '#1E3A5F'
+                  }}
+                >
+                  <UserPlus size={18} />
+                  Registrarme
+                </Link>
+              </div>
+            )}
           </div>
+        </div>
+      </header>
 
-          {/* Slogan Principal */}
-          <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(28px, 6vw, 42px)', fontWeight: 900, color: '#3730A3', marginBottom: 6, lineHeight: 1.2 }}>
-            Verifico, luego elijo
-          </h1>
-
-          {/* Tagline Secundario */}
-          <p style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(16px, 3.5vw, 20px)', fontWeight: 600, fontStyle: 'italic', color: '#4F46E5', marginBottom: 28 }}>
-            Más que opiniones, evidencia.
-          </p>
-
-          {/* Buscador */}
-          <div style={{ position: 'relative', maxWidth: 580, margin: '0 auto' }}>
-            <input
-              type="text"
-              className="search-input"
-              placeholder={placeholder}
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleBuscar()}
-              autoComplete="off"
-              aria-label="Buscar médico, especialidad o síntoma"
-            />
-            <button className="btn-buscar" onClick={handleBuscar}>Buscar</button>
-          </div>
-
-          <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: 10, fontWeight: 300 }}>
-            Busca por especialidad, síntoma, nombre o ubicación
-          </p>
-
-          {/* ── LÍNEA DE CONFIANZA ── */}
-          <div style={{
-            marginTop: 28,
-            padding: '20px 24px',
-            background: '#F9FAFB',
-            borderRadius: 16,
-            border: '1px solid #E5E7EB',
-            textAlign: 'left',
+      {/* MAIN */}
+      <main style={{ paddingTop: 120, paddingBottom: 100 }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 20px' }}>
+          
+          {/* HERO */}
+          <section className="fade-up" style={{
+            maxWidth: 1200,
+            margin: '0 auto',
+            padding: '60px 20px 40px',
+            textAlign: 'center'
           }}>
-            <p style={{ fontSize: 'clamp(13px, 2.5vw, 15px)', color: '#374151', lineHeight: 1.75, fontWeight: 400 }}>
-              Herramientas reales para elegir con certeza. Verifica antes de confiar.
-            </p>
-            <div style={{ marginTop: 14, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 12, color: '#4F46E5', background: '#EEF2FF', borderRadius: 20, padding: '4px 12px', fontWeight: 500 }}>
-                📍 Ubicación
-              </span>
-              <span style={{ fontSize: 12, color: '#4F46E5', background: '#EEF2FF', borderRadius: 20, padding: '4px 12px', fontWeight: 500 }}>
-                🎓 Experiencia
-              </span>
-              <span style={{ fontSize: 12, color: '#4F46E5', background: '#EEF2FF', borderRadius: 20, padding: '4px 12px', fontWeight: 500 }}>
-                💰 Costo
-              </span>
-              <span style={{ fontSize: 12, color: '#4F46E5', background: '#EEF2FF', borderRadius: 20, padding: '4px 12px', fontWeight: 500 }}>
-                ⭐ Reseñas
-              </span>
+            <div style={{ marginBottom: 24 }}>
+              <span style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(48px, 10vw, 72px)', fontWeight: 900, color: '#1E3A5F' }}>Salu</span>
+              <span style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(48px, 10vw, 72px)', fontWeight: 600, color: '#2A9D8F' }}>rama</span>
             </div>
-          </div>
-        </div>
-      </section>
 
-      {/* ── ESPECIALIDADES ── */}
-      <section style={{ padding: '0 20px 48px' }}>
-        <div style={{ maxWidth: 860, margin: '0 auto' }}>
-          <p style={{ fontSize: 11, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.1em', textAlign: 'center', marginBottom: 16 }}>
-            Especialidades frecuentes
-          </p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
-            {ESPECIALIDADES.map(esp => (
-              <button key={esp.nombre} className="chip"
-                onClick={() => router.push(`/buscar?q=${encodeURIComponent(esp.nombre)}`)}>
-                <span style={{ fontSize: 15 }}>{esp.emoji}</span>
-                <span>{esp.nombre}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── SECCIÓN: HERRAMIENTAS DE CONFIANZA ── */}
-      <section style={{ padding: 'clamp(40px, 6vw, 60px) 20px', background: 'linear-gradient(160deg, #EEF2FF 0%, #F9FAFB 100%)' }}>
-        <div style={{ maxWidth: 820, margin: '0 auto' }}>
-          <p style={{ fontSize: 11, fontWeight: 600, color: '#4F46E5', textTransform: 'uppercase', letterSpacing: '0.1em', textAlign: 'center', marginBottom: 10 }}>
-            Tu herramienta de decisión
-          </p>
-
-          {/* Título Actualizado */}
-          <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(22px, 4vw, 30px)', fontWeight: 900, color: '#3730A3', textAlign: 'center', marginBottom: 10, lineHeight: 1.25 }}>
-            Encuentra, verifica y haz cita con tu médico en minutos
-          </h2>
-
-          <div className="trust-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginTop: 32 }}>
-            <div className="trust-card">
-              <div style={{ width: 40, height: 40, borderRadius: 10, background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <ShieldCheck size={20} color="#3730A3" />
-              </div>
-              <p style={{ fontSize: 14, fontWeight: 600, color: '#1A1A2E' }}>Cédula profesional</p>
-              <p style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.6, fontWeight: 300 }}>
-                Cada perfil tiene un botón que te lleva directo al registro oficial de la SEP.
-                Tú verificas, tú decides.
-              </p>
-            </div>
-            <div className="trust-card">
-              <div style={{ width: 40, height: 40, borderRadius: 10, background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <GraduationCap size={20} color="#3730A3" />
-              </div>
-              <p style={{ fontSize: 14, fontWeight: 600, color: '#1A1A2E' }}>Certificación vigente</p>
-              <p style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.6, fontWeight: 300 }}>
-                Acceso directo a CONACEM para confirmar que la certificación
-                está activa y al día.
-              </p>
-            </div>
-            <div className="trust-card">
-              <div style={{ width: 40, height: 40, borderRadius: 10, background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Clock size={20} color="#3730A3" />
-              </div>
-              <p style={{ fontSize: 14, fontWeight: 600, color: '#1A1A2E' }}>Filtros que importan</p>
-              <p style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.6, fontWeight: 300 }}>
-                Ordena por lo que es importante para ti: ubicación, experiencia, costo o reseñas.
-                No por quién pagó más.
-              </p>
-            </div>
-          </div>
-
-          {/* Link Actualizado */}
-          <div style={{ textAlign: 'center', marginTop: 28 }}>
-            <Link href="/como-elegir-medico" style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              fontSize: 14, color: '#3730A3', fontWeight: 600,
-              textDecoration: 'none', borderBottom: '1px solid #3730A344', paddingBottom: 2
+            <h1 style={{
+              fontSize: 'clamp(24px, 5vw, 40px)',
+              fontWeight: 900,
+              color: '#1E3A5F',
+              marginBottom: 40,
+              lineHeight: 1.2
             }}>
-              Aprende a elegir médico <ArrowRight size={14} />
-            </Link>
-          </div>
-        </div>
-      </section>
+              Verifica credenciales y agenda con confianza
+            </h1>
 
-      {/* ── CÓMO FUNCIONA ── */}
-      <section style={{ padding: 'clamp(40px, 6vw, 56px) 20px', background: '#F9FAFB' }}>
-        <div style={{ maxWidth: 860, margin: '0 auto' }}>
-          <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(20px, 4vw, 28px)', fontWeight: 900, color: '#3730A3', textAlign: 'center', marginBottom: 8 }}>
-            ¿Cómo funciona?
-          </h2>
-          <p style={{ textAlign: 'center', color: '#6B7280', marginBottom: 36, fontSize: 14 }}>
-            Encuentra a tu médico en menos de 2 minutos
-          </p>
-          <div className="pasos-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
-            {[
-              {
-                n: '1',
-                titulo: 'Busca',
-                desc: 'Escribe la especialidad, un síntoma o el nombre de tu médico.',
-              },
-              {
-                n: '2',
-                titulo: 'Verifica tú mismo',
-                desc: 'Desde el perfil del médico, accede con un clic a la SEP y a CONACEM. La verificación la haces tú, con fuentes oficiales.',
-              },
-              {
-                n: '3',
-                titulo: 'Contacta',
-                desc: 'Llama o escribe directamente. Sin intermediarios. Sin costo.',
-              },
-            ].map(paso => (
-              <div key={paso.n} style={{ textAlign: 'center', padding: 'clamp(20px, 4vw, 28px) 16px', background: '#fff', borderRadius: 14, border: '1.5px solid #E5E7EB' }}>
-                <div className="paso-num">{paso.n}</div>
-                <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 900, color: '#1A1A2E', marginBottom: 6 }}>{paso.titulo}</h3>
-                <p style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.6, fontWeight: 300 }}>{paso.desc}</p>
+            {/* SEARCH BAR */}
+            <div className="sugerencias-wrapper" style={{
+              maxWidth: 800,
+              margin: '0 auto 48px',
+              display: 'flex',
+              gap: 12,
+              flexWrap: 'wrap'
+            }}>
+              {/* Input Especialidad */}
+              <div style={{ flex: '1 1 300px', position: 'relative' }}>
+                <input
+                  type="text"
+                  placeholder="Especialidad o médico..."
+                  value={inputValue}
+                  onChange={handleInputChange}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleSearch()
+                    }
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '18px 140px 18px 24px',
+                    borderRadius: 16,
+                    border: '1.5px solid #2A9D8F',
+                    fontSize: 15,
+                    background: '#fff',
+                    outline: 'none'
+                  }}
+                />
+                <button
+                  onClick={handleSearch}
+                  style={{
+                    position: 'absolute',
+                    right: 8,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: '#8B5CF6',
+                    border: 'none',
+                    borderRadius: 12,
+                    padding: '10px 20px',
+                    color: 'white',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6
+                  }}
+                >
+                  <Search size={18} />
+                  Buscar
+                </button>
+                
+                {/* Sugerencias */}
+                {showSugerencias && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    right: 0,
+                    marginTop: 0,
+                    background: '#fff',
+                    borderRadius: 12,
+                    border: '1px solid #E5E7EB',
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                    zIndex: 100,
+                    maxHeight: 300,
+                    overflow: 'auto'
+                  }}>
+                    {sugerencias.map((sugerencia, index) => (
+                      <button
+                        key={index}
+                        onClick={() => handleSugerenciaClick(sugerencia)}
+                        onMouseDown={(e) => {
+                          e.preventDefault()  // ✅ PREVENIR PÉRDIDA DE FOCO
+                          handleSugerenciaClick(sugerencia)
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '12px 16px',
+                          background: 'none',
+                          border: 'none',
+                          textAlign: 'left',
+                          fontSize: 14,
+                          cursor: 'pointer',
+                          transition: 'background 0.2s',
+                          borderBottom: index < sugerencias.length - 1 ? '1px solid #F3F4F6' : 'none'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = '#F5F3FF'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = '#fff'}
+                      >
+                        {sugerencia}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
-      {/* ── ESPECIALISTAS VERIFICADOS ── */}
-      <section style={{ padding: 'clamp(40px, 6vw, 56px) 20px 64px', background: '#fff' }}>
-        <div style={{ maxWidth: 1000, margin: '0 auto' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 24, flexWrap: 'wrap', gap: 10 }}>
+              {/* Selector Estado */}
+              <select
+                value={selectedState}
+                onChange={(e) => setSelectedState(e.target.value)}
+                style={{
+                  flex: '0 1 250px',
+                  padding: '18px 24px',
+                  borderRadius: 16,
+                  border: '1.5px solid #2A9D8F',
+                  fontSize: 15,
+                  fontFamily: "'DM Sans', sans-serif",
+                  background: '#fff',
+                  cursor: 'pointer',
+                  outline: 'none'
+                }}
+              >
+                <option value="">Todos los estados</option>
+                {STATES.map((state) => (
+                  <option key={state} value={state}>{state}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Chips */}
             <div>
-              <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(18px, 4vw, 24px)', fontWeight: 900, color: '#3730A3' }}>
-                Especialistas registrados
-              </h2>
-              <p style={{ fontSize: 13, color: '#6B7280', marginTop: 3, fontWeight: 300 }}>
-                Cédula verificable en SEP · Perfil completo
+              <p style={{ fontSize: 14, color: '#6B7280', marginBottom: 16 }}>
+                Especialidades más buscadas:
               </p>
+              <div style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 8,
+                justifyContent: 'center',
+                maxWidth: 900,
+                margin: '0 auto'
+              }}>
+                {ESPECIALIDADES_CONACEM.slice(0, 10).map((esp) => (
+                  <button
+                    key={esp}
+                    onClick={() => {
+                      const params = new URLSearchParams()
+                      params.set('especialidad', esp)
+                      if (selectedState) params.set('estado', selectedState)
+                      router.push(`/buscar?${params.toString()}`)
+                    }}
+                    className="chip"
+                    style={{
+                      background: '#fff',
+                      border: '1px solid #2A9D8F',
+                      borderRadius: 50,
+                      padding: '8px 16px',
+                      fontSize: 13,
+                      color: '#4A5568',
+                      cursor: 'pointer',
+                      fontFamily: "'DM Sans', sans-serif"
+                    }}
+                  >
+                    {esp}
+                  </button>
+                ))}
+              </div>
             </div>
-            <Link href="/buscar" style={{ fontSize: 13, color: '#3730A3', fontWeight: 500, textDecoration: 'none', borderBottom: '1px solid #3730A344' }}>
-              Ver todos →
-            </Link>
-          </div>
-          {loading ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 }}>
-              {[1, 2, 3].map(i => <div key={i} style={{ height: 110, borderRadius: 14, background: '#F3F4F6' }} />)}
+          </section>
+
+          {/* ESPECIALISTAS */}
+          <section className="fade-up" style={{
+            maxWidth: 1200,
+            margin: '0 auto',
+            padding: '60px 20px',
+            borderTop: '1px solid #E5E7EB'
+          }}>
+            <div style={{ marginBottom: 40 }}>
+              <h2 style={{
+                fontSize: 'clamp(24px, 4vw, 36px)',
+                fontWeight: 900,
+                color: '#1E3A5F',
+                marginBottom: 8
+              }}>
+                Nuestros especialistas
+              </h2>
             </div>
-          ) : medicos.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px 20px', color: '#9CA3AF' }}>
-              <p style={{ fontSize: 28, marginBottom: 10 }}>🩺</p>
-              <p style={{ fontSize: 14 }}>Próximamente más especialistas registrados</p>
-              <Link href="/registro" style={{ display: 'inline-block', marginTop: 14, color: '#3730A3', fontWeight: 500, fontSize: 13, textDecoration: 'none', borderBottom: '1px solid #3730A3' }}>
-                ¿Eres médico? Regístrate →
-              </Link>
-            </div>
-          ) : (
-            <div className="medicos-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 }}>
-              {medicos.map(m => (
-                <Link key={m.id} href={`/doctor/${m.id}`} className="mcard">
-                  <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                    <div className="avatar">{(m.full_name || '?')[0].toUpperCase()}</div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontFamily: "'Fraunces', serif", fontSize: 15, fontWeight: 700, color: '#1A1A2E', marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {m.full_name}
-                      </p>
-                      <p style={{ fontSize: 13, color: '#4F46E5', fontWeight: 500, marginBottom: 6 }}>{m.specialty}</p>
-                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                        {m.license_verified && (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11, color: '#3730A3', background: '#EEF2FF', borderRadius: 20, padding: '2px 8px', fontWeight: 600 }}>
-                            ✓ Cédula verificable
-                          </span>
-                        )}
-                        {m.location_city && <span style={{ fontSize: 11, color: '#9CA3AF' }}>📍 {m.location_city}</span>}
-                        {m.consultation_price > 0 && <span style={{ fontSize: 11, color: '#9CA3AF' }}>${m.consultation_price} MXN</span>}
+
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: 60 }}>
+                <div style={{
+                  width: 40,
+                  height: 40,
+                  border: '3px solid #E8ECF3',
+                  borderTopColor: '#8B5CF6',
+                  borderRadius: '50%',
+                  animation: 'spin 0.8s linear infinite',
+                  margin: '0 auto 16px'
+                }} />
+                <p style={{ color: '#9CA3AF', fontSize: 14 }}>Cargando médicos...</p>
+              </div>
+            ) : medicos.length > 0 ? (
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                gap: 24
+              }}>
+                {medicos.map((medico) => (
+                  <Link
+                    key={medico.id}
+                    href={`/doctor/${medico.id}`}
+                    className="card-medico"
+                    style={{
+                      background: '#fff',
+                      borderRadius: 16,
+                      padding: 20,
+                      textDecoration: 'none',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 16
+                    }}
+                  >
+                    <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                      {medico.photo_url ? (
+                        <img
+                          src={medico.photo_url}
+                          alt={medico.full_name}
+                          style={{
+                            width: 64,
+                            height: 64,
+                            borderRadius: '50%',
+                            objectFit: 'cover'
+                          }}
+                        />
+                      ) : (
+                        <div style={{
+                          width: 64,
+                          height: 64,
+                          borderRadius: '50%',
+                          background: 'linear-gradient(135deg, #1E3A5F, #2A9D8F)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontWeight: 900,
+                          fontSize: 24,
+                          color: '#fff'
+                        }}>
+                          {(medico.full_name || '?')[0].toUpperCase()}
+                        </div>
+                      )}
+                      <div style={{ flex: 1 }}>
+                        <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1E3A5F', marginBottom: 4 }}>
+                          {medico.full_name}
+                        </h3>
+                        <p style={{ fontSize: 14, color: '#6B7280' }}>{medico.specialty}</p>
                       </div>
                     </div>
-                  </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#6B7280' }}>
+                      <MapPin size={14} />
+                      {medico.location_city}, {medico.location_state}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div style={{
+                textAlign: 'center',
+                padding: '80px 20px',
+                background: '#F9FAFB',
+                borderRadius: 16,
+                border: '1px dashed #D1D5DB'
+              }}>
+                <div style={{
+                  width: 64,
+                  height: 64,
+                  background: '#F5F3FF',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 20px'
+                }}>
+                  <Stethoscope size={32} color="#8B5CF6" />
+                </div>
+                <h3 style={{ fontSize: 20, fontWeight: 700, color: '#1E3A5F', marginBottom: 8 }}>
+                  Aún no hay médicos registrados
+                </h3>
+                <p style={{ fontSize: 15, color: '#6B7280', maxWidth: 500, margin: '0 auto' }}>
+                  Sé el primero en unirte a nuestra plataforma
+                </p>
+                <Link
+                  href="/registro"
+                  className="btn-violeta"
+                  style={{
+                    display: 'inline-block',
+                    marginTop: 20,
+                    padding: '12px 32px',
+                    borderRadius: 50,
+                    textDecoration: 'none',
+                    fontWeight: 600
+                  }}
+                >
+                  Registrarme como médico
                 </Link>
-              ))}
+              </div>
+            )}
+          </section>
+
+          {/* ¿POR QUÉ SALURAMA? */}
+          <section className="fade-up" style={{
+            maxWidth: 1200,
+            margin: '0 auto',
+            padding: '60px 20px',
+            borderTop: '1px solid #E5E7EB'
+          }}>
+            <div style={{ textAlign: 'center', marginBottom: 48 }}>
+              <h2 style={{
+                fontSize: 'clamp(24px, 4vw, 36px)',
+                fontWeight: 900,
+                color: '#1E3A5F',
+                marginBottom: 8
+              }}>
+                ¿Por qué <span style={{ color: '#2A9D8F' }}>Salurama</span>?
+              </h2>
+              <p style={{ fontSize: 15, color: '#6B7280' }}>
+                Herramientas para tomar decisiones informadas
+              </p>
             </div>
-          )}
-        </div>
-      </section>
 
-      {/* ── CTA MÉDICOS ── */}
-      <section style={{ background: '#3730A3', padding: 'clamp(40px, 6vw, 52px) 20px', textAlign: 'center' }}>
-        <div style={{ maxWidth: 520, margin: '0 auto' }}>
-          <p style={{ fontSize: 11, fontWeight: 600, color: '#F4623A', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 10 }}>
-            Para médicos
-          </p>
-          <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(20px, 5vw, 28px)', fontWeight: 900, color: '#fff', marginBottom: 10, lineHeight: 1.3 }}>
-            Tus pacientes te están buscando
-          </h2>
-          <p style={{ color: '#A5B4FC', fontSize: 14, marginBottom: 24, fontWeight: 300 }}>
-            Registro gratuito · Visibilidad basada en tus méritos · Sin comisiones por paciente
-          </p>
-          <Link href="/registro" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#F4623A', color: '#fff', fontWeight: 700, textDecoration: 'none', padding: '13px 28px', borderRadius: '50px', fontSize: 15, fontFamily: "'DM Sans', sans-serif" }}>
-            Registrarme →
-          </Link>
-          <p style={{ marginTop: 12, fontSize: 12, color: '#A5B4FC', fontWeight: 300 }}>
-            Tu perfil aparece por lo que sabes, no por lo que pagas.
-          </p>
-        </div>
-      </section>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+              gap: 32
+            }}>
+              <div className="card-medico" style={{
+                background: '#fff',
+                borderRadius: 16,
+                padding: 32,
+                textAlign: 'center'
+              }}>
+                <div style={{
+                  width: 64,
+                  height: 64,
+                  background: '#F5F3FF',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 20px'
+                }}>
+                  <Shield size={32} color="#8B5CF6" />
+                </div>
+                <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1E3A5F', marginBottom: 12 }}>
+                  Verifica en SEP/CONACEM
+                </h3>
+                <p style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.6 }}>
+                  Accede a portales oficiales para verificar credenciales antes de agendar
+                </p>
+              </div>
 
-      {/* ── FOOTER ── */}
-      <footer style={{ background: '#1E1B4B', padding: 'clamp(32px, 5vw, 40px) 20px', textAlign: 'center' }}>
-        <div style={{ maxWidth: 860, margin: '0 auto' }}>
-          <div style={{ marginBottom: 10 }}>
-            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 900, color: '#fff' }}>Salu</span>
-            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 600, color: '#F4623A' }}>rama</span>
+              <div className="card-medico" style={{
+                background: '#fff',
+                borderRadius: 16,
+                padding: 32,
+                textAlign: 'center'
+              }}>
+                <div style={{
+                  width: 64,
+                  height: 64,
+                  background: '#FEF3C7',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 20px'
+                }}>
+                  <Star size={32} color="#F59E0B" />
+                </div>
+                <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1E3A5F', marginBottom: 12 }}>
+                  Reseñas de pacientes reales
+                </h3>
+                <p style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.6 }}>
+                  Solo pacientes que agendaron cita pueden dejar reseñas verificadas
+                </p>
+              </div>
+
+              <div className="card-medico" style={{
+                background: '#fff',
+                borderRadius: 16,
+                padding: 32,
+                textAlign: 'center'
+              }}>
+                <div style={{
+                  width: 64,
+                  height: 64,
+                  background: '#ECFDF5',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 20px'
+                }}>
+                  <MessageCircle size={32} color="#059669" />
+                </div>
+                <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1E3A5F', marginBottom: 12 }}>
+                  Contacto directo
+                </h3>
+                <p style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.6 }}>
+                  Sin intermediarios, sin costos adicionales. Habla directo con el consultorio
+                </p>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+
+      {/* FOOTER */}
+      <footer style={{
+        background: '#1E3A5F',
+        color: '#fff',
+        padding: '60px 20px 40px',
+        marginTop: 80
+      }}>
+        <div style={{
+          maxWidth: 1200,
+          margin: '0 auto',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+          gap: 40,
+          marginBottom: 40
+        }}>
+          <div>
+            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 900, color: '#FFFFFF' }}>Salu</span>
+            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 600, color: '#2A9D8F' }}>rama</span>
+            <p style={{ fontSize: 14, color: '#C5D0E0', marginTop: 16, lineHeight: 1.6 }}>
+              Verifico, luego elijo. Herramientas para verificar credenciales antes de agendar.
+            </p>
           </div>
-          <p style={{ fontSize: 13, color: '#A5B4FC', fontStyle: 'italic', marginBottom: 16 }}>"Más que opiniones, evidencia"</p>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 20, flexWrap: 'wrap', marginBottom: 16 }}>
-            {[
-              { label: 'Especialidades',        href: '/buscar'                   },
-              { label: '¿Cómo elegir médico?',  href: '/como-elegir-medico'       },
-              { label: 'Registro médico',        href: '/registro'                 },
-              { label: 'Nosotros',               href: '/nosotros'                 },
-              { label: 'Términos y Condiciones', href: '/terminos-y-condiciones'   },
-              { label: 'Aviso de Privacidad',    href: '/aviso-de-privacidad'      },
-              { label: 'Política de Cookies',    href: '/politica-de-cookies'      },
-              { label: 'Términos Profesionales', href: '/terminos-profesionales'   },
-            ].map(l => (
-              <Link key={l.label} href={l.href} style={{ fontSize: 13, color: '#A5B4FC', textDecoration: 'none' }}>
-                {l.label}
-              </Link>
-            ))}
+
+          <div>
+            <h4 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, color: '#FFFFFF' }}>Plataforma</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <Link href="/buscar" className="nav-link" style={{ color: '#C5D0E0', textDecoration: 'none', fontSize: 14 }}>Buscar médico</Link>
+              <Link href="/como-elegir-medico" className="nav-link" style={{ color: '#C5D0E0', textDecoration: 'none', fontSize: 14 }}>¿Cómo elegir médico?</Link>
+              <Link href="/registro" className="nav-link" style={{ color: '#C5D0E0', textDecoration: 'none', fontSize: 14 }}>Soy Médico</Link>
+            </div>
           </div>
-          <p style={{ fontSize: 12, color: '#6B7280' }}>© 2026 Salurama S.A.S. · salurama.com · Hecho en México 🇲🇽</p>
+
+          <div>
+            <h4 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, color: '#FFFFFF' }}>Legal</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <Link href="/terminos-y-condiciones" className="nav-link" style={{ color: '#C5D0E0', textDecoration: 'none', fontSize: 14 }}>Términos y condiciones</Link>
+              <Link href="/politica-de-cookies" className="nav-link" style={{ color: '#C5D0E0', textDecoration: 'none', fontSize: 14 }}>Política de cookies</Link>
+              <Link href="/aviso-de-privacidad" className="nav-link" style={{ color: '#C5D0E0', textDecoration: 'none', fontSize: 14 }}>Aviso de privacidad</Link>
+            </div>
+          </div>
+
+          <div>
+            <h4 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, color: '#FFFFFF' }}>Contacto</h4>
+            <p style={{ fontSize: 14, color: '#C5D0E0', marginBottom: 8 }}>
+              ¿Tienes dudas? Escríbenos:
+            </p>
+            <a href="mailto:hola@salurama.com" className="nav-link" style={{ color: '#fff', textDecoration: 'none', fontSize: 14, fontWeight: 600 }}>
+              hola@salurama.com
+            </a>
+          </div>
+        </div>
+
+        <div style={{
+          borderTop: '1px solid rgba(255,255,255,0.1)',
+          paddingTop: 24,
+          textAlign: 'center',
+          fontSize: 13,
+          color: '#9CA3AF'
+        }}>
+          © 2026 Salurama. Todos los derechos reservados.
         </div>
       </footer>
+
+      <BottomNav />
     </div>
   )
 }

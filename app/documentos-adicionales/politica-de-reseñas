@@ -1,0 +1,127 @@
+ ════════════════════════════════════════════════════════════════════════════
+// POLÍTICA DE CONTENIDO Y RESEÑAS
+// ════════════════════════════════════════════════════════════════════════════
+
+export function PoliticaResenas() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
+  return (
+    <div style={{ fontFamily: "'DM Sans', sans-serif", background: '#fff', minHeight: '100vh', color: '#1A1A2E' }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;0,900;1,600&family=DM+Sans:wght@300;400;500;700&display=swap');
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        .nav-link { color:#1A1A2E; text-decoration:none; font-size:15px; font-weight:400; padding:6px 2px; border-bottom:2px solid transparent; transition:color .15s,border-color .15s; }
+        .nav-link:hover { color:#3730A3; border-color:#3730A3; }
+        .btn-medico { background:#3730A3; color:#fff; text-decoration:none; padding:10px 20px; border-radius:50px; font-size:14px; font-weight:600; font-family:'DM Sans',sans-serif; transition:background .18s; display:inline-flex; align-items:center; gap:7px; }
+        .btn-medico:hover { background:#4F46E5; }
+        .legal-h2 { font-family:'Fraunces',serif; font-size:clamp(18px,3.5vw,22px); font-weight:900; color:#1E1B4B; margin:0 0 14px; padding-bottom:10px; border-bottom:2px solid #EEF2FF; }
+        .legal-h3 { font-size:15px; font-weight:600; color:#3730A3; margin:20px 0 8px; }
+        .legal-p { font-size:14px; color:#4B5563; line-height:1.85; margin-bottom:12px; }
+        .legal-ul { padding-left:20px; margin-bottom:14px; }
+        .legal-li { font-size:14px; color:#4B5563; line-height:1.8; margin-bottom:5px; }
+        .legal-strong { color:#1A1A2E; font-weight:600; }
+        .info-box { background:#EEF2FF; border:1.5px solid #C7D2FE; border-radius:10px; padding:14px 18px; margin:16px 0; }
+        .info-box p { margin:0; color:#3730A3; font-size:13px; font-weight:500; line-height:1.6; }
+        .section-block { margin-bottom:44px; scroll-margin-top:80px; }
+        @media (max-width:768px) { .dsk{display:none!important} .mob-btn{display:flex!important} }
+        @media (min-width:769px) { .mob-btn{display:none!important} .mob-menu{display:none!important} }
+      `}</style>
+
+      <nav style={{ position:'sticky', top:0, zIndex:100, background:'rgba(255,255,255,0.97)', backdropFilter:'blur(14px)', borderBottom:'1px solid #F3F4F6', padding:'0 20px' }}>
+        <div style={{ maxWidth:1100, margin:'0 auto', height:58, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+          <Link href="/" style={{ textDecoration:'none' }}>
+            <span style={{ fontFamily:"'Fraunces',serif", fontSize:22, fontWeight:900, color:'#3730A3', letterSpacing:'-0.5px' }}>Salu</span>
+            <span style={{ fontFamily:"'Fraunces',serif", fontSize:22, fontWeight:600, color:'#F4623A', letterSpacing:'-0.5px' }}>rama</span>
+          </Link>
+          <div className="dsk" style={{ display:'flex', alignItems:'center', gap:28 }}>
+            <Link href="/buscar" className="nav-link">Especialidades</Link>
+            <Link href="/nosotros" className="nav-link">Nosotros</Link>
+            <Link href="/registro" className="btn-medico">👨‍⚕️ Soy Médico</Link>
+          </div>
+          <button className="mob-btn" onClick={() => setMobileMenuOpen(o => !o)} style={{ display:'none', alignItems:'center', background:'none', border:'none', cursor:'pointer', padding:8 }}>
+            {mobileMenuOpen ? <X size={24} color="#3730A3" /> : <Menu size={24} color="#3730A3" />}
+          </button>
+        </div>
+      </nav>
+
+      <section style={{ background:'linear-gradient(160deg,#EEF2FF 0%,#fff 60%)', padding:'clamp(40px,6vw,60px) 20px 32px' }}>
+        <div style={{ maxWidth:820, margin:'0 auto' }}>
+          <p style={{ fontSize:11, fontWeight:600, color:'#4F46E5', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:10 }}>Comunidad y confianza</p>
+          <h1 style={{ fontFamily:"'Fraunces',serif", fontSize:'clamp(26px,5vw,38px)', fontWeight:900, color:'#1E1B4B', marginBottom:12 }}>Política de Contenido y Reseñas</h1>
+          <p style={{ fontSize:14, color:'#6B7280' }}>Última actualización: 31 de marzo de 2026 · SALURAMA S.A.S.</p>
+        </div>
+      </section>
+
+      <div style={{ maxWidth:820, margin:'0 auto', padding:'40px 20px 80px' }}>
+
+        <div className="section-block">
+          <h2 className="legal-h2">1. Propósito de las reseñas en Salurama</h2>
+          <p className="legal-p">Las reseñas son información complementaria que los pacientes pueden compartir tras una consulta. En Salurama, las reseñas son un dato más dentro de un sistema de información más amplio que incluye credenciales verificables y filtros objetivos.</p>
+          <div className="info-box">
+            <p>Las reseñas nunca determinan el orden de aparición en resultados de búsqueda. Ningún médico aparece primero ni último por su calificación o número de reseñas.</p>
+          </div>
+        </div>
+
+        <div className="section-block">
+          <h2 className="legal-h2">2. Quién puede publicar reseñas</h2>
+          <ul className="legal-ul">
+            <li className="legal-li">Usuarios registrados en la plataforma que hayan tenido contacto con el profesional.</li>
+            <li className="legal-li">Se permite una reseña por usuario por profesional. Las reseñas duplicadas serán eliminadas.</li>
+            <li className="legal-li">Salurama no verifica si el usuario efectivamente consultó al profesional, pero se reserva el derecho de eliminar reseñas con indicios de fraude o conflicto de interés.</li>
+          </ul>
+        </div>
+
+        <div className="section-block">
+          <h2 className="legal-h2">3. Contenido permitido</h2>
+          <p className="legal-p">Las reseñas deben referirse a la experiencia de atención y deben ser:</p>
+          <ul className="legal-ul">
+            <li className="legal-li">Honestas y basadas en experiencia personal real.</li>
+            <li className="legal-li">Respetuosas y sin lenguaje ofensivo o discriminatorio.</li>
+            <li className="legal-li">Relacionadas con el servicio recibido (trato, puntualidad, instalaciones, comunicación).</li>
+          </ul>
+          <h3 className="legal-h3">Contenido prohibido</h3>
+          <ul className="legal-ul">
+            <li className="legal-li">Información médica confidencial propia o de terceros.</li>
+            <li className="legal-li">Datos personales de terceros sin consentimiento.</li>
+            <li className="legal-li">Contenido difamatorio, falso o con ánimo de daño.</li>
+            <li className="legal-li">Publicidad o promoción de servicios de terceros.</li>
+            <li className="legal-li">Reseñas publicadas por el propio profesional o personas relacionadas con él.</li>
+            <li className="legal-li">Reseñas publicadas por competidores con ánimo de dañar.</li>
+          </ul>
+        </div>
+
+        <div className="section-block">
+          <h2 className="legal-h2">4. Propiedad del contenido</h2>
+          <p className="legal-p">El autor de la reseña conserva la propiedad intelectual del contenido que publica. Al publicar, otorga a Salurama una licencia no exclusiva, gratuita y revocable para mostrar, reproducir y distribuir la reseña dentro de la plataforma.</p>
+          <p className="legal-p">El profesional evaluado puede solicitar la eliminación de una reseña únicamente si puede demostrar que su contenido es objetivamente falso o viola esta Política. La mera calificación negativa no es causa suficiente para eliminar una reseña.</p>
+        </div>
+
+        <div className="section-block">
+          <h2 className="legal-h2">5. Proceso de moderación y disputas</h2>
+          <h3 className="legal-h3">Reporte de reseñas</h3>
+          <p className="legal-p">Cualquier usuario o profesional puede reportar una reseña que considere que viola esta Política enviando un correo a <a href="mailto:contenido@salurama.com" style={{ color:'#3730A3' }}>contenido@salurama.com</a> indicando: URL del perfil, texto de la reseña reportada y motivo del reporte.</p>
+          <h3 className="legal-h3">Resolución</h3>
+          <p className="legal-p">Salurama evaluará el reporte en un plazo de 10 días hábiles y notificará la resolución. Las decisiones de moderación son definitivas pero pueden ser apeladas una vez con nueva evidencia.</p>
+          <h3 className="legal-h3">Respuesta del profesional</h3>
+          <p className="legal-p">El profesional puede responder públicamente a cualquier reseña. Las respuestas deben ser profesionales, respetuosas y no incluir datos personales del paciente.</p>
+        </div>
+
+        <div className="section-block">
+          <h2 className="legal-h2">6. Contacto</h2>
+          <p className="legal-p">Para asuntos relacionados con reseñas y contenido: <a href="mailto:contenido@salurama.com" style={{ color:'#3730A3' }}>contenido@salurama.com</a></p>
+          <p className="legal-p" style={{ marginTop:24, paddingTop:20, borderTop:'1px solid #F3F4F6', fontSize:12, color:'#9CA3AF' }}>© 2026 SALURAMA S.A.S. · salurama.com</p>
+        </div>
+      </div>
+
+      <footer style={{ background:'#1E1B4B', padding:'clamp(32px,5vw,40px) 20px', textAlign:'center' }}>
+        <div style={{ maxWidth:860, margin:'0 auto' }}>
+          <div style={{ marginBottom:10 }}>
+            <span style={{ fontFamily:"'Fraunces',serif", fontSize:20, fontWeight:900, color:'#fff' }}>Salu</span>
+            <span style={{ fontFamily:"'Fraunces',serif", fontSize:20, fontWeight:600, color:'#F4623A' }}>rama</span>
+          </div>
+          <p style={{ fontSize:12, color:'#6B7280' }}>© 2026 SALURAMA S.A.S. · salurama.com · Hecho en México 🇲🇽</p>
+        </div>
+      </footer>
+    </div>
+  )
+}

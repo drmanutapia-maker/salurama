@@ -25,7 +25,7 @@ export const metadata: Metadata = {
     },
   },
   icons: {
-    icon: "/favicon.ico",
+    icon: "/favicon.png",
     apple: "/apple-touch-icon.png",
   },
   openGraph: {
@@ -53,7 +53,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#3730A3",
+  themeColor: "#1E3A5F",
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
@@ -68,6 +68,7 @@ export default function RootLayout({
   return (
     <html lang="es">
       <head>
+        <meta charSet="utf-8" />
         <link
           rel="preload"
           href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;0,900;1,600&family=DM+Sans:wght@300;400;500;700&display=swap"
@@ -102,7 +103,7 @@ export default function RootLayout({
           }}
         />
 </head>
-<body className="antialiased bg-white text-[#1A1A2E]" style={{ margin: 0, padding: 0, overflowX: 'hidden' }}>
+<body className="antialiased bg-white text-[#111827]" style={{ margin: 0, padding: 0, overflowX: 'hidden' }}>
 <Navbar />
   {children}
   <CookieBanner />

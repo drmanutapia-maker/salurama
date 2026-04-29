@@ -1,3 +1,378 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ========================================
+   VARIABLES CSS GLOBALES - SALURAMA 2026
+   ======================================== */
+
+:root {
+  /* Colores Primarios */
+  --color-primary-50: #E8ECF3;
+  --color-primary-100: #C5D0E0;
+  --color-primary-200: #9FB0C9;
+  --color-primary-300: #7589AD;
+  --color-primary-400: #526894;
+  --color-primary-500: #1E3A5F;  /* Principal */
+  --color-primary-600: #1A3254;
+  --color-primary-700: #152844;
+  --color-primary-800: #111F35;
+  --color-primary-900: #0D1829;
+  
+  /* Colores Secundarios */
+  --color-secondary-50: #E8F7F5;
+  --color-secondary-100: #C5EAE5;
+  --color-secondary-200: #9FD8CD;
+  --color-secondary-300: #75BFB0;
+  --color-secondary-400: #52A592;
+  --color-secondary-500: #2A9D8F;  /* Principal */
+  --color-secondary-600: #248A7D;
+  --color-secondary-700: #1D6F65;
+  --color-secondary-800: #17554D;
+  --color-secondary-900: #12423D;
+  
+  /* Colores Terciarios */
+  --color-tertiary-50: #F5F3FF;
+  --color-tertiary-100: #EDE9FE;
+  --color-tertiary-200: #DDD6FE;
+  --color-tertiary-300: #C4B5FD;
+  --color-tertiary-400: #A78BFA;
+  --color-tertiary-500: #8B5CF6;  /* Principal */
+  --color-tertiary-600: #7C3AED;
+  --color-tertiary-700: #6D28D9;
+  --color-tertiary-800: #5B21B6;
+  --color-tertiary-900: #4C1D95;
+  
+  /* Colores Neutrales */
+  --color-neutral-50: #F9FAFB;
+  --color-neutral-100: #F3F4F6;
+  --color-neutral-200: #E5E7EB;
+  --color-neutral-300: #D1D5DB;
+  --color-neutral-400: #9CA3AF;
+  --color-neutral-500: #6B7280;
+  --color-neutral-600: #4A5568;  /* Principal */
+  --color-neutral-700: #374151;
+  --color-neutral-800: #1F2937;
+  --color-neutral-900: #111827;
+  
+  /* Semantic Colors */
+  --color-success-500: #10B981;
+  --color-success-600: #059669;
+  --color-error-500: #EF4444;
+  --color-error-600: #DC2626;
+  --color-warning-500: #F59E0B;
+  --color-warning-600: #D97706;
+  --color-info-500: #3B82F6;
+  --color-info-600: #2563EB;
+  
+  /* Backgrounds */
+  --bg-primary: #FFFFFF;
+  --bg-secondary: #F8F9FA;
+  --bg-tertiary: #F3F4F6;
+  
+  /* Text */
+  --text-primary: #111827;
+  --text-secondary: #4A5568;
+  --text-tertiary: #6B7280;
+  --text-inverse: #FFFFFF;
+  
+  /* Borders */
+  --border-light: #E5E7EB;
+  --border-medium: #D1D5DB;
+  --border-dark: #9CA3AF;
+  
+  /* Spacing */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  --spacing-2xl: 3rem;
+  
+  /* Border Radius */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+  --radius-full: 9999px;
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(30, 58, 95, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(30, 58, 95, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(30, 58, 95, 0.1);
+  --shadow-xl: 0 20px 25px -5px rgba(30, 58, 95, 0.1);
+}
+
+/* Dark Mode (para futuro) */
+.dark {
+  --bg-primary: #111827;
+  --bg-secondary: #1F2937;
+  --bg-tertiary: #374151;
+  --text-primary: #F9FAFB;
+  --text-secondary: #D1D5DB;
+  --text-tertiary: #9CA3AF;
+  --border-light: #374151;
+  --border-medium: #4B5563;
+  --border-dark: #6B7280;
+}
+
+/* ========================================
+   BASE STYLES
+   ======================================== */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Fraunces', serif;
+  font-weight: 900;
+  line-height: 1.2;
+  color: var(--text-primary);
+}
+
+a {
+  color: var(--color-primary-500);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  color: var(--color-primary-600);
+}
+
+button {
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+}
+
+input, select, textarea {
+  font-family: 'DM Sans', sans-serif;
+}
+
+/* ========================================
+   UTILITY CLASSES
+   ======================================== */
+
+.text-primary { color: var(--text-primary); }
+.text-secondary { color: var(--text-secondary); }
+.text-tertiary { color: var(--text-tertiary); }
+
+.bg-primary { background-color: var(--bg-primary); }
+.bg-secondary { background-color: var(--bg-secondary); }
+.bg-tertiary { background-color: var(--bg-tertiary); }
+
+.border-light { border-color: var(--border-light); }
+.border-medium { border-color: var(--border-medium); }
+
+/* ========================================
+   ANIMATIONS
+   ======================================== */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.fade-up {
+  animation: fadeUp 0.4s ease-out;
+}
+
+.spin {
+  animation: spin 0.8s linear infinite;
+}
+
+/* ========================================
+   COMPONENT CLASSES
+   ======================================== */
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--color-primary-500) 0%, var(--color-primary-600) 100%);
+  color: white;
+  border: none;
+  border-radius: var(--radius-full);
+  padding: 12px 24px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, var(--color-primary-600) 0%, var(--color-primary-700) 100%);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-secondary {
+  background: white;
+  color: var(--color-primary-500);
+  border: 1.5px solid var(--color-primary-200);
+  border-radius: var(--radius-full);
+  padding: 12px 24px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.btn-secondary:hover {
+  background: var(--color-primary-50);
+  border-color: var(--color-primary-300);
+}
+
+.card {
+  background: var(--bg-primary);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-lg);
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s ease;
+}
+
+.card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.input-field {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1.5px solid var(--border-light);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.input-field:focus {
+  outline: none;
+  border-color: var(--color-primary-400);
+  box-shadow: 0 0 0 3px rgba(30, 58, 95, 0.1);
+}
+
+/* ========================================
+   RESPONSIVE UTILITIES 
+   ======================================== */
+
+@media (min-width: 768px) {
+  .desktop-only { display: flex !important; }
+  .mobile-only { display: none !important; }
+}
+
+@media (max-width: 767px) {
+  .desktop-only { display: none !important; }
+  .mobile-only { display: flex !important; }
+}
+
+/* ========================================
+   COMPONENT CLASSES ADICIONALES
+   ======================================== */
+
+/* Nav Link Hover */
+.nav-link {
+  position: relative;
+  transition: color 0.2s ease;
+}
+
+.nav-link:hover {
+  color: var(--color-tertiary-500);
+}
+
+/* Button Violeta (Terciario) */
+.btn-violeta {
+  background: var(--color-tertiary-500);
+  color: white;
+  border: none;
+  transition: all 0.2s ease;
+}
+
+.btn-violeta:hover {
+  background: var(--color-tertiary-600);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
+}
+
+/* Chip Hover */
+.chip {
+  transition: all 0.2s ease;
+}
+
+.chip:hover {
+  background: var(--color-tertiary-500);
+  color: white;
+  border-color: var(--color-tertiary-500);
+  transform: translateY(-2px);
+}
+
+/* Card Médico Hover */
+.card-medico {
+  transition: all 0.3s ease;
+  border: 1px solid var(--color-secondary-500);
+}
+
+.card-medico:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(42, 157, 143, 0.15);
+  border-color: var(--color-tertiary-500);
+}
+
+/* Tooltip */
+.tooltip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--color-primary-500);
+  color: white;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  width: 220px;
+  z-index: 100;
+  margin-bottom: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  text-align: center;
+  line-height: 1.4;
+}
+
+.tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 8px;
+  height: 8px;
+  background: var(--color-primary-500);
+  transform: translateX(-50%) rotate(45deg);
+}

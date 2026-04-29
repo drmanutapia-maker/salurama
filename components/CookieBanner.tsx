@@ -42,12 +42,15 @@ export default function CookieBanner() {
       <div
         style={{
           position: 'fixed',
-          bottom: showConfig ? '50%' : 24,
+          top: showConfig ? '50%' : 'auto',
+          bottom: showConfig ? 'auto' : 24,
           left: showConfig ? '50%' : 24,
           right: showConfig ? 'auto' : 24,
-          transform: showConfig ? 'translate(50%, 50%)' : 'none',
-          width: showConfig ? 'min(500px, calc(100vw - 48px))' : 'auto',
+          transform: showConfig ? 'translate(-50%, -50%)' : 'none',
+          width: showConfig ? 'min(500px, calc(100vw - 32px))' : 'auto',
           maxWidth: showConfig ? 'none' : 500,
+          maxHeight: showConfig ? '90vh' : 'none',
+          overflowY: showConfig ? 'auto' : 'visible',
           background: '#fff',
           borderRadius: 16,
           boxShadow: '0 8px 32px rgba(30, 27, 75, 0.15)',
@@ -65,7 +68,7 @@ export default function CookieBanner() {
             justifyContent: 'space-between',
             padding: '16px 20px',
             borderBottom: '1px solid #F3F4F6',
-            background: 'linear-gradient(135deg, #EEF2FF 0%, #F9FAFB 100%)',
+            background: 'linear-gradient(135deg, #E8ECF3 0%, #F9FAFB 100%)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -74,7 +77,7 @@ export default function CookieBanner() {
                 width: 36,
                 height: 36,
                 borderRadius: 10,
-                background: '#3730A3',
+                background: '#1E3A5F',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -87,7 +90,7 @@ export default function CookieBanner() {
                 style={{
                   fontSize: 14,
                   fontWeight: 700,
-                  color: '#1A1A2E',
+                  color: '#111827',
                   margin: 0,
                   fontFamily: "'Fraunces', serif",
                 }}
@@ -130,10 +133,10 @@ export default function CookieBanner() {
               }}
             >
               Usamos cookies para mejorar tu experiencia. Las cookies{' '}
-              <strong style={{ color: '#3730A3' }}>necesarias</strong> son
+              <strong style={{ color: '#1E3A5F' }}>necesarias</strong> son
               indispensables para el funcionamiento. Las de{' '}
-              <strong style={{ color: '#3730A3' }}>análisis</strong> y{' '}
-              <strong style={{ color: '#3730A3' }}>funcionalidad</strong> nos
+              <strong style={{ color: '#1E3A5F' }}>análisis</strong> y{' '}
+              <strong style={{ color: '#1E3A5F' }}>funcionalidad</strong> nos
               ayudan a mejorar la plataforma.
             </p>
 
@@ -141,7 +144,7 @@ export default function CookieBanner() {
               href="/politica-de-cookies"
               style={{
                 fontSize: 12,
-                color: '#3730A3',
+                color: '#1E3A5F',
                 fontWeight: 600,
                 textDecoration: 'underline',
                 marginBottom: 16,
@@ -163,7 +166,7 @@ export default function CookieBanner() {
                 onClick={acceptAll}
                 style={{
                   width: '100%',
-                  background: '#3730A3',
+                  background: '#1E3A5F',
                   color: '#fff',
                   border: 'none',
                   borderRadius: 50,
@@ -209,9 +212,9 @@ export default function CookieBanner() {
                   onClick={() => setShowConfig(true)}
                   style={{
                     flex: 1,
-                    background: '#EEF2FF',
-                    color: '#3730A3',
-                    border: '1.5px solid #C7D2FE',
+                    background: '#E8ECF3',
+                    color: '#1E3A5F',
+                    border: '1.5px solid #C5D0E0',
                     borderRadius: 50,
                     padding: '12px 16px',
                     fontSize: 13,
@@ -281,7 +284,7 @@ export default function CookieBanner() {
                     style={{
                       fontSize: 13,
                       fontWeight: 600,
-                      color: '#1A1A2E',
+                      color: '#111827',
                       margin: 0,
                     }}
                   >
@@ -334,9 +337,9 @@ export default function CookieBanner() {
                     height: 20,
                     borderRadius: 4,
                     border: `2px solid ${
-                      config.analytics ? '#3730A3' : '#E5E7EB'
+                      config.analytics ? '#1E3A5F' : '#E5E7EB'
                     }`,
-                    background: config.analytics ? '#3730A3' : '#fff',
+                    background: config.analytics ? '#1E3A5F' : '#fff',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -350,7 +353,7 @@ export default function CookieBanner() {
                     style={{
                       fontSize: 13,
                       fontWeight: 600,
-                      color: '#1A1A2E',
+                      color: '#111827',
                       margin: 0,
                     }}
                   >
@@ -402,9 +405,9 @@ export default function CookieBanner() {
                     height: 20,
                     borderRadius: 4,
                     border: `2px solid ${
-                      config.functionality ? '#3730A3' : '#E5E7EB'
+                      config.functionality ? '#1E3A5F' : '#E5E7EB'
                     }`,
-                    background: config.functionality ? '#3730A3' : '#fff',
+                    background: config.functionality ? '#1E3A5F' : '#fff',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -418,7 +421,7 @@ export default function CookieBanner() {
                     style={{
                       fontSize: 13,
                       fontWeight: 600,
-                      color: '#1A1A2E',
+                      color: '#111827',
                       margin: 0,
                     }}
                   >
@@ -470,7 +473,7 @@ export default function CookieBanner() {
                 onClick={handleSaveConfig}
                 style={{
                   flex: 2,
-                  background: '#3730A3',
+                  background: '#1E3A5F',
                   color: '#fff',
                   border: 'none',
                   borderRadius: 50,

@@ -8,39 +8,39 @@ export default function DeslindeResponsabilidad() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   return (
-    <div style={{ fontFamily: "'DM Sans', sans-serif", background: '#fff', minHeight: '100vh', color: '#1A1A2E' }}>
+    <div style={{ fontFamily: "'DM Sans', sans-serif", background: '#fff', minHeight: '100vh', color: '#111827' }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;0,900;1,600&family=DM+Sans:wght@300;400;500;700&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        .nav-link { color: #1A1A2E; text-decoration: none; font-size: 15px; font-weight: 400;
+        .nav-link { color: #111827; text-decoration: none; font-size: 15px; font-weight: 400;
           padding: 6px 2px; border-bottom: 2px solid transparent; transition: color 0.15s, border-color 0.15s; }
-        .nav-link:hover { color: #3730A3; border-color: #3730A3; }
-        .btn-medico { background: #3730A3; color: #fff; text-decoration: none;
+        .nav-link:hover { color: #1E3A5F; border-color: #1E3A5F; }
+        .btn-medico { background: #1E3A5F; color: #fff; text-decoration: none;
           padding: 10px 20px; border-radius: 50px; font-size: 14px; font-weight: 600;
           font-family: 'DM Sans', sans-serif; transition: background 0.18s;
           display: inline-flex; align-items: center; gap: 7px; }
-        .btn-medico:hover { background: #4F46E5; }
-        .alert-big { background: #FFFBEB; border: 2px solid #FCD34D; border-radius: 14px;
+        .btn-medico:hover { background: #526894; }
+        .alert-big { background: #FFFBEB; border: 2px solid #FEF3C7; border-radius: 14px;
           padding: 20px 24px; margin: 24px 0; }
-        .alert-big p { margin: 0; color: #78350F; font-size: 15px; line-height: 1.75; }
-        .info-box { background: #EEF2FF; border: 1.5px solid #C7D2FE; border-radius: 10px;
+        .alert-big p { margin: 0; color: #92400E; font-size: 15px; line-height: 1.75; }
+        .info-box { background: #E8ECF3; border: 1.5px solid #C5D0E0; border-radius: 10px;
           padding: 16px 20px; margin: 16px 0; }
-        .info-box p { margin: 0; color: #3730A3; font-size: 14px; font-weight: 500; line-height: 1.65; }
-        .legal-p { font-size: 14px; color: #4B5563; line-height: 1.85; margin-bottom: 14px; }
+        .info-box p { margin: 0; color: #1E3A5F; font-size: 14px; font-weight: 500; line-height: 1.65; }
+        .legal-p { font-size: 14px; color: #4A5568; line-height: 1.85; margin-bottom: 14px; }
         .legal-h2 { font-family: 'Fraunces', serif; font-size: clamp(18px,3.5vw,22px);
-          font-weight: 900; color: #1E1B4B; margin: 0 0 14px;
-          padding-bottom: 10px; border-bottom: 2px solid #EEF2FF; }
+          font-weight: 900; color: #0D1829; margin: 0 0 14px;
+          padding-bottom: 10px; border-bottom: 2px solid #E8ECF3; }
         .legal-ul { padding-left: 20px; margin-bottom: 14px; }
-        .legal-li { font-size: 14px; color: #4B5563; line-height: 1.8; margin-bottom: 6px; }
-        .legal-strong { color: #1A1A2E; font-weight: 600; }
+        .legal-li { font-size: 14px; color: #4A5568; line-height: 1.8; margin-bottom: 6px; }
+        .legal-strong { color: #111827; font-weight: 600; }
         .section-block { margin-bottom: 44px; scroll-margin-top: 80px; }
         .verify-btn { display: inline-flex; align-items: center; gap: 8px;
-          background: #3730A3; color: #fff; text-decoration: none;
+          background: #1E3A5F; color: #fff; text-decoration: none;
           padding: 11px 22px; border-radius: 50px; font-size: 14px; font-weight: 600;
           font-family: 'DM Sans', sans-serif; transition: background 0.18s; margin: 6px 6px 6px 0; }
-        .verify-btn:hover { background: #4F46E5; }
-        .verify-btn.secondary { background: #F9FAFB; color: #3730A3; border: 1.5px solid #C7D2FE; }
-        .verify-btn.secondary:hover { background: #EEF2FF; }
+        .verify-btn:hover { background: #526894; }
+        .verify-btn.secondary { background: #F9FAFB; color: #1E3A5F; border: 1.5px solid #C5D0E0; }
+        .verify-btn.secondary:hover { background: #E8ECF3; }
         @media (max-width: 768px) {
           .dsk { display: none !important; }
           .mob-btn { display: flex !important; }
@@ -54,10 +54,10 @@ export default function DeslindeResponsabilidad() {
       {/* HERO */}
       <section style={{ background: 'linear-gradient(160deg, #FFFBEB 0%, #fff 60%)', padding: 'clamp(40px,6vw,60px) 20px 32px' }}>
         <div style={{ maxWidth: 820, margin: '0 auto' }}>
-          <p style={{ fontSize: 11, fontWeight: 600, color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 10 }}>
+          <p style={{ fontSize: 11, fontWeight: 600, color: '#B45309', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 10 }}>
             Información importante
           </p>
-          <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(26px,5vw,38px)', fontWeight: 900, color: '#1E1B4B', marginBottom: 12, lineHeight: 1.2 }}>
+          <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(26px,5vw,38px)', fontWeight: 900, color: '#0D1829', marginBottom: 12, lineHeight: 1.2 }}>
             Deslinde de Responsabilidad Médica
           </h1>
           <p style={{ fontSize: 14, color: '#6B7280' }}>
@@ -105,7 +105,7 @@ export default function DeslindeResponsabilidad() {
             <p>Salurama proporciona acceso directo a fuentes oficiales del gobierno mexicano para que el paciente pueda verificar por sí mismo las credenciales de cualquier médico antes de agendar una cita.</p>
           </div>
 
-          <h3 style={{ fontSize: 15, fontWeight: 600, color: '#3730A3', margin: '20px 0 10px' }}>Verificar cédula profesional</h3>
+          <h3 style={{ fontSize: 15, fontWeight: 600, color: '#1E3A5F', margin: '20px 0 10px' }}>Verificar cédula profesional</h3>
           <p className="legal-p">
             En el perfil de cada médico encontrarás el botón "Verificar cédula" que te lleva directamente al portal de la Dirección General de Profesiones de la SEP. Ahí puedes confirmar:
           </p>
@@ -118,7 +118,7 @@ export default function DeslindeResponsabilidad() {
             <ShieldCheck size={16} /> Ir al portal SEP <ExternalLink size={14} />
           </a>
 
-          <h3 style={{ fontSize: 15, fontWeight: 600, color: '#3730A3', margin: '24px 0 10px' }}>Verificar certificación de especialidad</h3>
+          <h3 style={{ fontSize: 15, fontWeight: 600, color: '#1E3A5F', margin: '24px 0 10px' }}>Verificar certificación de especialidad</h3>
           <p className="legal-p">
             Más allá de la cédula, muchos especialistas se certifican ante el consejo de su especialidad. Esta certificación acredita actualización continua y cumplimiento de estándares de calidad. También encontrarás el enlace directo en el perfil del médico.
           </p>
@@ -146,7 +146,7 @@ export default function DeslindeResponsabilidad() {
             Si encuentras un perfil con información que consideras falsa o que no coincide con las fuentes oficiales, puedes reportarlo a:
           </p>
           <p className="legal-p">
-            <a href="mailto:reportes@salurama.com" style={{ color: '#3730A3', fontWeight: 600 }}>reportes@salurama.com</a>
+            <a href="mailto:reportes@salurama.com" style={{ color: '#1E3A5F', fontWeight: 600 }}>reportes@salurama.com</a>
           </p>
           <p className="legal-p">
             Salurama investigará el reporte y, en caso de encontrar inconsistencias documentadas, procederá conforme a los Términos para Profesionales. La seguridad y la veracidad de la información son prioritarias para nosotros.
@@ -166,25 +166,25 @@ export default function DeslindeResponsabilidad() {
       </div>
 
       {/* CTA */}
-      <section style={{ background: '#EEF2FF', padding: 'clamp(32px,5vw,44px) 20px', textAlign: 'center' }}>
-        <p style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(18px,4vw,24px)', fontWeight: 900, color: '#1E1B4B', marginBottom: 16 }}>
+      <section style={{ background: '#E8ECF3', padding: 'clamp(32px,5vw,44px) 20px', textAlign: 'center' }}>
+        <p style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(18px,4vw,24px)', fontWeight: 900, color: '#0D1829', marginBottom: 16 }}>
           ¿Listo para elegir con información real?
         </p>
-        <Link href="/como-elegir-medico" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#3730A3', color: '#fff', fontWeight: 700, textDecoration: 'none', padding: '12px 26px', borderRadius: '50px', fontSize: 14, fontFamily: "'DM Sans', sans-serif" }}>
+        <Link href="/como-elegir-medico" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#1E3A5F', color: '#fff', fontWeight: 700, textDecoration: 'none', padding: '12px 26px', borderRadius: '50px', fontSize: 14, fontFamily: "'DM Sans', sans-serif" }}>
           Ver guía para elegir médico →
         </Link>
       </section>
 
-      <footer style={{ background: '#1E1B4B', padding: 'clamp(32px,5vw,40px) 20px', textAlign: 'center' }}>
+      <footer style={{ background: '#0D1829', padding: 'clamp(32px,5vw,40px) 20px', textAlign: 'center' }}>
         <div style={{ maxWidth: 860, margin: '0 auto' }}>
           <div style={{ marginBottom: 10 }}>
             <span style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 900, color: '#fff' }}>Salu</span>
-            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 600, color: '#F4623A' }}>rama</span>
+            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 600, color: '#2A9D8F' }}>rama</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'center', gap: 20, flexWrap: 'wrap', marginBottom: 14 }}>
             {[['Términos y Condiciones','/terminos-y-condiciones'],['Aviso de Privacidad','/aviso-de-privacidad'],
               ['Términos Profesionales','/terminos-profesionales'],['Inicio','/']]
-              .map(([l,h]) => <Link key={h} href={h} style={{ fontSize: 13, color: '#A5B4FC', textDecoration: 'none' }}>{l}</Link>)}
+              .map(([l,h]) => <Link key={h} href={h} style={{ fontSize: 13, color: '#9FB0C9', textDecoration: 'none' }}>{l}</Link>)}
           </div>
           <p style={{ fontSize: 12, color: '#6B7280' }}>© 2026 SALURAMA S.A.S. · salurama.com · Hecho en México 🇲🇽</p>
         </div>
