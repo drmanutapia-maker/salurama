@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabaseClient'
 import { Loader2, CheckCircle, AlertCircle } from 'lucide-react'
 
 export default function ConfirmPage() {
