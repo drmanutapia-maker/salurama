@@ -4,7 +4,6 @@ import { sendVerificationEmail } from '@/lib/email'
 import { Redis } from '@upstash/redis'
 import { z } from 'zod'
 
-// ✅ MEJORA 1: Edge Runtime (2026)
 export const runtime = 'edge'
 export const preferredRegion = 'mex1'
 
@@ -39,7 +38,6 @@ export async function POST(request: NextRequest) {
     token: process.env.UPSTASH_REDIS_REST_TOKEN!,
   })
 
-  // ✅ MEJORA 2: Validar env vars (fail fast)
   if (!process.env.TURNSTILE_SECRET_KEY ||!process.env.NEXT_PUBLIC_SUPABASE_URL) {
     console.error(`[${requestId}] Missing env vars`)
     return NextResponse.json({ error: 'Configuración inválida' }, { status: 500 })
@@ -122,11 +120,11 @@ export async function POST(request: NextRequest) {
     }
 
     const { data: medico, error: medicoError } = await supabase
-   .from('doctors')
-   .select('id, full_name, horario')
-   .eq('id', medicoId)
-   .eq('is_active', true)
-   .single()
+     .from('doctors')
+     .select('id, full_name, horario')
+     .eq('id', medicoId)
+     .eq('is_active', true)
+     .single()
 
     if (medicoError ||!medico) {
       console.warn(`[${requestId}] Médico no encontrado: ${medicoId}`)
@@ -151,4 +149,104 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Horario no disponible' }, { status: 400 })
     }
 
-    const oneHourAgo = new
+    const oneHourAgo = new Date(Date.now() - 3600000).toISOString()
+
+    const [existing, conflicto] = await Promise.all([
+      supabase
+       .from('citas')
+       .select('id', { count: 'exact', head: true })
+       .eq('paciente_email', pacienteEmail)
+       .eq('medico_id', medicoId)
+       .eq('estado', 'pending_verification')
+       .gte('created_at', oneHourAgo),
+      supabase
+       .from('citas')
+       .select('id', { count: 'exact', head: true })
+       .eq('medico_id', medicoId)
+       .eq('fecha', fecha)
+       .eq('hora', hora)
+       .in('estado', ['confirmed', 'pending_doctor']),
+    ])
+
+    if (existing.count && existing.count > 0) {
+      return NextResponse.json(
+        { error: 'Ya tienes una cita pendiente. Revisa tu email.' },
+        { status: 400 }
+      )
+    }
+
+    if (conflicto.count && conflicto.count > 0) {
+      return NextResponse.json(
+        { error: 'Horario ocupado. Elige otro.' },
+        { status: 400 }
+      )
+    }
+
+    const verificationToken = crypto.randomUUID()
+    const { data: cita, error } = await supabase
+     .from('citas')
+     .insert({
+        medico_id: medicoId,
+        paciente_nombre: pacienteNombre,
+        paciente_email: pacienteEmail,
+        paciente_telefono: pacienteTelefono || null,
+        fecha,
+        hora,
+        motivo: motivo || null,
+        estado: 'pending_verification',
+        verification_token: verificationToken,
+        expires_at: new Date(Date.now() + 24 * 3600000).toISOString(),
+        ip_address: ip,
+        user_agent: request.headers.get('user-agent')?.slice(0, 255),
+      })
+     .select('id')
+     .single()
+
+    if (error) throw error
+
+    try {
+      await sendVerificationEmail(
+        pacienteEmail,
+        verificationToken,
+        medico.full_name,
+        `${fecha} a las ${hora}`
+      )
+    } catch (emailError) {
+      console.error(`[${requestId}] Email failed:`, emailError)
+    }
+
+    console.info(`[${requestId}] Cita creada: ${cita.id} para ${medicoId}`)
+
+    return NextResponse.json(
+      { success: true, message: 'Revisa tu email para confirmar.', citaId: cita.id },
+      {
+        headers: {
+          'X-Request-ID': requestId,
+          'Cache-Control': 'no-store',
+          'X-Content-Type-Options': 'nosniff',
+          'X-Frame-Options': 'DENY',
+          'Referrer-Policy': 'strict-origin-when-cross-origin',
+        },
+      }
+    )
+
+  } catch (error: any) {
+    console.error(`[${requestId}] Error:`, error)
+    return NextResponse.json(
+      { error: 'Error al procesar la solicitud' },
+      { status: 500, headers: { 'X-Request-ID': requestId } }
+    )
+  }
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': process.env.NEXT_PUBLIC_SITE_URL || '',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Max-Age': '86400',
+    },
+  })
+}
