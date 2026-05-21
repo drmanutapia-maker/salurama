@@ -4,7 +4,10 @@ import { sendVerificationEmail } from '@/lib/email'
 import { Redis } from '@upstash/redis'
 import { z } from 'zod'
 
-// Validación estricta con Zod (2026 best practice)
+// ✅ MEJORA 1: Edge Runtime (2026)
+export const runtime = 'edge'
+export const preferredRegion = 'mex1'
+
 const citaSchema = z.object({
   medicoId: z.string().uuid('ID de médico inválido'),
   pacienteNombre: z.string().trim().min(2).max(100).regex(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/, 'Nombre inválido'),
@@ -16,35 +19,37 @@ const citaSchema = z.object({
   turnstileToken: z.string().min(1),
 })
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { persistSession: false } } // Seguridad: no persistir
-)
-
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL!,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-})
-
-// Helper: IP real (previene spoofing)
 function getClientIp(request: NextRequest): string {
   const forwarded = request.headers.get('x-forwarded-for')
   const realIp = request.headers.get('x-real-ip')
-  // Vercel/Cloudflare: toma el primer IP de la cadena
   return forwarded?.split(',')[0].trim() || realIp || 'unknown'
 }
 
 export async function POST(request: NextRequest) {
   const requestId = crypto.randomUUID().slice(0, 8)
 
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false } }
+  )
+
+  const redis = new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL!,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+  })
+
+  // ✅ MEJORA 2: Validar env vars (fail fast)
+  if (!process.env.TURNSTILE_SECRET_KEY ||!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    console.error(`[${requestId}] Missing env vars`)
+    return NextResponse.json({ error: 'Configuración inválida' }, { status: 500 })
+  }
+
   try {
-    // 1. Validar Content-Type
     if (!request.headers.get('content-type')?.includes('application/json')) {
       return NextResponse.json({ error: 'Content-Type inválido' }, { status: 415 })
     }
 
-    // 2. Rate limiting mejorado (por IP + médico)
     const ip = getClientIp(request)
     const body = await request.json()
     const rateKey = `citas:${ip}:${body.medicoId || 'unknown'}`
@@ -61,10 +66,8 @@ export async function POST(request: NextRequest) {
       }
     } catch (redisError) {
       console.error(`[${requestId}] Redis error:`, redisError)
-      // Fail open en rate limit (mejor que bloquear usuarios legítimos)
     }
 
-    // 3. Validación con Zod
     const validation = citaSchema.safeParse(body)
     if (!validation.success) {
       return NextResponse.json(
@@ -75,7 +78,6 @@ export async function POST(request: NextRequest) {
 
     const { medicoId, pacienteNombre, pacienteEmail, pacienteTelefono, fecha, hora, motivo, turnstileToken } = validation.data
 
-    // 4. Turnstile con timeout
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 5000)
 
@@ -103,8 +105,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Error de verificación' }, { status: 400 })
     }
 
-    // 5. Validar fecha con timezone México
-    const citaDate = new Date(`${fecha}T${hora}:00-06:00`) // CDMX
+    const citaDate = new Date(`${fecha}T${hora}:00-06:00`)
     const now = new Date()
 
     if (isNaN(citaDate.getTime())) {
@@ -115,26 +116,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No puedes agendar en el pasado' }, { status: 400 })
     }
 
-    // Máximo 90 días en futuro
     const maxDate = new Date(now.getTime() + 90 * 24 * 3600000)
     if (citaDate > maxDate) {
       return NextResponse.json({ error: 'Máximo 90 días de anticipación' }, { status: 400 })
     }
 
-    // 6. Verificar médico (con cache)
     const { data: medico, error: medicoError } = await supabase
-     .from('doctors')
-     .select('id, full_name, horario')
-     .eq('id', medicoId)
-     .eq('is_active', true)
-     .single()
+   .from('doctors')
+   .select('id, full_name, horario')
+   .eq('id', medicoId)
+   .eq('is_active', true)
+   .single()
 
     if (medicoError ||!medico) {
       console.warn(`[${requestId}] Médico no encontrado: ${medicoId}`)
       return NextResponse.json({ error: 'Médico no disponible' }, { status: 404 })
     }
 
-    // 7. Validar horario (sin leak de info)
     const dayOfWeek = citaDate.getDay()
     const days = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'] as const
     const dayName = days[dayOfWeek]
@@ -153,107 +151,4 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Horario no disponible' }, { status: 400 })
     }
 
-    // 8. Verificar duplicados (con índice)
-    const oneHourAgo = new Date(Date.now() - 3600000).toISOString()
-
-    const [existing, conflicto] = await Promise.all([
-      supabase
-       .from('citas')
-       .select('id', { count: 'exact', head: true })
-       .eq('paciente_email', pacienteEmail)
-       .eq('medico_id', medicoId)
-       .eq('estado', 'pending_verification')
-       .gte('created_at', oneHourAgo),
-      supabase
-       .from('citas')
-       .select('id', { count: 'exact', head: true })
-       .eq('medico_id', medicoId)
-       .eq('fecha', fecha)
-       .eq('hora', hora)
-       .in('estado', ['confirmed', 'pending_doctor']),
-    ])
-
-    if (existing.count && existing.count > 0) {
-      return NextResponse.json(
-        { error: 'Ya tienes una cita pendiente. Revisa tu email.' },
-        { status: 400 }
-      )
-    }
-
-    if (conflicto.count && conflicto.count > 0) {
-      return NextResponse.json(
-        { error: 'Horario ocupado. Elige otro.' },
-        { status: 400 }
-      )
-    }
-
-    // 9. Crear cita
-    const verificationToken = crypto.randomUUID()
-    const { data: cita, error } = await supabase
-     .from('citas')
-     .insert({
-        medico_id: medicoId,
-        paciente_nombre: pacienteNombre,
-        paciente_email: pacienteEmail,
-        paciente_telefono: pacienteTelefono || null,
-        fecha,
-        hora,
-        motivo: motivo || null,
-        estado: 'pending_verification',
-        verification_token: verificationToken,
-        expires_at: new Date(Date.now() + 24 * 3600000).toISOString(),
-        ip_address: ip, // Auditoría
-        user_agent: request.headers.get('user-agent')?.slice(0, 255),
-      })
-     .select('id')
-     .single()
-
-    if (error) throw error
-
-    // 10. Enviar email (no bloquear si falla)
-    try {
-      await sendVerificationEmail(
-        pacienteEmail,
-        verificationToken,
-        medico.full_name,
-        `${fecha} a las ${hora}`
-      )
-    } catch (emailError) {
-      console.error(`[${requestId}] Email failed:`, emailError)
-      // No fallar la cita si el email falla
-    }
-
-    console.info(`[${requestId}] Cita creada: ${cita.id} para ${medicoId}`)
-
-    return NextResponse.json(
-      { success: true, message: 'Revisa tu email para confirmar.', citaId: cita.id },
-      {
-        headers: {
-          'X-Request-ID': requestId,
-          'Cache-Control': 'no-store',
-        },
-      }
-    )
-
-  } catch (error: any) {
-    console.error(`[${requestId}] Error:`, error)
-    // Nunca exponer detalles internos
-    return NextResponse.json(
-      { error: 'Error al procesar la solicitud' },
-      { status: 500, headers: { 'X-Request-ID': requestId } }
-    )
-  }
-}
-
-// CORS para seguridad
-export async function OPTIONS() {
-  return new NextResponse(null, {
-    status: 204,
-    headers: {
-      'Access-Control-Allow-Origin': process.env.NEXT_PUBLIC_SITE_URL || '',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-      'Access-Control-Max-Age': '86400',
-    },
-  })
-}
+    const oneHourAgo = new
