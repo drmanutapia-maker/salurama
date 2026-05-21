@@ -19,7 +19,26 @@ export async function POST(request: Request) {
       )
     }
 
-    const { email, token, doctorName, appointmentDate } = await request.json()
+    // Validar origen: solo permitir llamadas desde nuestro propio servidor
+    const origin = request.headers.get('origin') || ''
+    const referer = request.headers.get('referer') || ''
+    const allowedOrigin = process.env.NEXT_PUBLIC_URL || ''
+    const isInternal =
+      !origin || // llamadas server-to-server no tienen origin
+      origin === allowedOrigin ||
+      referer.startsWith(allowedOrigin)
+
+    if (allowedOrigin && !isInternal) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    const body = await request.json()
+    const { email, token, doctorName, appointmentDate } = body
+
+    // Validaciones básicas de input
+    if (!email || !token || typeof email !== 'string' || !email.includes('@')) {
+      return NextResponse.json({ error: 'Parámetros inválidos' }, { status: 400 })
+    }
     
     const verifyUrl = `${process.env.NEXT_PUBLIC_URL}/verify-review?token=${token}`
     

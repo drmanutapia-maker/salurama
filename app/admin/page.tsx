@@ -4,13 +4,10 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import Link from 'next/link'
 import {
-  CheckCircle, XCircle, Eye, EyeOff, LogOut, ExternalLink, Copy,
+  CheckCircle, XCircle, Eye, EyeOff, ExternalLink, Copy,
   Shield, ToggleLeft, ToggleRight, GraduationCap, Calendar,
   FileText, AlertCircle
 } from 'lucide-react'
-
-// ✅ Contraseña desde variable de entorno
-const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || ''
 
 const CEDULA_SEP_URL = 'https://www.cedulaprofesional.sep.gob.mx/cedula/presidencia/indexAvanzada.action'
 
@@ -103,23 +100,27 @@ export default function AdminPanel() {
     }
   }
 
-  function login() {
-    // Validar que la variable de entorno esté configurada
-    if (!ADMIN_PASSWORD) {
-      setToast({ msg: 'Error: Contraseña de admin no configurada en entorno.', type: 'error' })
-      return
-    }
-    if (passInput === ADMIN_PASSWORD) {
-      sessionStorage.setItem('salurama_admin', 'true')
-      sessionStorage.setItem('salurama_admin_email', 'admin@salurama.com')
-      setAutenticado(true)
-      setPassError(false)
-      setAdminEmail('admin@salurama.com')
-      setToast({ msg: '¡Bienvenido al panel de administración!', type: 'success' })
-    } else {
-      setPassError(true)
-      setPassInput('')
-      setToast({ msg: 'Contraseña incorrecta', type: 'error' })
+  async function login() {
+    try {
+      const res = await fetch('/api/admin-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: passInput }),
+      })
+      if (res.ok) {
+        sessionStorage.setItem('salurama_admin', 'true')
+        sessionStorage.setItem('salurama_admin_email', 'admin@salurama.com')
+        setAutenticado(true)
+        setPassError(false)
+        setAdminEmail('admin@salurama.com')
+        setToast({ msg: '¡Bienvenido al panel de administración!', type: 'success' })
+      } else {
+        setPassError(true)
+        setPassInput('')
+        setToast({ msg: 'Contraseña incorrecta', type: 'error' })
+      }
+    } catch {
+      setToast({ msg: 'Error de conexión. Intenta de nuevo.', type: 'error' })
     }
   }
 
@@ -213,25 +214,6 @@ export default function AdminPanel() {
     return `${anos} año${anos !== 1 ? 's' : ''}`
   }
 
-  // ── TOAST NOTIFICATION ─────────────────────────────────────────────────────
-  if (toast) {
-    return (
-      <div style={{
-        position: 'fixed', top: 20, right: 20, zIndex: 9999,
-        background: toast.type === 'success' ? '#DCFCE7' : '#FEF2F2',
-        color: toast.type === 'success' ? '#059669' : '#DC2626',
-        border: `1px solid ${toast.type === 'success' ? '#86EFAC' : '#FECACA'}`,
-        borderRadius: 10, padding: '12px 18px', fontSize: 13, fontWeight: 500,
-        display: 'flex', alignItems: 'center', gap: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-        animation: 'slideIn 0.3s ease-out'
-      }}>
-        {toast.type === 'success' ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
-        {toast.msg}
-        <style>{`@keyframes slideIn { from{transform:translateX(100%);opacity:0} to{transform:translateX(0);opacity:1} }`}</style>
-      </div>
-    )
-  }
-
   // ── LOGIN ──────────────────────────────────────────────────────────────────
   if (!autenticado) return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #EEF2FF 0%, #FAFAFA 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, fontFamily: "'DM Sans', sans-serif" }}>
@@ -273,6 +255,23 @@ export default function AdminPanel() {
 
   // ── PANEL ──────────────────────────────────────────────────────────────────
   return (
+    <>
+    {/* TOAST — overlay global, no reemplaza el panel */}
+    {toast && (
+      <div style={{
+        position: 'fixed', top: 20, right: 20, zIndex: 9999,
+        background: toast.type === 'success' ? '#DCFCE7' : '#FEF2F2',
+        color: toast.type === 'success' ? '#059669' : '#DC2626',
+        border: `1px solid ${toast.type === 'success' ? '#86EFAC' : '#FECACA'}`,
+        borderRadius: 10, padding: '12px 18px', fontSize: 13, fontWeight: 500,
+        display: 'flex', alignItems: 'center', gap: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+        animation: 'slideIn 0.3s ease-out', pointerEvents: 'none'
+      }}>
+        {toast.type === 'success' ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
+        {toast.msg}
+        <style>{`@keyframes slideIn { from{transform:translateX(100%);opacity:0} to{transform:translateX(0);opacity:1} }`}</style>
+      </div>
+    )}
     <div style={{ minHeight: '100vh', background: '#F9FAFB', fontFamily: "'DM Sans', sans-serif", color: '#1A1A2E' }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@600;900&family=DM+Sans:wght@300;400;500;700&display=swap');
@@ -491,5 +490,6 @@ export default function AdminPanel() {
         )}
       </div>
     </div>
+    </>
   )
 }

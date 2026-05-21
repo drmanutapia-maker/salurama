@@ -23,8 +23,8 @@ if (!fs.existsSync(outputDir)) {
 
 // Leer y convertir
 console.log('📖 Leyendo archivo TXT...')
-const content = fs.readFileSync(inputFile, 'utf-8')
-const lines = content.split('\n')
+   const content = fs.readFileSync(inputFile, 'latin1')
+   const lines = content.split('\n').slice(1)
 const results = []
 
 console.log(`📊 Procesando ${lines.length} líneas...`)

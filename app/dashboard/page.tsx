@@ -52,6 +52,8 @@ export default function DashboardMedico() {
   const [stats, setStats] = useState<StatsResumen | null>(null)
   const [consejo, setConsejo] = useState<any>(null)
   const [isMobile, setIsMobile] = useState(false)
+  // Cache-bust token fijo al montar el componente (no en cada render)
+  const [photoTs] = useState(() => Date.now())
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768)
@@ -241,7 +243,7 @@ export default function DashboardMedico() {
               {medico.photo_url ? (
                 <div onClick={() => setShowPhotoModal(true)} style={{ cursor: 'pointer', position: 'relative' }}>
                   <img 
-                    src={`${medico.photo_url}?t=${Date.now()}`} 
+                    src={`${medico.photo_url}?t=${photoTs}`} 
                     alt={medico.full_name} 
                     style={{ width: 96, height: 96, borderRadius: '50%', objectFit: 'cover', border: '3px solid #E5E7EB' }} 
                   />
@@ -413,7 +415,7 @@ export default function DashboardMedico() {
               <div>
                 <p style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Métricas</p>
                 <p style={{ fontSize: 18, fontFamily: "'Fraunces', serif", fontWeight: 900, color: '#1E3A5F', lineHeight: 1, marginTop: 8 }}>
-                  Analytics
+                  Estadísticas
                 </p>
               </div>
               <div style={{ width: 40, height: 40, background: '#FEF3C7', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -421,7 +423,7 @@ export default function DashboardMedico() {
               </div>
             </div>
             <Link
-              href="/dashboard/analytics"
+              href="/dashboard/estadisticas"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -437,7 +439,7 @@ export default function DashboardMedico() {
                 marginTop: 8
               }}
             >
-              <BarChart3 size={14} /> Ver métricas completas
+              <BarChart3 size={14} /> Ver estadísticas completas
             </Link>
           </div>
         </div>
@@ -545,7 +547,7 @@ export default function DashboardMedico() {
             <X size={24} color="#fff" />
           </button>
           <img 
-            src={`${medico.photo_url}?t=${Date.now()}`} 
+            src={`${medico.photo_url}?t=${photoTs}`} 
             alt={medico.full_name} 
             style={{ maxWidth: '100%', maxHeight: '90vh', borderRadius: 12, objectFit: 'contain' }} 
           />
@@ -585,27 +587,50 @@ export default function DashboardMedico() {
               <Settings size={20} />
               <span style={{ fontSize: 11, fontWeight: 600 }}>Perfil</span>
             </Link>
-            <Link 
-              href="/dashboard/citas" 
-              style={{ 
-                display: 'flex', 
-                flexDirection: 'column', 
-                alignItems: 'center', 
-                gap: 4, 
+            <Link
+              href="/dashboard/citas"
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 4,
                 padding: '8px 16px',
                 color: '#9CA3AF',
                 textDecoration: 'none',
                 minWidth: 80,
-                transition: 'all 0.2s'
+                transition: 'all 0.2s',
+                position: 'relative'
               }}
               onMouseEnter={(e) => e.currentTarget.style.color = '#1E3A5F'}
               onMouseLeave={(e) => e.currentTarget.style.color = '#9CA3AF'}
             >
-              <Calendar size={20} />
+              <div style={{ position: 'relative' }}>
+                <Calendar size={20} />
+                {(stats?.citas_solicitadas_totales || 0) > 0 && (
+                  <span style={{
+                    position: 'absolute',
+                    top: -6,
+                    right: -8,
+                    background: '#EF4444',
+                    color: '#fff',
+                    fontSize: 9,
+                    fontWeight: 700,
+                    borderRadius: '50%',
+                    width: 16,
+                    height: 16,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    lineHeight: 1
+                  }}>
+                    {(stats?.citas_solicitadas_totales ?? 0) > 9 ? '9+' : stats?.citas_solicitadas_totales}
+                  </span>
+                )}
+              </div>
               <span style={{ fontSize: 11, fontWeight: 600 }}>Citas</span>
             </Link>
             <Link 
-              href="/dashboard/analytics" 
+              href="/dashboard/estadisticas" 
               style={{ 
                 display: 'flex', 
                 flexDirection: 'column', 
@@ -621,7 +646,7 @@ export default function DashboardMedico() {
               onMouseLeave={(e) => e.currentTarget.style.color = '#9CA3AF'}
             >
               <BarChart3 size={20} />
-              <span style={{ fontSize: 11, fontWeight: 600 }}>Analytics</span>
+              <span style={{ fontSize: 11, fontWeight: 600 }}>Estadísticas</span>
             </Link>
           </div>
         </nav>

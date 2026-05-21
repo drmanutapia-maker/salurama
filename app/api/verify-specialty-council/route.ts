@@ -17,10 +17,8 @@ export async function GET(request: Request) {
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 15000) // 15 segundos
 
-    // CONACEM tiene diferentes URLs dependiendo del consejo
-    const conacemUrl = council 
-      ? `https://conacem.org.mx/buscador?search=${encodeURIComponent(doctorName)}`
-      : `https://conacem.org.mx/buscador?search=${encodeURIComponent(doctorName)}`
+    // CONACEM: búsqueda por nombre de médico (el consejo se usa en parseo)
+    const conacemUrl = `https://conacem.org.mx/buscador?search=${encodeURIComponent(doctorName)}`
     
     const response = await fetch(conacemUrl, {
       method: 'GET',

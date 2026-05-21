@@ -1,8 +1,11 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
-import { ArrowLeft, MessageCircle, Calendar, User, Phone, Mail, MapPin, Clock, FileText, ChevronDown, ChevronRight, Send } from 'lucide-react'
+import {
+  ArrowLeft, MessageCircle, Calendar, Phone, Mail, MapPin,
+  FileText, Send, CheckCircle, XCircle, Check
+} from 'lucide-react'
 
 interface Cita {
   id: string
@@ -12,519 +15,382 @@ interface Cita {
   requested_date: string
   requested_time: string
   reason: string | null
-  clinic_address: string
-  status: string
+  clinic_address: string | null
+  status: 'solicitada' | 'confirmada' | 'atendida' | 'cancelada'
   created_at: string
   review_sent: boolean
   review_verified: boolean
 }
 
-interface CitasPorFecha {
-  [key: string]: Cita[]
-}
+type Tab = 'todas' | 'solicitada' | 'confirmada' | 'atendida'
 
-export default function CitasSolicitadasPage() {
+export default function CitasPage() {
   const router = useRouter()
   const [citas, setCitas] = useState<Cita[]>([])
   const [loading, setLoading] = useState(true)
-  const [medicoId, setMedicoId] = useState<string | null>(null)
-  const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set())
+  const [tab, setTab] = useState<Tab>('todas')
+  const [procesando, setProcesando] = useState<string | null>(null)
   const [sendingEmail, setSendingEmail] = useState<string | null>(null)
+  const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
+
+  const showToast = (msg: string, type: 'success' | 'error') => {
+    setToast({ msg, type })
+    setTimeout(() => setToast(null), 3000)
+  }
+
+  const cargarCitas = useCallback(async (docId: string) => {
+    const { data } = await supabase
+      .from('appointment_requests')
+      .select('*')
+      .eq('doctor_id', docId)
+      .order('requested_date', { ascending: false })
+      .order('requested_time', { ascending: true })
+    setCitas((data as Cita[]) || [])
+  }, [])
 
   useEffect(() => {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        router.push('/login')
-        return
-      }
+      if (!user) { router.push('/login'); return }
       const { data: medico } = await supabase.from('doctors').select('id').eq('email', user.email).single()
-      if (!medico) {
-        router.push('/dashboard')
-        return
-      }
-      setMedicoId(medico.id)
-      const { data } = await supabase
-        .from('appointment_requests')
-        .select('*')
-        .eq('doctor_id', medico.id)
-        .order('requested_date', { ascending: false })
-        .order('requested_time', { ascending: true })
-      
-      setCitas((data as Cita[]) || [])
+      if (!medico) { router.push('/dashboard'); return }
+      await cargarCitas(medico.id)
       setLoading(false)
     }
     load()
-  }, [router])
+  }, [router, cargarCitas])
 
-  // Agrupar citas por fecha
-  const citasPorFecha: CitasPorFecha = citas.reduce((acc, cita) => {
-    if (!acc[cita.requested_date]) {
-      acc[cita.requested_date] = []
-    }
-    acc[cita.requested_date].push(cita)
-    return acc
-  }, {} as CitasPorFecha)
-
-  // Ordenar fechas de más reciente a más antigua
-  const fechasOrdenadas = Object.keys(citasPorFecha).sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
-
-  // Toggle expandir/colapsar fecha
-  const toggleDate = (fecha: string) => {
-    setExpandedDates(prev => {
-      const newSet = new Set(prev)
-      if (newSet.has(fecha)) {
-        newSet.delete(fecha)
-      } else {
-        newSet.add(fecha)
+  const cambiarStatus = async (citaId: string, nuevoStatus: Cita['status']) => {
+    setProcesando(citaId + nuevoStatus)
+    const { error } = await supabase
+      .from('appointment_requests')
+      .update({ status: nuevoStatus })
+      .eq('id', citaId)
+    if (error) {
+      showToast('Error al actualizar la cita', 'error')
+    } else {
+      setCitas(prev => prev.map(c => c.id === citaId ? { ...c, status: nuevoStatus } : c))
+      const labels: Record<string, string> = {
+        confirmada: 'Cita confirmada',
+        cancelada: 'Cita cancelada',
+        atendida: 'Marcada como atendida',
       }
-      return newSet
-    })
+      showToast(labels[nuevoStatus] || 'Cita actualizada', 'success')
+    }
+    setProcesando(null)
   }
 
-  // ✅ VERIFICAR SI LA CITA YA PASÓ (1 día después mínimo)
-  const canRequestReview = (cita: Cita) => {
-    const citaDate = new Date(cita.requested_date + 'T' + (cita.requested_time || '00:00'))
-    const now = new Date()
-    const oneDayAfter = new Date(citaDate)
-    oneDayAfter.setDate(oneDayAfter.getDate() + 1)
-    
-    // La cita debe haber pasado al menos 1 día
-    return now >= oneDayAfter
-  }
-
-  // ✅ VERIFICAR SI EL ESTADO PERMITE RESEÑA
-  const canShowReviewButton = (cita: Cita) => {
-    // No mostrar si ya se envió o verificó la reseña
-    if (cita.review_sent || cita.review_verified) return false
-    
-    // No mostrar para citas canceladas
-    if (cita.status === 'cancelada') return false
-    
-    // No mostrar para citas futuras o de hoy
-    if (!canRequestReview(cita)) return false
-    
-    // Mostrar para citas atendidas o confirmadas del pasado
-    return ['atendida', 'confirmada', 'solicitada'].includes(cita.status)
-  }
-
-  // Enviar email de solicitud de reseña
   const sendReviewEmail = async (cita: Cita) => {
-    if (!confirm(`¿Enviar solicitud de reseña a ${cita.patient_name}?`)) return
-    
     setSendingEmail(cita.id)
     try {
-      // Generar token único para esta cita
       const token = crypto.randomUUID()
-      
-      // Actualizar cita con token
-      await supabase
-        .from('appointment_requests')
-        .update({ 
-          review_sent: true,
-          review_token: token
-        })
-        .eq('id', cita.id)
-
-      // Enviar email
-      const response = await fetch('/api/send-review-email', {
+      // 1. Enviar el email PRIMERO
+      const res = await fetch('/api/send-review-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: cita.patient_email,
-          token: token,
+          token,
           doctorName: 'el médico',
-          appointmentDate: new Date(cita.requested_date).toLocaleDateString('es-MX')
-        })
+          appointmentDate: new Date(cita.requested_date).toLocaleDateString('es-MX'),
+        }),
       })
-
-      if (response.ok) {
-        // Actualizar estado local
-        setCitas(prev => prev.map(c => 
-          c.id === cita.id ? { ...c, review_sent: true } : c
-        ))
-        alert('✓ Email de reseña enviado correctamente')
-      } else {
-        throw new Error('Error al enviar email')
+      if (!res.ok) {
+        showToast('Error al enviar el email', 'error')
+        return
       }
-    } catch (error) {
-      console.error('Error:', error)
-      alert('Error al enviar el email de reseña')
+      // 2. Solo si el email fue exitoso, guardar el token en BD
+      await supabase.from('appointment_requests').update({ review_sent: true, review_token: token }).eq('id', cita.id)
+      setCitas(prev => prev.map(c => c.id === cita.id ? { ...c, review_sent: true } : c))
+      showToast('Email de reseña enviado', 'success')
+    } catch {
+      showToast('Error al enviar el email', 'error')
     } finally {
       setSendingEmail(null)
     }
   }
 
-  const getWhatsAppLink = (phone: string, date: string, time: string, patientName: string) => {
-    const cleanPhone = phone.replace(/\D/g, '')
-    const message = `Hola ${patientName}, te contacto respecto a tu cita del ${date} a las ${time}. ¿Podemos confirmar?`
-    return `https://wa.me/52${cleanPhone}?text=${encodeURIComponent(message)}`
+  const canRequestReview = (cita: Cita) => {
+    const citaDate = new Date(cita.requested_date + 'T' + (cita.requested_time || '00:00'))
+    const oneDayAfter = new Date(citaDate)
+    oneDayAfter.setDate(oneDayAfter.getDate() + 1)
+    return new Date() >= oneDayAfter
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'solicitada': return { bg: '#FEF3C7', text: '#92400E' }
-      case 'confirmada': return { bg: '#DCFCE7', text: '#059669' }
-      case 'cancelada': return { bg: '#FEE2E2', text: '#DC2626' }
-      case 'atendida': return { bg: '#E0E7FF', text: '#3730A3' }
-      default: return { bg: '#F3F4F6', text: '#6B7280' }
-    }
+  const getWhatsAppLink = (phone: string, date: string, time: string, name: string) => {
+    const clean = phone.replace(/\D/g, '')
+    const msg = `Hola ${name}, te contacto respecto a tu cita del ${date} a las ${time}.`
+    return `https://wa.me/52${clean}?text=${encodeURIComponent(msg)}`
   }
 
-  const formatDate = (fecha: string) => {
-    const date = new Date(fecha + 'T00:00:00')
-    const today = new Date()
-    const yesterday = new Date(today)
-    yesterday.setDate(yesterday.getDate() - 1)
-
-    if (fecha === today.toISOString().split('T')[0]) {
-      return { label: 'Hoy', sublabel: '' }
-    } else if (fecha === yesterday.toISOString().split('T')[0]) {
-      return { label: 'Ayer', sublabel: '' }
-    } else {
-      return {
-        label: date.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' }),
-        sublabel: date.toLocaleDateString('es-MX', { year: 'numeric' })
-      }
-    }
+  const formatFecha = (fecha: string) => {
+    const d = new Date(fecha + 'T00:00:00')
+    const hoy = new Date().toISOString().split('T')[0]
+    const ayer = new Date(Date.now() - 86400000).toISOString().split('T')[0]
+    if (fecha === hoy) return 'Hoy'
+    if (fecha === ayer) return 'Ayer'
+    return d.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })
   }
 
-  if (loading) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif" }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ width: 40, height: 40, border: '3px solid #EEF2FF', borderTopColor: '#3730A3', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
-          <p style={{ color: '#9CA3AF', fontSize: 14 }}>Cargando citas...</p>
-        </div>
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+  const isFutura = (fecha: string) => new Date(fecha + 'T00:00:00') > new Date()
+
+  const statusColors: Record<string, { bg: string; text: string; label: string }> = {
+    solicitada: { bg: '#FEF3C7', text: '#92400E', label: 'Solicitada' },
+    confirmada:  { bg: '#DCFCE7', text: '#059669', label: 'Confirmada' },
+    cancelada:   { bg: '#FEE2E2', text: '#DC2626', label: 'Cancelada' },
+    atendida:    { bg: '#E0E7FF', text: '#3730A3', label: 'Atendida' },
+  }
+
+  const citasFiltradas = tab === 'todas' ? citas : citas.filter(c => c.status === tab)
+  const countPorStatus = (s: string) => citas.filter(c => c.status === s).length
+
+  if (loading) return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif" }}>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ width: 40, height: 40, border: '3px solid #EEF2FF', borderTopColor: '#1E3A5F', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
+        <p style={{ color: '#9CA3AF', fontSize: 14 }}>Cargando citas...</p>
       </div>
-    )
-  }
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  )
 
   return (
     <div style={{ minHeight: '100vh', background: '#F9FAFB', fontFamily: "'DM Sans', sans-serif", color: '#1A1A2E' }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@600;900&family=DM+Sans:wght@400;500;700&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
-        .fade-up { animation: fadeUp 0.4s ease-out; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+        .fade-up { animation: fadeUp 0.35s ease-out; }
+        .action-btn { display:inline-flex; align-items:center; gap:6px; border-radius:50px; padding:8px 14px; font-size:13px; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; border:none; transition:all 0.18s; }
+        .action-btn:disabled { opacity:0.5; cursor:not-allowed; }
+        .tab-btn { padding:8px 16px; border-radius:50px; font-size:13px; font-weight:600; cursor:pointer; border:none; font-family:'DM Sans',sans-serif; transition:all 0.18s; }
+        @media(max-width:600px) { .cita-header { flex-direction:column !important; } .cita-actions { flex-wrap:wrap !important; } }
       `}</style>
-      <div style={{ maxWidth: 900, margin: '0 auto', padding: '24px 16px 60px' }}>
+
+      {/* Toast */}
+      {toast && (
+        <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 9999, background: toast.type === 'success' ? '#DCFCE7' : '#FEF2F2', color: toast.type === 'success' ? '#059669' : '#DC2626', border: `1px solid ${toast.type === 'success' ? '#86EFAC' : '#FECACA'}`, borderRadius: 10, padding: '12px 18px', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+          {toast.type === 'success' ? <CheckCircle size={15} /> : <XCircle size={15} />}
+          {toast.msg}
+        </div>
+      )}
+
+      <div style={{ maxWidth: 900, margin: '0 auto', padding: '24px 16px 80px' }}>
+
         {/* Header */}
         <div className="fade-up" style={{ marginBottom: 24 }}>
-          <button
-            onClick={() => router.push('/dashboard')}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-              background: 'none',
-              border: 'none',
-              color: '#3730A3',
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: 'pointer',
-              marginBottom: 16
-            }}
-          >
-            ← Volver
+          <button onClick={() => router.push('/dashboard')} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', color: '#1E3A5F', fontSize: 14, fontWeight: 600, cursor: 'pointer', marginBottom: 16 }}>
+            <ArrowLeft size={16} /> Volver al panel
           </button>
-          <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 28, fontWeight: 900, color: '#1A1A2E' }}>
-            Citas Solicitadas
-          </h1>
-          <p style={{ fontSize: 14, color: '#6B7280', marginTop: 8 }}>
-            {citas.length} {citas.length === 1 ? 'cita' : 'citas'} {citas.length === 0 ? 'pendientes' : 'registradas'}
-          </p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 12 }}>
+            <div>
+              <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 28, fontWeight: 900, color: '#1A1A2E', marginBottom: 4 }}>Mis Citas</h1>
+              <p style={{ fontSize: 14, color: '#6B7280' }}>{citas.length} {citas.length === 1 ? 'cita' : 'citas'} en total</p>
+            </div>
+          </div>
         </div>
 
-        {/* Lista de Citas Agrupadas por Fecha */}
-        <div className="fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {fechasOrdenadas.length === 0 ? (
+        {/* Tabs */}
+        <div className="fade-up" style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
+          {([
+            { id: 'todas',     label: 'Todas',      count: citas.length },
+            { id: 'solicitada', label: 'Pendientes', count: countPorStatus('solicitada') },
+            { id: 'confirmada', label: 'Confirmadas', count: countPorStatus('confirmada') },
+            { id: 'atendida',   label: 'Atendidas',  count: countPorStatus('atendida') },
+          ] as { id: Tab; label: string; count: number }[]).map(t => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className="tab-btn"
+              style={{
+                background: tab === t.id ? '#1E3A5F' : '#fff',
+                color: tab === t.id ? '#fff' : '#6B7280',
+                border: `1px solid ${tab === t.id ? '#1E3A5F' : '#E5E7EB'}`,
+              }}
+            >
+              {t.label}
+              {t.count > 0 && (
+                <span style={{ marginLeft: 6, background: tab === t.id ? 'rgba(255,255,255,0.2)' : '#F3F4F6', borderRadius: 20, padding: '1px 7px', fontSize: 11 }}>
+                  {t.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Lista */}
+        <div className="fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {citasFiltradas.length === 0 ? (
             <div style={{ background: '#fff', borderRadius: 16, padding: '60px 20px', border: '1px solid #E5E7EB', textAlign: 'center' }}>
-              <Calendar size={48} color="#9CA3AF" style={{ margin: '0 auto 16px' }} />
-              <p style={{ fontSize: 16, color: '#6B7280', fontWeight: 600, marginBottom: 8 }}>No hay citas solicitadas</p>
-              <p style={{ fontSize: 14, color: '#9CA3AF' }}>Cuando los pacientes soliciten citas, aparecerán aquí</p>
+              <Calendar size={48} color="#D1D5DB" style={{ margin: '0 auto 16px' }} />
+              <p style={{ fontSize: 16, color: '#374151', fontWeight: 700, marginBottom: 8 }}>
+                {tab === 'solicitada' ? 'Sin citas pendientes' : tab === 'confirmada' ? 'Sin citas confirmadas' : tab === 'atendida' ? 'Sin citas atendidas' : 'Aún no tienes citas'}
+              </p>
+              <p style={{ fontSize: 14, color: '#9CA3AF' }}>
+                {tab === 'todas' ? 'Cuando los pacientes soliciten citas, aparecerán aquí' : 'Cambia el filtro de arriba para ver otras citas'}
+              </p>
             </div>
           ) : (
-            fechasOrdenadas.map(fecha => {
-              const citasDelDia = citasPorFecha[fecha]
-              const fechaFormateada = formatDate(fecha)
-              const isExpanded = expandedDates.has(fecha)
-              const isFutureDate = new Date(fecha + 'T00:00:00') > new Date()
+            citasFiltradas.map(cita => {
+              const sc = statusColors[cita.status] || statusColors.solicitada
+              const esProc = (suffix: string) => procesando === cita.id + suffix
+              const futura = isFutura(cita.requested_date)
+              const puedeReseña = !cita.review_sent && !cita.review_verified && cita.status !== 'cancelada' && canRequestReview(cita)
 
               return (
-                <div key={fecha} style={{ background: '#fff', borderRadius: 16, border: '1.5px solid #E5E7EB', overflow: 'hidden' }}>
-                  {/* Header de Fecha - Clickable */}
-                  <div
-                    onClick={() => toggleDate(fecha)}
-                    style={{
-                      background: '#F9FAFB',
-                      padding: '16px 20px',
-                      borderBottom: '1px solid #E5E7EB',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      transition: 'background 0.2s'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = '#F3F4F6'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = '#F9FAFB'}
-                  >
+                <div key={cita.id} style={{ background: '#fff', borderRadius: 14, border: '1.5px solid #E5E7EB', padding: '20px', opacity: cita.status === 'cancelada' ? 0.65 : 1 }}>
+
+                  {/* Header cita */}
+                  <div className="cita-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      {isExpanded ? (
-                        <ChevronDown size={20} color="#3730A3" />
-                      ) : (
-                        <ChevronRight size={20} color="#6B7280" />
-                      )}
+                      <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'linear-gradient(135deg,#1E3A5F,#2A9D8F)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 18, color: '#fff', flexShrink: 0 }}>
+                        {cita.patient_name.charAt(0).toUpperCase()}
+                      </div>
                       <div>
-                        <p style={{ fontSize: 16, fontWeight: 700, color: '#1A1A2E', margin: 0 }}>
-                          {fechaFormateada.label}
-                        </p>
-                        {fechaFormateada.sublabel && (
-                          <p style={{ fontSize: 13, color: '#6B7280', margin: 0 }}>
-                            {fechaFormateada.sublabel}
-                          </p>
-                        )}
+                        <p style={{ fontSize: 16, fontWeight: 700, color: '#1A1A2E', marginBottom: 4 }}>{cita.patient_name}</p>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          <span style={{ background: sc.bg, color: sc.text, padding: '2px 10px', borderRadius: 12, fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>
+                            {sc.label}
+                          </span>
+                          {futura && cita.status !== 'cancelada' && (
+                            <span style={{ background: '#EEF2FF', color: '#1E3A5F', padding: '2px 10px', borderRadius: 12, fontSize: 11, fontWeight: 600 }}>
+                              Futura
+                            </span>
+                          )}
+                          {cita.review_verified && (
+                            <span style={{ background: '#DCFCE7', color: '#059669', padding: '2px 10px', borderRadius: 12, fontSize: 11, fontWeight: 600 }}>
+                              ✓ Reseña
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{
-                        background: isFutureDate ? '#EEF2FF' : '#F3F4F6',
-                        color: isFutureDate ? '#3730A3' : '#6B7280',
-                        padding: '4px 12px',
-                        borderRadius: 20,
-                        fontSize: 12,
-                        fontWeight: 600
-                      }}>
-                        {citasDelDia.length} {citasDelDia.length === 1 ? 'cita' : 'citas'}
-                        {isFutureDate && ' · Futuras'}
-                      </span>
+
+                    {/* Fecha y hora */}
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                      <p style={{ fontSize: 14, fontWeight: 700, color: '#1A1A2E' }}>{formatFecha(cita.requested_date)}</p>
+                      <p style={{ fontSize: 13, color: '#6B7280' }}>{cita.requested_time}</p>
                     </div>
                   </div>
 
-                  {/* Lista de Citas del Día */}
-                  {isExpanded && (
-                    <div style={{ padding: '16px 20px' }}>
-                      {citasDelDia.map((cita, index) => {
-                        const status = getStatusColor(cita.status)
-                        const showReviewButton = canShowReviewButton(cita)
-                        const isCitaHoy = fecha === new Date().toISOString().split('T')[0]
-                        const isCitaFutura = new Date(fecha + 'T00:00:00') > new Date()
-
-                        return (
-                          <div
-                            key={cita.id}
-                            style={{
-                              background: '#fff',
-                              borderRadius: 12,
-                              padding: '20px',
-                              border: '1.5px solid #E5E7EB',
-                              marginBottom: index < citasDelDia.length - 1 ? 16 : 0,
-                              opacity: cita.status === 'cancelada' ? 0.6 : 1
-                            }}
-                          >
-                            {/* Header de la cita */}
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'linear-gradient(135deg, #3730A3, #F4623A)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 18, color: '#fff' }}>
-                                  {cita.patient_name.charAt(0).toUpperCase()}
-                                </div>
-                                <div>
-                                  <p style={{ fontSize: 16, fontWeight: 700, color: '#1A1A2E', margin: '0 0 2px' }}>{cita.patient_name}</p>
-                                  <span style={{
-                                    display: 'inline-block',
-                                    background: status.bg,
-                                    color: status.text,
-                                    padding: '3px 10px',
-                                    borderRadius: 12,
-                                    fontSize: 11,
-                                    fontWeight: 600,
-                                    textTransform: 'uppercase'
-                                  }}>
-                                    {cita.status}
-                                  </span>
-                                  {isCitaFutura && (
-                                    <span style={{
-                                      display: 'inline-block',
-                                      background: '#EEF2FF',
-                                      color: '#3730A3',
-                                      padding: '3px 10px',
-                                      borderRadius: 12,
-                                      fontSize: 11,
-                                      fontWeight: 600,
-                                      marginLeft: 6
-                                    }}>
-                                      📅 Futura
-                                    </span>
-                                  )}
-                                  {isCitaHoy && !isCitaFutura && (
-                                    <span style={{
-                                      display: 'inline-block',
-                                      background: '#DCFCE7',
-                                      color: '#059669',
-                                      padding: '3px 10px',
-                                      borderRadius: 12,
-                                      fontSize: 11,
-                                      fontWeight: 600,
-                                      marginLeft: 6
-                                    }}>
-                                      ✓ Hoy
-                                    </span>
-                                  )}
-                                  {cita.review_verified && (
-                                    <span style={{
-                                      display: 'inline-block',
-                                      background: '#DCFCE7',
-                                      color: '#059669',
-                                      padding: '3px 10px',
-                                      borderRadius: 12,
-                                      fontSize: 11,
-                                      fontWeight: 600,
-                                      marginLeft: 6
-                                    }}>
-                                      ✓ Reseña verificada
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                              <div style={{ display: 'flex', gap: 8 }}>
-                                <a
-                                  href={getWhatsAppLink(cita.patient_phone, cita.requested_date, cita.requested_time, cita.patient_name)}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: 6,
-                                    background: '#25D366',
-                                    color: '#fff',
-                                    borderRadius: 50,
-                                    padding: '10px 18px',
-                                    fontSize: 13,
-                                    fontWeight: 600,
-                                    textDecoration: 'none',
-                                    fontFamily: "'DM Sans', sans-serif"
-                                  }}
-                                >
-                                  <MessageCircle size={16} />
-                                  WhatsApp
-                                </a>
-                                {showReviewButton ? (
-                                  <button
-                                    onClick={() => sendReviewEmail(cita)}
-                                    disabled={sendingEmail === cita.id}
-                                    style={{
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: 6,
-                                      background: sendingEmail === cita.id ? '#9CA3AF' : '#3730A3',
-                                      color: '#fff',
-                                      borderRadius: 50,
-                                      padding: '10px 18px',
-                                      fontSize: 13,
-                                      fontWeight: 600,
-                                      border: 'none',
-                                      cursor: sendingEmail === cita.id ? 'not-allowed' : 'pointer',
-                                      fontFamily: "'DM Sans', sans-serif",
-                                      opacity: sendingEmail === cita.id ? 0.6 : 1
-                                    }}
-                                  >
-                                    <Send size={16} />
-                                    {sendingEmail === cita.id ? 'Enviando...' : 'Solicitar reseña'}
-                                  </button>
-                                ) : (
-                                  cita.review_sent && !cita.review_verified && (
-                                    <span style={{
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: 6,
-                                      background: '#EEF2FF',
-                                      color: '#3730A3',
-                                      borderRadius: 50,
-                                      padding: '10px 18px',
-                                      fontSize: 13,
-                                      fontWeight: 600,
-                                      fontFamily: "'DM Sans', sans-serif"
-                                    }}>
-                                      ✓ Email enviado
-                                    </span>
-                                  )
-                                )}
-                                {!showReviewButton && !cita.review_sent && (
-                                  <span style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: 6,
-                                    background: '#F3F4F6',
-                                    color: '#9CA3AF',
-                                    borderRadius: 50,
-                                    padding: '10px 18px',
-                                    fontSize: 12,
-                                    fontWeight: 500,
-                                    fontFamily: "'DM Sans', sans-serif"
-                                  }}>
-                                    {isCitaFutura ? '🕐 Esperar cita' : cita.status === 'cancelada' ? 'Cancelada' : 'No disponible'}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Detalles de la cita */}
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, padding: '16px 0', borderTop: '1px solid #F3F4F6', borderBottom: '1px solid #F3F4F6' }}>
-                              <div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                                  <Clock size={14} color="#6B7280" />
-                                  <p style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 600, margin: 0 }}>Hora solicitada</p>
-                                </div>
-                                <p style={{ fontSize: 14, color: '#1A1A2E', fontWeight: 600, margin: 0 }}>{cita.requested_time}</p>
-                              </div>
-                              <div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                                  <MapPin size={14} color="#6B7280" />
-                                  <p style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 600, margin: 0 }}>Consultorio</p>
-                                </div>
-                                <p style={{ fontSize: 13, color: '#1A1A2E', margin: 0, lineHeight: 1.5 }}>{cita.clinic_address}</p>
-                              </div>
-                            </div>
-
-                            {/* Información de contacto */}
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginTop: 16 }}>
-                              <div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                                  <User size={14} color="#6B7280" />
-                                  <p style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 600, margin: 0 }}>Paciente</p>
-                                </div>
-                                <p style={{ fontSize: 14, color: '#1A1A2E', margin: 0 }}>{cita.patient_name}</p>
-                              </div>
-                              <div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                                  <Phone size={14} color="#6B7280" />
-                                  <p style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 600, margin: 0 }}>Teléfono</p>
-                                </div>
-                                <p style={{ fontSize: 14, color: '#1A1A2E', margin: 0 }}>{cita.patient_phone}</p>
-                              </div>
-                              <div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                                  <Mail size={14} color="#6B7280" />
-                                  <p style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 600, margin: 0 }}>Email</p>
-                                </div>
-                                <p style={{ fontSize: 14, color: '#1A1A2E', margin: 0 }}>{cita.patient_email}</p>
-                              </div>
-                              {cita.reason && (
-                                <div style={{ gridColumn: '1 / -1' }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                                    <FileText size={14} color="#6B7280" />
-                                    <p style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 600, margin: 0 }}>Motivo de consulta</p>
-                                  </div>
-                                  <p style={{ fontSize: 14, color: '#6B7280', margin: 0 }}>{cita.reason}</p>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )
-                      })}
+                  {/* Datos contacto */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px,1fr))', gap: 12, padding: '14px 0', borderTop: '1px solid #F3F4F6', borderBottom: '1px solid #F3F4F6', marginBottom: 16 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Phone size={13} color="#9CA3AF" />
+                      <a href={`tel:${cita.patient_phone}`} style={{ fontSize: 13, color: '#1A1A2E', textDecoration: 'none' }}>{cita.patient_phone}</a>
                     </div>
-                  )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Mail size={13} color="#9CA3AF" />
+                      <span style={{ fontSize: 13, color: '#6B7280' }}>{cita.patient_email}</span>
+                    </div>
+                    {cita.clinic_address && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <MapPin size={13} color="#9CA3AF" />
+                        <span style={{ fontSize: 13, color: '#6B7280' }}>{cita.clinic_address}</span>
+                      </div>
+                    )}
+                    {cita.reason && (
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, gridColumn: '1 / -1' }}>
+                        <FileText size={13} color="#9CA3AF" style={{ marginTop: 2, flexShrink: 0 }} />
+                        <span style={{ fontSize: 13, color: '#6B7280' }}>{cita.reason}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Botones de acción */}
+                  <div className="cita-actions" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+
+                    {/* Cita SOLICITADA → Confirmar / Rechazar */}
+                    {cita.status === 'solicitada' && (
+                      <>
+                        <button
+                          className="action-btn"
+                          onClick={() => cambiarStatus(cita.id, 'confirmada')}
+                          disabled={!!esProc('confirmada')}
+                          style={{ background: '#DCFCE7', color: '#059669' }}
+                        >
+                          {esProc('confirmada')
+                            ? <span style={{ width: 13, height: 13, border: '2px solid #05966944', borderTopColor: '#059669', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+                            : <Check size={14} />}
+                          Confirmar
+                        </button>
+                        <button
+                          className="action-btn"
+                          onClick={() => cambiarStatus(cita.id, 'cancelada')}
+                          disabled={!!esProc('cancelada')}
+                          style={{ background: '#FEE2E2', color: '#DC2626' }}
+                        >
+                          {esProc('cancelada')
+                            ? <span style={{ width: 13, height: 13, border: '2px solid #DC262644', borderTopColor: '#DC2626', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+                            : <XCircle size={14} />}
+                          Rechazar
+                        </button>
+                      </>
+                    )}
+
+                    {/* Cita CONFIRMADA → Marcar atendida / Cancelar */}
+                    {cita.status === 'confirmada' && (
+                      <>
+                        <button
+                          className="action-btn"
+                          onClick={() => cambiarStatus(cita.id, 'atendida')}
+                          disabled={!!esProc('atendida')}
+                          style={{ background: '#E0E7FF', color: '#3730A3' }}
+                        >
+                          {esProc('atendida')
+                            ? <span style={{ width: 13, height: 13, border: '2px solid #3730A344', borderTopColor: '#3730A3', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+                            : <CheckCircle size={14} />}
+                          Marcar atendida
+                        </button>
+                        <button
+                          className="action-btn"
+                          onClick={() => cambiarStatus(cita.id, 'cancelada')}
+                          disabled={!!esProc('cancelada')}
+                          style={{ background: '#FEE2E2', color: '#DC2626' }}
+                        >
+                          {esProc('cancelada')
+                            ? <span style={{ width: 13, height: 13, border: '2px solid #DC262644', borderTopColor: '#DC2626', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+                            : <XCircle size={14} />}
+                          Cancelar
+                        </button>
+                      </>
+                    )}
+
+                    {/* WhatsApp siempre disponible (excepto canceladas) */}
+                    {cita.status !== 'cancelada' && (
+                      <a
+                        href={getWhatsAppLink(cita.patient_phone, cita.requested_date, cita.requested_time, cita.patient_name)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#25D366', color: '#fff', borderRadius: 50, padding: '8px 14px', fontSize: 13, fontWeight: 600, textDecoration: 'none' }}
+                      >
+                        <MessageCircle size={14} />
+                        WhatsApp
+                      </a>
+                    )}
+
+                    {/* Solicitar reseña para citas pasadas */}
+                    {puedeReseña && (
+                      <button
+                        className="action-btn"
+                        onClick={() => sendReviewEmail(cita)}
+                        disabled={sendingEmail === cita.id}
+                        style={{ background: '#F5F3FF', color: '#8B5CF6' }}
+                      >
+                        {sendingEmail === cita.id
+                          ? <span style={{ width: 13, height: 13, border: '2px solid #8B5CF644', borderTopColor: '#8B5CF6', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+                          : <Send size={14} />}
+                        {sendingEmail === cita.id ? 'Enviando...' : 'Pedir reseña'}
+                      </button>
+                    )}
+
+                    {cita.review_sent && !cita.review_verified && (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#F3F4F6', color: '#9CA3AF', borderRadius: 50, padding: '8px 14px', fontSize: 12, fontWeight: 500 }}>
+                        ✓ Reseña solicitada
+                      </span>
+                    )}
+                  </div>
                 </div>
               )
             })

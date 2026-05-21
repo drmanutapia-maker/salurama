@@ -51,11 +51,11 @@ export default function CookieBanner() {
           maxWidth: showConfig ? 'none' : 500,
           maxHeight: showConfig ? '90vh' : 'none',
           overflowY: showConfig ? 'auto' : 'visible',
+          overflowX: 'hidden',
           background: '#fff',
           borderRadius: 16,
           boxShadow: '0 8px 32px rgba(30, 27, 75, 0.15)',
           zIndex: 9999,
-          overflow: 'hidden',
           border: '1px solid #E5E7EB',
           fontFamily: "'DM Sans', sans-serif",
         }}
