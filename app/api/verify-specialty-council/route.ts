@@ -1,123 +1,129 @@
 import { NextResponse } from 'next/server'
+import { Redis } from '@upstash/redis'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+})
+
+interface CouncilData {
+  found: boolean
+  doctorName: string
+  council: string
+  specialty: string | null
+  certificateNumber: string | null
+  issueDate: string | null
+  expiryDate: string | null
+  status: string | null
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
-  const doctorName = searchParams.get('name')
-  const council = searchParams.get('council')
+  const doctorName = searchParams.get('name')?.trim() || ''
+  const council = searchParams.get('council')?.trim() || null
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || 'unknown'
 
-  if (!doctorName) {
-    return NextResponse.json({ error: 'Nombre del médico requerido' }, { status: 400 })
+  if (!doctorName || doctorName.length < 3) {
+    return NextResponse.json({ error: 'Nombre requerido' }, { status: 400 })
+  }
+
+  // Rate limit: 5 consultas por hora por IP
+  const rateKey = `conacem:${ip}`
+  const count = await redis.incr(rateKey)
+  if (count === 1) await redis.expire(rateKey, 3600)
+  if (count > 5) {
+    return NextResponse.json({ error: 'Demasiadas consultas' }, { status: 429 })
+  }
+
+  // Cache 24 horas
+  const cacheKey = `conacem:${doctorName.toLowerCase().replace(/\s+/g, '-')}`
+  const cached = await redis.get(cacheKey)
+  if (cached) {
+    return NextResponse.json(cached)
   }
 
   try {
-    // Intentar obtener datos de CONACEM
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 15000) // 15 segundos
+    const timeoutId = setTimeout(() => controller.abort(), 10000)
 
-    // CONACEM: búsqueda por nombre de médico (el consejo se usa en parseo)
-    const conacemUrl = `https://conacem.org.mx/buscador?search=${encodeURIComponent(doctorName)}`
-    
-    const response = await fetch(conacemUrl, {
-      method: 'GET',
+    const url = `https://conacem.org.mx/buscador?search=${encodeURIComponent(doctorName)}`
+
+    const response = await fetch(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'es-MX,es;q=0.9,en;q=0.8',
+        'User-Agent': 'Mozilla/5.0 (compatible; Salurama/1.0)',
+        'Accept': 'text/html',
       },
       signal: controller.signal,
-      redirect: 'follow'
+      cache: 'no-store',
     })
 
     clearTimeout(timeoutId)
 
-    if (!response.ok) {
-      throw new Error(`CONACEM responded with ${response.status}`)
-    }
+    if (!response.ok) throw new Error(`CONACEM status ${response.status}`)
 
     const html = await response.text()
-    
-    // Parsear HTML para extraer información
     const data = parseCONACEMHtml(html, doctorName, council)
 
-    return NextResponse.json({
+    const result = {
       success: true,
       verified: data.found,
-      data: data,
-      timestamp: new Date().toISOString()
-    })
-
-  } catch (error: any) {
-    console.error('Error verificando en CONACEM:', error)
-    
-    if (error.name === 'AbortError') {
-      return NextResponse.json({
-        error: 'CONACEM está tardando demasiado. Intenta de nuevo más tarde.',
-        timeout: true
-      }, { status: 504 })
+      data,
+      timestamp: new Date().toISOString(),
     }
 
-    return NextResponse.json({
-      error: 'No se pudo verificar en CONACEM en este momento',
-      details: error.message
-    }, { status: 500 })
+    // Guardar en cache
+    await redis.set(cacheKey, result, { ex: 86400 })
+
+    return NextResponse.json(result)
+
+  } catch (error: any) {
+    console.error('Error CONACEM:', error)
+
+    if (error.name === 'AbortError') {
+      return NextResponse.json({ error: 'Timeout', timeout: true }, { status: 504 })
+    }
+
+    return NextResponse.json({ error: 'No se pudo verificar' }, { status: 500 })
   }
 }
 
-function parseCONACEMHtml(html: string, doctorName: string, council: string | null) {
-  const result: any = {
+function parseCONACEMHtml(html: string, doctorName: string, council: string | null): CouncilData {
+  const result: CouncilData = {
     found: false,
-    doctorName: doctorName,
+    doctorName,
     council: council || 'CONACEM',
     specialty: null,
     certificateNumber: null,
     issueDate: null,
     expiryDate: null,
-    status: null
+    status: null,
   }
 
-  // Buscar patrones comunes en el HTML de CONACEM
-  // Extraer nombre del médico
-  const nameMatch = html.match(new RegExp(doctorName.replace(/\s+/g, '\\s+'), 'i'))
-  if (nameMatch) {
+  const namePattern = doctorName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+')
+  if (new RegExp(namePattern, 'i').test(html)) {
     result.found = true
   }
 
-  // Extraer especialidad
-  const specialtyMatch = html.match(/(?:Especialidad|Certificación)[^:]*:\s*<[^>]*>\s*([^<]+)/i)
-  if (specialtyMatch) {
-    result.specialty = cleanText(specialtyMatch[1])
+  const extract = (re: RegExp) => {
+    const m = html.match(re)
+    return m?.[1]? cleanText(m[1]) : null
   }
 
-  // Extraer número de certificado
-  const certMatch = html.match(/(?:Certificado|Registro|Folio)[^:]*:\s*<[^>]*>\s*([^<]+)/i)
-  if (certMatch) {
-    result.certificateNumber = cleanText(certMatch[1])
-  }
+  result.specialty = extract(/(?:Especialidad)[^:]*:\s*<[^>]*>\s*([^<]+)/i)
+  result.certificateNumber = extract(/(?:Certificado|Folio)[^:]*:\s*<[^>]*>\s*([^<]+)/i)
+  result.issueDate = extract(/(?:Expedición)[^:]*:\s*<[^>]*>\s*([^<]+)/i)
+  result.expiryDate = extract(/(?:Vigencia)[^:]*:\s*<[^>]*>\s*([^<]+)/i)
+  result.status = extract(/(?:Estatus)[^:]*:\s*<[^>]*>\s*([^<]+)/i)
 
-  // Extraer fecha de expedición
-  const issueMatch = html.match(/(?:Expedición|Emisión|Fecha)[^:]*:\s*<[^>]*>\s*([^<]+)/i)
-  if (issueMatch) {
-    result.issueDate = cleanText(issueMatch[1])
-  }
-
-  // Extraer vigencia
-  const expiryMatch = html.match(/(?:Vigencia|Válido|Expira)[^:]*:\s*<[^>]*>\s*([^<]+)/i)
-  if (expiryMatch) {
-    result.expiryDate = cleanText(expiryMatch[1])
-  }
-
-  // Extraer estatus
-  const statusMatch = html.match(/(?:Estatus|Estado|Vigente)[^:]*:\s*<[^>]*>\s*([^<]+)/i)
-  if (statusMatch) {
-    result.status = cleanText(statusMatch[1])
-  }
-
-  // Si no encontró nada específico, buscar si el nombre existe en el HTML
   if (!result.found) {
-    if (html.includes(doctorName.split(' ')[0]) || html.includes(doctorName.split(' ').pop())) {
+    const parts = doctorName.trim().split(/\s+/).filter(Boolean)
+    const first = parts[0] || ''
+    const last = parts[parts.length - 1] || ''
+
+    if (first && last && html.toLowerCase().includes(first.toLowerCase()) && html.toLowerCase().includes(last.toLowerCase())) {
       result.found = true
       result.status = 'Encontrado en CONACEM'
     }
@@ -127,11 +133,5 @@ function parseCONACEMHtml(html: string, doctorName: string, council: string | nu
 }
 
 function cleanText(text: string): string {
-  return text
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/\s+/g, ' ')
-    .trim()
+  return text.replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200)
 }

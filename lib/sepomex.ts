@@ -1,111 +1,167 @@
 // lib/sepomex.ts
+import { z } from 'zod'
 
-interface SepomexData {
-  d_codigo: string
-  d_asentamiento: string
-  d_tipo_asentamiento: string
-  d_mnpio: string
-  d_estado: string
-  d_ciudad: string
-  d_cp: string
-  c_estado: string
-  c_oficina: string
-  c_cp: string
-  c_tipo_asentamiento: string
-  c_mnpio: string
-  id_asentamiento_cp: string
-}
+// Schema de validación
+const SepomexSchema = z.object({
+  d_codigo: z.string(),
+  d_asentamiento: z.string(),
+  d_tipo_asentamiento: z.string(),
+  d_mnpio: z.string(),
+  d_estado: z.string(),
+  d_ciudad: z.string().optional(),
+  id_asentamiento_cp: z.string(),
+})
+
+type SepomexRaw = z.infer<typeof SepomexSchema>
 
 export interface CPResult {
+  cp: string
   estado: string
   municipio: string
   ciudad: string
-  colonias: Array<{ nombre: string; codigo: string }>
+  colonias: Array<{ nombre: string; tipo: string; id: string }>
 }
 
-let sepomexCache: SepomexData[] | null = null
+// Cache con índices
+class SepomexIndex {
+  private byCP = new Map<string, SepomexRaw[]>()
+  private byEstado = new Map<string, Set<string>>()
+  private loaded = false
+  private loading: Promise<void> | null = null
 
-/**
- * Cargar datos de Sepomex desde JSON local (lazy load con caché)
- */
-export async function loadSepomexData(): Promise<SepomexData[]> {
-  if (sepomexCache) {
-    return sepomexCache
+  async load(): Promise<void> {
+    if (this.loaded) return
+    if (this.loading) return this.loading
+
+    this.loading = (async () => {
+      try {
+        // En 2026: usa API route en vez de fetch directo
+        const res = await fetch('/api/sepomex', {
+          next: { revalidate: 86400 }, // Cache 24h
+        })
+
+        if (!res.ok) throw new Error(`SEPOMEX ${res.status}`)
+
+        const data = await res.json() as SepomexRaw[]
+
+        // Build índices O(n)
+        for (const item of data) {
+          const parsed = SepomexSchema.safeParse(item)
+          if (!parsed.success) continue
+
+          const valid = parsed.data
+          const cp = valid.d_codigo
+
+          // Índice por CP
+          if (!this.byCP.has(cp)) this.byCP.set(cp, [])
+          this.byCP.get(cp)!.push(valid)
+
+          // Índice por estado (para autocomplete)
+          const estado = valid.d_estado
+          if (!this.byEstado.has(estado)) {
+            this.byEstado.set(estado, new Set())
+          }
+          this.byEstado.get(estado)!.add(valid.d_mnpio)
+        }
+
+        this.loaded = true
+      } catch (error) {
+        this.loading = null
+        throw error
+      }
+    })()
+
+    return this.loading
   }
 
-  try {
-    const response = await fetch('/data/sepomex.json')
-    if (!response.ok) {
-      throw new Error(`Error al cargar sepomex.json: ${response.status}`)
-    }
-    sepomexCache = await response.json()
-    console.log(`✅ [SEPOMEX] Datos cargados: ${sepomexCache.length} registros`)
-    return sepomexCache
-  } catch (error) {
-    console.error('❌ [SEPOMEX] Error loading ', error)
-    throw error
+  getByCP(cp: string): SepomexRaw[] | null {
+    return this.byCP.get(cp) || null
+  }
+
+  getEstados(): string[] {
+    return Array.from(this.byEstado.keys()).sort()
+  }
+
+  getMunicipios(estado: string): string[] {
+    return Array.from(this.byEstado.get(estado) || []).sort()
   }
 }
 
+// Singleton
+const index = new SepomexIndex()
+
 /**
- * Buscar CP y devolver información estructurada
+ * Buscar CP - O(1) con índice
+ * @example await searchCP('11560') // Polanco
  */
 export async function searchCP(cp: string): Promise<CPResult | null> {
-  // Validar y formatear CP (5 dígitos)
-  const cpFormatted = cp.replace(/\D/g, '').padStart(5, '0')
-  
-  if (cpFormatted.length !== 5) {
-    return null
-  }
+  const clean = cp.replace(/\D/g, '').slice(0, 5)
+  if (clean.length!== 5) return null
 
-  try {
-    const data = await loadSepomexData()
-    
-    // Filtrar por CP exacto
-    const results = data.filter(item => item.d_codigo === cpFormatted)
-    
-    if (results.length === 0) {
-      return null
-    }
+  await index.load()
+  const results = index.getByCP(clean)
 
-    const firstResult = results[0]
-    
-    // Agrupar colonias únicas
-    const coloniasMap = new Map<string, string>()
-    results.forEach(item => {
-      const nombre = `${item.d_tipo_asentamiento} ${item.d_asentamiento}`.trim()
-      coloniasMap.set(nombre, item.id_asentamiento_cp)
-    })
+  if (!results?.length) return null
 
-    const colonias = Array.from(coloniasMap.entries())
-      .map(([nombre, codigo]) => ({ nombre, codigo }))
-      .sort((a, b) => a.nombre.localeCompare(b.nombre))
+  const first = results[0]
+  const colonias = results.map(r => ({
+    nombre: r.d_asentamiento,
+    tipo: r.d_tipo_asentamiento,
+    id: r.id_asentamiento_cp,
+  }))
 
-    return {
-      estado: firstResult.d_estado,
-      municipio: firstResult.d_mnpio,
-      ciudad: firstResult.d_ciudad || firstResult.d_mnpio,
-      colonias,
-    }
-  } catch (error) {
-    console.error('❌ [SEPOMEX] Error searching CP:', error)
-    return null
+  // Deduplicar y ordenar
+  const unique = Array.from(
+    new Map(colonias.map(c => [c.id, c])).values()
+  ).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+
+  return {
+    cp: clean,
+    estado: first.d_estado,
+    municipio: first.d_mnpio,
+    ciudad: first.d_ciudad || first.d_mnpio,
+    colonias: unique,
   }
 }
 
 /**
- * Formatear CP para visualización (máscara de 5 dígitos)
+ * Búsqueda difusa por colonia
  */
+export async function searchColonia(query: string, limit = 10) {
+  if (query.length < 3) return []
+
+  await index.load()
+  const normalized = query.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+
+  const results: Array<{ cp: string; colonia: string; estado: string }> = []
+
+  for (const [cp, items] of index['byCP']) {
+    for (const item of items) {
+      if (item.d_asentamiento.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(normalized)) {
+        results.push({ cp, colonia: item.d_asentamiento, estado: item.d_estado })
+        if (results.length >= limit) break
+      }
+    }
+    if (results.length >= limit) break
+  }
+
+  return results
+}
+
 export function formatCP(value: string): string {
-  const digits = value.replace(/\D/g, '')
-  return digits.slice(0, 5)
+  return value.replace(/\D/g, '').slice(0, 5)
 }
 
 /**
- * Pre-cargar datos en background (mejora UX)
+ * Preload en background - no bloquea
  */
-export function preloadSepomexData(): void {
-  if (!sepomexCache) {
-    loadSepomexData().catch(console.error)
+export function preload(): void {
+  if (typeof window!== 'undefined') {
+    requestIdleCallback(() => {
+      index.load().catch(() => {})
+    })
   }
 }
+
+// API Route necesaria: app/api/sepomex/route.ts
+export const dynamic = 'force-static'

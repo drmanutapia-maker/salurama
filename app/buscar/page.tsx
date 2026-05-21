@@ -1,20 +1,19 @@
 'use client'
-import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabaseClient'
+
+import { Suspense, useState, useEffect, useMemo, useCallback } from 'react'
+import { createClient } from '@/lib/supabaseClient'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import {
   Search, Clock, DollarSign, Star, Baby, Calendar, MapPin, Shield,
-  X, Navigation, GraduationCap, Globe
+  X, Navigation, GraduationCap, Globe, Loader2, Filter, SlidersHorizontal
 } from 'lucide-react'
 import StateCitySelector from '@/components/StateCitySelector'
 import BottomNav from '@/components/BottomNav'
 import Navbar from '@/components/Navbar'
 
-export const dynamic = 'force-dynamic'
-
 const ESPECIALIDADES_CONACEM = [
-  'Alergología','Anestesiología','Angiología y Cirugía Vascular','Cardiología','Cardiología Pediátrica',
+  'Alergología','Anestesiología','Angiología y Cirugía Vascular','Cardiología Pediátrica',
   'Cirugía Cardiovascular','Cirugía General','Cirugía Maxilofacial','Cirugía Pediátrica',
   'Cirugía Plástica y Reconstructiva','Dermatología','Endocrinología','Endocrinología Pediátrica',
   'Gastroenterología','Gastroenterología y Endoscopia Pediátrica','Geriatría','Hematología',
@@ -46,15 +45,10 @@ interface Medico {
   professional_license: string | null
 }
 
-type FiltroChip = {
-  id: string
-  label: string
-  icon: React.ReactNode
-  tooltip: string
-  activo: boolean
-}
+type FiltroId = 'cerca' | 'experiencia' | 'precio' | 'valorados' | 'ninos' | 'disponibilidad'
 
-const normalizarTexto = (texto: string): string => {
+const normalizarTexto = (texto: string | null | undefined): string => {
+  if (!texto) return ''
   return texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 }
 
@@ -62,323 +56,423 @@ const calcularDistancia = (lat1: number, lon1: number, lat2: number, lon2: numbe
   const R = 6371
   const dLat = (lat2 - lat1) * Math.PI / 180
   const dLon = (lon2 - lon1) * Math.PI / 180
-  const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2)
+  const a = Math.sin(dLat/2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) ** 2
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
 }
 
-export default function BuscarPage() {
+function BuscarContent() {
+  const supabase = createClient()
   const searchParams = useSearchParams()
+
   const [medicos, setMedicos] = useState<Medico[]>([])
-  const [filteredMedicos, setFilteredMedicos] = useState<Medico[]>([])
   const [loading, setLoading] = useState(true)
   const [showMapModal, setShowMapModal] = useState<Medico | null>(null)
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null)
 
   const [busqueda, setBusqueda] = useState('')
-  const [userTyped, setUserTyped] = useState(false)
+  const [inputValue, setInputValue] = useState('')
   const [sugerencias, setSugerencias] = useState<string[]>([])
   const [showSugerencias, setShowSugerencias] = useState(false)
-  const [inputValue, setInputValue] = useState('')
 
-  const [selectedState, setSelectedState] = useState<string>('')
-  const [selectedCity, setSelectedCity] = useState<string>('')
-  const [filtros, setFiltros] = useState<string[]>([])
+  const [selectedState, setSelectedState] = useState('')
+  const [selectedCity, setSelectedCity] = useState('')
+  const [filtros, setFiltros] = useState<FiltroId[]>([])
   const [especialidadesDisponibles, setEspecialidadesDisponibles] = useState<string[]>(ESPECIALIDADES_CONACEM)
   const [ciudadesConMedicos, setCiudadesConMedicos] = useState<string[]>([])
-  const [paramsLoaded, setParamsLoaded] = useState(false)
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null)
+  const [locating, setLocating] = useState(false)
 
+  // Load especialidades
   useEffect(() => {
-    async function loadEspecialidades() {
-      try {
-        const { data, error } = await supabase.from('doctors').select('specialty').not('specialty', 'is', null)
-        if (error) throw error
-        const especialidadesUnicas = Array.from(new Set(data.map(d => d.specialty).filter(Boolean))) as string[]
-        const extras = especialidadesUnicas.filter(esp =>!ESPECIALIDADES_CONACEM.includes(esp))
-        setEspecialidadesDisponibles([...ESPECIALIDADES_CONACEM,...extras.sort()])
-      } catch (error) {
-        console.error('Error loading especialidades:', error)
-      }
-    }
-    loadEspecialidades()
-  }, [])
+    supabase.from('doctors').select('specialty').not('specialty', 'is', null)
+     .then(({ data }) => {
+        if (data) {
+          const unicas = Array.from(new Set(data.map(d => d.specialty).filter(Boolean))) as string[]
+          const extras = unicas.filter(esp =>!ESPECIALIDADES_CONACEM.includes(esp))
+          setEspecialidadesDisponibles([...ESPECIALIDADES_CONACEM,...extras.sort()])
+        }
+      })
+  }, [supabase])
 
+  // Load params
   useEffect(() => {
-    const especialidad = searchParams.get('especialidad')
-    const estado = searchParams.get('estado')
-    const ciudad = searchParams.get('ciudad')
-    if (especialidad) {
-      setBusqueda(especialidad)
-      setInputValue(especialidad)
-    }
-    if (estado) setSelectedState(estado)
-    if (ciudad) setSelectedCity(ciudad)
-    setParamsLoaded(true)
-    setShowSugerencias(false)
+    const esp = searchParams.get('especialidad')
+    const est = searchParams.get('estado')
+    const ciu = searchParams.get('ciudad')
+    if (esp) { setBusqueda(esp); setInputValue(esp) }
+    if (est) setSelectedState(est)
+    if (ciu) setSelectedCity(ciu)
   }, [searchParams])
 
+  // Load medicos
   useEffect(() => {
-    async function loadMedicos() {
-      try {
-        const { data, error } = await supabase
-     .from('doctors')
+    setLoading(true)
+    supabase.from('doctors')
      .select(`id, full_name, specialty, photo_url, location_city, location_state, consultation_price_general, years_experience, min_patient_age, max_patient_age, latitude, longitude, hospital_affiliation, languages, insurance_accepted, professional_license`)
      .eq('is_active', true)
      .order('created_at', { ascending: false })
      .limit(100)
-        if (error) throw error
-        setMedicos(data || [])
-        if (data) {
-          const ciudades = Array.from(new Set(data.map(m => m.location_city).filter(Boolean))) as string[]
-          setCiudadesConMedicos(ciudades)
+     .then(({ data, error }) => {
+        if (!error && data) {
+          setMedicos(data)
+          setCiudadesConMedicos(Array.from(new Set(data.map(m => m.location_city).filter(Boolean))) as string[])
         }
-      } catch (error) {
-        console.error('Error loading medicos:', error)
-        setMedicos([])
-      } finally {
         setLoading(false)
-      }
-    }
-    loadMedicos()
-  }, [])
-
-  useEffect(() => {
-    if (inputValue.trim().length >= 2 && userTyped) {
-      const sugerenciasFiltradas = especialidadesDisponibles.filter(esp => normalizarTexto(esp).includes(normalizarTexto(inputValue))).slice(0, 8)
-      setSugerencias(sugerenciasFiltradas)
-      setShowSugerencias(sugerenciasFiltradas.length > 0)
-    } else {
-      setShowSugerencias(false)
-    }
-  }, [inputValue, especialidadesDisponibles, userTyped])
-
-  useEffect(() => {
-    if (!paramsLoaded) return
-    let resultados = [...medicos]
-    if (busqueda.trim()) {
-      const busquedaLower = busqueda.toLowerCase()
-      resultados = resultados.filter(medico => {
-        const medicoSpecialties = medico.specialty.includes(' y ')
-     ? medico.specialty.split(' y ').map(s => s.trim().toLowerCase())
-          : [medico.specialty.toLowerCase()]
-        return medico.full_name?.toLowerCase().includes(busquedaLower) || medicoSpecialties.some(esp => esp.includes(busquedaLower))
       })
+  }, [supabase])
+
+  // Sugerencias con debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (inputValue.trim().length >= 2) {
+        const filtered = especialidadesDisponibles
+         .filter(esp => normalizarTexto(esp).includes(normalizarTexto(inputValue)))
+         .slice(0, 8)
+        setSugerencias(filtered)
+        setShowSugerencias(filtered.length > 0)
+      } else {
+        setShowSugerencias(false)
+      }
+    }, 150)
+    return () => clearTimeout(timer)
+  }, [inputValue, especialidadesDisponibles])
+
+  // Filtrado memoizado
+  const filteredMedicos = useMemo(() => {
+    let resultados = [...medicos]
+
+    if (busqueda.trim()) {
+      const term = normalizarTexto(busqueda)
+      resultados = resultados.filter(m =>
+        normalizarTexto(m.full_name).includes(term) ||
+        normalizarTexto(m.specialty).includes(term)
+      )
     }
+
     if (selectedState) {
-      const estadoNormalizado = normalizarTexto(selectedState)
-      resultados = resultados.filter(medico => normalizarTexto(medico.location_state || '').includes(estadoNormalizado))
+      const estado = normalizarTexto(selectedState)
+      resultados = resultados.filter(m => normalizarTexto(m.location_state).includes(estado))
     }
+
     if (selectedCity) {
-      const ciudadNormalizada = normalizarTexto(selectedCity)
-      resultados = resultados.filter(medico => normalizarTexto(medico.location_city || '').includes(ciudadNormalizada))
+      const ciudad = normalizarTexto(selectedCity)
+      resultados = resultados.filter(m => normalizarTexto(m.location_city).includes(ciudad))
     }
+
     if (filtros.includes('ninos')) {
       resultados = resultados.filter(m => {
-        const specialty = m.specialty.toLowerCase()
-        const esPediatria = specialty.includes('pediatr') || specialty.includes('neonat') || specialty.includes('infantil')
-        const atiendeNinosPorEdad = (m.min_patient_age || 0) < 18
-        return esPediatria || atiendeNinosPorEdad
+        const spec = normalizarTexto(m.specialty)
+        return spec.includes('pediatr') || spec.includes('neonat') || spec.includes('infantil') || (m.min_patient_age || 0) < 18
       })
     }
+
     if (filtros.includes('cerca') && userLocation) {
       resultados = resultados
-   .map(m => ({...m, distance: m.latitude && m.longitude? calcularDistancia(userLocation.lat, userLocation.lng, m.latitude, m.longitude) : 9999 }))
-   .sort((a, b) => (a.distance || 9999) - (b.distance || 9999))
+       .map(m => ({...m, distance: m.latitude && m.longitude? calcularDistancia(userLocation.lat, userLocation.lng, m.latitude, m.longitude) : 9999 }))
+       .sort((a, b) => (a.distance || 9999) - (b.distance || 9999))
     } else if (filtros.includes('experiencia')) {
       resultados.sort((a, b) => (b.years_experience || 0) - (a.years_experience || 0))
     } else if (filtros.includes('precio')) {
-      resultados.sort((a, b) => (a.consultation_price_general || 0) - (b.consultation_price_general || 0))
+      resultados.sort((a, b) => (a.consultation_price_general || 99999) - (b.consultation_price_general || 99999))
     }
-    setFilteredMedicos(resultados)
-  }, [busqueda, selectedState, selectedCity, filtros, medicos, paramsLoaded, userLocation])
 
-  const toggleFiltro = async (filtroId: string) => {
+    return resultados
+  }, [medicos, busqueda, selectedState, selectedCity, filtros, userLocation])
+
+  const toggleFiltro = useCallback(async (filtroId: FiltroId) => {
     if (filtroId === 'cerca' &&!filtros.includes('cerca')) {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          async (pos) => {
-            const lat = pos.coords.latitude
-            const lng = pos.coords.longitude
-            setUserLocation({ lat, lng })
-            const { data } = await supabase.rpc('nearby_doctors', { user_lat: lat, user_lng: lng, radius_km: 50 })
-            if (data && data.length > 0) {
-              const withDistance = data.map((m: any) => ({...m, distance: calcularDistancia(lat, lng, m.latitude, m.longitude) }))
-              setMedicos(withDistance)
-            }
-            setFiltros(prev => [...prev, filtroId])
-            setChips(chips.map(c => c.id === filtroId? {...c, activo: true } : c))
-          },
-          () => alert('Activa la ubicación para usar "Cerca de mí"')
-        )
+      if (!navigator.geolocation) {
+        alert('Tu navegador no soporta geolocalización')
+        return
       }
+      setLocating(true)
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+          setFiltros(prev => [...prev, filtroId])
+          setLocating(false)
+        },
+        () => {
+          alert('Activa la ubicación para usar "Cerca de mí"')
+          setLocating(false)
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      )
       return
     }
-    setFiltros(prev => prev.includes(filtroId)? prev.filter(f => f!== filtroId) : [...prev, filtroId])
-    setChips(chips.map(chip => chip.id === filtroId? {...chip, activo:!chip.activo } : chip))
-  }
 
-  const limpiarFiltros = () => {
+    setFiltros(prev =>
+      prev.includes(filtroId)
+       ? prev.filter(f => f!== filtroId)
+        : [...prev, filtroId]
+    )
+
+    if (filtroId === 'cerca') setUserLocation(null)
+  }, [filtros])
+
+  const limpiarFiltros = useCallback(() => {
     setFiltros([])
-    setChips(chips.map(chip => ({...chip, activo: false })))
     setUserLocation(null)
-    window.location.reload()
-  }
+    setBusqueda('')
+    setInputValue('')
+    setSelectedState('')
+    setSelectedCity('')
+  }, [])
 
-  const handleBusquedaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value
-    setInputValue(value)
-    setBusqueda(value)
-    setUserTyped(true)
-  }
-
-  const handleSugerenciaClick = (sugerencia: string) => {
-    setBusqueda(sugerencia)
-    setInputValue(sugerencia)
-    setUserTyped(false)
-    setShowSugerencias(false)
-  }
-
-  const [chips, setChips] = useState<FiltroChip[]>([
-    { id: 'cerca', label: 'Cerca de mí', icon: <Navigation size={16} />, tooltip: 'Usa tu ubicación para mostrar médicos más cercanos primero', activo: false },
-    { id: 'experiencia', label: 'Más experiencia', icon: <Clock size={16} />, tooltip: 'Muestra primero a los médicos con más años de ejercicio profesional', activo: false },
-    { id: 'precio', label: 'Precio accesible', icon: <DollarSign size={16} />, tooltip: 'Ordena de menor a mayor costo de consulta', activo: false },
-    { id: 'valorados', label: 'Mejor valorados', icon: <Star size={16} />, tooltip: 'Muestra primero a los médicos con mejores reseñas', activo: false },
-    { id: 'ninos', label: 'Atiende niños', icon: <Baby size={16} />, tooltip: 'Muestra médicos que atienden pacientes pediátricos', activo: false },
-    { id: 'disponibilidad', label: 'Disponibilidad', icon: <Calendar size={16} />, tooltip: 'Muestra médicos con horarios disponibles', activo: false }
-  ])
+  const chips = [
+    { id: 'cerca' as FiltroId, label: 'Cerca de mí', icon: <Navigation size={16} />, tooltip: 'Ordena por distancia usando tu ubicación' },
+    { id: 'experiencia' as FiltroId, label: 'Más experiencia', icon: <Clock size={16} />, tooltip: 'Médicos con más años de práctica' },
+    { id: 'precio' as FiltroId, label: 'Mejor precio', icon: <DollarSign size={16} />, tooltip: 'De menor a mayor costo' },
+    { id: 'valorados' as FiltroId, label: 'Mejor valorados', icon: <Star size={16} />, tooltip: 'Con mejores reseñas' },
+    { id: 'ninos' as FiltroId, label: 'Atiende niños', icon: <Baby size={16} />, tooltip: 'Pediatras y especialistas infantiles' },
+    { id: 'disponibilidad' as FiltroId, label: 'Disponible hoy', icon: <Calendar size={16} />, tooltip: 'Con citas disponibles' },
+  ]
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F9FAFB', fontFamily: "'DM Sans', sans-serif", color: '#111827' }}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@600;900&family=DM+Sans:wght@400;500;700&display=swap');
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
-      .fade-up { animation: fadeUp 0.4s ease-out; }
+    <div className="min-h-screen bg-[#FAFBFC]">
+      <style jsx global>{`
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap');
         h1, h2, h3 { font-family: 'Fraunces', serif; }
-      .tooltip { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); background: #1E3A5F; color: white; padding: 10px 14px; border-radius: 8px; font-size: 12px; width: 220px; z-index: 100; margin-bottom: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); text-align: center; line-height: 1.4; }
-      .tooltip::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); width: 8px; height: 8px; background: #1E3A5F; transform: translateX(-50%) rotate(45deg); }
-        @media (min-width: 768px) {.desktop-only { display: flex!important; }.mobile-only { display: none!important; } }
-        @media (max-width: 767px) {.desktop-only { display: none!important; }.mobile-only { display: flex!important; } }
+        body { font-family: 'Inter', sans-serif; }
       `}</style>
 
       <Navbar />
 
-      <main style={{ paddingTop: 120, paddingBottom: 100 }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 20px' }}>
-          <div style={{ marginBottom: 40 }}>
-            <div className="sugerencias-wrapper" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', maxWidth: 1000, margin: '0 auto' }}>
-              <div style={{ flex: '1 300px', position: 'relative' }}>
-                <input type="text" placeholder="Especialidad o médico..." value={inputValue} onChange={handleBusquedaChange} onFocus={() => inputValue.length >= 2 && setShowSugerencias(true)} style={{ width: '100%', padding: '18px 140px 18px 24px', borderRadius: 16, border: '1.5px solid #2A9D8F', fontSize: 15, background: '#fff', outline: 'none' }} />
-                <button onClick={() => setUserTyped(true)} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: '#8B5CF6', border: 'none', borderRadius: 12, padding: '10px 20px', color: 'white', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Search size={18} />Buscar
-                </button>
-                {showSugerencias && (
-                  <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', boxShadow: '0 8px 24px rgba(0,0,0,0.12)', zIndex: 100, maxHeight: 300, overflow: 'auto' }}>
-                    {sugerencias.map((sugerencia, index) => (
-                      <button key={index} onClick={() => handleSugerenciaClick(sugerencia)} onMouseDown={(e) => { e.preventDefault(); handleSugerenciaClick(sugerencia) }} style={{ width: '100%', padding: '12px 16px', background: 'none', border: 'none', textAlign: 'left', fontSize: 14, cursor: 'pointer', borderBottom: index < sugerencias.length - 1? '1px solid #F3F4F6' : 'none' }} onMouseEnter={(e) => e.currentTarget.style.background = '#F5F3FF'} onMouseLeave={(e) => e.currentTarget.style.background = '#fff'}>
-                        {sugerencia}
-                      </button>
-                    ))}
+      <main className="pt- pb-24 lg:pb-8">
+        <div className="max-w- mx-auto px-4 sm:px-6">
+
+          {/* Search Bar 2026 */}
+          <div className="mb-8">
+            <div className="relative max-w- mx-auto">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="relative flex-1">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#94A3B8] pointer-events-none">
+                    <Search size={20} />
                   </div>
-                )}
-              </div>
-              <StateCitySelector onStateChange={setSelectedState} onCityChange={setSelectedCity} initialState={selectedState} initialCity={selectedCity} ciudadesConMedicos={ciudadesConMedicos} />
-            </div>
-          </div>
-
-          <div style={{ marginBottom: 40 }}>
-            <h2 style={{ fontSize: 28, fontWeight: 900, color: '#1E3A5F', marginBottom: 8, textAlign: 'center' }}>¿Qué es lo más importante para ti?</h2>
-            <p style={{ fontSize: 14, color: '#6B7280', marginBottom: 24, textAlign: 'center' }}>Selecciona una o varias opciones</p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'center', marginBottom: 20 }}>
-              {chips.map((chip) => (
-                <div key={chip.id} style={{ position: 'relative' }}>
-                  <button onMouseEnter={() => setActiveTooltip(chip.id)} onMouseLeave={() => setActiveTooltip(null)} onClick={() => toggleFiltro(chip.id)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 20px', borderRadius: 50, border: chip.activo? '2px solid #8B5CF6' : '1.5px solid #2A9D8F', background: chip.activo? '#F5F3FF' : '#fff', color: chip.activo? '#8B5CF6' : '#4A5568', fontSize: 14, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}>
-                    {chip.icon}{chip.label}
-                  </button>
-                  {activeTooltip === chip.id && (<div className="tooltip">{chip.tooltip}</div>)}
+                  <input
+                    type="text"
+                    placeholder="Busca especialidad, médico o síntoma..."
+                    value={inputValue}
+                    onChange={(e) => { setInputValue(e.target.value); setBusqueda(e.target.value) }}
+                    onFocus={() => inputValue.length >= 2 && setShowSugerencias(true)}
+                    onBlur={() => setTimeout(() => setShowSugerencias(false), 150)}
+                    className="w-full h- pl-12 pr-4 bg-white border border-[#E2E8F0] rounded-2xl text- placeholder-[#94A3B8] outline-none focus:ring-2 focus:ring-[#8B5CF6]/20 focus:border-[#8B5CF6] transition-all shadow-sm hover:shadow"
+                  />
+                  {showSugerencias && sugerencias.length > 0 && (
+                    <div className="absolute top-full mt-2 w-full bg-white rounded-2xl border border-[#E2E8F0] shadow-xl z-50 overflow-hidden">
+                      {sugerencias.map((s, i) => (
+                        <button
+                          key={s}
+                          onMouseDown={() => { setBusqueda(s); setInputValue(s); setShowSugerencias(false) }}
+                          className="w-full px-4 py-3 text-left text- hover:bg-[#F8FAFC] transition-colors flex items-center gap-3 border-b border-[#F1F5F9] last:border-0"
+                        >
+                          <div className="w-8 h-8 rounded-lg bg-[#F5F3FF] flex items-center justify-center flex-shrink-0">
+                            <Search size={14} className="text-[#8B5CF6]" />
+                          </div>
+                          <span className="text-[#334155]">{s}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              ))}
-            </div>
-            {filtros.length > 0 && (
-              <div style={{ textAlign: 'center' }}>
-                <button onClick={limpiarFiltros} style={{ background: 'none', border: '1.5px solid #8B5CF6', color: '#8B5CF6', padding: '10px 24px', borderRadius: 50, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Limpiar filtros</button>
+                <div className="sm:w-">
+                  <StateCitySelector
+                    onStateChange={setSelectedState}
+                    onCityChange={setSelectedCity}
+                    initialState={selectedState}
+                    initialCity={selectedCity}
+                    ciudadesConMedicos={ciudadesConMedicos}
+                  />
+                </div>
               </div>
-            )}
+            </div>
           </div>
 
-          <div style={{ marginBottom: 24 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
-              <h2 style={{ fontSize: 36, fontWeight: 900, color: '#1E3A5F' }}>Especialistas Disponibles</h2>
-              <span style={{ fontSize: 14, color: '#6B7280', fontWeight: 600 }}>{filteredMedicos.length} resultados</span>
+          {/* Filters 2026 */}
+          <div className="mb-10">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text- sm:text- font-bold text-[#0F172A] tracking-tight">¿Qué priorizas?</h2>
+                <p className="text- text-[#64748B] mt-0.5">Filtra por lo que más te importa</p>
+              </div>
+              {filtros.length > 0 && (
+                <button onClick={limpiarFiltros} className="text- font-medium text-[#8B5CF6] hover:text-[#7C3AED] flex items-center gap-1.5">
+                  <X size={14} /> Limpiar
+                </button>
+              )}
+            </div>
+
+            <div className="flex flex-wrap gap-2.5">
+              {chips.map((chip) => {
+                const activo = filtros.includes(chip.id)
+                return (
+                  <div key={chip.id} className="relative" onMouseEnter={() => setActiveTooltip(chip.id)} onMouseLeave={() => setActiveTooltip(null)}>
+                    <button
+                      onClick={() => toggleFiltro(chip.id)}
+                      disabled={chip.id === 'cerca' && locating}
+                      className={`group relative flex items-center gap-2 px-4 h-10 rounded-full border text- font-medium transition-all ${
+                        activo
+                         ? 'bg-[#1E3A5F] border-[#1E3A5F] text-white shadow-md shadow-[#1E3A5F]/20'
+                          : 'bg-white border-[#E2E8F0] text-[#475569] hover:border-[#CBD5E1] hover:bg-[#F8FAFC]'
+                      } disabled:opacity-60`}
+                    >
+                      <span className={activo? 'text-white' : 'text-[#64748B] group-hover:text-[#334155]'}>
+                        {chip.id === 'cerca' && locating? <Loader2 size={16} className="animate-spin" /> : chip.icon}
+                      </span>
+                      {chip.label}
+                    </button>
+                    {activeTooltip === chip.id && (
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-[#0F172A] text-white text- rounded-lg whitespace-nowrap pointer-events-none z-10 shadow-lg">
+                        {chip.tooltip}
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 w-2 h-2 bg-[#0F172A] rotate-45 -mt-1" />
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Results */}
+          <div>
+            <div className="flex items-baseline justify-between mb-6">
+              <h2 className="text- sm:text- font-bold text-[#0F172A] tracking-tight">
+                Especialistas
+              </h2>
+              <div className="flex items-center gap-3">
+                <span className="text- text-[#64748B] font-medium">
+                  {loading? '...' : `${filteredMedicos.length} encontrados`}
+                </span>
+                <button className="lg:hidden p-2 rounded-xl border border-[#E2E8F0] bg-white">
+                  <SlidersHorizontal size={16} className="text-[#64748B]" />
+                </button>
+              </div>
             </div>
 
             {loading? (
-              <div style={{ textAlign: 'center', padding: 60 }}><p style={{ color: '#9CA3AF', fontSize: 14 }}>Cargando médicos...</p></div>
+              <div className="grid gap-4">
+                {[1,2,3].map(i => (
+                  <div key={i} className="bg-white rounded-2xl p-5 border border-[#E2E8F0] animate-pulse">
+                    <div className="flex gap-4">
+                      <div className="w-20 h-20 rounded-2xl bg-[#F1F5F9]" />
+                      <div className="flex-1 space-y-3">
+                        <div className="h-5 w-48 bg-[#F1F5F9] rounded-lg" />
+                        <div className="h-4 w-32 bg-[#F1F5F9] rounded-lg" />
+                        <div className="h-3 w-64 bg-[#F1F5F9] rounded-lg" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : filteredMedicos.length === 0? (
-              <div style={{ textAlign: 'center', padding: 80, background: '#F9FAFB', borderRadius: 24 }}>
-                <p style={{ color: '#6B7280', fontSize: 16 }}>No se encontraron médicos con estos filtros</p>
+              <div className="text-center py-20 bg-white rounded-3xl border border-[#E2E8F0]">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[#F1F5F9] flex items-center justify-center">
+                  <Filter size={28} className="text-[#94A3B8]" />
+                </div>
+                <h3 className="text- font-semibold text-[#0F172A] mb-1">Sin resultados</h3>
+                <p className="text- text-[#64748B] mb-6 max-w-sm mx-auto">Intenta ajustar tus filtros o buscar otra especialidad</p>
+                <button onClick={limpiarFiltros} className="px-5 h-10 bg-[#1E3A5F] text-white rounded-xl text- font-medium hover:bg-[#172E4D] transition-colors">
+                  Limpiar filtros
+                </button>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div className="grid gap-4">
                 {filteredMedicos.map((medico) => (
-                  <article key={medico.id} style={{ background: '#fff', borderRadius: 20, padding: 20, boxShadow: '0 2px 8px rgba(17, 28, 44, 0.06)', border: '1px solid #E5E7EB', transition: 'all 0.2s' }}>
-                    <div style={{ display: 'flex', gap: 16 }}>
-                      <div style={{ width: 80, height: 80, borderRadius: 16, overflow: 'hidden', flexShrink: 0, background: 'linear-gradient(135deg, #1E3A5F, #2A9D8F)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, fontWeight: 900, color: '#fff' }}>
-                        {medico.photo_url? (<img src={medico.photo_url} alt={medico.full_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />) : (medico.full_name || '?')[0].toUpperCase()}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: 12 }}>
-                          <div style={{ flex: 1 }}>
-                            <h3 style={{ fontSize: 18, fontWeight: 900, color: '#1E3A5F', marginBottom: 4, lineHeight: 1.2 }}>{medico.full_name}</h3>
-                            <p style={{ fontSize: 14, color: '#6B7280', marginBottom: 8 }}>{medico.specialty}</p>
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#F59E0B', flexShrink: 0 }}>
-                            <Star size={16} fill="#F59E0B" /><span style={{ fontWeight: 700, fontSize: 14 }}>4.9</span>
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
-                          {medico.professional_license && (
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#ECFDF5', color: '#059669', padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700 }}>
-                              <Shield size={12} />Cédula verificada
+                  <article key={medico.id} className="group bg-white rounded-3xl p-5 sm:p-6 border border-[#E2E8F0] hover:border-[#CBD5E1] hover:shadow-lg hover:shadow-[#0F172A]/[0.04] transition-all">
+                    <div className="flex gap-4 sm:gap-5">
+                      {/* Avatar */}
+                      <div className="relative flex-shrink-0">
+                        <div className="w- h- sm:w-20 sm:h-20 rounded-2xl overflow-hidden bg-gradient-to-br from-[#1E3A5F] to-[#2A9D8F] flex items-center justify-center ring-1 ring-black/5">
+                          {medico.photo_url? (
+                            <img src={medico.photo_url} alt={medico.full_name} className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text- font-bold text-white">
+                              {(medico.full_name?.[0] || '?').toUpperCase()}
                             </span>
                           )}
+                        </div>
+                        {medico.professional_license && (
+                          <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-[#10B981] rounded-full border-2 border-white flex items-center justify-center">
+                            <Shield size={12} className="text-white" />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-3 mb-2">
+                          <div>
+                            <h3 className="text- sm:text- font-semibold text-[#0F172A] leading-snug group-hover:text-[#1E3A5F] transition-colors">
+                              {medico.full_name}
+                            </h3>
+                            <p className="text- text-[#64748B] mt-0.5">{medico.specialty}</p>
+                          </div>
+                          <div className="flex items-center gap-1 text-[#F59E0B] flex-shrink-0">
+                            <Star size={15} fill="currentColor" />
+                            <span className="text- font-semibold">4.9</span>
+                          </div>
+                        </div>
+
+                        {/* Tags */}
+                        <div className="flex flex-wrap gap-1.5 mb-3">
                           {medico.years_experience && (
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#F3F4F6', color: '#4B5563', padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600 }}>
-                              <Clock size={12} />{medico.years_experience} años
+                            <span className="inline-flex items-center gap-1 px-2.5 h-6 bg-[#F8FAFC] text-[#475569] rounded-full text- font-medium border border-[#E2E8F0]">
+                              <Clock size={12} /> {medico.years_experience} años
                             </span>
                           )}
                           {medico.languages && (
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#F3F4F6', color: '#4B5563', padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600 }}>
-                              <Globe size={12} />{medico.languages}
+                            <span className="inline-flex items-center gap-1 px-2.5 h-6 bg-[#F8FAFC] text-[#475569] rounded-full text- font-medium border border-[#E2E8F0]">
+                              <Globe size={12} /> {medico.languages.split(',')[0]}
+                            </span>
+                          )}
+                          {medico.distance && medico.distance < 9999 && (
+                            <span className="inline-flex items-center gap-1 px-2.5 h-6 bg-[#F5F3FF] text-[#7C3AED] rounded-full text- font-medium border border-[#E9D5FF]">
+                              <Navigation size={12} /> {medico.distance.toFixed(1)} km
                             </span>
                           )}
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, color: '#6B7280', flexWrap: 'wrap' }}>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <MapPin size={14} />{medico.location_city}, {medico.location_state}
+
+                        {/* Meta */}
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text- text-[#64748B]">
+                          <span className="inline-flex items-center gap-1.5">
+                            <MapPin size={14} className="text-[#94A3B8]" />
+                            {medico.location_city}, {medico.location_state}
                           </span>
-                          {medico.distance && (<span style={{ color: '#8B5CF6', fontWeight: 600 }}>• {medico.distance.toFixed(1)} km</span>)}
                           {medico.hospital_affiliation && (
-                            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                              <GraduationCap size={14} />{medico.hospital_affiliation}
+                            <span className="inline-flex items-center gap-1.5 truncate max-w-">
+                              <GraduationCap size={14} className="text-[#94A3B8] flex-shrink-0" />
+                              <span className="truncate">{medico.hospital_affiliation}</span>
                             </span>
                           )}
                         </div>
                       </div>
                     </div>
-                    <div style={{ display: 'flex', gap: 8, marginTop: 16, paddingTop: 16, borderTop: '1px solid #F3F4F6' }}>
-                      <div style={{ flex: 1 }}>
-                        <p style={{ fontSize: 10, color: '#9CA3AF', fontWeight: 700, textTransform: 'uppercase', marginBottom: 2 }}>Consulta desde</p>
-                        <p style={{ fontSize: 16, color: '#1E3A5F', fontWeight: 700 }}>${medico.consultation_price_general || 'N/A'}</p>
+
+                    {/* Footer */}
+                    <div className="flex items-center justify-between mt-5 pt-4 border-t border-[#F1F5F9]">
+                      <div>
+                        <div className="text- text-[#94A3B8] uppercase tracking-wide font-medium mb-0.5">Desde</div>
+                        <div className="text- font-semibold text-[#0F172A] leading-none">
+                          ${medico.consultation_price_general?.toLocaleString('es-MX') || '—'}
+                          <span className="text- font-normal text-[#64748B] ml-1">MXN</span>
+                        </div>
                       </div>
-                      <Link href={`/doctor/${medico.id}`} style={{ background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)', color: '#fff', padding: '10px 20px', borderRadius: 12, textAlign: 'center', fontSize: 14, fontWeight: 700, textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
-                        Ver perfil
-                      </Link>
-                      {medico.latitude && medico.longitude && (
-                        <button onClick={() => setShowMapModal(medico)} style={{ padding: '10px 16px', background: '#fff', border: '1.5px solid #E5E7EB', color: '#4B5563', borderRadius: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: 14 }}>
-                          <MapPin size={16} />Mapa
-                        </button>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {medico.latitude && medico.longitude && (
+                          <button
+                            onClick={() => setShowMapModal(medico)}
+                            className="h-10 px-3.5 bg-white border border-[#E2E8F0] rounded-xl text- font-medium text-[#475569] hover:bg-[#F8FAFC] transition-colors hidden sm:flex items-center gap-1.5"
+                          >
+                            <MapPin size={16} /> Mapa
+                          </button>
+                        )}
+                        <Link
+                          href={`/doctor/${medico.id}`}
+                          className="h-10 px-5 bg-[#0F172A] text-white rounded-xl text- font-medium hover:bg-[#1E293B] active:bg-black transition-colors flex items-center"
+                        >
+                          Ver perfil
+                        </Link>
+                      </div>
                     </div>
                   </article>
                 ))}
@@ -388,27 +482,50 @@ export default function BuscarPage() {
         </div>
       </main>
 
+      {/* Map Modal */}
       {showMapModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: 20 }} onClick={() => setShowMapModal(null)}>
-          <div style={{ background: '#fff', borderRadius: 20, width: '100%', maxWidth: 900, height: '85vh', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowMapModal(null)}>
+          <div className="bg-white rounded- w-full max-w- h- flex flex-col overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-5 border-b border-[#E2E8F0]">
               <div>
-                <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1E3A5F' }}>{showMapModal.full_name}</h3>
-                <p style={{ fontSize: 13, color: '#6B7280' }}>{showMapModal.location_city}, {showMapModal.location_state}</p>
+                <h3 className="text- font-semibold text-[#0F172A]">{showMapModal.full_name}</h3>
+                <p className="text- text-[#64748B] mt-0.5">{showMapModal.location_city}, {showMapModal.location_state}</p>
               </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <a href={`https://www.google.com/maps/dir/?api=1&destination=${showMapModal.latitude},${showMapModal.longitude}`} target="_blank" style={{ padding: '8px 16px', background: '#2A9D8F', color: 'white', borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <Navigation size={14} />Cómo llegar
+              <div className="flex items-center gap-2">
+                <a
+                  href={`https://www.google.com/maps/dir/?api=1&destination=${showMapModal.latitude},${showMapModal.longitude}`}
+                  target="_blank"
+                  className="h-9 px-3.5 bg-[#0F172A] text-white rounded-xl text- font-medium hover:bg-[#1E293B] transition-colors inline-flex items-center gap-1.5"
+                >
+                  <Navigation size={14} /> Ruta
                 </a>
-                <button onClick={() => setShowMapModal(null)} style={{ background: '#F3F4F6', border: 'none', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={18} /></button>
+                <button onClick={() => setShowMapModal(null)} className="w-9 h-9 rounded-xl bg-[#F1F5F9] hover:bg-[#E2E8F0] flex items-center justify-center transition-colors">
+                  <X size={18} className="text-[#475569]" />
+                </button>
               </div>
             </div>
-            <iframe src={`https://www.google.com/maps?q=${showMapModal.latitude},${showMapModal.longitude}&z=16&output=embed`} width="100%" height="100%" style={{ border: 0, flex: 1 }} allowFullScreen loading="lazy" />
+            <iframe
+              src={`https://www.google.com/maps?q=${showMapModal.latitude},${showMapModal.longitude}&z=16&output=embed`}
+              className="flex-1 w-full border-0"
+              loading="lazy"
+            />
           </div>
         </div>
       )}
 
       <BottomNav />
     </div>
+  )
+}
+
+export default function BuscarPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#FAFBFC] flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-[#1E3A5F]" />
+      </div>
+    }>
+      <BuscarContent />
+    </Suspense>
   )
 }

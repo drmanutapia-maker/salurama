@@ -1,14 +1,13 @@
 'use client'
-import { useState, useEffect, useRef, useMemo } from 'react'
+
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { STATES, CITIES_BY_STATE } from '@/lib/locations'
-import { MapPin, X } from 'lucide-react'
+import { MapPin, X, ChevronDown } from 'lucide-react'
 
-// Función para normalizar texto (quitar acentos)
-const normalizarTexto = (texto: string): string => {
-  return texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
-}
+const normalize = (text: string) =>
+  text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 
-interface StateCitySelectorProps {
+interface Props {
   onStateChange?: (state: string) => void
   onCityChange?: (city: string) => void
   initialState?: string
@@ -24,230 +23,118 @@ export default function StateCitySelector({
   initialCity = '',
   compact = false,
   ciudadesConMedicos = []
-}: StateCitySelectorProps) {
-  const [selectedState, setSelectedState] = useState(initialState)
-  const [selectedCity, setSelectedCity] = useState(initialCity)
-  const [citySearch, setCitySearch] = useState('')
-  const [showCities, setShowCities] = useState(false)
-  const dropdownRef = useRef<HTMLDivElement>(null)
+}: Props) {
+  const [state, setState] = useState(initialState)
+  const [city, setCity] = useState(initialCity)
+  const [query, setQuery] = useState('')
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
 
-  // Actualizar estado interno cuando cambien props externas
+  // Sync with props
+  useEffect(() => { if (initialState) setState(initialState) }, [initialState])
+  useEffect(() => { if (initialCity) setCity(initialCity) }, [initialCity])
+
+  // Cities
+  const cities = useMemo(() => {
+    if (!state) return []
+    const base = CITIES_BY_STATE[state as keyof typeof CITIES_BY_STATE] || []
+    return [...new Set([...base,...ciudadesConMedicos])].sort()
+  }, [state, ciudadesConMedicos])
+
+  const filtered = useMemo(() => {
+    if (!query) return cities.slice(0, 8)
+    return cities.filter(c => normalize(c).includes(normalize(query))).slice(0, 8)
+  }, [query, cities])
+
+  // Click outside
   useEffect(() => {
-    if (initialState && normalizarTexto(initialState) !== normalizarTexto(selectedState)) {
-      setSelectedState(initialState)
+    const handler = (e: MouseEvent) => {
+      if (ref.current &&!ref.current.contains(e.target as Node)) setOpen(false)
     }
-  }, [initialState])
-
-  useEffect(() => {
-    if (initialCity && normalizarTexto(initialCity) !== normalizarTexto(selectedCity)) {
-      setSelectedCity(initialCity)
-    }
-  }, [initialCity])
-
-  // Memoizar ciudades disponibles
-  const ciudadesDisponibles = useMemo(() => {
-    if (!selectedState) return []
-    const ciudadesOficiales = CITIES_BY_STATE[selectedState as keyof typeof CITIES_BY_STATE] || []
-    return [...new Set([...ciudadesOficiales, ...ciudadesConMedicos.filter(c => c)])]
-  }, [selectedState, ciudadesConMedicos])
-
-  // Memoizar ciudades filtradas
-  const filteredCities = useMemo(() => {
-    if (!citySearch.trim()) return ciudadesDisponibles.slice(0, 10)
-    
-    const filtradas = ciudadesDisponibles.filter(city =>
-      normalizarTexto(city).includes(normalizarTexto(citySearch))
-    )
-    return filtradas.slice(0, 10)
-  }, [citySearch, ciudadesDisponibles])
-
-  // Cerrar dropdown al click fuera
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setShowCities(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  // Notificar cambios al padre
-  useEffect(() => {
-    if (selectedState) {
-      onStateChange?.(selectedState)
-    }
-  }, [selectedState])
+  // Notify parent
+  useEffect(() => { onStateChange?.(state) }, [state, onStateChange])
+  useEffect(() => { onCityChange?.(city) }, [city, onCityChange])
 
-  useEffect(() => {
-    if (selectedCity) {
-      onCityChange?.(selectedCity)
-    }
-  }, [selectedCity])
+  const handleState = useCallback((newState: string) => {
+    setState(newState)
+    setCity('')
+    setQuery('')
+    setOpen(false)
+  }, [])
 
-  const handleStateChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newState = e.target.value
-    setSelectedState(newState)
-    setSelectedCity('')
-    setCitySearch('')
-  }
+  const handleCity = useCallback((selected: string) => {
+    setCity(selected)
+    setQuery(selected)
+    setOpen(false)
+  }, [])
 
-  const handleCitySelect = (city: string) => {
-    const ciudadValida = ciudadesDisponibles.find(
-      c => normalizarTexto(c) === normalizarTexto(city)
-    )
-    
-    if (ciudadValida) {
-      setSelectedCity(ciudadValida)
-    } else {
-      setSelectedCity(city)
-    }
-    setShowCities(false)
-    setCitySearch('')
-  }
+  const clear = useCallback(() => {
+    setState('')
+    setCity('')
+    setQuery('')
+  }, [])
 
-  const clearSelection = () => {
-    setSelectedState('')
-    setSelectedCity('')
-    setCitySearch('')
-  }
-
-  const padding = compact ? '12px 16px' : '18px 24px'
-  const fontSize = compact ? 14 : 15
+  const size = compact? 'h-11 text- px-3.5' : 'h- text- px-4'
 
   return (
-    <div ref={dropdownRef} style={{ flex: '0 1 250px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {/* Selector de Estado */}
-      <select
-        value={selectedState}
-        onChange={handleStateChange}
-        style={{
-          width: '100%',
-          padding,
-          borderRadius: 16,
-          border: '1.5px solid #2A9D8F',
-          fontSize,
-          fontFamily: "'DM Sans', sans-serif",
-          background: '#fff',
-          cursor: 'pointer',
-          outline: 'none',
-          transition: 'border-color 0.2s'
-        }}
-        onFocus={(e) => (e.currentTarget.style.borderColor = '#8B5CF6')}
-        onBlur={(e) => (e.currentTarget.style.borderColor = '#2A9D8F')}
-      >
-        <option value="">Todos los estados</option>
-        {STATES.map((state) => (
-          <option key={state} value={state}>
-            {state}
-          </option>
-        ))}
-      </select>
+    <div className="flex flex-col sm:flex-row gap-2.5 w-full">
+      {/* Estado */}
+      <div className="relative flex-1 min-w-">
+        <select
+          value={state}
+          onChange={e => handleState(e.target.value)}
+          className={`${size} w-full appearance-none rounded-2xl border border-zinc-200 bg-white pr-9 outline-none transition-all hover:border-zinc-300 focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10 cursor-pointer`}
+        >
+          <option value="">Todo México</option>
+          {STATES.map(s => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
+        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+      </div>
 
-      {/* Selector de Ciudad */}
-      {selectedState && (
-        <div style={{ position: 'relative' }}>
+      {/* Ciudad */}
+      {state && (
+        <div ref={ref} className="relative flex-1 min-w-">
+          <MapPin className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
           <input
-            type="text"
+            value={open? query : city || query}
+            onChange={e => { setQuery(e.target.value); setOpen(true); setCity('') }}
+            onFocus={() => setOpen(true)}
             placeholder="Ciudad..."
-            value={citySearch || selectedCity}
-            onChange={(e) => {
-              setCitySearch(e.target.value)
-              setShowCities(true)
-              setSelectedCity('')
-            }}
-            onFocus={() => setShowCities(true)}
-            style={{
-              width: '100%',
-              padding,
-              paddingRight: 40,
-              borderRadius: 16,
-              border: '1.5px solid #2A9D8F',
-              fontSize,
-              fontFamily: "'DM Sans', sans-serif",
-              background: '#fff',
-              outline: 'none',
-              transition: 'border-color 0.2s'
-            }}
-            onFocus={(e) => (e.currentTarget.style.borderColor = '#8B5CF6')}
-            onBlur={(e) => (e.currentTarget.style.borderColor = '#2A9D8F')}
+            className={`${size} w-full rounded-2xl border border-zinc-200 bg-white pl-9 pr-9 outline-none transition-all hover:border-zinc-300 focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10`}
           />
 
-          {(selectedCity || citySearch) && (
+          {(city || query) && (
             <button
-              onClick={clearSelection}
-              style={{
-                position: 'absolute',
-                right: 12,
-                top: '50%',
-                transform: 'translateY(-50%)',
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                color: '#9CA3AF',
-                padding: 4
-              }}
+              onClick={clear}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 grid place-items-center w-6 h-6 rounded-full hover:bg-zinc-100 transition-colors"
             >
-              <X size={16} />
+              <X className="w-3.5 h-3.5 text-zinc-500" />
             </button>
           )}
 
-          {/* Dropdown de ciudades */}
-          {showCities && (
-            <div
-              style={{
-                position: 'absolute',
-                top: '100%',
-                left: 0,
-                right: 0,
-                marginTop: 8,
-                background: '#fff',
-                borderRadius: 12,
-                border: '1px solid #E5E7EB',
-                boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-                maxHeight: 300,
-                overflow: 'auto',
-                zIndex: 100
-              }}
-            >
-              {filteredCities.map((city) => (
-                <button
-                  key={city}
-                  onClick={() => handleCitySelect(city)}
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    background: 'none',
-                    border: 'none',
-                    textAlign: 'left',
-                    fontSize: 14,
-                    cursor: 'pointer',
-                    transition: 'background 0.2s',
-                    borderBottom: '1px solid #F3F4F6'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = '#F5F3FF'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = '#fff'
-                  }}
-                >
-                  {city}
-                </button>
-              ))}
-              
-              {filteredCities.length === 0 && citySearch && (
-                <div
-                  style={{
-                    padding: '16px',
-                    fontSize: 14,
-                    color: '#6B7280',
-                    textAlign: 'center'
-                  }}
-                >
-                  Ciudad no encontrada
-                </div>
-              )}
+          {open && (
+            <div className="absolute z-50 top-[calc(100%+6px)] inset-x-0 overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-xl shadow-black/5 animate-in fade-in slide-in-from-top-1">
+              <div className="max-h- overflow-auto p-1.5">
+                {filtered.length > 0? filtered.map(c => (
+                  <button
+                    key={c}
+                    onClick={() => handleCity(c)}
+                    className="w-full text-left px-3 h-9 rounded-xl text- hover:bg-zinc-50 transition-colors"
+                  >
+                    {c}
+                  </button>
+                )) : (
+                  <div className="px-3 py-6 text-center text- text-zinc-500">
+                    No se encontró
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>

@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabaseClient'
+import { createClient } from '@/lib/supabaseClient'
 import {
   X, Edit2, Save, Plus, Trash2, ExternalLink, Phone, MessageCircle,
   DollarSign, Shield, Camera, Eye, CheckCircle
@@ -201,6 +201,7 @@ const btnGhost: React.CSSProperties = {
 // COMPONENTE PRINCIPAL
 // ─────────────────────────────────────────────
 export default function EditarPerfilPage() {
+  const supabase = createClient()
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)

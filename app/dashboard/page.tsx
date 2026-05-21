@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabaseClient'
+import { createClient } from '@/lib/supabaseClient'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -44,6 +44,7 @@ interface StatsResumen {
 }
 
 export default function DashboardMedico() {
+  const supabase = createClient()
   const router = useRouter()
   const [medico, setMedico] = useState<Medico | null>(null)
   const [loading, setLoading] = useState(true)

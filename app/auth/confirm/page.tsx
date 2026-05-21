@@ -6,8 +6,8 @@ import { createClient } from '@/lib/supabaseClient'
 import { Loader2, CheckCircle, AlertCircle } from 'lucide-react'
 
 export default function ConfirmPage() {
-  const router = useRouter()
   const supabase = createClient()
+  const router = useRouter()
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
   const [message, setMessage] = useState('Confirmando tu email...')
 

@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabaseClient'
+import { createClient } from '@/lib/supabaseClient'
 import {
   ArrowLeft, MessageCircle, Calendar, Phone, Mail, MapPin,
   FileText, Send, CheckCircle, XCircle, Check
@@ -25,6 +25,7 @@ interface Cita {
 type Tab = 'todas' | 'solicitada' | 'confirmada' | 'atendida'
 
 export default function CitasPage() {
+  const supabase = createClient()
   const router = useRouter()
   const [citas, setCitas] = useState<Cita[]>([])
   const [loading, setLoading] = useState(true)

@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabaseClient'
+import { createClient } from '@/lib/supabaseClient'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { Turnstile } from '@marsidev/react-turnstile'
@@ -438,6 +438,7 @@ function AppointmentModal({
 // COMPONENTE PRINCIPAL
 // ─────────────────────────────────────────────
 export default function DoctorProfilePage() {
+  const supabase = createClient()
   const { id } = useParams()
   const router = useRouter()
   const [medico, setMedico] = useState<Medico | null>(null)

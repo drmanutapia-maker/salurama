@@ -1,51 +1,32 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
-import { supabase } from '@/lib/supabaseClient'
+
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
+import { createClient } from '@/lib/supabaseClient'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
-  Search,
-  MapPin,
-  Stethoscope,
-  Shield,
-  Star,
-  MessageCircle,
-  ChevronDown,
-  LogIn,
-  UserPlus
+  Search, MapPin, Stethoscope, Shield, Star,
+  MessageCircle, ChevronDown, LogIn, UserPlus, Sparkles
 } from 'lucide-react'
 import { STATES } from '@/lib/locations'
 import BottomNav from '@/components/BottomNav'
 
-// TOP 10 MÁS BUSCADAS EN MÉXICO 2026
 const MAS_BUSCADAS = [
-  'Oncología',
-  'Cardiología',
-  'Dermatología',
-  'Psiquiatría',
-  'Ginecología y Obstetricia',
-  'Pediatría',
-  'Cirugía Plástica y Reconstructiva',
-  'Oftalmología',
-  'Geriatría',
-  'Gastroenterología',
-]
+  'Oncología', 'Cardiología', 'Dermatología', 'Psiquiatría',
+  'Ginecología y Obstetricia', 'Pediatría', 'Cirugía Plástica y Reconstructiva',
+  'Oftalmología', 'Geriatría', 'Gastroenterología',
+] as const
 
-const ESPECIALIDADES_CONACEM = [
-  'Alergología','Anestesiología','Angiología y Cirugía Vascular','Cardiología','Cardiología Pediátrica',
-  'Cirugía Cardiovascular','Cirugía General','Cirugía Maxilofacial','Cirugía Pediátrica',
-  'Cirugía Plástica y Reconstructiva','Dermatología','Endocrinología','Endocrinología Pediátrica',
-  'Gastroenterología','Gastroenterología y Endoscopia Pediátrica','Geriatría','Hematología',
-  'Hematología Pediátrica','Infectología','Infectología Pediátrica','Medicina Crítica','Medicina Familiar',
-  'Medicina Física y Rehabilitación','Medicina Interna','Nefrología','Nefrología Pediátrica','Neonatología',
-  'Neumología','Neumología Pediátrica','Neurocirugía','Neurología','Neurología Pediátrica','Oncología',
-  'Oncología Pediátrica','Oftalmología','Ortopedia y Traumatología','Otorrinolaringología','Pediatría',
-  'Psiquiatría','Psiquiatría Infantil y de la Adolescencia','Radiología e Imagen','Reumatología',
-  'Reumatología Pediátrica','Urología','Ginecología y Obstetricia','Medicina General','Nutrición',
-  'Oncología Radioterápica','Patología','Pediatría del Desarrollo y Conducta',
-]
+const ESPECIALIDADES_BASE = [
+  'Alergología', 'Anestesiología', 'Angiología y Cirugía Vascular', 'Cardiología',
+  'Cirugía General', 'Cirugía Plástica y Reconstructiva', 'Dermatología',
+  'Endocrinología', 'Gastroenterología', 'Geriatría', 'Ginecología y Obstetricia',
+  'Medicina Interna', 'Neurología', 'Oftalmología', 'Oncología', 'Ortopedia y Traumatología',
+  'Otorrinolaringología', 'Pediatría', 'Psiquiatría', 'Radiología e Imagen',
+  'Urología', 'Medicina Familiar', 'Medicina General', 'Nutrición',
+] as const
 
-interface Medico {
+interface Doctor {
   id: string
   full_name: string
   specialty: string
@@ -57,143 +38,142 @@ interface Medico {
   whatsapp_available: boolean
 }
 
-const normalizarTexto = (texto: string): string => {
-  return texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
-}
+const normalize = (text: string) =>
+  text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 
 export default function HomePage() {
   const router = useRouter()
+  const supabase = useMemo(() => createClient(), [])
+  const searchRef = useRef<HTMLDivElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
-  const [selectedSpecialty, setSelectedSpecialty] = useState('')
-  const [selectedState, setSelectedState] = useState('')
-  const [especialidades, setEspecialidades] = useState<string[]>(ESPECIALIDADES_CONACEM)
-  const [medicos, setMedicos] = useState<Medico[]>([])
+
+  const [query, setQuery] = useState('')
+  const [state, setState] = useState('')
+  const [specialties, setSpecialties] = useState<string[]>([...ESPECIALIDADES_BASE])
+  const [doctors, setDoctors] = useState<Doctor[]>([])
   const [loading, setLoading] = useState(true)
-  const [doctorDropdownOpen, setDoctorDropdownOpen] = useState(false)
-  const [sugerencias, setSugerencias] = useState<string[]>([])
-  const [showSugerencias, setShowSugerencias] = useState(false)
-  const [userTyped, setUserTyped] = useState(false)
-  const [inputValue, setInputValue] = useState('')
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [suggestions, setSuggestions] = useState<string[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
 
+  // Click outside
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current &&!dropdownRef.current.contains(event.target as Node)) {
-        setDoctorDropdownOpen(false)
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current &&!dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false)
       }
-      if (!dropdownRef.current?.closest('.sugerencias-wrapper')) {
-        setShowSugerencias(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
-
-  useEffect(() => {
-    async function loadEspecialidades() {
-      try {
-        const { data, error } = await supabase.from('doctors').select('specialty').not('specialty', 'is', null)
-        if (error) throw error
-        const especialidadesUnicas = Array.from(new Set(data.map(d => d.specialty).filter(Boolean))) as string[]
-        const extras = especialidadesUnicas.filter(esp =>!ESPECIALIDADES_CONACEM.includes(esp))
-        setEspecialidades([...ESPECIALIDADES_CONACEM,...extras.sort()])
-      } catch (error) {
-        console.error('Error loading especialidades:', error)
+      if (searchRef.current &&!searchRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false)
       }
     }
-    loadEspecialidades()
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
   }, [])
 
+  // Load specialties (cached)
   useEffect(() => {
-    async function loadMedicos() {
-      try {
-        const { data, error } = await supabase.from('doctors').select(`id, full_name, specialty, photo_url, location_city, location_state, clinic_name, consultation_price_general, whatsapp_available`).order('created_at', { ascending: false }).limit(50)
-        if (error) throw error
-        setMedicos(data || [])
-      } catch (error) {
-        console.error('Error loading medicos:', error)
-        setMedicos([])
-      } finally {
+    let mounted = true
+    supabase
+     .from('doctors')
+     .select('specialty')
+     .not('specialty', 'is', null)
+     .then(({ data, error }) => {
+        if (!mounted || error ||!data) return
+        const unique = Array.from(new Set(data.map(d => d.specialty).filter(Boolean)))
+        const extras = unique.filter(s =>!ESPECIALIDADES_BASE.includes(s as any))
+        setSpecialties([...ESPECIALIDADES_BASE,...extras.sort()])
+      })
+    return () => { mounted = false }
+  }, [supabase])
+
+  // Load doctors
+  useEffect(() => {
+    let mounted = true
+    supabase
+     .from('doctors')
+     .select('id, full_name, specialty, photo_url, location_city, location_state, clinic_name, consultation_price_general, whatsapp_available')
+     .order('created_at', { ascending: false })
+     .limit(12)
+     .then(({ data, error }) => {
+        if (!mounted) return
+        if (!error) setDoctors(data || [])
         setLoading(false)
-      }
-    }
-    loadMedicos()
-  }, [])
+      })
+    return () => { mounted = false }
+  }, [supabase])
 
+  // Debounced suggestions
   useEffect(() => {
-    if (inputValue.trim().length >= 2 && userTyped) {
-      const busquedaLower = inputValue.toLowerCase()
-      const sugerenciasFiltradas = especialidades.filter(esp => normalizarTexto(esp).includes(normalizarTexto(busquedaLower))).slice(0, 8)
-      setSugerencias(sugerenciasFiltradas)
-      setShowSugerencias(sugerenciasFiltradas.length > 0)
-    } else {
-      setShowSugerencias(false)
+    if (query.length < 2) {
+      setShowSuggestions(false)
+      return
     }
-  }, [inputValue, especialidades, userTyped])
+    const timer = setTimeout(() => {
+      const filtered = specialties
+       .filter(s => normalize(s).includes(normalize(query)))
+       .slice(0, 6)
+      setSuggestions(filtered)
+      setShowSuggestions(filtered.length > 0)
+    }, 150)
+    return () => clearTimeout(timer)
+  }, [query, specialties])
 
-  const handleSearch = () => {
+  const handleSearch = useCallback(() => {
     const params = new URLSearchParams()
-    const especialidadFinal = selectedSpecialty || inputValue
-    if (especialidadFinal) params.set('especialidad', especialidadFinal)
-    if (selectedState) params.set('estado', selectedState)
-    router.push(`/buscar?${params.toString()}`)
-  }
+    if (query) params.set('especialidad', query)
+    if (state) params.set('estado', state)
+    router.push(`/buscar?${params}`)
+  }, [query, state, router])
 
-  const handleSugerenciaClick = (sugerencia: string) => {
-    setSelectedSpecialty(sugerencia)
-    setInputValue(sugerencia)
-    setUserTyped(true)
-    setShowSugerencias(false)
-  }
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value
-    setInputValue(value)
-    setSelectedSpecialty('')
-    setUserTyped(true)
-  }
+  const selectSuggestion = useCallback((suggestion: string) => {
+    setQuery(suggestion)
+    setShowSuggestions(false)
+  }, [])
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F9FAFB', fontFamily: "'DM Sans', sans-serif", color: '#111827' }}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@600;900&family=DM+Sans:wght@400;500;700&display=swap');
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
-     .fade-up { animation: fadeUp 0.4s ease-out; }
-        @keyframes fadeIn { from{opacity:0} to{opacity:1} }
-     .fade-in { animation: fadeIn 0.3s ease-out; }
-        h1, h2, h3, h4, h5, h6 { font-family: 'Fraunces', serif; }
-     .nav-link:hover { color: #8B5CF6; }
-     .btn-violeta { background: #8B5CF6; color: white; border: none; transition: all 0.2s ease; }
-     .btn-violeta:hover { background: #7C3AED; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4); }
-     .chip:hover { background: #8B5CF6; color: white; border-color: #8B5CF6; transform: translateY(-2px); }
-     .card-medico { transition: all 0.3s ease; border: 1px solid #2A9D8F; }
-     .card-medico:hover { transform: translateY(-4px); box-shadow: 0 12px 24px rgba(42, 157, 143, 0.15); border-color: #8B5CF6; }
-        @media (min-width: 768px) {.desktop-only { display: flex!important; }.mobile-only { display: none!important; } }
-        @media (max-width: 767px) {.desktop-only { display: none!important; }.mobile-only { display: flex!important; } }
+    <div className="min-h-screen bg-[#FCFCFD] text-[#0F172A] antialiased">
+      <style jsx global>{`
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Inter:wght@400;500;600&display=swap');
+        * { font-variant-ligatures: common-ligatures; }
+        ::selection { background: #8B5CF6; color: white; }
       `}</style>
 
-      <header className="desktop-only" style={{ position: 'fixed', top: 0, left: 0, right: 0, background: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(12px)', borderBottom: '1px solid #E5E7EB', zIndex: 1000 }}>
-        <div style={{ maxWidth: 1400, margin: '0 auto', padding: '16px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 40 }}>
-          <Link href="/" style={{ textDecoration: 'none' }}>
-            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 900, color: '#1E3A5F' }}>Salu</span>
-            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 600, color: '#2A9D8F' }}>rama</span>
+      {/* Header */}
+      <header className="sticky top-0 z-40 backdrop-blur-xl bg-white/80 border-b border-zinc-100">
+        <div className="mx-auto max-w- px-6 h- flex items-center justify-between">
+          <Link href="/" className="flex items-baseline gap-0.5">
+            <span className="font-[Fraunces] text- font-extrabold tracking-tight text-[#0F172A]">Salu</span>
+            <span className="font-[Fraunces] text- font-semibold tracking-tight text-[#0D9488]">rama</span>
           </Link>
-          <nav style={{ display: 'flex', alignItems: 'center', gap: 40 }}>
-            <Link href="/buscar" className="nav-link" style={{ color: '#4A5568', textDecoration: 'none', fontSize: 14, fontWeight: 500 }}>Especialidades</Link>
-            <Link href="/como-elegir-medico" className="nav-link" style={{ color: '#4A5568', textDecoration: 'none', fontSize: 14, fontWeight: 500 }}>¿Cómo elegir médico?</Link>
-            <Link href="/nosotros" className="nav-link" style={{ color: '#4A5568', textDecoration: 'none', fontSize: 14, fontWeight: 500 }}>Nosotros</Link>
+
+          <nav className="hidden md:flex items-center gap-8">
+            {['Especialidades', 'Cómo elegir', 'Nosotros'].map((item, i) => (
+              <Link
+                key={item}
+                href={['/buscar', '/como-elegir-medico', '/nosotros'][i]}
+                className="text- font-medium text-zinc-600 hover:text-[#0D9488] transition-colors"
+              >
+                {item}
+              </Link>
+            ))}
           </nav>
-          <div ref={dropdownRef} className="doctor-dropdown" style={{ position: 'relative' }}>
-            <button onClick={() => setDoctorDropdownOpen(!doctorDropdownOpen)} style={{ background: 'linear-gradient(135deg, #1E3A5F 0%, #1A3254 100%)', color: '#fff', padding: '10px 24px', borderRadius: 50, fontSize: 14, fontWeight: 600, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, transition: 'all 0.2s' }}>
-              Soy Médico<ChevronDown size={16} style={{ transition: 'transform 0.2s', transform: doctorDropdownOpen? 'rotate(180deg)' : 'rotate(0deg)' }} />
+
+          <div ref={dropdownRef} className="relative">
+            <button
+              onClick={() => setDropdownOpen(!dropdownOpen)}
+              className="group flex items-center gap-2 rounded-full bg-[#0F172A] px-5 h-10 text- font-medium text-white transition-all hover:bg-[#1E293B] hover:shadow-lg hover:shadow-black/10"
+            >
+              Soy Médico
+              <ChevronDown className={`w-4 h-4 transition-transform ${dropdownOpen? 'rotate-180' : ''}`} />
             </button>
-            {doctorDropdownOpen && (
-              <div className="fade-in" style={{ position: 'absolute', top: '100%', right: 0, marginTop: 8, background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', boxShadow: '0 10px 40px rgba(30, 58, 95, 0.15)', minWidth: 200, overflow: 'hidden', zIndex: 1001 }}>
-                <Link href="/login" onClick={() => setDoctorDropdownOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', color: '#1E3A5F', textDecoration: 'none', fontSize: 14, fontWeight: 500, borderBottom: '1px solid #F3F4F6', transition: 'background 0.2s' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#F5F3FF'; e.currentTarget.style.color = '#8B5CF6' }} onMouseLeave={(e) => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = '#1E3A5F' }}>
-                  <LogIn size={18} />Iniciar sesión
+
+            {dropdownOpen && (
+              <div className="absolute right-0 top-[calc(100%+8px)] w-52 overflow-hidden rounded-2xl border border-zinc-100 bg-white shadow-xl shadow-black/5 animate-in fade-in slide-in-from-top-1">
+                <Link href="/login" className="flex items-center gap-3 px-4 h-11 text- hover:bg-zinc-50 transition-colors">
+                  <LogIn className="w-4 h-4 text-zinc-500" />Iniciar sesión
                 </Link>
-                <Link href="/registro" onClick={() => setDoctorDropdownOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', color: '#1E3A5F', textDecoration: 'none', fontSize: 14, fontWeight: 500, transition: 'background 0.2s' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#F5F3FF'; e.currentTarget.style.color = '#8B5CF6' }} onMouseLeave={(e) => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = '#1E3A5F' }}>
-                  <UserPlus size={18} />Registrarme
+                <Link href="/registro" className="flex items-center gap-3 px-4 h-11 text- hover:bg-zinc-50 transition-colors border-t border-zinc-100">
+                  <UserPlus className="w-4 h-4 text-zinc-500" />Registrarme
                 </Link>
               </div>
             )}
@@ -201,100 +181,174 @@ export default function HomePage() {
         </div>
       </header>
 
-      <main style={{ paddingTop: 80, paddingBottom: 100 }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 20px' }}>
-          <section className="fade-up" style={{ maxWidth: 1200, margin: '0 auto', padding: '40px 20px 30px', textAlign: 'center' }}>
-            <div style={{ marginBottom: 20 }}>
-              <span style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(48px, 10vw, 72px)', fontWeight: 900, color: '#1E3A5F' }}>Salu</span>
-              <span style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(48px, 10vw, 72px)', fontWeight: 600, color: '#2A9D8F' }}>rama</span>
+      <main className="pb-24">
+        {/* Hero */}
+        <section className="relative overflow-hidden">
+          <div className="absolute inset-0 -z-10">
+            <div className="absolute top-[-10%] right-[-5%] w- h- rounded-full bg-gradient-to-br from-violet-100/40 to-teal-100/40 blur-3xl" />
+          </div>
+
+          <div className="mx-auto max-w- px-6 pt-16 pb-12 md:pt-24 md:pb-16 text-center">
+            <div className="inline-flex items-center gap-2 rounded-full border border-violet-200/50 bg-violet-50/50 px-3 py-1 mb-6">
+              <Sparkles className="w-3.5 h-3.5 text-violet-600" />
+              <span className="text- font-medium text-violet-700">Verificación SEP • CONACEM</span>
             </div>
-            <h1 style={{ fontSize: 'clamp(24px, 5vw, 40px)', fontWeight: 900, color: '#1E3A5F', marginBottom: 32, lineHeight: 1.2 }}>Verifica credenciales y agenda con confianza</h1>
-            <div className="sugerencias-wrapper" style={{ maxWidth: 800, margin: '0 auto 32px', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-              <div style={{ flex: '1 1 300px', position: 'relative' }}>
-                <input type="text" placeholder="Especialidad o médico..." value={inputValue} onChange={handleInputChange} onKeyDown={(e) => { if (e.key === 'Enter') { handleSearch() } }} style={{ width: '100%', padding: '18px 140px 18px 24px', borderRadius: 16, border: '1.5px solid #2A9D8F', fontSize: 15, background: '#fff', outline: 'none' }} />
-                <button onClick={handleSearch} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: '#8B5CF6', border: 'none', borderRadius: 12, padding: '10px 20px', color: 'white', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Search size={18} />Buscar
+
+            <h1 className="font-[Fraunces] text-[clamp(36px,6vw,56px)] font-extrabold leading-[1.1] tracking-[-0.02em] text-[#0F172A]">
+              Encuentra médicos
+              <br />
+              <span className="text-[#0D9488]">verificados</span> en México
+            </h1>
+
+            <p className="mt-4 text- leading-relaxed text-zinc-600 max-w- mx-auto">
+              Verifica cédulas, lee reseñas reales y agenda directo. Sin comisiones.
+            </p>
+
+            {/* Search */}
+            <div ref={searchRef} className="mt-10 mx-auto max-w-">
+              <div className="flex flex-col sm:flex-row gap-3 p-1.5 rounded- bg-white shadow-[0_8px_40px_-12px_rgba(0,0,0,0.12)] ring-1 ring-zinc-900/5">
+                <div className="relative flex-1">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400 pointer-events-none" />
+                  <input
+                    value={query}
+                    onChange={e => setQuery(e.target.value)}
+                    onFocus={() => query.length >= 2 && setShowSuggestions(true)}
+                    onKeyDown={e => e.key === 'Enter' && handleSearch()}
+                    placeholder="Oncología, Cardiología, Dermatología..."
+                    className="w-full h- pl-11 pr-4 rounded- bg-zinc-50/50 text- placeholder:text-zinc-400 outline-none transition-all focus:bg-white focus:ring-2 focus:ring-violet-500/20"
+                  />
+                  {showSuggestions && (
+                    <div className="absolute top-[calc(100%+8px)] inset-x-0 z-20 overflow-hidden rounded-2xl border border-zinc-100 bg-white shadow-xl">
+                      {suggestions.map(s => (
+                        <button
+                          key={s}
+                          onMouseDown={() => selectSuggestion(s)}
+                          className="w-full px-4 h-11 text-left text- hover:bg-zinc-50 transition-colors"
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <select
+                  value={state}
+                  onChange={e => setState(e.target.value)}
+                  className="h- sm:w- px-4 rounded- bg-zinc-50/50 text- outline-none cursor-pointer transition-all focus:bg-white focus:ring-2 focus:ring-violet-500/20"
+                >
+                  <option value="">Todo México</option>
+                  {STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+
+                <button
+                  onClick={handleSearch}
+                  className="h- px-6 rounded- bg-[#0F172A] text-white text- font-medium transition-all hover:bg-[#1E293B] hover:shadow-lg active:scale-[0.98]"
+                >
+                  Buscar
                 </button>
-                {showSugerencias && (
-                  <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', boxShadow: '0 8px 24px rgba(0,0,0,0.12)', zIndex: 100, maxHeight: 300, overflow: 'auto' }}>
-                    {sugerencias.map((sugerencia, index) => (
-                      <button key={index} onClick={() => handleSugerenciaClick(sugerencia)} onMouseDown={(e) => { e.preventDefault(); handleSugerenciaClick(sugerencia) }} style={{ width: '100%', padding: '12px 16px', background: 'none', border: 'none', textAlign: 'left', fontSize: 14, cursor: 'pointer', transition: 'background 0.2s', borderBottom: index < sugerencias.length - 1? '1px solid #F3F4F6' : 'none' }} onMouseEnter={(e) => e.currentTarget.style.background = '#F5F3FF'} onMouseLeave={(e) => e.currentTarget.style.background = '#fff'}>
-                        {sugerencia}
-                      </button>
-                    ))}
-                  </div>
-                )}
               </div>
-              <select value={selectedState} onChange={(e) => setSelectedState(e.target.value)} style={{ flex: '0 1 250px', padding: '18px 24px', borderRadius: 16, border: '1.5px solid #2A9D8F', fontSize: 15, fontFamily: "'DM Sans', sans-serif", background: '#fff', cursor: 'pointer', outline: 'none' }}>
-                <option value="">Todos los estados</option>
-                {STATES.map((state) => (<option key={state} value={state}>{state}</option>))}
-              </select>
-            </div>
-            <div>
-              <p style={{ fontSize: 14, color: '#6B7280', marginBottom: 16 }}>Especialidades más buscadas:</p>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', maxWidth: 900, margin: '0 auto' }}>
-                {MAS_BUSCADAS.map((esp) => (
-                  <button key={esp} onClick={() => { const params = new URLSearchParams(); params.set('especialidad', esp); if (selectedState) params.set('estado', selectedState); router.push(`/buscar?${params.toString()}`) }} className="chip" style={{ background: '#fff', border: '1px solid #2A9D8F', borderRadius: 50, padding: '8px 16px', fontSize: 13, color: '#4A5568', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
-                    {esp}
+
+              <div className="mt-5 flex flex-wrap justify-center gap-2">
+                {MAS_BUSCADAS.slice(0, 6).map(s => (
+                  <button
+                    key={s}
+                    onClick={() => { setQuery(s); router.push(`/buscar?especialidad=${encodeURIComponent(s)}`) }}
+                    className="px-3.5 h-7 rounded-full bg-zinc-100 text- font-medium text-zinc-700 transition-all hover:bg-zinc-200 hover:-translate-y-0.5"
+                  >
+                    {s}
                   </button>
                 ))}
               </div>
             </div>
-          </section>
+          </div>
+        </section>
 
-          <section className="fade-up" style={{ maxWidth: 1200, margin: '0 auto', padding: '40px 20px', borderTop: '1px solid #E5E7EB' }}>
-            <div style={{ marginBottom: 32 }}>
-              <h2 style={{ fontSize: 'clamp(24px, 4vw, 36px)', fontWeight: 900, color: '#1E3A5F', marginBottom: 8 }}>Nuestros especialistas</h2>
+        {/* Doctors */}
+        <section className="mx-auto max-w- px-6 mt-16">
+          <div className="flex items-baseline justify-between mb-8">
+            <h2 className="font-[Fraunces] text- font-bold tracking-tight">Especialistas destacados</h2>
+            <Link href="/buscar" className="text- font-medium text-zinc-600 hover:text-[#0F172A] transition-colors">
+              Ver todos →
+            </Link>
+          </div>
+
+          {loading? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="h- rounded- bg-zinc-100 animate-pulse" />
+              ))}
             </div>
-            {loading? (
-              <div style={{ textAlign: 'center', padding: 60 }}><div style={{ width: 40, height: 40, border: '3px solid #E8ECF3', borderTopColor: '#8B5CF6', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }} /><p style={{ color: '#9CA3AF', fontSize: 14 }}>Cargando médicos...</p></div>
-            ) : medicos.length > 0? (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24 }}>
-                {medicos.map((medico) => (
-                  <Link key={medico.id} href={`/doctor/${medico.id}`} className="card-medico" style={{ background: '#fff', borderRadius: 16, padding: 20, textDecoration: 'none', display: 'flex', flexDirection: 'column', gap: 16 }}>
-                    <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-                      {medico.photo_url? (<img src={medico.photo_url} alt={medico.full_name} style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover' }} />) : (<div style={{ width: 64, height: 64, borderRadius: '50%', background: 'linear-gradient(135deg, #1E3A5F, #2A9D8F)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 24, color: '#fff' }}>{(medico.full_name || '?')[0].toUpperCase()}</div>)}
-                      <div style={{ flex: 1 }}><h3 style={{ fontSize: 16, fontWeight: 700, color: '#1E3A5F', marginBottom: 4 }}>{medico.full_name}</h3><p style={{ fontSize: 14, color: '#6B7280' }}>{medico.specialty}</p></div>
+          ) : doctors.length > 0? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+              {doctors.map(doc => (
+                <Link
+                  key={doc.id}
+                  href={`/doctor/${doc.id}`}
+                  className="group relative overflow-hidden rounded- border border-zinc-200 bg-white p-5 transition-all hover:-translate-y-1 hover:shadow-xl hover:shadow-black/[0.04] hover:border-zinc-300"
+                >
+                  <div className="flex items-start gap-4">
+                    {doc.photo_url? (
+                      <img src={doc.photo_url} alt="" className="w-14 h-14 rounded-2xl object-cover ring-1 ring-zinc-900/5" />
+                    ) : (
+                      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#0F172A] to-[#0D9488] grid place-items-center text-white font-semibold">
+                        {doc.full_name[0]}
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-medium leading-snug line-clamp-1 group-hover:text-[#0D9488] transition-colors">
+                        {doc.full_name}
+                      </h3>
+                      <p className="mt-0.5 text- text-zinc-600 line-clamp-1">{doc.specialty}</p>
+                      <div className="mt-2 flex items-center gap-1.5 text- text-zinc-500">
+                        <MapPin className="w-3 h-3" />
+                        <span className="truncate">{doc.location_city}</span>
+                      </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#6B7280' }}><MapPin size={14} />{medico.location_city}, {medico.location_state}</div>
-                  </Link>
-                ))}
+                  </div>
+                  {doc.consultation_price_general && (
+                    <div className="mt-4 pt-4 border-t border-zinc-100 flex items-center justify-between">
+                      <span className="text- text-zinc-500">Consulta</span>
+                      <span className="text- font-semibold">${doc.consultation_price_general.toLocaleString('es-MX')}</span>
+                    </div>
+                  )}
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded- border border-dashed border-zinc-300 bg-zinc-50/50 py-16 text-center">
+              <div className="mx-auto w-12 h-12 rounded-2xl bg-white shadow-sm grid place-items-center mb-4">
+                <Stethoscope className="w-6 h-6 text-zinc-400" />
               </div>
-            ) : (
-              <div style={{ textAlign: 'center', padding: '80px 20px', background: '#F9FAFB', borderRadius: 16, border: '1px dashed #D1D5DB' }}>
-                <div style={{ width: 64, height: 64, background: '#F5F3FF', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}><Stethoscope size={32} color="#8B5CF6" /></div>
-                <h3 style={{ fontSize: 20, fontWeight: 700, color: '#1E3A5F', marginBottom: 8 }}>Aún no hay médicos registrados</h3>
-                <p style={{ fontSize: 15, color: '#6B7280', maxWidth: 500, margin: '0 auto' }}>Sé el primero en unirte a nuestra plataforma</p>
-                <Link href="/registro" className="btn-violeta" style={{ display: 'inline-block', marginTop: 20, padding: '12px 32px', borderRadius: 50, textDecoration: 'none', fontWeight: 600 }}>Registrarme como médico</Link>
-              </div>
-            )}
-          </section>
+              <h3 className="font-medium">Aún no hay médicos</h3>
+              <p className="mt-1 text- text-zinc-600">Sé el primero en registrarte</p>
+              <Link href="/registro" className="mt-4 inline-flex h-9 items-center rounded-full bg-[#0F172A] px-5 text- font-medium text-white hover:bg-[#1E293B] transition-colors">
+                Registrarme
+              </Link>
+            </div>
+          )}
+        </section>
 
-          <section className="fade-up" style={{ maxWidth: 1200, margin: '0 auto', padding: '60px 20px', borderTop: '1px solid #E5E7EB' }}>
-            <div style={{ textAlign: 'center', marginBottom: 48 }}>
-              <h2 style={{ fontSize: 'clamp(24px, 4vw, 36px)', fontWeight: 900, color: '#1E3A5F', marginBottom: 8 }}>¿Por qué <span style={{ color: '#2A9D8F' }}>Salurama</span>?</h2>
-              <p style={{ fontSize: 15, color: '#6B7280' }}>Herramientas para tomar decisiones informadas</p>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 32 }}>
-              <div className="card-medico" style={{ background: '#fff', borderRadius: 16, padding: 32, textAlign: 'center' }}>
-                <div style={{ width: 64, height: 64, background: '#F5F3FF', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}><Shield size={32} color="#8B5CF6" /></div>
-                <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1E3A5F', marginBottom: 12 }}>Verifica en SEP/CONACEM</h3>
-                <p style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.6 }}>Accede a portales oficiales para verificar credenciales antes de agendar</p>
+        {/* Features */}
+        <section className="mx-auto max-w- px-6 mt-24">
+          <div className="grid md:grid-cols-3 gap-6">
+            {[
+              { icon: Shield, title: 'Verificación oficial', desc: 'Cédulas SEP y consejos CONACEM validados', color: 'violet' },
+              { icon: Star, title: 'Reseñas verificadas', desc: 'Solo pacientes con cita confirmada', color: 'amber' },
+              { icon: MessageCircle, title: 'Sin intermediarios', desc: 'Contacto directo, sin comisiones', color: 'emerald' },
+            ].map(({ icon: Icon, title, desc, color }) => (
+              <div key={title} className="group rounded- border border-zinc-200 bg-white p-8 transition-all hover:-translate-y-1 hover:shadow-xl hover:shadow-black/[0.04]">
+                <div className={`w-12 h-12 rounded-2xl bg-${color}-50 grid place-items-center mb-5 group-hover:scale-110 transition-transform`}>
+                  <Icon className={`w-6 h-6 text-${color}-600`} />
+                </div>
+                <h3 className="font-[Fraunces] text- font-semibold">{title}</h3>
+                <p className="mt-2 text- leading-relaxed text-zinc-600">{desc}</p>
               </div>
-              <div className="card-medico" style={{ background: '#fff', borderRadius: 16, padding: 32, textAlign: 'center' }}>
-                <div style={{ width: 64, height: 64, background: '#FEF3C7', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}><Star size={32} color="#F59E0B" /></div>
-                <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1E3A5F', marginBottom: 12 }}>Reseñas de pacientes reales</h3>
-                <p style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.6 }}>Solo pacientes que agendaron cita pueden dejar reseñas verificadas</p>
-              </div>
-              <div className="card-medico" style={{ background: '#fff', borderRadius: 16, padding: 32, textAlign: 'center' }}>
-                <div style={{ width: 64, height: 64, background: '#ECFDF5', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}><MessageCircle size={32} color="#059669" /></div>
-                <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1E3A5F', marginBottom: 12 }}>Contacto directo</h3>
-                <p style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.6 }}>Sin intermediarios, sin costos adicionales. Habla directo con el consultorio</p>
-              </div>
-            </div>
-          </section>
-        </div>
+            ))}
+          </div>
+        </section>
       </main>
+
       <BottomNav />
     </div>
   )

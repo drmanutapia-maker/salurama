@@ -33,12 +33,12 @@ const HORAS = Array.from({ length: 48 }, (_, i) => {
 })
 
 export default function HorarioDoctor() {
+  const supabase = createClient()
   const [horario, setHorario] = useState<Horario | null>(null)
   const [duracion, setDuracion] = useState(30)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [hasChanges, setHasChanges] = useState(false)
-  const supabase = createClient()
 
   useEffect(() => {
     loadHorario()

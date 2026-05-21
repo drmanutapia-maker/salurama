@@ -1,103 +1,71 @@
-// app/api/verify-professional-license/route.ts
-//
-// Usa la API pública Solr de la SEP en lugar de scraping HTML.
-// Endpoint: search.sep.gob.mx/solr/cedulasCore/select
-// Devuelve JSON directamente — no depende del portal web (que puede estar caído).
-
 import { NextResponse } from 'next/server'
+import { Redis } from '@upstash/redis'
 
 export const dynamic = 'force-dynamic'
-export const revalidate = 0
+
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+})
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const license = searchParams.get('license')?.trim()
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || 'unknown'
 
-  if (!license) {
-    return NextResponse.json({ error: 'Cédula requerida' }, { status: 400 })
+  if (!license ||!/^\d{6,10}$/.test(license)) {
+    return NextResponse.json({ error: 'Cédula inválida' }, { status: 400 })
   }
 
-  // Validación básica: la cédula profesional mexicana es numérica, 7-8 dígitos
-  if (!/^\d{6,10}$/.test(license)) {
-    return NextResponse.json({ error: 'Formato de cédula inválido' }, { status: 400 })
+  // Rate limit: 10 consultas por hora
+  const key = `sep:${ip}`
+  const count = await redis.incr(key)
+  if (count === 1) await redis.expire(key, 3600)
+  if (count > 10) {
+    return NextResponse.json({ error: 'Demasiadas consultas' }, { status: 429 })
+  }
+
+  // Cache 24h
+  const cacheKey = `cedula:${license}`
+  const cached = await redis.get(cacheKey)
+  if (cached) {
+    return NextResponse.json(cached)
   }
 
   try {
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 12000)
+    setTimeout(() => controller.abort(), 8000)
 
-    // ── Endpoint Solr público de la SEP ──────────────────────────────────
-    // Buscamos directamente por número de cédula usando el campo idCedula
-    // La API devuelve JSON sin autenticación.
-    const solrUrl = new URL('http://search.sep.gob.mx/solr/cedulasCore/select')
-    solrUrl.searchParams.set('q', `idCedula:${license}`)
-    solrUrl.searchParams.set('fl', 'idCedula,nombre,paterno,materno,titulo,institucion,fregistro')
-    solrUrl.searchParams.set('rows', '5')
-    solrUrl.searchParams.set('wt', 'json')
-    solrUrl.searchParams.set('indent', 'on')
+    const solrUrl = `https://search.sep.gob.mx/solr/cedulasCore/select?q=idCedula:${license}&fl=idCedula,nombre,paterno,materno,titulo,institucion,fregistro&rows=1&wt=json`
 
-    const response = await fetch(solrUrl.toString(), {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (compatible; Salurama/1.0)',
-      },
+    const response = await fetch(solrUrl, {
+      headers: { 'Accept': 'application/json' },
       signal: controller.signal,
     })
 
-    clearTimeout(timeoutId)
-
-    if (!response.ok) {
-      throw new Error(`SEP Solr respondió con status ${response.status}`)
-    }
+    if (!response.ok) throw new Error('SEP error')
 
     const json = await response.json()
-    const docs = json?.response?.docs ?? []
-    const numFound = json?.response?.numFound ?? 0
+    const doc = json?.response?.docs?.[0]
 
-    if (numFound === 0 || docs.length === 0) {
-      // Cédula no encontrada en el registro — no es error del servidor
-      return NextResponse.json({
-        success: true,
-        data: { found: false, license },
-        timestamp: new Date().toISOString()
-      })
-    }
-
-    const doc = docs[0]
-
-    // Construir nombre completo desde los campos separados de la SEP
-    const fullName = [doc.nombre, doc.paterno, doc.materno]
-      .filter(Boolean)
-      .map((s: string) => s.trim())
-      .join(' ')
-
-    return NextResponse.json({
+    const result = {
       success: true,
-      data: {
+      data: doc? {
         found: true,
-        license: doc.idCedula || license,
-        name: fullName || null,
-        degree: doc.titulo || null,
-        institution: doc.institucion || null,
-        date: doc.fregistro || null,       // fecha de registro
-      },
+        license: doc.idCedula,
+        name: [doc.nombre, doc.paterno, doc.materno].filter(Boolean).join(' '),
+        degree: doc.titulo,
+        institution: doc.institucion,
+        date: doc.fregistro,
+      } : { found: false, license },
       timestamp: new Date().toISOString()
-    })
-
-  } catch (error: any) {
-    console.error('Error verificando cédula SEP:', error)
-
-    if (error.name === 'AbortError') {
-      return NextResponse.json(
-        { error: 'La SEP no respondió a tiempo.', timeout: true },
-        { status: 504 }
-      )
     }
 
-    return NextResponse.json(
-      { error: 'No se pudo consultar el registro de la SEP.', details: error.message },
-      { status: 500 }
-    )
+    await redis.set(cacheKey, result, { ex: 86400 }) // 24h cache
+    return NextResponse.json(result)
+
+  } catch (error) {
+    console.error('SEP error:', error)
+    return NextResponse.json({ error: 'No se pudo verificar' }, { status: 500 })
   }
 }

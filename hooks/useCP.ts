@@ -1,6 +1,6 @@
 // hooks/useCP.ts
 import { useState, useCallback } from 'react'
-import { searchCP, formatCP, preloadSepomexData, type CPResult } from '@/lib/sepomex'
+import { searchCP, formatCP, preload, type CPResult } from '@/lib/sepomex'
 
 export function useCP() {
   const [loading, setLoading] = useState(false)
@@ -9,7 +9,7 @@ export function useCP() {
 
   // Pre-cargar datos al montar el hook
   useState(() => {
-    preloadSepomexData()
+    preload()
   })
 
   const search = useCallback(async (cp: string) => {

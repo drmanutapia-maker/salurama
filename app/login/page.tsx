@@ -1,15 +1,15 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { Suspense, useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabaseClient'
-import { Mail, Lock, Eye, EyeOff, AlertCircle, Loader2, ArrowRight } from 'lucide-react'
+import { Mail, Lock, Eye, EyeOff, AlertCircle, Loader2, ArrowRight, Sparkles } from 'lucide-react'
 
-export default function LoginPage() {
+function LoginContent() {
+  const supabase = createClient()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const supabase = createClient()
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -21,10 +21,9 @@ export default function LoginPage() {
 
   const redirectTo = searchParams.get('redirect') || '/dashboard'
 
-  // Si ya está logueado, redirigir
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) router.push(redirectTo)
+      if (session) router.replace(redirectTo)
     })
   }, [router, redirectTo, supabase.auth])
 
@@ -42,31 +41,26 @@ export default function LoginPage() {
       if (authError) throw authError
 
       if (data.user) {
-        // Verificar que sea médico
         const { data: doctor, error: doctorError } = await supabase
          .from('doctors')
          .select('id, is_active, review_status')
          .eq('user_id', data.user.id)
-         .single()
+         .maybeSingle()
 
         if (doctorError ||!doctor) {
           await supabase.auth.signOut()
           throw new Error('Esta cuenta no está registrada como médico')
         }
 
-        // Redirigir según estado
-        if (!doctor.is_active) {
-          router.push('/dashboard?status=pending')
-        } else {
-          router.push(redirectTo)
-        }
+        router.replace(doctor.is_active? redirectTo : '/dashboard?status=pending')
         router.refresh()
       }
     } catch (err: any) {
       console.error('Login error:', err)
-      if (err.message.includes('Invalid login') || err.message.includes('invalid')) {
+      const msg = err.message?.toLowerCase() || ''
+      if (msg.includes('invalid') || msg.includes('incorrect')) {
         setError('Email o contraseña incorrectos')
-      } else if (err.message.includes('Email not confirmed') || err.message.includes('confirm')) {
+      } else if (msg.includes('confirm') || msg.includes('email not confirmed')) {
         setError('Debes confirmar tu email primero. Revisa tu bandeja de entrada.')
       } else {
         setError(err.message || 'Error al iniciar sesión')
@@ -87,7 +81,7 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithOtp({
       email: email.toLowerCase().trim(),
       options: {
-        emailRedirectTo: `${window.location.origin}/dashboard`,
+        emailRedirectTo: `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(redirectTo)}`,
         shouldCreateUser: false
       }
     })
@@ -97,7 +91,6 @@ export default function LoginPage() {
       setError(error.message)
     } else {
       setMagicSent(true)
-      setError('')
     }
   }
 
@@ -109,52 +102,50 @@ export default function LoginPage() {
       email: email.toLowerCase().trim()
     })
     setLoading(false)
-    if (error) {
-      setError('Error al reenviar: ' + error.message)
-    } else {
-      setError('Email de confirmación reenviado. Revisa tu bandeja.')
-    }
+    setError(error? `Error: ${error.message}` : 'Email de confirmación reenviado. Revisa tu bandeja.')
   }
+
+  const isSuccess = error.includes('reenviado') || error.includes('Revisa')
+  const showConfirmBtn = error.includes('confirmar')
 
   return (
     <div className="min-h-screen bg-[#FAFBFC] flex">
-      {/* Left - Form */}
+      {/* Left */}
       <div className="flex-1 flex items-center justify-center p-6 lg:p-12">
-        <div className="w-full max-w-">
-          {/* Logo */}
-          <Link href="/" className="inline-flex items-center gap-2 mb-12 group">
-            <div className="w-9 h-9 bg-[#1E3A5F] rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform">
-              <span className="text-white font-bold text-lg">S</span>
+        <div className="w-full max-w-md">
+          <Link href="/" className="inline-flex items-center gap-2.5 mb-10 group">
+            <div className="w-10 h-10 bg-[#1E3A5F] rounded-2xl flex items-center justify-center shadow-sm group-hover:shadow-md group-hover:scale-[1.02] transition-all">
+              <span className="text-white font-bold text-">S</span>
             </div>
-            <span className="text-xl font-bold tracking-tight">
+            <span className="text- font-semibold tracking-tight">
               <span className="text-[#1E3A5F]">Salu</span>
               <span className="text-[#2A9D8F]">rama</span>
             </span>
           </Link>
 
-          {/* Header */}
           <div className="mb-8">
-            <h1 className="text- font-bold tracking-tight text-[#0F172A] mb-2">
+            <h1 className="text- font-bold tracking-[-0.02em] text-[#0F172A] mb-2">
               Bienvenido de nuevo
             </h1>
-            <p className="text-[#64748B]">
+            <p className="text- text-[#64748B] leading-relaxed">
               Ingresa a tu panel médico
             </p>
           </div>
 
-          {/* Error / Success */}
           {error && (
-            <div className={`mb-5 p-3.5 border rounded-xl flex gap-3 ${error.includes('reenviado') || error.includes('enviamos')? 'bg-[#F0FDF4] border-[#BBF7D0]' : 'bg-[#FEF2] border-[#FECACA]'}`}>
-              <AlertCircle className={`w-5 h-5 shrink-0 mt-0.5 ${error.includes('reenviado') || error.includes('enviamos')? 'text-[#16A34A]' : 'text-[#DC2626]'}`} />
-              <div className="flex-1">
-                <p className={`text-sm font-medium ${error.includes('reenviado') || error.includes('enviamos')? 'text-[#16A34A]' : 'text-[#DC2626]'}`}>{error}</p>
-                {error.includes('confirmar') && (
+            <div className={`mb-5 p-3.5 border rounded-2xl flex gap-3 ${isSuccess? 'bg-[#F0FDF4] border-[#BBF7D0]' : 'bg-[#FEF2F2] border-[#FECACA]'}`}>
+              <AlertCircle className={`w-5 h-5 shrink-0 mt-0.5 ${isSuccess? 'text-[#16A34A]' : 'text-[#DC2626]'}`} />
+              <div className="flex-1 min-w-0">
+                <p className={`text- leading-snug font-medium ${isSuccess? 'text-[#15803D]' : 'text-[#DC2626]'}`}>
+                  {error}
+                </p>
+                {showConfirmBtn && (
                   <button
                     onClick={handleResendConfirmation}
                     disabled={loading}
-                    className="text-xs text-[#DC2626] underline mt-1 hover:no-underline disabled:opacity-50"
+                    className="text- text-[#DC2626] underline underline-offset-2 mt-1.5 hover:no-underline disabled:opacity-50"
                   >
-                    Reenviar email de confirmación
+                    Reenviar email
                   </button>
                 )}
               </div>
@@ -162,73 +153,75 @@ export default function LoginPage() {
           )}
 
           {magicSent && (
-            <div className="mb-5 p-3.5 bg-[#F0FDF4] border border-[#BBF7D0] rounded-xl">
-              <p className="text-sm font-medium text-[#16A34A]">¡Revisa tu email! Te enviamos un enlace para ingresar.</p>
+            <div className="mb-5 p-3.5 bg-[#F0FDF4] border border-[#BBF7D0] rounded-2xl flex gap-3">
+              <Mail className="w-5 h-5 text-[#16A34A] shrink-0 mt-0.5" />
+              <p className="text- font-medium text-[#15803D] leading-snug">
+                Revisa tu email. Te enviamos un enlace seguro para ingresar.
+              </p>
             </div>
           )}
 
-          {/* Form */}
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-[#334155] mb-1.5">
+              <label htmlFor="email" className="block text- font-medium text-[#334155] mb-1.5">
                 Email
               </label>
-              <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-[#94A3B8] pointer-events-none" />
+              <div className="relative group">
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w- h- text-[#94A3B8] group-focus-within:text-[#1E3A5F] transition-colors pointer-events-none" />
                 <input
+                  id="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="tu@email.com"
+                  placeholder="tu@clinica.com"
                   required
                   autoComplete="email"
                   autoFocus
-                  className="w-full h- pl-11 pr-4 bg-white border-[#E2E8F0] rounded-xl text- placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20 focus:border-[#1E3A5F] transition-all"
+                  className="w-full h-12 pl-11 pr-4 bg-white border border-[#E2E8F0] rounded-2xl text- placeholder-[#94A3B8] outline-none focus:ring-2 focus:ring-[#1E3A5F]/20 focus:border-[#1E3A5F] transition-all"
                 />
               </div>
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="text-sm font-medium text-[#334155]">
+                <label htmlFor="password" className="text- font-medium text-[#334155]">
                   Contraseña
                 </label>
-                <Link
-                  href="/reset-password"
-                  className="text-sm text-[#1E3A5F] hover:text-[#2A4A70] font-medium"
-                >
+                <Link href="/reset-password" className="text- text-[#1E3A5F] hover:text-[#2A4A70] font-medium">
                   ¿Olvidaste?
                 </Link>
               </div>
-              <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-[#94A3B8] pointer-events-none" />
+              <div className="relative group">
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w- h- text-[#94A3B8] group-focus-within:text-[#1E3A5F] transition-colors pointer-events-none" />
                 <input
+                  id="password"
                   type={showPass? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
                   autoComplete="current-password"
-                  className="w-full h- pl-11 pr-11 bg-white border border-[#E2E8F0] rounded-xl text- placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20 focus:border-[#1E3A5F] transition-all"
+                  className="w-full h-12 pl-11 pr-11 bg-white border border-[#E2E8F0] rounded-2xl text- placeholder-[#94A3B8] outline-none focus:ring-2 focus:ring-[#1E3A5F]/20 focus:border-[#1E3A5F] transition-all"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPass(!showPass)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-[#94A3B8] hover:text-[#64748B] rounded-lg hover:bg-[#F1F5F9] transition-colors"
+                  aria-label={showPass? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-2 text-[#94A3B8] hover:text-[#475569] rounded-xl hover:bg-[#F1F5F9] transition-colors"
                 >
                   {showPass? <EyeOff className="w- h-" /> : <Eye className="w- h-" />}
                 </button>
               </div>
             </div>
 
-            <label className="flex items-center gap-2.5 cursor-pointer group py-1">
+            <label className="flex items-center gap-2.5 cursor-pointer group py-1 select-none">
               <input
                 type="checkbox"
                 checked={remember}
                 onChange={(e) => setRemember(e.target.checked)}
-                className="w-4 h-4 rounded border-[#CBD5E1] text-[#1E3A5F] focus:ring-[#1E3A5F]/20 focus:ring-offset-0"
+                className="w-4 h-4 rounded- border-[#CBD5E1] text-[#1E3A5F] focus:ring-[#1E3A5F]/20 focus:ring-offset-0 cursor-pointer"
               />
-              <span className="text-sm text-[#475569] group-hover:text-[#334155]">
+              <span className="text- text-[#475569] group-hover:text-[#334155] transition-colors">
                 Mantener sesión iniciada
               </span>
             </label>
@@ -236,95 +229,114 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading ||!email ||!password}
-              className="w-full h- bg-[#1E3A5F] text-white rounded-xl font-medium hover:bg-[#172E4D] active:bg-[#0F1F33] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 mt-2"
+              className="w-full h-12 bg-[#1E3A5F] text-white rounded-2xl font-medium text- hover:bg-[#172E4D] active:bg-[#0F1F33] disabled:opacity-[0.6] disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow"
             >
               {loading? (
                 <>
-                  <Loader2 className="w- h- animate-spin" />
+                  <Loader2 className="w-4 h-4 animate-spin" />
                   Ingresando...
                 </>
               ) : (
                 <>
                   Ingresar
-                  <ArrowRight className="w- h-" />
+                  <ArrowRight className="w-4 h-4" />
                 </>
               )}
             </button>
           </form>
 
-          {/* Divider */}
-          <div className="relative my-8">
+          <div className="relative my-7">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-[#E2E8F0]" />
             </div>
             <div className="relative flex justify-center">
-              <span className="px-3 bg-[#FAFBFC] text-xs text-[#94A3B8] uppercase tracking-wider font-medium">
-                O
+              <span className="px-3 bg-[#FAFBFC] text- text-[#94A3B8] uppercase tracking-wider font-medium">
+                o continúa con
               </span>
             </div>
           </div>
 
-          {/* Magic Link */}
           <button
             onClick={handleMagicLink}
             disabled={loading ||!email}
-            className="w-full h- bg-white border-[#E2E8F0] text-[#334155] rounded-xl font-medium hover:bg-[#F8FAFC] hover:border-[#CBD5E1] active:bg-[#F1F5F9] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            className="w-full h-12 bg-white border border-[#E2E8F0] text-[#334155] rounded-2xl font-medium text- hover:bg-[#F8FAFC] hover:border-[#CBD5E1] active:bg-[#F1F5F9] transition-all flex items-center justify-center gap-2.5 disabled:opacity-50"
           >
-            <Mail className="w-4 h-4" />
-            Entrar con enlace mágico
+            <Sparkles className="w-4 h-4 text-[#2A9D8F]" />
+            Enlace mágico al email
           </button>
 
-          {/* Footer */}
-          <p className="text-center text-sm text-[#64748B] mt-8">
+          <p className="text-center text- text-[#64748B] mt-8">
             ¿No tienes cuenta?{' '}
-            <Link href="/registro" className="text-[#1E3A5F] font-medium hover:underline">
-              Regístrate gratis
+            <Link href="/registro" className="text-[#1E3A5F] font-medium hover:underline underline-offset-2">
+              Crear cuenta gratis
             </Link>
           </p>
         </div>
       </div>
 
-      {/* Right - Visual (hidden on mobile) */}
-      <div className="hidden lg:flex flex-1 relative overflow-hidden bg-gradient-to-br from-[#1E3A5F] to-[#0F1F33]">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(42,157,143,0.3),transparent_50%)]" />
-        <div className="relative z-10 flex flex-col justify-center p-16 text-white">
+      {/* Right - 2026 Glassmorphism */}
+      <div className="hidden lg:flex flex-1 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-[#0F172A] via-[#1E3A5F] to-[#0F1F33]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(42,157,143,0.25),transparent_60%)]" />
+        <div className="absolute -top-32 -right-32 w-96 h-96 bg-[#2A9D8F]/20 rounded-full blur-" />
+
+        <div className="relative z-10 flex flex-col justify-center p-16 text-white w-full">
           <div className="max-w-">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/10 backdrop-blur rounded-full text-xs font-medium mb-6 border border-white/20">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/10 backdrop-blur-xl rounded-full text- font-medium mb-8 border border-white/15 shadow-sm">
               <div className="w-1.5 h-1.5 bg-[#2A9D8F] rounded-full animate-pulse" />
-              Panel médico activo
+              Sistema activo · 99.9% uptime
             </div>
 
-            <h2 className="text- font-bold leading-[1.1] tracking-tight mb-4">
-              Gestiona tu consulta
+            <h2 className="text- font-bold leading-[1.05] tracking-[-0.02em] mb-5">
+              Tu consulta,
               <br />
-              <span className="text-[#2A9D8F]">desde un solo lugar</span>
+              <span className="bg-gradient-to-r from-white to-white/70 bg-clip-text text-transparent">
+                simplificada
+              </span>
             </h2>
 
-            <p className="text- leading-relaxed text-white/80 mb-10">
-              Agenda, historial clínico y pagos. Todo integrado para que te enfoques en lo que importa: tus pacientes.
+            <p className="text- leading-relaxed text-white/75 mb-12">
+              Agenda inteligente, expediente clínico y cobros automáticos. Diseñado para médicos que valoran su tiempo.
             </p>
 
-            <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-4">
               {[
-                { label: 'Citas confirmadas hoy', value: '12' },
-                { label: 'Tiempo ahorrado', value: '4.2h' },
-                { label: 'Pacientes activos', value: '248' },
+                { label: 'Citas hoy', value: '12', trend: '+3' },
+                { label: 'Ahorro', value: '4.2h', trend: '+18%' },
+                { label: 'Activos', value: '248', trend: '+7' },
               ].map((stat) => (
-                <div key={stat.label} className="flex items-baseline justify-between py-3 border-b border-white/10 last:border-0">
-                  <span className="text-sm text-white/70">{stat.label}</span>
-                  <span className="text-2xl font-semibold">{stat.value}</span>
+                <div key={stat.label} className="group relative">
+                  <div className="absolute inset-0 bg-white/5 rounded-2xl blur-xl group-hover:bg-white/10 transition-all" />
+                  <div className="relative bg-white/[0.06] backdrop-blur-xl border border-white/10 rounded-2xl p-4 hover:bg-white/[0.08] transition-all">
+                    <div className="text- text-white/60 mb-1">{stat.label}</div>
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="text- font-semibold tracking-tight">{stat.value}</span>
+                      <span className="text- text-[#2A9D8F] font-medium">{stat.trend}</span>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
         </div>
 
-        {/* Decorative grid */}
-        <div className="absolute inset-0 opacity-[0.03]" style={{
+        <div className="absolute inset-0 opacity-[0.04] mix-blend-soft-light" style={{
           backgroundImage: `linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px)`,
-          backgroundSize: '64px 64px'
+          backgroundSize: '72px 72px'
         }} />
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#FAFBFC] flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-[#1E3A5F]" />
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   )
 }

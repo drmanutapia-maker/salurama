@@ -1,10 +1,11 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabaseClient'
+import { createClient } from '@/lib/supabaseClient'
 import { Eye, EyeOff, Shield, CheckCircle } from 'lucide-react'
 
 export default function ResetPasswordPage() {
+  const supabase = createClient()
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [password, setPassword] = useState('')

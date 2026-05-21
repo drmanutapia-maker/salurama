@@ -1,174 +1,212 @@
 'use client'
-import { useState, useEffect } from 'react'
+
+import { Suspense, useState, useEffect, useCallback } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabaseClient'
-import { CheckCircle, XCircle, Star } from 'lucide-react'
+import { createClient } from '@/lib/supabaseClient'
+import { CheckCircle2, XCircle, Star, Loader2, ShieldCheck, Calendar, User, Sparkles, ArrowRight } from 'lucide-react'
+import Link from 'next/link'
 
-// ✅ SOLO ESTE EXPORT - NO agregues revalidate ni fetchCache
-export const dynamic = 'force-dynamic'
-
-export default function VerifyReviewPage() {
+function VerifyReviewContent() {
+  const supabase = createClient()
   const searchParams = useSearchParams()
   const router = useRouter()
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
-  const [appointmentData, setAppointmentData] = useState<any>(null)
+
+  const [status, setStatus] = useState<'loading' | 'success' | 'error' | 'submitted'>('loading')
+  const [appointment, setAppointment] = useState<any>(null)
   const [rating, setRating] = useState(5)
+  const [hoverRating, setHoverRating] = useState(0)
   const [comment, setComment] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [errorMsg, setErrorMsg] = useState('')
 
   useEffect(() => {
     const token = searchParams.get('token')
     if (!token) {
       setStatus('error')
+      setErrorMsg('Token no proporcionado')
       return
     }
 
+    let cancelled = false
+
     supabase
-      .from('appointment_requests')
-      .select(`*, doctors (full_name)`)
-      .eq('review_token', token)
-      .eq('review_sent', true)
-      .eq('review_verified', false)
-      .single()
-      .then(({ data, error }) => {
-        if (error || !data) {
+     .from('appointment_requests')
+     .select(`id, doctor_id, patient_name, patient_email, requested_date, doctors (full_name)`)
+     .eq('review_token', token)
+     .eq('review_sent', true)
+     .eq('review_verified', false)
+     .maybeSingle()
+     .then(({ data, error }) => {
+        if (cancelled) return
+        if (error ||!data) {
           setStatus('error')
+          setErrorMsg('Este enlace ya fue usado, expiró o es inválido')
           return
         }
-        setAppointmentData(data)
+        setAppointment(data)
         setStatus('success')
       })
-  }, [searchParams])
 
-  const handleSubmit = async (e: React.FormEvent) => {
+    return () => { cancelled = true }
+  }, [searchParams, supabase])
+
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!appointmentData) return
+    if (!appointment || submitting) return
 
     setSubmitting(true)
+    setErrorMsg('')
+
     try {
-      const { error: reviewError } = await supabase.from('reviews').insert({
-        doctor_id: appointmentData.doctor_id,
-        user_name: appointmentData.patient_name,
-        user_email: appointmentData.patient_email,
-        rating: rating,
-        comment: comment,
+      await supabase.from('reviews').insert({
+        doctor_id: appointment.doctor_id,
+        user_name: appointment.patient_name,
+        user_email: appointment.patient_email,
+        rating,
+        comment: comment.trim() || null,
         email_verified: true,
         verified_at: new Date().toISOString(),
         is_visible: true,
-        appointment_id: appointmentData.id
+        appointment_id: appointment.id
       })
 
-      if (reviewError) throw reviewError
-
       await supabase
-        .from('appointment_requests')
-        .update({ review_verified: true })
-        .eq('id', appointmentData.id)
+      .from('appointment_requests')
+      .update({ review_verified: true, review_verified_at: new Date().toISOString() })
+      .eq('id', appointment.id)
 
-      alert('¡Gracias por tu reseña verificada! ✓')
-      router.push(`/doctor/${appointmentData.doctor_id}`)
-    } catch (error) {
-      console.error('Error:', error)
-      alert('Error al guardar la reseña')
+      setStatus('submitted')
+      setTimeout(() => router.replace(`/doctor/${appointment.doctor_id}?review=thanks`), 2000)
+    } catch (error: any) {
+      setErrorMsg(error.message?.includes('duplicate')? 'Ya enviaste una reseña' : 'Error al guardar')
     } finally {
       setSubmitting(false)
     }
-  }
+  }, [appointment, rating, comment, submitting, supabase, router])
+
+  const doctorName = appointment?.doctors?.[0]?.full_name || appointment?.doctors?.full_name || ''
+  const formattedDate = appointment?.requested_date
+  ? new Date(appointment.requested_date).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })
+    : ''
 
   if (status === 'loading') {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif" }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ width: 40, height: 40, border: '3px solid #EEF2FF', borderTopColor: '#3730A3', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
-          <p style={{ color: '#9CA3AF' }}>Cargando...</p>
+      <div className="min-h-screen bg-[#FAFBFC] flex items-center justify-center p-4">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 mx-auto mb-3 animate-spin text-[#1E3A5F]" />
+          <p className="text- text-[#64748B]">Verificando...</p>
         </div>
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     )
   }
 
   if (status === 'error') {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif", padding: 40 }}>
-        <div style={{ textAlign: 'center', maxWidth: 400 }}>
-          <XCircle size={64} color="#DC2626" style={{ margin: '0 auto 16px' }} />
-          <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 28, color: '#1A1A2E', marginBottom: 8 }}>
-            Link inválido o expirado
-          </h2>
-          <p style={{ color: '#6B7280' }}>
-            Este link de verificación ya fue usado o ha expirado.
-          </p>
+      <div className="min-h-screen bg-[#FAFBFC] flex items-center justify-center p-4">
+        <div className="w-full max-w- bg-white rounded- border border-[#E2E8F0] p-10 text-center">
+          <div className="w-16 h-16 mx-auto mb-5 rounded-2xl bg-[#FEF2F2] flex items-center justify-center">
+            <XCircle className="w-8 h-8 text-[#DC2626]" />
+          </div>
+          <h1 className="text- font-bold text-[#0F172A] mb-2">Enlace no válido</h1>
+          <p className="text- text-[#64748B] mb-8">{errorMsg}</p>
+          <Link href="/" className="inline-flex items-center gap-2 h-11 px-6 bg-[#0F172A] text-white rounded-xl text- font-medium">
+            Ir al inicio <ArrowRight size={16} />
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
+  if (status === 'submitted') {
+    return (
+      <div className="min-h-screen bg-[#FAFBFC] flex items-center justify-center p-4">
+        <div className="w-full max-w- bg-white rounded- border border-[#E2E8F0] p-10 text-center">
+          <div className="w-16 h-16 mx-auto mb-5 rounded-2xl bg-[#F0FDF4] flex items-center justify-center">
+            <CheckCircle2 className="w-8 h-8 text-[#10B981]" />
+          </div>
+          <h1 className="text- font-bold text-[#0F172A] mb-2">¡Gracias!</h1>
+          <p className="text- text-[#64748B]">Tu reseña verificada ayuda a otros pacientes.</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F9FAFB', padding: '40px 20px', fontFamily: "'DM Sans', sans-serif" }}>
-      <div style={{ maxWidth: 600, margin: '0 auto' }}>
-        <div style={{ background: '#fff', borderRadius: 16, padding: 40, boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
-          <CheckCircle size={64} color="#059669" style={{ margin: '0 auto 16px', display: 'block' }} />
-          
-          <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 28, color: '#1A1A2E', textAlign: 'center', marginBottom: 8 }}>
-            ¡Tu opinión importa!
-          </h1>
-          
-          <p style={{ color: '#6B7280', textAlign: 'center', marginBottom: 32 }}>
-            Cita con el Dr. {appointmentData?.doctors?.full_name} - {new Date(appointmentData?.requested_date).toLocaleDateString('es-MX')}
-          </p>
+    <div className="min-h-screen bg-[#FAFBFC] flex items-center justify-center p-4 py-12">
+      <div className="w-full max-w-">
+        <div className="text-center mb-8">
+          <Link href="/" className="inline-flex items-center gap-2 mb-6">
+            <div className="w-9 h-9 bg-[#1E3A5F] rounded-xl flex items-center justify-center">
+              <span className="text-white font-bold">S</span>
+            </div>
+            <span className="text- font-semibold"><span className="text-[#1E3A5F]">Salu</span><span className="text-[#2A9D8F]">rama</span></span>
+          </Link>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#F0FDF4] border border-[#BBF7D0] rounded-full">
+            <ShieldCheck size={14} className="text-[#16A34A]" />
+            <span className="text- font-medium text-[#15803D]">Reseña verificada</span>
+          </div>
+        </div>
 
-          <form onSubmit={handleSubmit}>
-            <div style={{ marginBottom: 24 }}>
-              <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 12 }}>
-                ¿Cómo calificarías tu experiencia?
-              </label>
-              <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <button
-                    key={star}
-                    type="button"
-                    onClick={() => setRating(star)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}
-                  >
-                    <Star size={32} fill={star <= rating ? '#F59E0B' : 'none'} color={star <= rating ? '#F59E0B' : '#D1D5DB'} />
+        <div className="bg-white rounded- border border-[#E2E8F0] shadow-sm overflow-hidden">
+          <div className="bg-[#F8FAFC] px-8 pt-8 pb-6 border-b border-[#F1F5F9]">
+            <div className="flex gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#1E3A5F] to-[#2A9D8F] flex items-center justify-center flex-shrink-0">
+                <Sparkles size={20} className="text-white" />
+              </div>
+              <div>
+                <h1 className="text- font-bold text-[#0F172A] leading-snug">¿Cómo te fue con el Dr. {doctorName}?</h1>
+                <div className="flex gap-4 mt-2 text- text-[#64748B]">
+                  <span className="flex items-center gap-1.5"><User size={14} />{appointment?.patient_name}</span>
+                  {formattedDate && <span className="flex items-center gap-1.5"><Calendar size={14} />{formattedDate}</span>}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <form onSubmit={handleSubmit} className="p-8">
+            {errorMsg && (
+              <div className="mb-6 p-3.5 bg-[#FEF2F2] border border-[#FECACA] rounded-2xl flex gap-3">
+                <XCircle className="w-5 h-5 text-[#DC2626] flex-shrink-0 mt-0.5" />
+                <p className="text- text-[#DC2626]">{errorMsg}</p>
+              </div>
+            )}
+
+            <div className="mb-8">
+              <label className="block text- font-medium text-[#0F172A] mb-3">Califica tu experiencia</label>
+              <div className="flex justify-center gap-1.5 p-4 bg-[#F8FAFC] rounded-2xl">
+                {[1,2,3,4,5].map((star) => (
+                  <button key={star} type="button" onClick={() => setRating(star)} onMouseEnter={() => setHoverRating(star)} onMouseLeave={() => setHoverRating(0)} className="p-2">
+                    <Star size={36} className={`transition-all ${star <= (hoverRating || rating)? 'fill-[#F59E0B] text-[#F59E0B] scale-110' : 'text-[#CBD5E1]'}`} strokeWidth={1.5} />
                   </button>
                 ))}
               </div>
+              <p className="text-center text- text-[#64748B] mt-2 font-medium">
+                {['','Malo','Regular','Bueno','Muy bueno','Excelente'][rating]}
+              </p>
             </div>
 
-            <div style={{ marginBottom: 24 }}>
-              <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8 }}>
-                Cuéntanos tu experiencia (opcional)
-              </label>
-              <textarea
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                rows={4}
-                style={{ width: '100%', padding: 12, border: '1.5px solid #E5E7EB', borderRadius: 8, fontSize: 14, resize: 'vertical' }}
-                placeholder="Comparte tu experiencia con otros pacientes..."
-              />
+            <div className="mb-8">
+              <div className="flex justify-between mb-2.5">
+                <label className="text- font-medium text-[#0F172A]">Tu experiencia</label>
+                <span className="text- text-[#94A3B8]">{comment.length}/500</span>
+              </div>
+              <textarea value={comment} onChange={(e) => setComment(e.target.value.slice(0,500))} rows={4} placeholder="¿Qué te gustó de la consulta?" className="w-full px-4 py-3.5 border border-[#E2E8F0] rounded-2xl text- outline-none focus:ring-2 focus:ring-[#1E3A5F]/20 focus:border-[#1E3A5F] resize-none" />
             </div>
 
-            <button
-              type="submit"
-              disabled={submitting}
-              style={{
-                width: '100%',
-                background: submitting ? '#9CA3AF' : 'linear-gradient(135deg, #3730A3 0%, #4F46E5 100%)',
-                color: '#fff',
-                border: 'none',
-                borderRadius: 8,
-                padding: 14,
-                fontSize: 15,
-                fontWeight: 600,
-                cursor: submitting ? 'not-allowed' : 'pointer'
-              }}
-            >
-              {submitting ? 'Enviando...' : 'Enviar reseña verificada ✓'}
+            <button type="submit" disabled={submitting} className="w-full h-12 bg-[#0F172A] text-white rounded-2xl font-medium hover:bg-[#1E293B] disabled:opacity-60 flex items-center justify-center gap-2">
+              {submitting? <><Loader2 size={18} className="animate-spin" />Enviando...</> : <><ShieldCheck size={18} />Publicar reseña verificada</>}
             </button>
           </form>
         </div>
       </div>
     </div>
+  )
+}
+
+export default function VerifyReviewPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#FAFBFC] flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-[#1E3A5F]" /></div>}>
+      <VerifyReviewContent />
+    </Suspense>
   )
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabaseClient'
+import { createClient } from '@/lib/supabaseClient'
 import Link from 'next/link'
 import {
   CheckCircle, XCircle, Eye, EyeOff, ExternalLink, Copy,
@@ -35,6 +35,7 @@ interface Medico {
 }
 
 export default function AdminPanel() {
+  const supabase = createClient()
   const [autenticado, setAutenticado]   = useState(false)
   const [passInput, setPassInput]       = useState('')
   const [showPass, setShowPass]         = useState(false)
@@ -374,7 +375,7 @@ export default function AdminPanel() {
 
                   {/* Avatar */}
                   <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'linear-gradient(135deg,#3730A3,#F4623A)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 900, color: '#fff', flexShrink: 0 }}>
-                    {(m.full_name || '?')[0].toUpperCase()}
+                    {(m.full_name?.[0] || '?').toUpperCase()}
                   </div>
 
                   {/* Info */}

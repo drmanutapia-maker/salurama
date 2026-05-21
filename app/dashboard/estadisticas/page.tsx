@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabaseClient'
+import { createClient } from '@/lib/supabaseClient'
 import { ArrowLeft, Star, Calendar, TrendingUp, CheckCircle, BarChart2 } from 'lucide-react'
 
 interface Cita {
@@ -35,6 +35,7 @@ const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'O
 const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 
 export default function EstadisticasPage() {
+  const supabase = createClient()
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [medico, setMedico] = useState<MedicoStats | null>(null)
