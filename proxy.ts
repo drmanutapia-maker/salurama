@@ -1,14 +1,9 @@
-// proxy.ts
-import type { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 
 export function proxy(request: NextRequest) {
-  // Next.js 16: proxy solo para operaciones de red
-  // Auth se movió a layouts (más seguro)
-  return {
-    headers: {
-      'x-pathname': request.nextUrl.pathname,
-    },
-  }
+  const response = NextResponse.next()
+  response.headers.set('x-pathname', request.nextUrl.pathname)
+  return response
 }
 
 export const config = {
