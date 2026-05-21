@@ -3,17 +3,6 @@ import { createClient } from '@supabase/supabase-js'
 import { Redis } from '@upstash/redis'
 import { z } from 'zod'
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { persistSession: false } }
-)
-
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL!,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-})
-
 const schema = z.object({
   email: z.string().email().toLowerCase(),
   password: z.string().min(8).max(72),
@@ -36,6 +25,18 @@ function getIp(req: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const ip = getIp(request)
+
+  // ✅ MOVIDO ADENTRO
+  const supabaseAdmin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false } }
+  )
+
+  const redis = new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL!,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+  })
 
   try {
     const body = await request.json()
@@ -64,7 +65,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Verificación fallida' }, { status: 400 })
     }
 
-    // Verificar duplicados (mensaje genérico para no leakear)
+    // Verificar duplicados
     const [emailCheck, cedulaCheck] = await Promise.all([
       supabaseAdmin.from('doctors').select('id', { head: true, count: 'exact' }).eq('email', data.email),
       supabaseAdmin.from('doctors').select('id', { head: true, count: 'exact' }).eq('professional_license', data.professional_license),
@@ -78,7 +79,7 @@ export async function POST(request: NextRequest) {
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: data.email,
       password: data.password,
-      email_confirm: true, // Auto-confirmar
+      email_confirm: true,
       user_metadata: { full_name: data.full_name, role: 'doctor' }
     })
     if (authError) throw authError
