@@ -1,12 +1,12 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabaseClient'
+import { supabase } from '@/lib/supabaseClient'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
-  CheckCircle, X, ZoomIn, Calendar, MessageCircle, Edit2,
-  TrendingUp, Star, Users, Eye, Settings, BarChart3,
-  ChevronRight, MoreVertical
+  X, Calendar, Edit2, TrendingUp, Users, Eye,
+  ChevronRight, MoreVertical, Lightbulb, ArrowRight,
+  Share2, Copy, MessageCircle, CheckCircle
 } from 'lucide-react'
 
 interface Medico {
@@ -14,18 +14,21 @@ interface Medico {
   full_name: string
   email: string
   specialty: string
+  professional_title: string | null
+  location_city: string
   photo_url: string | null
   phone: string
-  location_city: string
-  clinic_name: string | null
-  clinic_address: string | null
+  clinic_lat: number | null
+  clinic_lng: number | null
   whatsapp_available: boolean
-  whatsapp: string | null
-  is_active: boolean
-  professional_license: string | null
+  whatsapp_phone: string | null
+  clinic_phone: string | null
   about_me: string | null
-  availability_schedule: any
+  horario: any
   languages: string[] | string | null
+  consultation_price_first_time: number | null
+  consultation_price_general: number | null
+  user_id?: string
 }
 
 interface Cita {
@@ -44,7 +47,6 @@ interface StatsResumen {
 }
 
 export default function DashboardMedico() {
-  const supabase = createClient()
   const router = useRouter()
   const [medico, setMedico] = useState<Medico | null>(null)
   const [loading, setLoading] = useState(true)
@@ -52,8 +54,9 @@ export default function DashboardMedico() {
   const [citasHoy, setCitasHoy] = useState<Cita[]>([])
   const [stats, setStats] = useState<StatsResumen | null>(null)
   const [consejo, setConsejo] = useState<any>(null)
+  const [profileCompletion, setProfileCompletion] = useState(0)
   const [isMobile, setIsMobile] = useState(false)
-  // Cache-bust token fijo al montar el componente (no en cada render)
+  const [showShareMenu, setShowShareMenu] = useState(false)
   const [photoTs] = useState(() => Date.now())
 
   useEffect(() => {
@@ -64,593 +67,384 @@ export default function DashboardMedico() {
   }, [])
 
   useEffect(() => {
-    async function load() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        router.push('/login')
-        return
-      }
+    let mounted = true
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+      if (!session && mounted) router.replace('/login')
+    })
 
-      const { data, error } = await supabase
+    async function load() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) { router.replace('/login'); return }
+
+        let { data: doctor } = await supabase
+      .from('doctors')
+      .select('*')
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+        if (!doctor) {
+          const { data: byEmail } = await supabase
         .from('doctors')
         .select('*')
-        .eq('email', user.email)
-        .single()
+        .ilike('email', user.email || '')
+        .maybeSingle()
 
-      if (error || !data) {
-        router.push('/login')
-        return
-      }
+          if (byEmail) {
+            await supabase.from('doctors').update({ user_id: user.id }).eq('id', byEmail.id)
+            doctor = {...byEmail, user_id: user.id }
+          }
+        }
 
-      setMedico(data)
+        if (!doctor) {
+          router.replace('/dashboard/editar-perfil?onboarding=1')
+          return
+        }
 
-      const hoy = new Date().toISOString().split('T')[0]
-      const { data: citasData } = await supabase
-        .from('appointment_requests')
+        if (!mounted) return
+        setMedico(doctor)
+
+        const hoy = new Date().toISOString().split('T')[0]
+        const inicioMes = new Date()
+        inicioMes.setDate(1)
+        const inicioMesStr = inicioMes.toISOString().split('T')[0]
+
+        const [citasRes, totalesRes, mesRes, eduRes, expRes, condRes] = await Promise.all([
+          supabase.from('appointment_requests')
         .select('id, patient_name, requested_date, requested_time, status')
-        .eq('doctor_id', data.id)
-        .eq('requested_date', hoy)
-        .in('status', ['solicitada', 'confirmada'])
-        .order('requested_time', { ascending: true })
-
-      setCitasHoy(citasData || [])
-
-      const { count: countTotales } = await supabase
-        .from('appointment_requests')
+        .eq('doctor_id', doctor.id).eq('requested_date', hoy)
+        .in('status', ['solicitada','confirmada']).order('requested_time'),
+          supabase.from('appointment_requests')
         .select('*', { count: 'exact', head: true })
-        .eq('doctor_id', data.id)
-        .eq('status', 'solicitada')
-
-      const inicioMes = new Date()
-      inicioMes.setDate(1)
-      const { count: countMes } = await supabase
-        .from('appointment_requests')
+        .eq('doctor_id', doctor.id).eq('status', 'solicitada'),
+          supabase.from('appointment_requests')
         .select('*', { count: 'exact', head: true })
-        .eq('doctor_id', data.id)
-        .eq('status', 'solicitada')
-        .gte('requested_date', inicioMes.toISOString().split('T')[0])
+        .eq('doctor_id', doctor.id).eq('status', 'solicitada')
+        .gte('requested_date', inicioMesStr),
+          supabase.from('doctor_education').select('id').eq('doctor_id', doctor.id),
+          supabase.from('doctor_experience').select('id').eq('doctor_id', doctor.id),
+          supabase.from('doctor_conditions').select('id').eq('doctor_id', doctor.id),
+        ])
 
-      const { data: reviewsData } = await supabase
-        .from('reviews')
-        .select('rating')
-        .eq('doctor_id', data.id)
-        .eq('is_visible', true)
+        let ratingData = { promedio: 0, total: 0 }
+        try {
+          const r = await supabase.rpc('get_doctor_rating', { doctor_uuid: doctor.id })
+          ratingData = r.data?.[0] || ratingData
+        } catch {}
 
-      const ratingPromedio = reviewsData && reviewsData.length > 0
-        ? reviewsData.reduce((acc, r) => acc + r.rating, 0) / reviewsData.length
-        : 0
+        setCitasHoy(citasRes.data || [])
+        setStats({
+          citas_solicitadas_totales: totalesRes.count || 0,
+          citas_solicitadas_mes: mesRes.count || 0,
+          rating_promedio: parseFloat(Number(ratingData.promedio || 0).toFixed(1)),
+          reseñas_count: ratingData.total || 0
+        })
 
-      setStats({
-        citas_solicitadas_totales: countTotales || 0,
-        citas_solicitadas_mes: countMes || 0,
-        rating_promedio: parseFloat(ratingPromedio.toFixed(1)),
-        reseñas_count: reviewsData?.length || 0
-      })
+        const tieneHorarioActivo =!!(doctor.horario && Object.values(doctor.horario).some((d: any) => d?.activo || d?.abierto))
+        const checks = [
+      !!doctor.photo_url,
+      !!(doctor.about_me && doctor.about_me.length > 100),
+      !!(doctor.clinic_lat && doctor.clinic_lng),
+          tieneHorarioActivo,
+      !!(doctor.consultation_price_first_time && doctor.consultation_price_general),
+      !!(doctor.phone || doctor.whatsapp_phone || doctor.clinic_phone),
+      !!(Array.isArray(doctor.languages) && doctor.languages.length >= 1),
+          (expRes.data?.length || 0) > 0,
+          (eduRes.data?.length || 0) > 0,
+          (condRes.data?.length || 0) > 0,
+        ]
+        const pct = Math.round((checks.filter(Boolean).length / checks.length) * 100)
+        setProfileCompletion(pct)
 
-      const consejosPendientes = [
-        {
+        const consejos = []
+        if (!tieneHorarioActivo) consejos.push({
+          id: 'horario',
+          titulo: 'Configura tu horario',
+          descripcion: 'Los pacientes solo agendan cuando ven disponibilidad',
+          impacto: '+35% más citas',
+          cta: 'Configurar',
+          link: '/dashboard/horario',
+          color: '#8B5CF6'
+        })
+        if (!doctor.photo_url) consejos.push({
           id: 'foto',
-          titulo: '📸 Completa tu foto de perfil',
-          descripcion: 'Los médicos con foto reciben 40% más citas.',
+          titulo: 'Sube tu foto profesional',
+          descripcion: 'Perfiles con foto generan 3× más confianza',
+          impacto: '+200% confianza',
           cta: 'Subir foto',
           link: '/dashboard/editar-perfil',
-          mostrar: !data.photo_url,
-          impacto: '+40% más citas'
-        },
-        {
-          id: 'cedula',
-          titulo: '🎓 Agrega tu cédula profesional',
-          descripcion: 'Médicos con cédula verificada reciben 60% más solicitudes.',
-          cta: 'Agregar cédula',
+          color: '#1E3A5F'
+        })
+        if (!doctor.consultation_price_first_time ||!doctor.consultation_price_general) consejos.push({
+          id: 'precios',
+          titulo: 'Publica tus precios',
+          descripcion: 'Transparencia aumenta las reservas',
+          impacto: '+28% reservas',
+          cta: 'Agregar precios',
           link: '/dashboard/editar-perfil',
-          mostrar: !data.professional_license,
-          impacto: '+60% más confianza'
-        },
-        {
-          id: 'about',
-          titulo: '📝 Escribe una introducción',
-          descripcion: 'Perfiles con introducción generan 35% más confianza.',
+          color: '#D97706'
+        })
+        if (!doctor.about_me || doctor.about_me.length < 100) consejos.push({
+          id: 'bio',
+          titulo: 'Escribe tu biografía',
+          descripcion: 'Cuenta tu experiencia y enfoque',
+          impacto: '+50% conversión',
           cta: 'Escribir',
           link: '/dashboard/editar-perfil',
-          mostrar: !data.about_me,
-          impacto: '+35% más confianza'
-        },
-        {
-          id: 'horarios',
-          titulo: '🏥 Configura tus horarios',
-          descripcion: 'Perfiles con disponibilidad reciben 70% más conversiones.',
-          cta: 'Configurar',
-          link: '/dashboard/editar-perfil',
-          mostrar: !data.availability_schedule,
-          impacto: '+70% más conversiones'
-        }
-      ]
-
-      const pendientes = consejosPendientes.filter(c => c.mostrar)
-
-      if (pendientes.length === 0) {
-        setConsejo({
-          id: 'completo',
-          titulo: '🎉 ¡Perfil 100% completo!',
-          descripcion: 'Tu perfil recibe 3.2x más solicitudes que perfiles incompletos.',
-          cta: 'Ver perfil público',
-          link: `/doctor/${data.id}`,
-          impacto: '3.2x más solicitudes',
-          completo: true
+          color: '#2A9D8F'
         })
-      } else {
-        const randomIndex = Math.floor(Math.random() * pendientes.length)
-        setConsejo(pendientes[randomIndex])
-      }
+        if (!(doctor.clinic_lat && doctor.clinic_lng)) consejos.push({
+          id: 'ubicacion',
+          titulo: 'Agrega tu ubicación exacta',
+          descripcion: 'Pacientes buscan médicos cercanos con GPS',
+          impacto: '+40% visibilidad',
+          cta: 'Agregar',
+          link: '/dashboard/editar-perfil',
+          color: '#8B5CF6'
+        })
+        if (!(doctor.phone || doctor.whatsapp_phone || doctor.clinic_phone)) consejos.push({
+          id: 'contacto',
+          titulo: 'Agrega teléfono o WhatsApp',
+          descripcion: 'Pacientes necesitan contactarte',
+          impacto: '+60% contactos',
+          cta: 'Agregar',
+          link: '/dashboard/editar-perfil',
+          color: '#DC2626'
+        })
+        if ((eduRes.data?.length || 0) === 0) consejos.push({
+          id: 'educacion',
+          titulo: 'Agrega tu formación',
+          descripcion: 'Tu preparación genera confianza',
+          impacto: '+25% credibilidad',
+          cta: 'Agregar',
+          link: '/dashboard/editar-perfil',
+          color: '#1E3A5F'
+        })
 
-      setLoading(false)
+        if (consejos.length > 0) {
+          const randomIndex = Math.floor(Math.random() * Math.min(3, consejos.length))
+          setConsejo(consejos[randomIndex])
+        } else {
+          setConsejo(null)
+        }
+
+      } catch (err) {
+        console.error(err)
+      } finally {
+        if (mounted) setLoading(false)
+      }
     }
+
     load()
+
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
   }, [router])
 
-  const obtenerSaludo = () => {
-    const hora = new Date().getHours()
-    if (hora >= 5 && hora < 12) return 'Buenos días'
-    if (hora >= 12 && hora < 19) return 'Buenas tardes'
-    return 'Buenas noches'
+  const handleCopyLink = async () => {
+    if (!medico) return
+    const url = `https://salurama.mx/doctor/${medico.id}`
+    await navigator.clipboard.writeText(url)
+    setShowShareMenu(false)
   }
 
-  const obtenerNombreCorto = () => {
+  const handleShareWhatsApp = () => {
+    if (!medico) return
+    const url = `https://salurama.mx/doctor/${medico.id}`
+    const titulo = medico.professional_title || 'Dr.'
+    const nombre = medico.full_name
+    const especialidad = medico.specialty
+    const ciudad = medico.location_city
+    const text = `Soy ${titulo} ${nombre}, ${especialidad} en ${ciudad}.\n\nAgenda tu cita en línea:\n${url}`
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
+    setShowShareMenu(false)
+  }
+
+  const saludo = () => {
+    const h = new Date().getHours()
+    return h < 12? 'Buenos días' : h < 19? 'Buenas tardes' : 'Buenas noches'
+  }
+
+  const nombreCorto = () => {
     if (!medico) return ''
-    const partes = medico.full_name.split(' ')
-    const primerNombre = partes[0]
-    const primerApellido = partes.length > 2 ? partes[partes.length - 2] : (partes[1] || '')
-    return `${primerNombre} ${primerApellido}`.trim()
-  }
-
-  const obtenerGenero = () => {
-    if (!medico) return 'Dr.'
-    const nombre = medico.full_name.toLowerCase()
-    return nombre.includes('dra') || nombre.includes('maría') || nombre.includes('ana') ? 'Dra.' : 'Dr.'
+    const p = medico.full_name.trim().split(/\s+/)
+    return p.length === 1? p[0] : `${p[0]} ${p[p.length-1]}`
   }
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif" }}>
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ width: 40, height: 40, border: '3px solid #E5E7EB', borderTopColor: '#1E3A5F', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
-          <p style={{ color: '#9CA3AF', fontSize: 14 }}>Cargando perfil...</p>
-        </div>
+      <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center' }}>
+        <style>{`@keyframes s{to{transform:rotate(360deg)}}`}</style>
+        <div style={{ width:40, height:40, border:'3px solid #E5E7EB', borderTopColor:'#1E3A5F', borderRadius:'50%', animation:'s.8s linear infinite' }}/>
       </div>
     )
   }
-
   if (!medico) return null
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F9FAFB', fontFamily: "'DM Sans', sans-serif", color: '#1A1A2E', paddingBottom: isMobile ? 80 : 0 }}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@600;900&family=DM+Sans:wght@400;500;700&display=swap');
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
-        .fade-up { animation: fadeUp 0.4s ease-out; }
-        @keyframes fadeIn { from{opacity:0} to{opacity:1} }
-        .fade-in { animation: fadeIn 0.2s ease-out; }
-      `}</style>
+    <div style={{ minHeight:'100vh', background:'#F9FAFB', fontFamily:"'DM Sans',sans-serif", paddingBottom: isMobile?80:0 }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@900&family=DM+Sans:wght@400;600&display=swap');`}</style>
 
-      {/* HEADER */}
-      <div className="fade-up" style={{ maxWidth: 1100, margin: '0 auto', padding: '100px 16px 20px' }}>
-        <div style={{ background: '#fff', borderRadius: 16, padding: '24px 20px', border: '1px solid #E5E7EB' }}>
-          <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-            
-            {/* Foto */}
-            <div style={{ position: 'relative' }}>
-              {medico.photo_url ? (
-                <div onClick={() => setShowPhotoModal(true)} style={{ cursor: 'pointer', position: 'relative' }}>
-                  <img 
-                    src={`${medico.photo_url}?t=${photoTs}`} 
-                    alt={medico.full_name} 
-                    style={{ width: 96, height: 96, borderRadius: '50%', objectFit: 'cover', border: '3px solid #E5E7EB' }} 
-                  />
-                  <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: 'rgba(30, 58, 95, 0.9)', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 0.2s' }}>
-                    <ZoomIn size={16} color="#fff" />
-                  </div>
-                </div>
-              ) : (
-                <div style={{ width: 96, height: 96, borderRadius: '50%', background: 'linear-gradient(135deg, #1E3A5F, #2A9D8F)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Fraunces', serif", fontSize: 36, fontWeight: 900, color: '#fff', border: '3px solid #E5E7EB' }}>
-                  {(medico.full_name || '?')[0].toUpperCase()}
-                </div>
-              )}
-            </div>
+<div style={{ maxWidth:1100, margin:'0 auto', padding:'24px 16px 0' }}>
+  <div style={{ background:'#fff', borderRadius:16, padding:24, border:'1px solid #E5E7EB', display:'flex', gap:20, flexDirection: isMobile? 'column' : 'row', alignItems: isMobile? 'center' : 'center', textAlign: isMobile? 'center' : 'left' }}>
+    {medico.photo_url? (
+      <img onClick={()=>setShowPhotoModal(true)} src={`${medico.photo_url}?t=${photoTs}`} alt="" style={{ width:96, height:96, borderRadius:'50%', objectFit:'cover', cursor:'pointer', border:'3px solid #E5E7EB', flexShrink:0 }}/>
+    ) : (
+      <div style={{ width:96, height:96, borderRadius:'50%', background:'linear-gradient(135deg,#1E3A5F,#2A9D8F)', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontSize:36, fontFamily:'Fraunces', flexShrink:0 }}>
+        {medico.full_name[0]}
+      </div>
+    )}
+    <div style={{ flex:1, width: '100%' }}>
+      <h1 style={{ fontFamily:'Fraunces', fontSize:24, fontWeight:900, marginBottom:16 }}>{saludo()}, {nombreCorto()}</h1>
 
-            {/* Info */}
-            <div style={{ flex: 1, minWidth: 250 }}>
-              <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(20px, 5vw, 26px)', fontWeight: 900, color: '#1A1A2E', marginBottom: 4 }}>
-                {obtenerSaludo()}, {obtenerGenero()} {obtenerNombreCorto()}
-              </h1>
-              <p style={{ fontSize: 15, color: '#1E3A5F', fontWeight: 600, marginBottom: 4 }}>{medico.specialty}</p>
-              <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 8 }}>{medico.location_city}</p>
-              
-              {/* Botones de acción */}
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
-                <Link 
-                  href="/dashboard/editar-perfil" 
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    background: '#1E3A5F',
-                    color: '#fff',
-                    borderRadius: 8,
-                    padding: '8px 16px',
-                    fontSize: 13,
-                    fontWeight: 600,
-                    textDecoration: 'none',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  <Edit2 size={14} /> Editar Perfil
-                </Link>
-                <button
-                  onClick={() => window.location.href = `/doctor/${medico.id}`}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    background: '#F5F3FF',
-                    color: '#1E3A5F',
-                    border: '1.5px solid #C7D2FE',
-                    borderRadius: 8,
-                    padding: '8px 16px',
-                    fontSize: 13,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s'
-                  }}
-                  title="Ver como me ven los pacientes"
-                >
-                  <Eye size={14} /> Ver perfil público
-                </button>
-              </div>
+      <div style={{ display:'flex', gap:12, flexDirection: isMobile? 'column' : 'row', position:'relative' }}>
+        <Link href="/dashboard/editar-perfil" style={{ background:'#1E3A5F', color:'#fff', padding:'10px 20px', borderRadius:12, fontSize:14, fontWeight:600, textDecoration:'none', display:'flex', alignItems:'center', justifyContent:'center', gap:8, height:40, boxSizing:'border-box' }}>
+          <Edit2 size={16}/>Editar perfil
+        </Link>
+        <button onClick={()=>router.push(`/doctor/${medico.id}`)} style={{ background:'#fff', color:'#1E3A5F', border:'1.5px solid #E5E7EB', padding:'10px 20px', borderRadius:12, fontSize:14, fontWeight:600, display:'flex', alignItems:'center', justifyContent:'center', gap:8, cursor:'pointer', height:40, boxSizing:'border-box' }}>
+          <Eye size={16}/>Ver perfil
+        </button>
+        <div style={{ position:'relative' }}>
+          <button onClick={()=>setShowShareMenu(!showShareMenu)} style={{ background:'#fff', color:'#1E3A5F', border:'1.5px solid #E5E7EB', padding:'10px 20px', borderRadius:12, fontSize:14, fontWeight:600, display:'flex', alignItems:'center', justifyContent:'center', gap:8, cursor:'pointer', height:40, boxSizing:'border-box', width: isMobile? '100%' : 'auto' }}>
+            <Share2 size={16}/>Compartir
+          </button>
+          {showShareMenu && (
+            <div style={{ position:'absolute', top:'100%', right:0, marginTop:8, background:'#fff', border:'1px solid #E5E7EB', borderRadius:12, boxShadow:'0 4px 12px rgba(0,0,0,0.1)', zIndex:10, minWidth:200, overflow:'hidden' }}>
+              <button onClick={handleShareWhatsApp} style={{ width:'100%', padding:'12px 16px', border:'none', background:'none', textAlign:'left', fontSize:14, cursor:'pointer', display:'flex', alignItems:'center', gap:8, borderBottom:'1px solid #F3F4F6' }}>
+                <MessageCircle size={16} color="#25D366"/>WhatsApp
+              </button>
+              <button onClick={handleCopyLink} style={{ width:'100%', padding:'12px 16px', border:'none', background:'none', textAlign:'left', fontSize:14, cursor:'pointer', display:'flex', alignItems:'center', gap:8 }}>
+                <Copy size={16}/>Copiar link
+              </button>
             </div>
+          )}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+            <div style={{ maxWidth:1100, margin:'16px auto 0', padding:'0 16px' }}>
+        <div style={{ background:'#fff', borderRadius:12, padding:16, border:'1px solid #E5E7EB' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#1E3A5F' }}>Perfil completado: {profileCompletion}%</span>
+          </div>
+          <div style={{ height: 8, background: '#E5E7EB', borderRadius: 4, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${profileCompletion}%`, background: profileCompletion >= 80? '#2A9D8F' : profileCompletion >= 50? '#F59E0B' : '#1E3A5F', transition: 'width 0.4s ease', borderRadius: 4 }} />
           </div>
         </div>
       </div>
 
-      {/* CONSEJO DEL DÍA */}
       {consejo && (
-        <div className="fade-up" style={{ maxWidth: 1100, margin: '0 auto 20px', padding: '0 16px' }}>
-          <div style={{ 
-            background: consejo.completo ? '#F0FDF4' : '#FEF3C7', 
-            border: consejo.completo ? '1px solid #86EFAC' : '1px solid #FCD34D', 
-            borderRadius: 12, 
-            padding: '16px 18px', 
-            display: 'flex', 
-            gap: 12, 
-            alignItems: 'flex-start',
-            flexWrap: 'wrap'
+        <div style={{ maxWidth:1100, margin:'16px auto 0', padding:'0 16px' }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 100%)',
+            border: '1.5px solid #DDD6FE',
+            borderRadius:12,
+            padding:16,
+            display:'flex',
+            alignItems:'flex-start',
+            gap:12
           }}>
-            <div style={{ flex: 1, minWidth: 200 }}>
-              <p style={{ fontSize: 14, fontWeight: 600, color: consejo.completo ? '#059669' : '#92400E', marginBottom: 4 }}>
-                {consejo.titulo}
-              </p>
-              <p style={{ fontSize: 13, color: consejo.completo ? '#059669' : '#92400E', lineHeight: 1.6 }}>
-                {consejo.descripcion}
-              </p>
-              {consejo.impacto && (
-                <p style={{ fontSize: 12, color: consejo.completo ? '#059669' : '#92400E', fontWeight: 600, marginTop: 6 }}>
-                  📊 {consejo.impacto}
-                </p>
-              )}
+            <div style={{
+              width:36,
+              height:36,
+              borderRadius:10,
+              background: consejo.color,
+              display:'flex',
+              alignItems:'center',
+              justifyContent:'center',
+              flexShrink:0
+            }}>
+              <Lightbulb size={18} color="#fff" />
             </div>
-            <Link 
-              href={consejo.link}
-              style={{
-                background: consejo.completo ? '#059669' : '#92400E',
-                color: '#fff',
-                borderRadius: 8,
-                padding: '8px 16px',
-                fontSize: 13,
-                fontWeight: 600,
-                textDecoration: 'none',
-                whiteSpace: 'nowrap',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 4
-              }}
-            >
-              {consejo.cta} <ChevronRight size={14} />
-            </Link>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4, flexWrap:'wrap' }}>
+                <p style={{ fontWeight:700, fontSize:14, color:'#1E3A5F' }}>{consejo.titulo}</p>
+                <span style={{
+                  fontSize:11,
+                  fontWeight:700,
+                  color:'#fff',
+                  background: consejo.color,
+                  padding:'2px 8px',
+                  borderRadius:12,
+                  whiteSpace:'nowrap'
+                }}>
+                  {consejo.impacto}
+                </span>
+              </div>
+              <p style={{ fontSize:13, color:'#6B7280', marginBottom:8, lineHeight:1.4 }}>{consejo.descripcion}</p>
+              <Link href={consejo.link} prefetch={true} style={{
+                background:'none',
+                border:'none',
+                color: consejo.color,
+                fontSize:13,
+                fontWeight:600,
+                textDecoration:'none',
+                display:'inline-flex',
+                alignItems:'center',
+                gap:4,
+                padding:0,
+                fontFamily:"'DM Sans', sans-serif"
+              }}>
+                {consejo.cta} <ArrowRight size={14}/>
+              </Link>
+            </div>
           </div>
         </div>
       )}
 
-      {/* STATS BENTO GRID */}
-      <div className="fade-up" style={{ maxWidth: 1100, margin: '0 auto 20px', padding: '0 16px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 16 }}>
-          
-          {/* Citas Totales */}
-          <div style={{ background: '#fff', borderRadius: 16, padding: '24px 20px', border: '1px solid #E5E7EB' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-              <div>
-                <p style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Citas Totales</p>
-                <p style={{ fontSize: 32, fontFamily: "'Fraunces', serif", fontWeight: 900, color: '#1E3A5F', lineHeight: 1, marginTop: 8 }}>
-                  {stats?.citas_solicitadas_totales || 0}
-                </p>
-              </div>
-              <div style={{ width: 40, height: 40, background: '#F5F3FF', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Calendar size={20} color="#1E3A5F" />
-              </div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <TrendingUp size={14} color="#059669" />
-              <p style={{ fontSize: 12, color: '#059669', fontWeight: 600 }}>
-                {stats?.citas_solicitadas_mes || 0} este mes
-              </p>
-            </div>
+      <div style={{ maxWidth:1100, margin:'16px auto 0', padding:'0 16px' }}>
+        <div style={{ display:'grid', gridTemplateColumns: isMobile?'1fr':'repeat(2,1fr)', gap:16 }}>
+          <div style={{ background:'#fff', padding:24, borderRadius:16, border:'1px solid #E5E7EB' }}>
+            <p style={{ fontSize:11, color:'#9CA3AF', textTransform:'uppercase', fontWeight:600 }}>Solicitudes</p>
+            <p style={{ fontSize:32, fontFamily:'Fraunces', fontWeight:900, color:'#1E3A5F', margin:'8px 0' }}>{stats?.citas_solicitadas_totales || 0}</p>
+            <div style={{ display:'flex', alignItems:'center', gap:4, color:'#059669', fontSize:12 }}><TrendingUp size={14}/>{stats?.citas_solicitadas_mes || 0} este mes</div>
           </div>
-
-          {/* Rating Promedio */}
-          <div style={{ background: '#fff', borderRadius: 16, padding: '24px 20px', border: '1px solid #E5E7EB' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-              <div>
-                <p style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Rating Promedio</p>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 8 }}>
-                  <p style={{ fontSize: 32, fontFamily: "'Fraunces', serif", fontWeight: 900, color: '#1E3A5F', lineHeight: 1 }}>
-                    {stats?.rating_promedio || 0}
-                  </p>
-                  <p style={{ fontSize: 14, color: '#9CA3AF' }}>/ 5.0</p>
-                </div>
-              </div>
-              <div style={{ width: 40, height: 40, background: '#F5F3FF', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Star size={20} color="#1E3A5F" />
-              </div>
+          <div style={{ background:'#fff', padding:24, borderRadius:16, border:'1px solid #E5E7EB' }}>
+            <p style={{ fontSize:11, color:'#9CA3AF', textTransform:'uppercase', fontWeight:600 }}>Calificación</p>
+            <div style={{ display:'flex', alignItems:'baseline', gap:6, margin:'8px 0' }}>
+              <p style={{ fontSize:32, fontFamily:'Fraunces', fontWeight:900, color:'#1E3A5F' }}>{stats?.rating_promedio || '0.0'}</p>
+              <span style={{ color:'#9CA3AF' }}>/5</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <Users size={14} color="#6B7280" />
-              <p style={{ fontSize: 12, color: '#6B7280', fontWeight: 600 }}>
-                {stats?.reseñas_count || 0} reseñas
-              </p>
-            </div>
-          </div>
-
-          {/* Analytics */}
-          <div style={{ background: '#fff', borderRadius: 16, padding: '24px 20px', border: '1px solid #E5E7EB' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-              <div>
-                <p style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Métricas</p>
-                <p style={{ fontSize: 18, fontFamily: "'Fraunces', serif", fontWeight: 900, color: '#1E3A5F', lineHeight: 1, marginTop: 8 }}>
-                  Estadísticas
-                </p>
-              </div>
-              <div style={{ width: 40, height: 40, background: '#FEF3C7', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <BarChart3 size={20} color="#92400E" />
-              </div>
-            </div>
-            <Link
-              href="/dashboard/estadisticas"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-                background: 'linear-gradient(135deg, #1E3A5F 0%, #1A3254 100%)',
-                color: '#fff',
-                borderRadius: 8,
-                padding: '10px',
-                fontSize: 13,
-                fontWeight: 600,
-                textDecoration: 'none',
-                marginTop: 8
-              }}
-            >
-              <BarChart3 size={14} /> Ver estadísticas completas
-            </Link>
+            <div style={{ display:'flex', alignItems:'center', gap:4, color:'#6B7280', fontSize:12 }}><Users size={14}/>{stats?.reseñas_count? `${stats.reseñas_count} reseñas` : 'Sin reseñas'}</div>
           </div>
         </div>
       </div>
 
-      {/* CITAS DE HOY */}
-      <div className="fade-up" style={{ maxWidth: 1100, margin: '0 auto 20px', padding: '0 16px' }}>
-        <div style={{ background: '#fff', borderRadius: 16, padding: '24px 20px', border: '1px solid #E5E7EB' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <div>
-              <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 900, color: '#1A1A2E', marginBottom: 4 }}>
-                Citas de Hoy
-              </h2>
-              <p style={{ fontSize: 13, color: '#6B7280' }}>
-                {new Date().toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })}
-              </p>
-            </div>
-            <Link
-              href="/dashboard/citas"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 4,
-                color: '#1E3A5F',
-                fontSize: 13,
-                fontWeight: 600,
-                textDecoration: 'none'
-              }}
-            >
-              Ver todas <ChevronRight size={14} />
-            </Link>
+      <div style={{ maxWidth:1100, margin:'16px auto 20px', padding:'0 16px' }}>
+        <div style={{ background:'#fff', padding:24, borderRadius:16, border:'1px solid #E5E7EB' }}>
+          <div style={{ display:'flex', justifyContent:'space-between', marginBottom:16 }}>
+            <h2 style={{ fontFamily:'Fraunces', fontSize:20, fontWeight:900 }}>Citas de Hoy</h2>
+            <Link href="/dashboard/citas" prefetch={true} style={{ color:'#1E3A5F', fontSize:13, fontWeight:600, textDecoration:'none', display:'flex', alignItems:'center', gap:4 }}>Ver todas<ChevronRight size={14}/></Link>
           </div>
-
-          {citasHoy.length > 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {citasHoy.map(cita => (
-                <div 
-                  key={cita.id} 
-                  style={{ 
-                    background: '#F9FAFB', 
-                    borderRadius: 12, 
-                    padding: '16px', 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'center',
-                    border: cita.status === 'confirmada' ? '2px solid #059669' : '2px solid #F59E0B'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div style={{ 
-                      width: 48, 
-                      height: 48, 
-                      borderRadius: '50%', 
-                      background: cita.status === 'confirmada' ? '#059669' : '#F59E0B', 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      justifyContent: 'center',
-                      color: '#fff',
-                      fontWeight: 700,
-                      fontSize: 16
-                    }}>
-                      {cita.patient_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                    </div>
-                    <div>
-                      <p style={{ fontSize: 14, fontWeight: 600, color: '#1A1A2E', marginBottom: 2 }}>
-                        {cita.patient_name}
-                      </p>
-                      <p style={{ fontSize: 13, color: '#6B7280' }}>
-                        {cita.requested_time} • {cita.status === 'confirmada' ? 'Confirmada' : 'Por Confirmar'}
-                      </p>
-                    </div>
-                  </div>
-                  <button 
-                    style={{ 
-                      background: 'none', 
-                      border: 'none', 
-                      cursor: 'pointer', 
-                      color: '#9CA3AF',
-                      padding: 8
-                    }}
-                    title="Más opciones"
-                  >
-                    <MoreVertical size={18} />
-                  </button>
+          {citasHoy.length? citasHoy.map(c => (
+            <div key={c.id} style={{ background:'#F9FAFB', padding:16, borderRadius:12, display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12, borderLeft:`4px solid ${c.status==='confirmada'?'#059669':'#F59E0B'}` }}>
+              <div style={{ display:'flex', gap:12, alignItems:'center' }}>
+                <div style={{ width:44, height:44, borderRadius:'50%', background:c.status==='confirmada'?'#059669':'#F59E0B', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700 }}>{c.patient_name.split(' ').map(n=>n[0]).join('').slice(0,2)}</div>
+                <div>
+                  <p style={{ fontWeight:600, fontSize:14 }}>{c.patient_name}</p>
+                  <p style={{ fontSize:13, color:'#6B7280' }}>{c.requested_time} • {c.status==='confirmada'?'Confirmada':'Por confirmar'}</p>
                 </div>
-              ))}
+              </div>
+              <MoreVertical size={18} color="#9CA3AF"/>
             </div>
-          ) : (
-            <div style={{ textAlign: 'center', padding: '40px 20px', background: '#F9FAFB', borderRadius: 12 }}>
-              <Calendar size={40} color="#9CA3AF" style={{ margin: '0 auto 12px' }} />
-              <p style={{ fontSize: 14, color: '#6B7280', marginBottom: 4 }}>Sin citas para hoy</p>
-              <p style={{ fontSize: 12, color: '#9CA3AF' }}>Cuando los pacientes agenden citas, aparecerán aquí</p>
+          )) : (
+            <div style={{ textAlign:'center', padding:40, background:'#F9FAFB', borderRadius:12 }}>
+              <Calendar size={40} color="#9CA3AF" style={{ margin:'0 auto 12px' }}/>
+              <p style={{ color:'#6B7280' }}>Sin citas para hoy</p>
             </div>
           )}
         </div>
       </div>
 
-      {/* MODAL DE FOTO */}
       {showPhotoModal && medico.photo_url && (
-        <div className="fade-in" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <button 
-            onClick={() => setShowPhotoModal(false)} 
-            style={{ position: 'absolute', top: 20, right: 20, background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', width: 48, height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-          >
-            <X size={24} color="#fff" />
-          </button>
-          <img 
-            src={`${medico.photo_url}?t=${photoTs}`} 
-            alt={medico.full_name} 
-            style={{ maxWidth: '100%', maxHeight: '90vh', borderRadius: 12, objectFit: 'contain' }} 
-          />
+        <div onClick={()=>setShowPhotoModal(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.9)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:2000 }}>
+          <X size={24} color="#fff" style={{ position:'absolute', top:20, right:20, cursor:'pointer' }}/>
+          <img src={`${medico.photo_url}?t=${photoTs}`} style={{ maxWidth:'90%', maxHeight:'90%', borderRadius:12 }} alt=""/>
         </div>
-      )}
-
-      {/* BOTTOM NAV - SOLO MÓVIL */}
-      {isMobile && (
-        <nav style={{ 
-          position: 'fixed', 
-          bottom: 0, 
-          left: 0, 
-          right: 0, 
-          background: 'rgba(255,255,255,0.95)', 
-          backdropFilter: 'blur(12px)',
-          borderTop: '1px solid #E5E7EB',
-          zIndex: 1000,
-          padding: '12px 0',
-          boxShadow: '0 -4px 12px rgba(0,0,0,0.05)'
-        }}>
-          <div style={{ maxWidth: 600, margin: '0 auto', display: 'flex', justifyContent: 'space-around', alignItems: 'center' }}>
-            <Link 
-              href="/dashboard" 
-              style={{ 
-                display: 'flex', 
-                flexDirection: 'column', 
-                alignItems: 'center', 
-                gap: 4, 
-                padding: '8px 16px',
-                background: '#1E3A5F',
-                color: '#fff',
-                borderRadius: 12,
-                textDecoration: 'none',
-                minWidth: 80
-              }}
-            >
-              <Settings size={20} />
-              <span style={{ fontSize: 11, fontWeight: 600 }}>Perfil</span>
-            </Link>
-            <Link
-              href="/dashboard/citas"
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 4,
-                padding: '8px 16px',
-                color: '#9CA3AF',
-                textDecoration: 'none',
-                minWidth: 80,
-                transition: 'all 0.2s',
-                position: 'relative'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.color = '#1E3A5F'}
-              onMouseLeave={(e) => e.currentTarget.style.color = '#9CA3AF'}
-            >
-              <div style={{ position: 'relative' }}>
-                <Calendar size={20} />
-                {(stats?.citas_solicitadas_totales || 0) > 0 && (
-                  <span style={{
-                    position: 'absolute',
-                    top: -6,
-                    right: -8,
-                    background: '#EF4444',
-                    color: '#fff',
-                    fontSize: 9,
-                    fontWeight: 700,
-                    borderRadius: '50%',
-                    width: 16,
-                    height: 16,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    lineHeight: 1
-                  }}>
-                    {(stats?.citas_solicitadas_totales ?? 0) > 9 ? '9+' : stats?.citas_solicitadas_totales}
-                  </span>
-                )}
-              </div>
-              <span style={{ fontSize: 11, fontWeight: 600 }}>Citas</span>
-            </Link>
-            <Link 
-              href="/dashboard/estadisticas" 
-              style={{ 
-                display: 'flex', 
-                flexDirection: 'column', 
-                alignItems: 'center', 
-                gap: 4, 
-                padding: '8px 16px',
-                color: '#9CA3AF',
-                textDecoration: 'none',
-                minWidth: 80,
-                transition: 'all 0.2s'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.color = '#1E3A5F'}
-              onMouseLeave={(e) => e.currentTarget.style.color = '#9CA3AF'}
-            >
-              <BarChart3 size={20} />
-              <span style={{ fontSize: 11, fontWeight: 600 }}>Estadísticas</span>
-            </Link>
-          </div>
-        </nav>
       )}
     </div>
   )

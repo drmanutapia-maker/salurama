@@ -376,3 +376,95 @@ input, select, textarea {
   background: var(--color-primary-500);
   transform: translateX(-50%) rotate(45deg);
 }
+
+/* FORZAR NAVBAR MÓVIL A 1 COLUMNA - v5 */
+@media (max-width: 767px) {
+  nav[data-version="v5-unificado"] > div + div {
+    display: block !important;
+  }
+  nav[data-version="v5-unificado"] > div + div > div:first-child {
+    display: block !important;
+    width: 100% !important;
+    padding: 8px 0 !important;
+  }
+  nav[data-version="v5-unificado"] > div + div > div:last-child {
+    display: block !important;
+    width: 100% !important;
+    padding: 20px 24px !important;
+    background: #F9FAFB !important;
+  }
+  /* Mata cualquier grid de 2 columnas heredado */
+  nav[data-version="v5-unificado"] .mobile-only {
+    display: block !important;
+  }
+}
+
+/* ========================================
+   SHADCN/UI — CSS VARIABLES (HSL format)
+   Mapped to Salurama palette. Added without
+   touching any existing variables above.
+   ======================================== */
+
+@layer base {
+  :root {
+    --background: 210 17% 98%;         /* #F8F9FA — off-white (HEMA design req.) */
+    --foreground: 222 47% 11%;         /* #111827 */
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 214 52% 24%;            /* #1E3A5F — azul médico profundo */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 174 57% 40%;          /* #2A9D8F — verde teal */
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 210 11% 96%;              /* #F3F4F6 */
+    --muted-foreground: 220 9% 43%;    /* #6B7280 */
+
+    --accent: 174 57% 40%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;          /* #DC2626 — rojo alerta */
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 13% 91%;             /* #E5E7EB */
+    --input: 220 13% 91%;
+    --ring: 214 52% 24%;               /* focus ring = primary */
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 222 47% 11%;
+    --foreground: 210 17% 98%;
+
+    --card: 222 47% 14%;
+    --card-foreground: 210 17% 98%;
+
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 17% 98%;
+
+    --primary: 214 52% 55%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 174 57% 40%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 222 30% 20%;
+    --muted-foreground: 218 11% 65%;
+
+    --accent: 174 57% 35%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 222 30% 22%;
+    --input: 222 30% 22%;
+    --ring: 214 52% 55%;
+  }
+}

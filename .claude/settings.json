@@ -1,7 +1,25 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx tsc *)"
+      "Bash(pnpm --version)",
+      "Bash(pnpm import *)",
+      "Bash(pnpm config *)",
+      "Bash(find * )",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(pnpm *)",
+      "Bash(npx *)",
+      "Bash(node *)",
+      "Bash(mkdir *)",
+      "Bash(cp *)",
+      "Bash(echo *)",
+      "mcp__claude_ai_Supabase__list_tables"
+    ],
+    "deny": [
+      "Bash(rm *)",
+      "Bash(drop *)",
+      "Bash(delete *)",
+      "Bash(supabase db reset*)"
     ]
   }
 }

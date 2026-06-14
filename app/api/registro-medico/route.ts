@@ -7,16 +7,16 @@ const schema = z.object({
   email: z.string().email().toLowerCase(),
   password: z.string().min(8).max(72),
   full_name: z.string().trim().min(3).max(100).regex(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/),
-  specialty: z.string().min(2).max(50),
+  specialty: z.string().min(2).max(100),
   professional_license: z.string().regex(/^\d{7,8}$/),
-  specialty_council: z.string().max(50).optional(),
+  specialty_council: z.string().max(100).optional(),
   license_not_current: z.boolean().optional(),
   cp: z.string().regex(/^\d{5}$/),
   estado: z.string().min(2).max(50),
   ciudad: z.string().min(2).max(50),
   colonia: z.string().min(2).max(100),
   direccion: z.string().max(200).optional(),
-  turnstileToken: z.string(),
+  turnstileToken: z.string().optional(),
 })
 
 function getIp(req: NextRequest) {
@@ -26,7 +26,6 @@ function getIp(req: NextRequest) {
 export async function POST(request: NextRequest) {
   const ip = getIp(request)
 
-  // ✅ MOVIDO ADENTRO
   const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -41,7 +40,6 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     
-    // Rate limit
     const key = `registro:${ip}`
     const count = await redis.incr(key)
     if (count === 1) await redis.expire(key, 3600)
@@ -49,23 +47,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Demasiados intentos' }, { status: 429 })
     }
 
-    // Validar
     const data = schema.parse(body)
 
-    // Turnstile
-    const turnstile = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-      method: 'POST',
-      body: new URLSearchParams({
-        secret: process.env.TURNSTILE_SECRET_KEY!,
-        response: data.turnstileToken,
-        remoteip: ip,
-      }),
-    })
-    if (!(await turnstile.json()).success) {
-      return NextResponse.json({ error: 'Verificación fallida' }, { status: 400 })
+    if (data.turnstileToken) {
+      const turnstile = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+        method: 'POST',
+        body: new URLSearchParams({
+          secret: process.env.TURNSTILE_SECRET_KEY!,
+          response: data.turnstileToken,
+          remoteip: ip,
+        }),
+      })
+      if (!(await turnstile.json()).success) {
+        return NextResponse.json({ error: 'Verificación fallida' }, { status: 400 })
+      }
     }
 
-    // Verificar duplicados
     const [emailCheck, cedulaCheck] = await Promise.all([
       supabaseAdmin.from('doctors').select('id', { head: true, count: 'exact' }).eq('email', data.email),
       supabaseAdmin.from('doctors').select('id', { head: true, count: 'exact' }).eq('professional_license', data.professional_license),
@@ -75,16 +72,41 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Email o cédula ya registrados' }, { status: 400 })
     }
 
-    // Crear usuario
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: data.email,
       password: data.password,
-      email_confirm: true,
+      email_confirm: false,
       user_metadata: { full_name: data.full_name, role: 'doctor' }
     })
     if (authError) throw authError
 
-    // Crear doctor
+    // === GEOCODIFICACIÓN CON SEPOMEX (2026) ===
+    let lat = null
+    let lng = null
+    let fullAddress = null
+
+    if (data.direccion) {
+      fullAddress = `${data.direccion}, ${data.colonia}, ${data.cp}, ${data.ciudad}, ${data.estado}, México`
+    }
+
+    // Buscar coordenadas en SEPOMEX por CP (siempre, aunque no haya dirección)
+    try {
+      const { data: geoData } = await supabaseAdmin
+        .from('sepomex')
+        .select('lat, lng')
+        .eq('cp', data.cp)
+        .limit(1)
+        .single()
+      
+      if (geoData?.lat && geoData?.lng) {
+        lat = parseFloat(geoData.lat)
+        lng = parseFloat(geoData.lng)
+        console.log('SEPOMEX geocoded:', data.cp, '→', lat, lng)
+      }
+    } catch (e) {
+      console.error('SEPOMEX lookup failed:', e)
+    }
+
     const { data: doctor, error: doctorError } = await supabaseAdmin
       .from('doctors')
       .insert({
@@ -100,6 +122,9 @@ export async function POST(request: NextRequest) {
         location_city: data.ciudad,
         location_neighborhood: data.colonia,
         address: data.direccion || null,
+        clinic_address: fullAddress,
+        clinic_lat: lat,
+        clinic_lng: lng,
         is_active: false,
         review_status: 'pendiente',
       })

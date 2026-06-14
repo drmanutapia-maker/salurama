@@ -1,19 +1,23 @@
 'use client'
 
-import { Suspense, useState, useEffect, useMemo, useCallback } from 'react'
-import { createClient } from '@/lib/supabaseClient'
+import { Suspense, useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { supabase } from '@/lib/supabaseClient'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Search, Clock, DollarSign, Star, Baby, Calendar, MapPin, Shield,
-  X, Navigation, GraduationCap, Globe, Loader2, Filter, SlidersHorizontal
+  X, Navigation, GraduationCap, Globe, Loader2, Filter,
 } from 'lucide-react'
-import StateCitySelector from '@/components/StateCitySelector'
+import { STATES } from '@/lib/locations'
 import BottomNav from '@/components/BottomNav'
 import Navbar from '@/components/Navbar'
 
-const ESPECIALIDADES_CONACEM = [
-  'Alergología','Anestesiología','Angiología y Cirugía Vascular','Cardiología Pediátrica',
+export const dynamic = 'force-dynamic'
+
+// ─── Constantes ────────────────────────────────────────────────────────────────
+
+const ESPECIALIDADES_CONACEM: string[] = [
+  'Alergología','Anestesiología','Angiología y Cirugía Vascular','Cardiología','Cardiología Pediátrica',
   'Cirugía Cardiovascular','Cirugía General','Cirugía Maxilofacial','Cirugía Pediátrica',
   'Cirugía Plástica y Reconstructiva','Dermatología','Endocrinología','Endocrinología Pediátrica',
   'Gastroenterología','Gastroenterología y Endoscopia Pediátrica','Geriatría','Hematología',
@@ -24,6 +28,19 @@ const ESPECIALIDADES_CONACEM = [
   'Psiquiatría','Psiquiatría Infantil y de la Adolescencia','Radiología e Imagen','Reumatología',
   'Reumatología Pediátrica','Urología','Ginecología y Obstetricia','Medicina General','Nutrición',
 ]
+
+const CHIPS_CONFIG = [
+  { id: 'cerca', label: 'Cerca de mí', icon: <Navigation size={15} />, tooltip: 'Usa tu ubicación para mostrar médicos más cercanos primero' },
+  { id: 'experiencia', label: 'Más experiencia', icon: <Clock size={15} />, tooltip: 'Muestra primero a los médicos con más años de ejercicio profesional' },
+  { id: 'precio', label: 'Precio accesible', icon: <DollarSign size={15} />, tooltip: 'Ordena de menor a mayor costo de consulta' },
+  { id: 'valorados', label: 'Mejor valorados', icon: <Star size={15} />, tooltip: 'Muestra primero a los médicos con mejores reseñas' },
+  { id: 'ninos', label: 'Atiende niños', icon: <Baby size={15} />, tooltip: 'Muestra médicos que atienden pacientes pediátricos' },
+  { id: 'disponibilidad', label: 'Disponibilidad', icon: <Calendar size={15} />, tooltip: 'Muestra médicos con horarios disponibles' },
+] as const
+
+type FiltroId = typeof CHIPS_CONFIG[number]['id']
+
+// ─── Tipos ─────────────────────────────────────────────────────────────────────
 
 interface Medico {
   id: string
@@ -36,8 +53,8 @@ interface Medico {
   years_experience: number | null
   min_patient_age: number | null
   max_patient_age: number | null
-  latitude: number | null
-  longitude: number | null
+  clinic_lat: number | null
+  clinic_lng: number | null
   distance?: number
   hospital_affiliation: string | null
   languages: string | null
@@ -45,430 +62,886 @@ interface Medico {
   professional_license: string | null
 }
 
-type FiltroId = 'cerca' | 'experiencia' | 'precio' | 'valorados' | 'ninos' | 'disponibilidad'
+// ─── Helpers ───────────────────────────────────────────────────────────────────
 
-const normalizarTexto = (texto: string | null | undefined): string => {
-  if (!texto) return ''
-  return texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
-}
+const norm = (t: string | null | undefined): string =>
+  t? t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() : ''
 
-const calcularDistancia = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+const haversine = (la1: number, lo1: number, la2: number, lo2: number): number => {
   const R = 6371
-  const dLat = (lat2 - lat1) * Math.PI / 180
-  const dLon = (lon2 - lon1) * Math.PI / 180
-  const a = Math.sin(dLat/2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) ** 2
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+  const dL = (la2 - la1) * Math.PI / 180
+  const dO = (lo2 - lo1) * Math.PI / 180
+  const a = Math.sin(dL / 2) ** 2 + Math.cos(la1 * Math.PI / 180) * Math.cos(la2 * Math.PI / 180) * Math.sin(dO / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
+
+// ─── Estilos globales ──────────────────────────────────────────────────────────
+
+const PAGE_STYLES = `
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,900&family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  h1, h2, h3, h4 { font-family: 'Fraunces', serif; }
+  body { font-family: 'DM Sans', sans-serif; }
+
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(14px) } to { opacity: 1; transform: translateY(0) } }
+  @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+  @keyframes spin { to { transform: rotate(360deg) } }
+  @keyframes shimmer { 0% { background-position: -600px 0 } 100% { background-position: 600px 0 } }
+  @keyframes scaleIn { from { opacity: 0; transform: scale(.96) } to { opacity: 1; transform: scale(1) } }
+
+.fade-up { animation: fadeUp 0.4s ease-out both }
+.fade-in { animation: fadeIn 0.25s ease-out both }
+.scale-in { animation: scaleIn 0.25s ease-out both }
+.delay-1 { animation-delay: 0.06s }
+.delay-2 { animation-delay: 0.12s }
+.delay-3 { animation-delay: 0.18s }
+
+  /* ── Search input ── */
+.buscar-input {
+    width: 100%;
+    padding: 18px 48px 18px 48px;
+    border-radius: 16px;
+    border: 1.5px solid #2A9D8F;
+    font-size: 15px;
+    font-family: 'DM Sans', sans-serif;
+    background: #fff;
+    color: #111827;
+    outline: none;
+    transition: border-color.18s, box-shadow.18s;
+    box-shadow: 0 2px 8px rgba(42,157,143,.08);
+  }
+.buscar-input::placeholder { color: #9CA3AF; }
+.buscar-input:focus {
+    border-color: #8B5CF6;
+    box-shadow: 0 0 3px rgba(139,92,246,.12), 0 2px 8px rgba(42,157,143,.08);
+  }
+
+  /* ── Chip filtro ── */
+.chip-filtro {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 10px 18px;
+    border-radius: 50px;
+    border: 1.5px solid #2A9D8F;
+    background: #fff;
+    color: #4A5568;
+    font-size: 13.5px;
+    font-weight: 600;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    transition: all.18s;
+    white-space: nowrap;
+  }
+.chip-filtro:hover {
+    border-color: #8B5CF6;
+    background: #F5F3FF;
+    color: #7C3AED;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(139,92,246,.12);
+  }
+.chip-filtro.activo {
+    background: #8B5CF6;
+    border-color: #8B5CF6;
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(139,92,246,.35);
+  }
+.chip-filtro:disabled {
+    opacity:.6;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* ── Card médico ── */
+.card-medico {
+    background: #fff;
+    border-radius: 20px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(17,28,44,.06);
+    border: 1px solid #E5E7EB;
+    transition: border-color.2s, box-shadow.2s, transform.2s;
+    cursor: pointer;
+  }
+.card-medico:hover {
+    border-color: #C4B5FD;
+    box-shadow: 0 8px 28px rgba(139,92,246,.1), 0 2px 8px rgba(17,28,44,.06);
+    transform: translateY(-2px);
+  }
+
+  /* ── Skeleton ── */
+.skeleton {
+    background: linear-gradient(90deg, #F1F5F9 25%, #E8EFF5 50%, #F1F5F9 75%);
+    background-size: 600px 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 10px;
+  }
+
+  /* ── Tag badge ── */
+.tag-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 99px;
+    font-size: 11px;
+    font-weight: 600;
+    background: #F3F4F6;
+    color: #4B5563;
+  }
+
+  /* ── Tooltip ── */
+.tooltip-burbuja {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1E3A5F;
+    color: #fff;
+    padding: 8px 13px;
+    border-radius: 9px;
+    font-size: 12px;
+    font-family: 'DM Sans', sans-serif;
+    width: min(210px, 85vw);
+    max-width: 210px;
+    z-index: 9999;
+    box-shadow: 0 6px 20px rgba(0,0,0,.18);
+    text-align: center;
+    line-height: 1.45;
+    pointer-events: none;
+    white-space: normal;
+  }
+.tooltip-burbuja::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%) rotate(45deg);
+    width: 8px;
+    height: 8px;
+    background: #1E3A5F;
+    margin-top: -4px;
+  }
+
+  /* ── Sugerencias dropdown ── */
+.sugerencia-item {
+    width: 100%;
+    padding: 12px 16px;
+    background: none;
+    border: none;
+    border-bottom: 1px solid #F3F4F6;
+    text-align: left;
+    font-size: 14px;
+    font-family: 'DM Sans', sans-serif;
+    color: #374151;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: background.12s;
+  }
+.sugerencia-item:last-child { border-bottom: none; }
+.sugerencia-item:hover { background: #F5F3FF; color: #7C3AED; }
+
+  /* ── Botón Ver perfil ── */
+.btn-ver-perfil {
+    background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%);
+    color: #fff;
+    padding: 10px 18px;
+    border-radius: 12px;
+    text-decoration: none;
+    font-size: 13.5px;
+    font-weight: 700;
+    font-family: 'DM Sans', sans-serif;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: opacity.15s, transform.15s, box-shadow.15s;
+    box-shadow: 0 2px 8px rgba(139,92,246,.3);
+  }
+.btn-ver-perfil:hover {
+    opacity:.9;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(139,92,246,.4);
+  }
+
+  /* ── Botón mapa ── */
+.btn-mapa {
+    padding: 10px 14px;
+    background: #fff;
+    border: 1.5px solid #E5E7EB;
+    color: #4B5563;
+    border-radius: 12px;
+    font-weight: 600;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 13.5px;
+    transition: border-color.15s, background.15s;
+  }
+.btn-mapa:hover {
+    border-color: #2A9D8F;
+    background: #F0FDFA;
+    color: #2A9D8F;
+  }
+
+  /* ── Modal overlay ── */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    padding: 20px;
+    animation: fadeIn.2s ease-out;
+    backdrop-filter: blur(3px);
+  }
+
+  @media (max-width: 640px) {
+.buscar-input { padding: 16px 16px 16px 44px; font-size: 14px; }
+.card-footer-btns { flex-direction: column; gap: 8px; }
+.card-footer-btns a,.card-footer-btns button { justify-content: center; width: 100%; }
+  }
+`
+
+// ─── Componente principal ──────────────────────────────────────────────────────
 
 function BuscarContent() {
-  const supabase = createClient()
   const searchParams = useSearchParams()
+  const router = useRouter()
 
+  // Data
   const [medicos, setMedicos] = useState<Medico[]>([])
   const [loading, setLoading] = useState(true)
-  const [showMapModal, setShowMapModal] = useState<Medico | null>(null)
-  const [activeTooltip, setActiveTooltip] = useState<string | null>(null)
 
+  // Búsqueda
   const [busqueda, setBusqueda] = useState('')
   const [inputValue, setInputValue] = useState('')
   const [sugerencias, setSugerencias] = useState<string[]>([])
-  const [showSugerencias, setShowSugerencias] = useState(false)
+  const [showSugerencias,setShowSugerencias]= useState(false)
 
+  // Ubicación / filtros
   const [selectedState, setSelectedState] = useState('')
-  const [selectedCity, setSelectedCity] = useState('')
   const [filtros, setFiltros] = useState<FiltroId[]>([])
-  const [especialidadesDisponibles, setEspecialidadesDisponibles] = useState<string[]>(ESPECIALIDADES_CONACEM)
-  const [ciudadesConMedicos, setCiudadesConMedicos] = useState<string[]>([])
-  const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null)
+  const [userLocation, setUserLocation] = useState<{lat:number;lng:number}|null>(null)
   const [locating, setLocating] = useState(false)
 
-  // Load especialidades
-  useEffect(() => {
-    supabase.from('doctors').select('specialty').not('specialty', 'is', null)
-     .then(({ data }) => {
-        if (data) {
-          const unicas = Array.from(new Set(data.map(d => d.specialty).filter(Boolean))) as string[]
-          const extras = unicas.filter(esp =>!ESPECIALIDADES_CONACEM.includes(esp))
-          setEspecialidadesDisponibles([...ESPECIALIDADES_CONACEM,...extras.sort()])
-        }
-      })
-  }, [supabase])
+  // UI
+  const [activeTooltip, setActiveTooltip] = useState<string|null>(null)
+  const [showMapModal, setShowMapModal] = useState<Medico|null>(null)
+  const [showActionSheet, setShowActionSheet] = useState(false)
+  const sugerenciasRef = useRef<HTMLDivElement>(null)
 
-  // Load params
+  // ── Cerrar sugerencias al clic fuera ────────────────────────────────────────
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (sugerenciasRef.current &&!sugerenciasRef.current.contains(e.target as Node))
+        setShowSugerencias(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  // ── Cerrar modal con Escape ──────────────────────────────────────────────────
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowMapModal(null) }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [])
+
+  // ── Params URL ───────────────────────────────────────────────────────────────
   useEffect(() => {
     const esp = searchParams.get('especialidad')
     const est = searchParams.get('estado')
-    const ciu = searchParams.get('ciudad')
     if (esp) { setBusqueda(esp); setInputValue(esp) }
     if (est) setSelectedState(est)
-    if (ciu) setSelectedCity(ciu)
   }, [searchParams])
 
-  // Load medicos
+  // ── Carga de médicos ─────────────────────────────────────────────────────────
   useEffect(() => {
     setLoading(true)
-    supabase.from('doctors')
-     .select(`id, full_name, specialty, photo_url, location_city, location_state, consultation_price_general, years_experience, min_patient_age, max_patient_age, latitude, longitude, hospital_affiliation, languages, insurance_accepted, professional_license`)
-     .eq('is_active', true)
-     .order('created_at', { ascending: false })
-     .limit(100)
-     .then(({ data, error }) => {
+    supabase
+ .from('doctors')
+ .select(`id, full_name, specialty, photo_url, location_city, location_state,
+        consultation_price_general, years_experience, min_patient_age, max_patient_age,
+        clinic_lat, clinic_lng, hospital_affiliation, languages, insurance_accepted, professional_license`)
+ .eq('is_active', true)
+ .order('created_at', { ascending: false })
+ .limit(100)
+ .then(({ data, error }) => {
         if (!error && data) {
           setMedicos(data)
-          setCiudadesConMedicos(Array.from(new Set(data.map(m => m.location_city).filter(Boolean))) as string[])
         }
         setLoading(false)
       })
-  }, [supabase])
+  }, [])
 
-  // Sugerencias con debounce
+  // ── Sugerencias con debounce 200ms (DB + fallback CONACEM) ──────────────────
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (inputValue.trim().length >= 2) {
-        const filtered = especialidadesDisponibles
-         .filter(esp => normalizarTexto(esp).includes(normalizarTexto(inputValue)))
-         .slice(0, 8)
-        setSugerencias(filtered)
-        setShowSugerencias(filtered.length > 0)
-      } else {
-        setShowSugerencias(false)
-      }
-    }, 150)
-    return () => clearTimeout(timer)
-  }, [inputValue, especialidadesDisponibles])
+    if (inputValue.trim().length < 2) { setShowSugerencias(false); return }
 
-  // Filtrado memoizado
+    const controller = new AbortController()
+    const t = setTimeout(async () => {
+      try {
+        const { data } = await supabase
+     .from('doctors')
+     .select('specialty')
+     .ilike('specialty', `%${inputValue.trim()}%`)
+     .eq('is_active', true)
+     .not('specialty', 'is', null)
+     .limit(50)
+     .abortSignal(controller.signal)
+
+        const dbMatches = data
+     ? (Array.from(new Set(data.map(d => d.specialty).filter(Boolean))) as string[])
+          : []
+        const conacemMatches = ESPECIALIDADES_CONACEM.filter(e => norm(e).includes(norm(inputValue)))
+        const merged = Array.from(new Set([...conacemMatches,...dbMatches])).slice(0, 9)
+
+        setSugerencias(merged)
+        setShowSugerencias(merged.length > 0)
+      } catch (e: any) {
+        if (e.name!== 'AbortError') console.error(e)
+      }
+    }, 200)
+
+    return () => { clearTimeout(t); controller.abort() }
+  }, [inputValue])
+
+  // ── Filtrado con useMemo ─────────────────────────────────────────────────────
   const filteredMedicos = useMemo(() => {
-    let resultados = [...medicos]
+    let r = [...medicos]
 
     if (busqueda.trim()) {
-      const term = normalizarTexto(busqueda)
-      resultados = resultados.filter(m =>
-        normalizarTexto(m.full_name).includes(term) ||
-        normalizarTexto(m.specialty).includes(term)
-      )
+      const t = norm(busqueda)
+      r = r.filter(m => norm(m.full_name).includes(t) || norm(m.specialty).includes(t))
     }
-
-    if (selectedState) {
-      const estado = normalizarTexto(selectedState)
-      resultados = resultados.filter(m => normalizarTexto(m.location_state).includes(estado))
-    }
-
-    if (selectedCity) {
-      const ciudad = normalizarTexto(selectedCity)
-      resultados = resultados.filter(m => normalizarTexto(m.location_city).includes(ciudad))
-    }
+    if (selectedState) { const s = norm(selectedState); r = r.filter(m => norm(m.location_state).includes(s)) }
 
     if (filtros.includes('ninos')) {
-      resultados = resultados.filter(m => {
-        const spec = normalizarTexto(m.specialty)
-        return spec.includes('pediatr') || spec.includes('neonat') || spec.includes('infantil') || (m.min_patient_age || 0) < 18
+      r = r.filter(m => {
+        const s = norm(m.specialty)
+        return s.includes('pediatr') || s.includes('neonat') || s.includes('infantil') || (m.min_patient_age?? 0) < 18
       })
     }
 
     if (filtros.includes('cerca') && userLocation) {
-      resultados = resultados
-       .map(m => ({...m, distance: m.latitude && m.longitude? calcularDistancia(userLocation.lat, userLocation.lng, m.latitude, m.longitude) : 9999 }))
-       .sort((a, b) => (a.distance || 9999) - (b.distance || 9999))
+      r = r
+   .map(m => ({
+     ...m,
+          distance: (m.clinic_lat!== null && m.clinic_lng!== null)
+       ? haversine(userLocation.lat, userLocation.lng, m.clinic_lat, m.clinic_lng)
+            : 9999,
+        }))
+   .sort((a, b) => (a.distance?? 9999) - (b.distance?? 9999))
     } else if (filtros.includes('experiencia')) {
-      resultados.sort((a, b) => (b.years_experience || 0) - (a.years_experience || 0))
+      r.sort((a, b) => (b.years_experience?? 0) - (a.years_experience?? 0))
     } else if (filtros.includes('precio')) {
-      resultados.sort((a, b) => (a.consultation_price_general || 99999) - (b.consultation_price_general || 99999))
+      r.sort((a, b) => (a.consultation_price_general?? 99999) - (b.consultation_price_general?? 99999))
     }
 
-    return resultados
-  }, [medicos, busqueda, selectedState, selectedCity, filtros, userLocation])
+    return r
+  }, [medicos, busqueda, selectedState, filtros, userLocation])
 
-  const toggleFiltro = useCallback(async (filtroId: FiltroId) => {
-    if (filtroId === 'cerca' &&!filtros.includes('cerca')) {
+  // ── Toggle filtro ─────────────────────────────────────────────────────────────
+  const toggleFiltro = useCallback(async (id: FiltroId) => {
+    if (filtros.includes(id)) {
+      setFiltros(prev => prev.filter(f => f!== id))
+      if (id === 'cerca') setUserLocation(null)
+      return
+    }
+
+    if (id === 'cerca') {
       if (!navigator.geolocation) {
         alert('Tu navegador no soporta geolocalización')
         return
       }
       setLocating(true)
+      const timeoutId = setTimeout(() => setLocating(false), 10000)
+
       navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude })
-          setFiltros(prev => [...prev, filtroId])
+        async pos => {
+          clearTimeout(timeoutId)
+          const userLat = pos.coords.latitude
+          const userLng = pos.coords.longitude
+
+          setUserLocation({ lat: userLat, lng: userLng })
+
+          // Llamar a la función de Supabase para búsqueda por proximidad
+          try {
+            const { data, error } = await supabase.rpc('nearby_doctors', {
+              user_lat: userLat,
+              user_lng: userLng,
+              radius_km: 50
+            })
+
+            if (!error && data) {
+              setMedicos(data)
+            }
+          } catch (err) {
+            console.error('Error buscando doctores cercanos:', err)
+          }
+
+          setFiltros(prev => [...prev.filter(f => f!== 'precio' && f!== 'experiencia'), 'cerca'])
           setLocating(false)
         },
-        () => {
-          alert('Activa la ubicación para usar "Cerca de mí"')
+        (err) => {
+          clearTimeout(timeoutId)
           setLocating(false)
+          const msg = err.code === 1? 'Permiso denegado. Activa la ubicación en tu navegador.' : 'No pudimos obtener tu ubicación'
+          alert(msg)
         },
-        { enableHighAccuracy: true, timeout: 10000 }
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
       )
       return
     }
 
-    setFiltros(prev =>
-      prev.includes(filtroId)
-       ? prev.filter(f => f!== filtroId)
-        : [...prev, filtroId]
-    )
-
-    if (filtroId === 'cerca') setUserLocation(null)
+    setFiltros(prev => [...prev.filter(f => f!== 'cerca'), id])
   }, [filtros])
 
+  // ── Limpiar todo — sin reload ─────────────────────────────────────────────────
   const limpiarFiltros = useCallback(() => {
     setFiltros([])
     setUserLocation(null)
     setBusqueda('')
     setInputValue('')
     setSelectedState('')
-    setSelectedCity('')
   }, [])
 
-  const chips = [
-    { id: 'cerca' as FiltroId, label: 'Cerca de mí', icon: <Navigation size={16} />, tooltip: 'Ordena por distancia usando tu ubicación' },
-    { id: 'experiencia' as FiltroId, label: 'Más experiencia', icon: <Clock size={16} />, tooltip: 'Médicos con más años de práctica' },
-    { id: 'precio' as FiltroId, label: 'Mejor precio', icon: <DollarSign size={16} />, tooltip: 'De menor a mayor costo' },
-    { id: 'valorados' as FiltroId, label: 'Mejor valorados', icon: <Star size={16} />, tooltip: 'Con mejores reseñas' },
-    { id: 'ninos' as FiltroId, label: 'Atiende niños', icon: <Baby size={16} />, tooltip: 'Pediatras y especialistas infantiles' },
-    { id: 'disponibilidad' as FiltroId, label: 'Disponible hoy', icon: <Calendar size={16} />, tooltip: 'Con citas disponibles' },
-  ]
+  const hayFiltros = filtros.length > 0 || busqueda || selectedState
+
+  // Función para navegar al perfil preservando búsqueda
+  const navigateToDoctor = useCallback((doctorId: string) => {
+    const params = new URLSearchParams()
+    if (busqueda) params.set('from', 'buscar')
+    if (busqueda) params.set('q', busqueda)
+    if (selectedState) params.set('estado', selectedState)
+
+    const queryString = params.toString()
+    router.push(`/doctor/${doctorId}${queryString? `?${queryString}` : ''}`)
+  }, [busqueda, selectedState, router])
+
+  const handleSearch = useCallback(() => {
+    setBusqueda(inputValue)
+    setShowSugerencias(false)
+  }, [inputValue])
+
+  // ─── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-[#FAFBFC]">
-      <style jsx global>{`
-        @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap');
-        h1, h2, h3 { font-family: 'Fraunces', serif; }
-        body { font-family: 'Inter', sans-serif; }
-      `}</style>
-
+    <div style={{ minHeight: '100vh', background: '#F9FAFB', fontFamily: "'DM Sans', sans-serif", color: '#111827' }}>
+      <style>{PAGE_STYLES}</style>
       <Navbar />
 
-      <main className="pt- pb-24 lg:pb-8">
-        <div className="max-w- mx-auto px-4 sm:px-6">
+      <main style={{ paddingTop: 120, paddingBottom: 100 }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 20px' }}>
 
-          {/* Search Bar 2026 */}
-          <div className="mb-8">
-            <div className="relative max-w- mx-auto">
-              <div className="flex flex-col sm:flex-row gap-3">
-                <div className="relative flex-1">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#94A3B8] pointer-events-none">
-                    <Search size={20} />
+          {/* ── BARRA DE BÚSQUEDA ─────────────────────────────────────────── */}
+          <div className="fade-up" style={{ marginBottom: 40, position: 'relative', zIndex: 100 }}>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', maxWidth: 1000, margin: '0 auto', alignItems: 'stretch' }}>
+
+              {/* Input + sugerencias */}
+              <div ref={sugerenciasRef} style={{ flex: '1 1 400px', position: 'relative', minWidth: 280, zIndex: 1000 }}>
+                <Search
+                  size={18}
+                  style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF', pointerEvents: 'none', zIndex: 2 }}
+                />
+                <input
+                  type="text"
+                  placeholder="Especialidad o médico..."
+                  value={inputValue}
+                  onChange={e => { setInputValue(e.target.value); setBusqueda(e.target.value) }}
+                  onFocus={() => inputValue.length >= 2 && setShowSugerencias(true)}
+                  onKeyDown={e => {
+                    if (e.key === 'Escape') setShowSugerencias(false)
+                    if (e.key === 'Enter') handleSearch()
+                  }}
+                  className="buscar-input"
+                />
+
+                {/* Dropdown de sugerencias */}
+                {showSugerencias && sugerencias.length > 0 && (
+                  <div className="scale-in" style={{
+                    position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0,
+                    background: '#fff', borderRadius: 14,
+                    border: '1px solid #E5E7EB',
+                    boxShadow: '0 12px 36px rgba(0,0,0,.12)',
+                    zIndex: 100, overflow: 'hidden',
+                  }}>
+                    {sugerencias.map((s, i) => (
+                      <button
+                        key={i}
+                        className="sugerencia-item"
+                        onMouseDown={e => { e.preventDefault(); setBusqueda(s); setInputValue(s); setShowSugerencias(false) }}
+                      >
+                        <div style={{ width: 28, height: 28, borderRadius: 8, background: '#F5F3FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <Search size={12} color="#8B5CF6" />
+                        </div>
+                        {s}
+                      </button>
+                    ))}
                   </div>
-                  <input
-                    type="text"
-                    placeholder="Busca especialidad, médico o síntoma..."
-                    value={inputValue}
-                    onChange={(e) => { setInputValue(e.target.value); setBusqueda(e.target.value) }}
-                    onFocus={() => inputValue.length >= 2 && setShowSugerencias(true)}
-                    onBlur={() => setTimeout(() => setShowSugerencias(false), 150)}
-                    className="w-full h- pl-12 pr-4 bg-white border border-[#E2E8F0] rounded-2xl text- placeholder-[#94A3B8] outline-none focus:ring-2 focus:ring-[#8B5CF6]/20 focus:border-[#8B5CF6] transition-all shadow-sm hover:shadow"
-                  />
-                  {showSugerencias && sugerencias.length > 0 && (
-                    <div className="absolute top-full mt-2 w-full bg-white rounded-2xl border border-[#E2E8F0] shadow-xl z-50 overflow-hidden">
-                      {sugerencias.map((s, i) => (
-                        <button
-                          key={s}
-                          onMouseDown={() => { setBusqueda(s); setInputValue(s); setShowSugerencias(false) }}
-                          className="w-full px-4 py-3 text-left text- hover:bg-[#F8FAFC] transition-colors flex items-center gap-3 border-b border-[#F1F5F9] last:border-0"
-                        >
-                          <div className="w-8 h-8 rounded-lg bg-[#F5F3FF] flex items-center justify-center flex-shrink-0">
-                            <Search size={14} className="text-[#8B5CF6]" />
-                          </div>
-                          <span className="text-[#334155]">{s}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <div className="sm:w-">
-                  <StateCitySelector
-                    onStateChange={setSelectedState}
-                    onCityChange={setSelectedCity}
-                    initialState={selectedState}
-                    initialCity={selectedCity}
-                    ciudadesConMedicos={ciudadesConMedicos}
-                  />
-                </div>
+                )}
               </div>
+
+              {/* Selector estado - COMPACTO 200px */}
+              <select
+                value={selectedState}
+                onChange={(e) => setSelectedState(e.target.value)}
+                style={{
+                  height: 56,
+                  width: '100%',
+                  maxWidth: 200,
+                  padding: '0 36px 0 16px',
+                  borderRadius: 16,
+                  border: '1.5px solid #2A9D8F',
+                  background: '#fff',
+                  fontSize: 15,
+                  fontWeight: 500,
+                  color: '#374151',
+                  fontFamily: "'DM Sans', sans-serif",
+                  outline: 'none',
+                  cursor: 'pointer',
+                  appearance: 'none',
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7'%3E%3C/path%3E%3C/svg%3E")`,
+                  backgroundRepeat: 'no-repeat',
+                  backgroundPosition: 'right 12px center',
+                  backgroundSize: '16px',
+                  boxShadow: '0 2px 8px rgba(42,157,143,.08)',
+                  flexShrink: 0,
+                }}
+                onFocus={e => {
+                  e.currentTarget.style.borderColor = '#8B5CF6'
+                  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(139,92,246,.12), 0 2px 8px rgba(42,157,143,.08)'
+                }}
+                onBlur={e => {
+                  e.currentTarget.style.borderColor = '#2A9D8F'
+                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(42,157,143,.08)'
+                }}
+              >
+                <option value="">Todos los estados</option>
+                {STATES.map(state => (
+                  <option key={state} value={state}>
+                    {state}
+                  </option>
+                ))}
+              </select>
+
+              {/* Botón buscar */}
+              <button
+                onClick={handleSearch}
+                style={{
+                  height: 56,
+                  padding: '0 28px',
+                  background: '#8B5CF6',
+                  border: 'none',
+                  borderRadius: 16,
+                  color: 'white',
+                  fontWeight: 700,
+                  fontSize: 15,
+                  fontFamily: "'DM Sans', sans-serif",
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  transition: 'background.15s, transform.15s',
+                  boxShadow: '0 2px 8px rgba(139,92,246,.3)',
+                  flexShrink: 0,
+                  whiteSpace: 'nowrap',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = '#7C3AED'
+                  e.currentTarget.style.transform = 'translateY(-1px)'
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = '#8B5CF6'
+                  e.currentTarget.style.transform = 'translateY(0)'
+                }}
+              >
+                <Search size={18} /> Buscar
+              </button>
             </div>
           </div>
 
-          {/* Filters 2026 */}
-          <div className="mb-10">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text- sm:text- font-bold text-[#0F172A] tracking-tight">¿Qué priorizas?</h2>
-                <p className="text- text-[#64748B] mt-0.5">Filtra por lo que más te importa</p>
+          {/* ── CHIPS DE FILTRO ────────────────────────────────────────────── */}
+          <div className="fade-up delay-1" style={{ marginBottom: 40 }}>
+            <h2 style={{ fontSize: 26, fontWeight: 900, color: '#1E3A5F', marginBottom: 6, textAlign: 'center' }}>
+              ¿Qué es lo más importante para ti?
+            </h2>
+            <p style={{ fontSize: 13.5, color: '#6B7280', marginBottom: 24, textAlign: 'center' }}>
+              Selecciona una o varias opciones
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center', marginBottom: 20 }}>
+              {CHIPS_CONFIG.map(chip => (
+                <div key={chip.id} style={{ position: 'relative' }}
+                  onMouseEnter={() => setActiveTooltip(chip.id)}
+                  onMouseLeave={() => setActiveTooltip(null)}
+                >
+                  <button
+                    className={`chip-filtro${filtros.includes(chip.id)? ' activo' : ''}`}
+                    onClick={() => toggleFiltro(chip.id)}
+                    disabled={chip.id === 'cerca' && locating}
+                    aria-pressed={filtros.includes(chip.id)}
+                  >
+                    {chip.id === 'cerca' && locating
+                 ? <Loader2 size={15} style={{ animation: 'spin.7s linear infinite' }} />
+                      : chip.icon
+                    }
+                    {chip.label}
+                  </button>
+                  {activeTooltip === chip.id && (
+                    <div className="tooltip-burbuja">{chip.tooltip}</div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {userLocation && filtros.includes('cerca') && (
+              <div style={{
+                textAlign: 'center', marginTop: 12, fontSize: 12, color: '#059669',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
+              }}>
+                <Navigation size={12} /> Usando tu ubicación actual
               </div>
-              {filtros.length > 0 && (
-                <button onClick={limpiarFiltros} className="text- font-medium text-[#8B5CF6] hover:text-[#7C3AED] flex items-center gap-1.5">
-                  <X size={14} /> Limpiar
+            )}
+
+            {/* Limpiar filtros — sólo visible si hay algo activo */}
+            {hayFiltros && (
+              <div style={{ textAlign: 'center', marginTop: 16 }}>
+                <button
+                  onClick={limpiarFiltros}
+                  style={{
+                    background: 'none', border: '1.5px solid #8B5CF6', color: '#8B5CF6',
+                    padding: '9px 24px', borderRadius: 50, fontSize: 13.5, fontWeight: 700,
+                    fontFamily: "'DM Sans', sans-serif", cursor: 'pointer',
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                    transition: 'background.15s, color.15s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#8B5CF6'; e.currentTarget.style.color = '#fff' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#8B5CF6' }}
+                >
+                  <X size={14} /> Limpiar filtros
                 </button>
+              </div>
+            )}
+          </div>
+
+          {/* ── RESULTADOS ─────────────────────────────────────────────────── */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>
+              <h2 style={{ fontSize: 32, fontWeight: 900, color: '#1E3A5F' }}>
+                Especialistas Disponibles
+              </h2>
+              {!loading && (
+                <span style={{
+                  fontSize: 13, color: '#6B7280', fontWeight: 600,
+                  background: '#F3F4F6', padding: '5px 12px', borderRadius: 99,
+                }}>
+                  {filteredMedicos.length} resultado{filteredMedicos.length!== 1? 's' : ''}
+                </span>
               )}
             </div>
 
-            <div className="flex flex-wrap gap-2.5">
-              {chips.map((chip) => {
-                const activo = filtros.includes(chip.id)
-                return (
-                  <div key={chip.id} className="relative" onMouseEnter={() => setActiveTooltip(chip.id)} onMouseLeave={() => setActiveTooltip(null)}>
-                    <button
-                      onClick={() => toggleFiltro(chip.id)}
-                      disabled={chip.id === 'cerca' && locating}
-                      className={`group relative flex items-center gap-2 px-4 h-10 rounded-full border text- font-medium transition-all ${
-                        activo
-                         ? 'bg-[#1E3A5F] border-[#1E3A5F] text-white shadow-md shadow-[#1E3A5F]/20'
-                          : 'bg-white border-[#E2E8F0] text-[#475569] hover:border-[#CBD5E1] hover:bg-[#F8FAFC]'
-                      } disabled:opacity-60`}
-                    >
-                      <span className={activo? 'text-white' : 'text-[#64748B] group-hover:text-[#334155]'}>
-                        {chip.id === 'cerca' && locating? <Loader2 size={16} className="animate-spin" /> : chip.icon}
-                      </span>
-                      {chip.label}
-                    </button>
-                    {activeTooltip === chip.id && (
-                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-[#0F172A] text-white text- rounded-lg whitespace-nowrap pointer-events-none z-10 shadow-lg">
-                        {chip.tooltip}
-                        <div className="absolute top-full left-1/2 -translate-x-1/2 w-2 h-2 bg-[#0F172A] rotate-45 -mt-1" />
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* Results */}
-          <div>
-            <div className="flex items-baseline justify-between mb-6">
-              <h2 className="text- sm:text- font-bold text-[#0F172A] tracking-tight">
-                Especialistas
-              </h2>
-              <div className="flex items-center gap-3">
-                <span className="text- text-[#64748B] font-medium">
-                  {loading? '...' : `${filteredMedicos.length} encontrados`}
-                </span>
-                <button className="lg:hidden p-2 rounded-xl border border-[#E2E8F0] bg-white">
-                  <SlidersHorizontal size={16} className="text-[#64748B]" />
-                </button>
-              </div>
-            </div>
-
-            {loading? (
-              <div className="grid gap-4">
-                {[1,2,3].map(i => (
-                  <div key={i} className="bg-white rounded-2xl p-5 border border-[#E2E8F0] animate-pulse">
-                    <div className="flex gap-4">
-                      <div className="w-20 h-20 rounded-2xl bg-[#F1F5F9]" />
-                      <div className="flex-1 space-y-3">
-                        <div className="h-5 w-48 bg-[#F1F5F9] rounded-lg" />
-                        <div className="h-4 w-32 bg-[#F1F5F9] rounded-lg" />
-                        <div className="h-3 w-64 bg-[#F1F5F9] rounded-lg" />
+            {/* ── Skeleton ── */}
+            {loading && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {[1, 2, 3].map(i => (
+                  <div key={i} style={{ background: '#fff', borderRadius: 20, padding: 20, border: '1px solid #E5E7EB' }}>
+                    <div style={{ display: 'flex', gap: 16 }}>
+                      <div className="skeleton" style={{ width: 80, height: 80, borderRadius: 16, flexShrink: 0 }} />
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <div className="skeleton" style={{ height: 18, width: '50%' }} />
+                        <div className="skeleton" style={{ height: 13, width: '30%' }} />
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <div className="skeleton" style={{ height: 22, width: 90 }} />
+                          <div className="skeleton" style={{ height: 22, width: 70 }} />
+                        </div>
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
-            ) : filteredMedicos.length === 0? (
-              <div className="text-center py-20 bg-white rounded-3xl border border-[#E2E8F0]">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[#F1F5F9] flex items-center justify-center">
-                  <Filter size={28} className="text-[#94A3B8]" />
+            )}
+
+            {/* ── Sin resultados ── */}
+            {!loading && filteredMedicos.length === 0 && (
+              <div className="fade-in" style={{ textAlign: 'center', padding: '60px 20px', background: '#fff', borderRadius: 24, border: '1px solid #E5E7EB' }}>
+                <div style={{ width: 64, height: 64, borderRadius: 16, background: '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                  <Filter size={28} color="#9CA3AF" />
                 </div>
-                <h3 className="text- font-semibold text-[#0F172A] mb-1">Sin resultados</h3>
-                <p className="text- text-[#64748B] mb-6 max-w-sm mx-auto">Intenta ajustar tus filtros o buscar otra especialidad</p>
-                <button onClick={limpiarFiltros} className="px-5 h-10 bg-[#1E3A5F] text-white rounded-xl text- font-medium hover:bg-[#172E4D] transition-colors">
-                  Limpiar filtros
-                </button>
+                <p style={{ color: '#374151', fontSize: 17, fontWeight: 700, marginBottom: 8 }}>
+                  {medicos.length === 0? 'Pronto habrá especialistas aquí' : 'Sin resultados para tu búsqueda'}
+                </p>
+                <p style={{ color: '#6B7280', fontSize: 14, marginBottom: 20, maxWidth: 360, margin: '0 auto 20px', lineHeight: 1.6 }}>
+                  {medicos.length === 0
+               ? 'Estamos incorporando médicos verificados. Si eres médico, únete ahora sin costo.'
+                    : 'Intenta con otra especialidad o quita algún filtro.'}
+                </p>
+                {hayFiltros && (
+                  <button
+                    onClick={limpiarFiltros}
+                    style={{
+                      background: '#1E3A5F', color: '#fff', border: 'none',
+                      borderRadius: 12, padding: '11px 24px', fontSize: 14, fontWeight: 600,
+                      cursor: 'pointer', fontFamily: "'DM Sans', sans-serif",
+                    }}
+                  >
+                    Limpiar filtros
+                  </button>
+                )}
               </div>
-            ) : (
-              <div className="grid gap-4">
-                {filteredMedicos.map((medico) => (
-                  <article key={medico.id} className="group bg-white rounded-3xl p-5 sm:p-6 border border-[#E2E8F0] hover:border-[#CBD5E1] hover:shadow-lg hover:shadow-[#0F172A]/[0.04] transition-all">
-                    <div className="flex gap-4 sm:gap-5">
+            )}
+
+            {/* ── Lista de médicos ── */}
+            {!loading && filteredMedicos.length > 0 && (
+              <div className="fade-up delay-2" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {filteredMedicos.map(medico => (
+                  <article
+                    key={medico.id}
+                    className="card-medico"
+                    onClick={() => navigateToDoctor(medico.id)}
+                  >
+                    <div style={{ display: 'flex', gap: 16 }}>
+
                       {/* Avatar */}
-                      <div className="relative flex-shrink-0">
-                        <div className="w- h- sm:w-20 sm:h-20 rounded-2xl overflow-hidden bg-gradient-to-br from-[#1E3A5F] to-[#2A9D8F] flex items-center justify-center ring-1 ring-black/5">
-                          {medico.photo_url? (
-                            <img src={medico.photo_url} alt={medico.full_name} className="w-full h-full object-cover" />
-                          ) : (
-                            <span className="text- font-bold text-white">
-                              {(medico.full_name?.[0] || '?').toUpperCase()}
-                            </span>
-                          )}
+                      <div style={{ position: 'relative', flexShrink: 0 }}>
+                        <div style={{
+                          width: 80, height: 80, borderRadius: 16, overflow: 'hidden',
+                          background: 'linear-gradient(135deg, #1E3A5F, #2A9D8F)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 28, fontWeight: 900, color: '#fff',
+                        }}>
+                          {medico.photo_url
+                       ? <img src={medico.photo_url} alt={medico.full_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            : (medico.full_name || '?')[0].toUpperCase()
+                          }
                         </div>
+                        {/* Badge cédula sobre avatar */}
                         {medico.professional_license && (
-                          <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-[#10B981] rounded-full border-2 border-white flex items-center justify-center">
-                            <Shield size={12} className="text-white" />
+                          <div style={{
+                            position: 'absolute', bottom: -4, right: -4,
+                            width: 22, height: 22, borderRadius: '50%',
+                            background: '#10B981', border: '2px solid #fff',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          }}
+                            title="Consulta cédula profesional"
+                          >
+                            <Shield size={11} color="#fff" />
                           </div>
                         )}
                       </div>
 
-                      {/* Content */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-3 mb-2">
-                          <div>
-                            <h3 className="text- sm:text- font-semibold text-[#0F172A] leading-snug group-hover:text-[#1E3A5F] transition-colors">
+                      {/* Datos */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <h3 style={{
+                              fontSize: 17, fontWeight: 900, color: '#1E3A5F',
+                              marginBottom: 3, lineHeight: 1.2,
+                              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                            }}>
                               {medico.full_name}
                             </h3>
-                            <p className="text- text-[#64748B] mt-0.5">{medico.specialty}</p>
+                            <p style={{ fontSize: 13.5, color: '#6B7280', marginBottom: 8 }}>
+                              {medico.specialty}
+                            </p>
                           </div>
-                          <div className="flex items-center gap-1 text-[#F59E0B] flex-shrink-0">
-                            <Star size={15} fill="currentColor" />
-                            <span className="text- font-semibold">4.9</span>
+                          {/* Rating placeholder */}
+                          <div style={{
+                            display: 'flex', alignItems: 'center', gap: 4,
+                            flexShrink: 0, background: '#FFFBEB',
+                            borderRadius: 8, padding: '4px 8px',
+                            border: '1px solid #FDE68A',
+                          }}>
+                            <Star size={13} color="#F59E0B" fill="#F59E0B" />
+                            <span style={{ fontSize: 12, fontWeight: 700, color: '#92400E' }}>Nuevo</span>
                           </div>
                         </div>
 
                         {/* Tags */}
-                        <div className="flex flex-wrap gap-1.5 mb-3">
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
                           {medico.years_experience && (
-                            <span className="inline-flex items-center gap-1 px-2.5 h-6 bg-[#F8FAFC] text-[#475569] rounded-full text- font-medium border border-[#E2E8F0]">
-                              <Clock size={12} /> {medico.years_experience} años
+                            <span className="tag-badge">
+                              <Clock size={11} /> {medico.years_experience} años exp.
                             </span>
                           )}
                           {medico.languages && (
-                            <span className="inline-flex items-center gap-1 px-2.5 h-6 bg-[#F8FAFC] text-[#475569] rounded-full text- font-medium border border-[#E2E8F0]">
-                              <Globe size={12} /> {medico.languages.split(',')[0]}
+                            <span className="tag-badge">
+                              <Globe size={11} />
+                              {Array.isArray(medico.languages)
+                           ? medico.languages[0]
+                                : String(medico.languages).split(',')[0].trim()
+                              }
                             </span>
                           )}
-                          {medico.distance && medico.distance < 9999 && (
-                            <span className="inline-flex items-center gap-1 px-2.5 h-6 bg-[#F5F3FF] text-[#7C3AED] rounded-full text- font-medium border border-[#E9D5FF]">
-                              <Navigation size={12} /> {medico.distance.toFixed(1)} km
+                          {medico.distance!== undefined && medico.distance < 9999 && (
+                            <span className="tag-badge" style={{ background: '#F5F3FF', color: '#7C3AED' }}>
+                              <Navigation size={11} /> {medico.distance.toFixed(1)} km
+                            </span>
+                          )}
+                          {medico.professional_license && (
+                            <span className="tag-badge" style={{ background: '#ECFDF5', color: '#059669' }}>
+                              <Shield size={11} /> Consulta cédula
                             </span>
                           )}
                         </div>
 
-                        {/* Meta */}
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text- text-[#64748B]">
-                          <span className="inline-flex items-center gap-1.5">
-                            <MapPin size={14} className="text-[#94A3B8]" />
+                        {/* Ubicación + hospital */}
+                        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12, fontSize: 12.5, color: '#6B7280' }}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <MapPin size={13} color="#9CA3AF" />
                             {medico.location_city}, {medico.location_state}
                           </span>
                           {medico.hospital_affiliation && (
-                            <span className="inline-flex items-center gap-1.5 truncate max-w-">
-                              <GraduationCap size={14} className="text-[#94A3B8] flex-shrink-0" />
-                              <span className="truncate">{medico.hospital_affiliation}</span>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: 4, overflow: 'hidden' }}>
+                              <GraduationCap size={13} color="#9CA3AF" style={{ flexShrink: 0 }} />
+                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 220 }}>
+                                {medico.hospital_affiliation}
+                              </span>
                             </span>
                           )}
                         </div>
                       </div>
                     </div>
 
-                    {/* Footer */}
-                    <div className="flex items-center justify-between mt-5 pt-4 border-t border-[#F1F5F9]">
+                    {/* Footer card */}
+                    <div style={{
+                      display: 'flex', alignItems: 'center',
+                      justifyContent: 'space-between',
+                      marginTop: 16, paddingTop: 14,
+                      borderTop: '1px solid #F3F4F6',
+                      gap: 12, flexWrap: 'wrap',
+                    }}>
                       <div>
-                        <div className="text- text-[#94A3B8] uppercase tracking-wide font-medium mb-0.5">Desde</div>
-                        <div className="text- font-semibold text-[#0F172A] leading-none">
-                          ${medico.consultation_price_general?.toLocaleString('es-MX') || '—'}
-                          <span className="text- font-normal text-[#64748B] ml-1">MXN</span>
-                        </div>
+                        <p style={{ fontSize: 10, color: '#9CA3AF', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 2 }}>
+                          Consulta desde
+                        </p>
+                        <p style={{ fontSize: 18, color: '#1E3A5F', fontWeight: 900, lineHeight: 1 }}>
+                          {medico.consultation_price_general
+                       ? <>${medico.consultation_price_general.toLocaleString('es-MX')} <span style={{ fontSize: 12, fontWeight: 400, color: '#6B7280' }}>MXN</span></>
+                            : <span style={{ fontSize: 14, color: '#9CA3AF' }}>Consultar precio</span>
+                          }
+                        </p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        {medico.latitude && medico.longitude && (
-                          <button
-                            onClick={() => setShowMapModal(medico)}
-                            className="h-10 px-3.5 bg-white border border-[#E2E8F0] rounded-xl text- font-medium text-[#475569] hover:bg-[#F8FAFC] transition-colors hidden sm:flex items-center gap-1.5"
-                          >
-                            <MapPin size={16} /> Mapa
-                          </button>
-                        )}
+
+                      <div className="card-footer-btns" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <button
+                          className="btn-mapa"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setShowMapModal(medico)
+                          }}
+                          aria-label={`Ver ubicación de ${medico.full_name} en mapa`}
+                        >
+                          <MapPin size={15} /> Mapa
+                        </button>
                         <Link
                           href={`/doctor/${medico.id}`}
-                          className="h-10 px-5 bg-[#0F172A] text-white rounded-xl text- font-medium hover:bg-[#1E293B] active:bg-black transition-colors flex items-center"
+                          className="btn-ver-perfil"
+                          onClick={(e) => e.stopPropagation()}
                         >
                           Ver perfil
                         </Link>
@@ -482,33 +955,134 @@ function BuscarContent() {
         </div>
       </main>
 
-      {/* Map Modal */}
+{/* ── MODAL MAPA ─────────────────────────────────────────────────────── */}
       {showMapModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowMapModal(null)}>
-          <div className="bg-white rounded- w-full max-w- h- flex flex-col overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between p-5 border-b border-[#E2E8F0]">
-              <div>
-                <h3 className="text- font-semibold text-[#0F172A]">{showMapModal.full_name}</h3>
-                <p className="text- text-[#64748B] mt-0.5">{showMapModal.location_city}, {showMapModal.location_state}</p>
+        <div
+          className="modal-overlay"
+          onClick={() => setShowMapModal(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Ubicación de ${showMapModal.full_name}`}
+        >
+          <div
+            className="scale-in"
+            style={{
+              background: '#fff', borderRadius: 20,
+              width: '100%', maxWidth: 900, height: '85vh',
+              position: 'relative', overflow: 'hidden',
+              display: 'flex', flexDirection: 'column',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header limpio */}
+            <div style={{
+              padding: '14px 16px',
+              borderBottom: '1px solid #E5E7EB',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              gap: 12,
+            }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <h3 style={{ 
+                  fontSize: 16, fontWeight: 800, color: '#1E3A5F',
+                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                  margin: 0,
+                }}>
+                  {showMapModal.full_name}
+                </h3>
+                <p style={{ 
+                  fontSize: 12, color: '#6B7280', margin: '2px 0 0',
+                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                }}>
+                  {showMapModal.location_city}, {showMapModal.location_state}
+                </p>
               </div>
-              <div className="flex items-center gap-2">
-                <a
-                  href={`https://www.google.com/maps/dir/?api=1&destination=${showMapModal.latitude},${showMapModal.longitude}`}
-                  target="_blank"
-                  className="h-9 px-3.5 bg-[#0F172A] text-white rounded-xl text- font-medium hover:bg-[#1E293B] transition-colors inline-flex items-center gap-1.5"
-                >
-                  <Navigation size={14} /> Ruta
-                </a>
-                <button onClick={() => setShowMapModal(null)} className="w-9 h-9 rounded-xl bg-[#F1F5F9] hover:bg-[#E2E8F0] flex items-center justify-center transition-colors">
-                  <X size={18} className="text-[#475569]" />
-                </button>
-              </div>
+              <button
+                onClick={() => setShowMapModal(null)}
+                aria-label="Cerrar"
+                style={{
+                  background: '#F3F4F6', border: 'none', borderRadius: 8,
+                  width: 32, height: 32, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <X size={18} color="#4B5563" />
+              </button>
             </div>
-            <iframe
-              src={`https://www.google.com/maps?q=${showMapModal.latitude},${showMapModal.longitude}&z=16&output=embed`}
-              className="flex-1 w-full border-0"
-              loading="lazy"
-            />
+
+            {/* Mapa */}
+            <div style={{ flex: 1 }}>
+              <iframe
+                src={showMapModal.clinic_lat && showMapModal.clinic_lng
+                  ? `https://www.openstreetmap.org/export/embed.html?bbox=${Number(showMapModal.clinic_lng) - 0.005},${Number(showMapModal.clinic_lat) - 0.005},${Number(showMapModal.clinic_lng) + 0.005},${Number(showMapModal.clinic_lat) + 0.005}&layer=mapnik&marker=${showMapModal.clinic_lat},${showMapModal.clinic_lng}`
+                  : `https://www.openstreetmap.org/export/embed.html?bbox=-99.2,19.3,-99.0,19.5&layer=mapnik`
+                }
+                width="100%"
+                height="100%"
+                style={{ border: 0 }}
+                loading="lazy"
+                title={`Mapa de ${showMapModal.full_name}`}
+              />
+            </div>
+
+            {/* Botón sticky abajo */}
+            <div style={{
+              padding: '12px 16px', background: '#fff',
+              borderTop: '1px solid #E5E7EB',
+            }}>
+              <button
+  onClick={() => {
+    setShowMapModal(null)
+    setTimeout(() => setShowActionSheet(true), 150)
+  }}
+  style={{
+    width: '100%', padding: '14px',
+    background: '#2A9D8F', color: 'white',
+    border: 'none', borderRadius: 12,
+    fontSize: 15, fontWeight: 700,
+    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+    cursor: 'pointer',
+  }}
+>
+  <Navigation size={18} /> Cómo llegar
+</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bottom Sheet */}
+      {showActionSheet && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 200,
+            background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-end',
+          }}
+          onClick={() => setShowActionSheet(false)}
+        >
+          <div
+            style={{
+              background: '#fff', width: '100%', maxWidth: 500, margin: '0 auto',
+              borderRadius: '20px 20px 0 0', padding: '20px 16px 24px',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ width: 36, height: 4, background: '#D1D5DB', borderRadius: 2, margin: '0 auto 16px' }} />
+            <h4 style={{ fontSize: 17, fontWeight: 800, margin: '0 0 16px' }}>Abrir con</h4>
+            
+            <a href={`https://www.google.com/maps/dir/?api=1&destination=${showMapModal?.clinic_lat},${showMapModal?.clinic_lng}`} target="_blank" onClick={() => setShowActionSheet(false)} style={{display:'flex',alignItems:'center',gap:12,padding:'14px',background:'#F9FAFB',borderRadius:12,textDecoration:'none',color:'#1F2937',fontWeight:600,marginBottom:8}}>
+              <div style={{width:32,height:32,borderRadius:8,background:'#4285F4',display:'flex',alignItems:'center',justifyContent:'center',color:'white'}}>→</div>Google Maps
+            </a>
+            
+            <a href={`https://waze.com/ul?ll=${showMapModal?.clinic_lat},${showMapModal?.clinic_lng}&navigate=yes`} target="_blank" onClick={() => setShowActionSheet(false)} style={{display:'flex',alignItems:'center',gap:12,padding:'14px',background:'#F9FAFB',borderRadius:12,textDecoration:'none',color:'#1F2937',fontWeight:600,marginBottom:8}}>
+              <div style={{width:32,height:32,borderRadius:8,background:'#33CCFF',display:'flex',alignItems:'center',justifyContent:'center',color:'white'}}>→</div>Waze
+            </a>
+            
+            <a href={`http://maps.apple.com/?daddr=${showMapModal?.clinic_lat},${showMapModal?.clinic_lng}`} target="_blank" onClick={() => setShowActionSheet(false)} style={{display:'flex',alignItems:'center',gap:12,padding:'14px',background:'#F9FAFB',borderRadius:12,textDecoration:'none',color:'#1F2937',fontWeight:600,marginBottom:12}}>
+              <div style={{width:32,height:32,borderRadius:8,background:'#000',display:'flex',alignItems:'center',justifyContent:'center',color:'white'}}>→</div>Apple Maps
+            </a>
+            
+            <button onClick={() => setShowActionSheet(false)} style={{width:'100%',padding:'14px',background:'#F3F4F6',border:'none',borderRadius:12,fontWeight:600,color:'#4B5563',cursor:'pointer'}}>Cancelar</button>
           </div>
         </div>
       )}
@@ -521,8 +1095,8 @@ function BuscarContent() {
 export default function BuscarPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-[#FAFBFC] flex items-center justify-center">
-        <Loader2 className="w-6 h-6 animate-spin text-[#1E3A5F]" />
+      <div style={{ minHeight: '100vh', background: '#F9FAFB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Loader2 size={28} color="#1E3A5F" style={{ animation: 'spin .8s linear infinite' }} />
       </div>
     }>
       <BuscarContent />

@@ -273,7 +273,7 @@ export default function RegistroMedico() {
   useEffect(() => {
     if (cpData) {
       setForm(f => ({
-       ...f,
+      ...f,
         estado: cpData.estado,
         ciudad: cpData.municipio,
         colonia: cpData.colonias.length === 1? cpData.colonias[0].nombre : f.colonia
@@ -361,6 +361,37 @@ export default function RegistroMedico() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Error en el registro')
 
+      // GEOCODIFICACIÓN AUTOMÁTICA - Si hay dirección, obtener coordenadas
+      if (form.direccion && form.direccion.trim() && data.doctorId) {
+        try {
+          const fullAddress = `${form.direccion}, ${form.colonia}, ${form.ciudad}, ${form.estado}, ${form.cp}, México`
+
+          const geoRes = await fetch('/api/geocode', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ address: fullAddress })
+          })
+
+          if (geoRes.ok) {
+            const geoData = await geoRes.json()
+            if (geoData.lat && geoData.lng) {
+              await fetch('/api/update-doctor-location', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  doctorId: data.doctorId,
+                  lat: geoData.lat,
+                  lng: geoData.lng,
+                  formattedAddress: geoData.formatted_address || fullAddress
+                })
+              })
+            }
+          }
+        } catch (geoError) {
+          console.error('Geocodificación falló (no crítico):', geoError)
+        }
+      }
+
       setSuccess(true)
     } catch (e: any) {
       setError(e.message)
@@ -372,11 +403,11 @@ export default function RegistroMedico() {
  if (success) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-[#EEF2FF] to-white flex items-center justify-center p-4">
-        <div className="w-full max-w- bg-white rounded- shadow-xl p-8 md:p-12 text-center">
+        <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 md:p-12 text-center">
           <div className="w-20 h-20 bg-[#1E3A5F] rounded-full flex items-center justify-center mx-auto mb-6">
             <Mail size={36} className="text-white" />
           </div>
-          <h1 className="text- font-black text-[#1E3A5F] mb-3" style={{ fontFamily: 'Fraunces, serif' }}>
+          <h1 className="text-2xl font-black text-[#1E3A5F] mb-3" style={{ fontFamily: 'Fraunces, serif' }}>
             Revisa tu email
           </h1>
           <p className="text-[#374151] mb-2">
@@ -386,7 +417,7 @@ export default function RegistroMedico() {
           <div className="bg-[#F0FDF4] border border-[#BBF7D0] rounded-xl p-4 mb-6 text-left">
             <p className="text-sm text-[#166534] font-medium mb-1">¡Ya casi terminas!</p>
             <ol className="text-sm text-[#15803D] space-y-1 list-decimal list-inside">
-              <li>Te enviamos un email de confirmación.</li> 
+              <li>Te enviamos un email de confirmación.</li>
               <li>Da clic en el link de confirmación para activar tu perfil</li>
               <li>Completa tu perfil y empieza a recibir pacientes hoy mismo.</li>
             </ol>
@@ -404,21 +435,21 @@ export default function RegistroMedico() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#EEF2FF] to-white pt-20">
-      <div className="max-w-[560px] mx-auto px-4 pb-16">
+      <div className="max-w-xl mx-auto px-4 pb-16">
         {/* Header */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-block mb-4">
-            <span className="text-[40px] font-black text-[#1E3A5F]" style={{ fontFamily: 'Fraunces, serif', letterSpacing: '-1px' }}>Salu</span>
-            <span className="text-[40px] font-semibold text-[#2A9D8F]" style={{ fontFamily: 'Fraunces, serif', letterSpacing: '-1px' }}>rama</span>
+            <span className="text-6xl font-black text-[#1E3A5F]" style={{ fontFamily: 'Fraunces, serif', letterSpacing: '-1px' }}>Salu</span>
+            <span className="text-6xl font-semibold text-[#2A9D8F]" style={{ fontFamily: 'Fraunces, serif', letterSpacing: '-1px' }}>rama</span>
           </Link>
-          <h1 className="text-[26px] font-black text-[#1E3A5F] mb-3" style={{ fontFamily: 'Fraunces, serif' }}>
-            Haz crecer tu consulta 
+          <h1 className="text- font-black text-[#1E3A5F] mb-3" style={{ fontFamily: 'Fraunces, serif' }}>
+           Haz visible tu experiencia profesional
           </h1>
           <div className="inline-flex items-center gap-2 bg-[#1E3A5F] text-white px-4 py-1.5 rounded-full text-xs font-bold mb-2">
             <CheckCircle size={14} />
-            Haz visible tu experiencia profesional 
+           Aumenta tu consulta gratis
           </div>
-          <p className="text-xs text-[#6B7280]">Perfil profesional gratuito • Configuración en minutos</p>
+          <p className="text-xs text-[#6B7280]">Perfil médico • Configuración en minutos</p>
         </div>
 
         {/* Progress */}
@@ -433,7 +464,7 @@ export default function RegistroMedico() {
                 }`}>
                   {step > n? <CheckCircle size={18} /> : n}
                 </div>
-                <span className={`text-[11px] mt-1.5 font-medium ${step >= n? 'text-[#1E3A5F]' : 'text-[#9CA3AF]'}`}>
+                <span className={`text- mt-1.5 font-medium ${step >= n? 'text-[#1E3A5F]' : 'text-[#9CA3AF]'}`}>
                   {n === 1? 'Cuenta' : n === 2? 'Perfil' : 'Ubicación'}
                 </span>
               </div>

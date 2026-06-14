@@ -2,11 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabaseClient'
+import { supabase } from '@/lib/supabaseClient'
 import { Loader2, CheckCircle, AlertCircle } from 'lucide-react'
 
 export default function ConfirmPage() {
-  const supabase = createClient()
   const router = useRouter()
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
   const [message, setMessage] = useState('Confirmando tu email...')
@@ -39,7 +38,7 @@ export default function ConfirmPage() {
         setMessage('¡Email confirmado! Activando tu perfil...')
 
         setTimeout(() => {
-          router.push('/editar-perfil?welcome=true')
+          router.push('/dashboard/editar-perfil?welcome=true')
         }, 1500)
 
       } catch (err: any) {

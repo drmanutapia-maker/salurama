@@ -2,12 +2,11 @@
 
 import { Suspense, useState, useEffect, useCallback } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabaseClient'
+import { supabase } from '@/lib/supabaseClient'
 import { CheckCircle2, XCircle, Star, Loader2, ShieldCheck, Calendar, User, Sparkles, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 
 function VerifyReviewContent() {
-  const supabase = createClient()
   const searchParams = useSearchParams()
   const router = useRouter()
 

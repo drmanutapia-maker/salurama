@@ -14,7 +14,10 @@ module.exports = {
         // ========================================
         
         // Primario: Azul profundo (Autoridad, Confianza)
+        // DEFAULT + foreground added for shadcn/ui compatibility (bg-primary works alongside bg-primary-500)
         primary: {
+          DEFAULT: 'hsl(var(--primary))',
+          foreground: 'hsl(var(--primary-foreground))',
           50: '#E8ECF3',
           100: '#C5D0E0',
           200: '#9FB0C9',
@@ -27,9 +30,11 @@ module.exports = {
           900: '#0D1829',
           950: '#0A121F',
         },
-        
+
         // Secundario: Verde menta (Salud, Verificación, Frescura)
         secondary: {
+          DEFAULT: 'hsl(var(--secondary))',
+          foreground: 'hsl(var(--secondary-foreground))',
           50: '#E8F7F5',
           100: '#C5EAE5',
           200: '#9FD8CD',
@@ -102,6 +107,33 @@ module.exports = {
           600: '#2563EB',
           700: '#1D4ED8',
         },
+
+        // ── shadcn/ui semantic tokens (CSS-variable backed) ──────────────
+        background: 'hsl(var(--background))',
+        foreground: 'hsl(var(--foreground))',
+        card: {
+          DEFAULT: 'hsl(var(--card))',
+          foreground: 'hsl(var(--card-foreground))',
+        },
+        popover: {
+          DEFAULT: 'hsl(var(--popover))',
+          foreground: 'hsl(var(--popover-foreground))',
+        },
+        muted: {
+          DEFAULT: 'hsl(var(--muted))',
+          foreground: 'hsl(var(--muted-foreground))',
+        },
+        accent: {
+          DEFAULT: 'hsl(var(--accent))',
+          foreground: 'hsl(var(--accent-foreground))',
+        },
+        destructive: {
+          DEFAULT: 'hsl(var(--destructive))',
+          foreground: 'hsl(var(--destructive-foreground))',
+        },
+        border: 'hsl(var(--border))',
+        input: 'hsl(var(--input))',
+        ring: 'hsl(var(--ring))',
       },
       
       fontFamily: {
@@ -128,5 +160,5 @@ module.exports = {
       },
     },
   },
-  plugins: [],
+  plugins: [require('tailwindcss-animate')],
 }

@@ -1,18 +1,15 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabaseClient'
+import { supabase } from '@/lib/supabaseClient'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { Turnstile } from '@marsidev/react-turnstile'
 import {
   MapPin, Star, ShieldCheck, Shield, ExternalLink, Copy, CheckCircle, X,
-  ChevronDown, ChevronUp, Briefcase, GraduationCap, Heart, Share2, ArrowLeft,
-  Calendar, MessageCircle, DollarSign, CreditCard, Info
+  ChevronDown, Briefcase, GraduationCap, Heart, Calendar, DollarSign, Info,
+  Clock, Navigation
 } from 'lucide-react'
 
-// ─────────────────────────────────────────────
-// INTERFACES
-// ─────────────────────────────────────────────
 interface Medico {
   id: string
   full_name: string
@@ -37,6 +34,8 @@ interface Medico {
   accepts_insurance: boolean
   payment_methods: string[] | null
   clinic_name: string | null
+  clinic_lat: number | null
+  clinic_lng: number | null
   clinic_address: string | null
   clinic_phone: string | null
   whatsapp_available: boolean
@@ -45,6 +44,7 @@ interface Medico {
   specialty_council: string | null
   min_patient_age: number | null
   max_patient_age: number | null
+  horario: Record<string, any> | null
 }
 
 interface License {
@@ -83,9 +83,6 @@ interface Review {
   created_at: string
 }
 
-// ─────────────────────────────────────────────
-// HELPER FUNCTIONS
-// ─────────────────────────────────────────────
 const normalizarTexto = (texto: string): string => {
   return texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 }
@@ -96,9 +93,9 @@ const parseLangs = (raw: string[] | string | null): string[] => {
   try { return JSON.parse(raw) } catch { return [raw] }
 }
 
-// ─────────────────────────────────────────────
-// COMPONENTES PEQUEÑOS
-// ─────────────────────────────────────────────
+const DIAS_SEMANA = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']
+const DIAS_LABELS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+
 function CopyButton({ text, label }: { text: string; label: string }) {
   const [copied, setCopied] = useState(false)
   const handleCopy = async () => {
@@ -109,7 +106,7 @@ function CopyButton({ text, label }: { text: string; label: string }) {
   return (
     <button
       onClick={handleCopy}
-      style={{ background: 'none', border: 'none', cursor: 'pointer', color: copied? '#059669' : '#9CA3AF', padding: 4, display: 'flex', alignItems: 'center' }}
+      style={{ background: 'none', border: 'none', cursor: 'pointer', color: copied? '#10B981' : '#9CA3AF', padding: 4, display: 'flex', alignItems: 'center' }}
       type="button"
     >
       {copied? <CheckCircle size={14} /> : <Copy size={14} />}
@@ -133,9 +130,6 @@ function InfoModal({ title, children, onClose }: { title: string; children: Reac
   )
 }
 
-// ─────────────────────────────────────────────
-// MODAL DE CITA - VERSIÓN SEGURA
-// ─────────────────────────────────────────────
 function AppointmentModal({
   medico,
   onClose,
@@ -156,17 +150,93 @@ function AppointmentModal({
     patient_email: '',
     patient_phone: '',
     reason: '',
-    honeypot: '' // Campo trampa para bots
+    honeypot: ''
   })
 
-  const timeSlots = ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '16:00', '16:30', '17:00', '17:30', '18:00']
+  const horarioParsed = (() => {
+    if (!medico?.horario) return null
+    let horario = medico.horario
+    if (typeof horario === 'string') {
+      try { horario = JSON.parse(horario) } catch { return null }
+    }
+    const normalizado: Record<string, any> = {}
+    Object.keys(horario).forEach(key => {
+      const keyNormalizada = key.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+      normalizado[keyNormalizada] = horario[key]
+    })
+    return normalizado
+  })()
+
+  const getTimeSlotsForDate = (dateStr: string) => {
+    if (!horarioParsed) return []
+    const date = new Date(dateStr + 'T00:00:00')
+    const dayIndex = date.getDay()
+    const diaNombre = DIAS_SEMANA[dayIndex]
+    const horarioDia = horarioParsed[diaNombre]
+    if (!horarioDia) return []
+    const inicio = horarioDia.inicio || horarioDia.start
+    const fin = horarioDia.fin || horarioDia.end
+    const abierto = horarioDia.abierto?? horarioDia.open?? horarioDia.activo??!!(inicio && fin)
+    if (!abierto ||!inicio ||!fin) return []
+    const slots: string[] = []
+    const [startH, startM] = inicio.split(':').map(Number)
+    const [endH, endM] = fin.split(':').map(Number)
+    const lunchStart = horarioDia.comida_inicio || horarioDia.lunch_start || horarioDia.inicio_comida || horarioDia.descanso_inicio
+    const lunchEnd = horarioDia.comida_fin || horarioDia.lunch_end || horarioDia.fin_comida || horarioDia.descanso_fin
+    const tieneComida = horarioDia.tiene_comida || horarioDia.has_lunch || (!!lunchStart &&!!lunchEnd)
+    let currentH = startH
+    let currentM = startM
+    while (currentH < endH || (currentH === endH && currentM < endM)) {
+      const timeStr = `${String(currentH).padStart(2, '0')}:${String(currentM).padStart(2, '0')}`
+      let enComida = false
+      if (tieneComida && lunchStart && lunchEnd) {
+        const [lunchSH, lunchSM] = lunchStart.split(':').map(Number)
+        const [lunchEH, lunchEM] = lunchEnd.split(':').map(Number)
+        const currentMinutes = currentH * 60 + currentM
+        const lunchStartMinutes = lunchSH * 60 + lunchSM
+        const lunchEndMinutes = lunchEH * 60 + lunchEM
+        if (currentMinutes >= lunchStartMinutes && currentMinutes < lunchEndMinutes) {
+          enComida = true
+        }
+      }
+      if (!enComida) {
+        slots.push(timeStr)
+      }
+      currentM += 30
+      if (currentM >= 60) {
+        currentM = 0
+        currentH += 1
+      }
+    }
+
+    const hoy = new Date()
+    const hoyStr = hoy.toISOString().split('T')[0]
+    if (dateStr === hoyStr) {
+      const ahoraMinutos = hoy.getHours() * 60 + hoy.getMinutes()
+      const bufferMinutos = 30
+      const corteMinutos = ahoraMinutos + bufferMinutos
+      return slots.filter(timeStr => {
+        const [h, m] = timeStr.split(':').map(Number)
+        return (h * 60 + m) > corteMinutos
+      })
+    }
+
+    return slots
+  }
+
+  const timeSlots = getTimeSlotsForDate(formData.requested_date)
+  const selectedDate = new Date(formData.requested_date + 'T00:00:00')
+  const dayName = DIAS_LABELS[selectedDate.getDay()]
+  const isDayClosed = timeSlots.length === 0
+  const hoyStr = new Date().toISOString().split('T')[0]
+  const esHoy = formData.requested_date === hoyStr
 
   if (submitted) {
     return (
       <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={onClose}>
         <div style={{ background: '#fff', borderRadius: 20, padding: 40, maxWidth: 500, width: '100%', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
-          <div style={{ width: 64, height: 64, background: '#F0FDF4', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
-            <CheckCircle size={32} color="#059669" />
+          <div style={{ width: 64, height: 64, background: '#ECFDF5', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+            <CheckCircle size={32} color="#10B981" />
           </div>
           <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 900, color: '#1E3A5F', marginBottom: 12 }}>
             ¡Revisa tu email!
@@ -178,8 +248,10 @@ function AppointmentModal({
             <p style={{ fontSize: 13, fontWeight: 600, color: '#1E3A5F', marginBottom: 8 }}>{medico.full_name}</p>
             <p style={{ fontSize: 13, color: '#6B7280' }}>{medico.specialty}</p>
             <p style={{ fontSize: 13, color: '#6B7280', marginTop: 8 }}>{formData.requested_date} - {formData.requested_time}</p>
-            {medico.consultation_price_general && (
-              <p style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>Costo: ${medico.consultation_price_general} MXN</p>
+            {(medico.consultation_price_first_time || medico.consultation_price_general) && (
+              <p style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>
+                Costo: ${medico.consultation_price_first_time || medico.consultation_price_general} MXN
+              </p>
             )}
           </div>
           <button onClick={onClose} style={{ width: '100%', background: '#1E3A5F', color: '#fff', border: 'none', borderRadius: 12, padding: 14, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
@@ -193,9 +265,7 @@ function AppointmentModal({
   const handleSubmit = async () => {
     setSubmitting(true)
     setError('')
-
     try {
-      // Llamar a nuestra API segura en lugar de insertar directo
       const response = await fetch('/api/citas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -212,13 +282,10 @@ function AppointmentModal({
           formLoadTime: Date.now() - formLoadTime,
         }),
       })
-
       const result = await response.json()
-
       if (!response.ok) {
         throw new Error(result.error || 'Error al agendar')
       }
-
       setSubmitted(true)
     } catch (error: any) {
       setError(error.message || 'Error al solicitar la cita. Intenta de nuevo.')
@@ -241,137 +308,80 @@ function AppointmentModal({
             <X size={20} />
           </button>
         </div>
-
-        {/* Progress Bar */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 32 }}>
           {[1, 2, 3].map(s => (
             <div key={s} style={{ flex: 1, height: 4, background: s <= step? '#8B5CF6' : '#E5E7EB', borderRadius: 2 }} />
           ))}
         </div>
-
         {error && (
           <div style={{ background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 8, padding: 12, marginBottom: 16 }}>
             <p style={{ fontSize: 13, color: '#DC2626' }}>{error}</p>
           </div>
         )}
-
-        {/* Campo honeypot invisible para bots */}
-        <input
-          type="text"
-          name="website"
-          value={formData.honeypot}
-          onChange={e => setFormData({...formData, honeypot: e.target.value })}
-          style={{ position: 'absolute', left: '-9999px', opacity: 0, height: 0 }}
-          tabIndex={-1}
-          autoComplete="off"
-        />
-
-        {/* STEP 1: Calendario */}
+        <input type="text" name="website" value={formData.honeypot} onChange={e => setFormData({...formData, honeypot: e.target.value })} style={{ position: 'absolute', left: '-9999px', opacity: 0, height: 0 }} tabIndex={-1} autoComplete="off" />
         {step === 1 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 8, color: '#1E3A5F' }}>Fecha</label>
-              <input
-                type="date"
-                value={formData.requested_date}
-                onChange={e => setFormData({...formData, requested_date: e.target.value })}
-                min={new Date().toISOString().split('T')[0]}
-                style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: 12, fontSize: 14 }}
-              />
+              <input type="date" value={formData.requested_date} onChange={e => setFormData({...formData, requested_date: e.target.value, requested_time: '' })} min={new Date().toISOString().split('T')[0]} style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: 12, fontSize: 14 }} />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 8, color: '#1E3A5F' }}>Hora disponible</label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-                {timeSlots.map(time => (
-                  <button
-                    key={time}
-                    type="button"
-                    onClick={() => setFormData({...formData, requested_time: time })}
-                    style={{
-                      padding: '10px 12px',
-                      border: formData.requested_time === time? '2px solid #8B5CF6' : '1px solid #E5E7EB',
-                      borderRadius: 8,
-                      background: formData.requested_time === time? '#F5F3FF' : '#fff',
-                      color: formData.requested_time === time? '#8B5CF6' : '#4A5568',
-                      fontSize: 13,
-                      fontWeight: 600,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    {time}
-                  </button>
-                ))}
-              </div>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 8, color: '#1E3A5F' }}>
+                Hora disponible - {dayName}
+                {isDayClosed && <span style={{ color: '#DC2626', fontWeight: 400 }}> (cerrado)</span>}
+              </label>
+              {isDayClosed? (
+                <div style={{ padding: '24px', background: '#FEF2F2', borderRadius: 12, textAlign: 'center' }}>
+                  <p style={{ fontSize: 14, color: '#DC2626', fontWeight: 600 }}>
+                    {esHoy? 'No hay horarios disponibles hoy' : 'No hay horarios disponibles este día'}
+                  </p>
+                  <p style={{ fontSize: 12, color: '#991B1B', marginTop: 4 }}>
+                    {esHoy? 'Selecciona mañana' : 'Selecciona otra fecha'}
+                  </p>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                  {timeSlots.map(time => (
+                    <button key={time} type="button" onClick={() => setFormData({...formData, requested_time: time })} style={{ padding: '10px 12px', border: formData.requested_time === time? '2px solid #8B5CF6' : '1px solid #E5E7EB', borderRadius: 8, background: formData.requested_time === time? '#F5F3FF' : '#fff', color: formData.requested_time === time? '#8B5CF6' : '#4A5568', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                      {time}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
-            <button
-              onClick={() => setStep(2)}
-              disabled={!formData.requested_time}
-              style={{ background:!formData.requested_time? '#9CA3AF' : '#8B5CF6', color: '#fff', border: 'none', borderRadius: 12, padding: 14, fontSize: 14, fontWeight: 600, cursor:!formData.requested_time? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-            >
+            <button onClick={() => setStep(2)} disabled={!formData.requested_time || isDayClosed} style={{ background: (!formData.requested_time || isDayClosed)? '#9CA3AF' : '#8B5CF6', color: '#fff', border: 'none', borderRadius: 12, padding: 14, fontSize: 14, fontWeight: 600, cursor: (!formData.requested_time || isDayClosed)? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
               Continuar <ChevronDown size={16} />
             </button>
           </div>
         )}
-
-        {/* STEP 2: Datos del Paciente */}
         {step === 2 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#1E3A5F' }}>Nombre completo *</label>
-              <input
-                type="text"
-                value={formData.patient_name}
-                onChange={e => setFormData({...formData, patient_name: e.target.value })}
-                style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: 12, fontSize: 14 }}
-                placeholder="Tu nombre completo"
-              />
+              <input type="text" value={formData.patient_name} onChange={e => setFormData({...formData, patient_name: e.target.value })} style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: 12, fontSize: 14 }} placeholder="Tu nombre completo" />
             </div>
             <div>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#1E3A5F' }}>Email *</label>
-              <input
-                type="email"
-                value={formData.patient_email}
-                onChange={e => setFormData({...formData, patient_email: e.target.value })}
-                style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: 12, fontSize: 14 }}
-                placeholder="tu@email.com"
-              />
+              <input type="email" value={formData.patient_email} onChange={e => setFormData({...formData, patient_email: e.target.value })} style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: 12, fontSize: 14 }} placeholder="tu@email.com" />
             </div>
             <div>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#1E3A5F' }}>Teléfono *</label>
-              <input
-                type="tel"
-                value={formData.patient_phone}
-                onChange={e => setFormData({...formData, patient_phone: e.target.value })}
-                style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: 12, fontSize: 14 }}
-                placeholder="55 1234 5678"
-              />
+              <input type="tel" value={formData.patient_phone} onChange={e => setFormData({...formData, patient_phone: e.target.value })} style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: 12, fontSize: 14 }} placeholder="55 1234 5678" />
             </div>
             <div>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#1E3A5F' }}>Motivo de consulta (opcional)</label>
-              <textarea
-                value={formData.reason}
-                onChange={e => setFormData({...formData, reason: e.target.value })}
-                rows={3}
-                style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: 12, fontSize: 14, resize: 'vertical' }}
-                placeholder="Breve descripción..."
-              />
+              <textarea value={formData.reason} onChange={e => setFormData({...formData, reason: e.target.value })} rows={3} style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: 12, fontSize: 14, resize: 'vertical' }} placeholder="Breve descripción..." />
             </div>
             <div style={{ display: 'flex', gap: 12 }}>
               <button onClick={() => setStep(1)} style={{ flex: 1, background: '#F3F4F6', color: '#6B7280', border: 'none', borderRadius: 12, padding: 14, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
                 Atrás
               </button>
-              <button
-                onClick={() => setStep(3)}
-                disabled={!formData.patient_name ||!formData.patient_email ||!formData.patient_phone}
-                style={{ flex: 1, background:!formData.patient_name ||!formData.patient_email ||!formData.patient_phone? '#9CA3AF' : '#8B5CF6', color: '#fff', border: 'none', borderRadius: 12, padding: 14, fontSize: 14, fontWeight: 600, cursor:!formData.patient_name ||!formData.patient_email ||!formData.patient_phone? 'not-allowed' : 'pointer' }}
-              >
+              <button onClick={() => setStep(3)} disabled={!formData.patient_name ||!formData.patient_email ||!formData.patient_phone} style={{ flex: 1, background:!formData.patient_name ||!formData.patient_email ||!formData.patient_phone? '#9CA3AF' : '#8B5CF6', color: '#fff', border: 'none', borderRadius: 12, padding: 14, fontSize: 14, fontWeight: 600, cursor:!formData.patient_name ||!formData.patient_email ||!formData.patient_phone? 'not-allowed' : 'pointer' }}>
                 Continuar
               </button>
             </div>
           </div>
         )}
-
-        {/* STEP 3: Resumen y Verificación */}
         {step === 3 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div style={{ background: '#F9FAFB', borderRadius: 12, padding: 16 }}>
@@ -393,24 +403,17 @@ function AppointmentModal({
                   <span style={{ fontSize: 13, color: '#6B7280' }}>Hora</span>
                   <span style={{ fontSize: 13, fontWeight: 600, color: '#1E3A5F' }}>{formData.requested_time}</span>
                 </div>
-                {medico.consultation_price_general && (
+                {(medico.consultation_price_first_time || medico.consultation_price_general) && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 12, borderTop: '1px solid #E5E7EB', marginTop: 8 }}>
                     <span style={{ fontSize: 13, color: '#6B7280' }}>Costo estimado</span>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#1E3A5F' }}>${medico.consultation_price_general} MXN</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#1E3A5F' }}>${medico.consultation_price_first_time || medico.consultation_price_general} MXN</span>
                   </div>
                 )}
               </div>
             </div>
-
-            {/* Turnstile - Protección contra bots */}
             <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0' }}>
-              <Turnstile
-                siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
-                onSuccess={setTurnstileToken}
-                options={{ theme: 'light' }}
-              />
+              <Turnstile siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!} onSuccess={setTurnstileToken} options={{ theme: 'light' }} />
             </div>
-
             <p style={{ fontSize: 11, color: '#6B7280', lineHeight: 1.6 }}>
               <Info size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} />
               Recibirás un email para confirmar. Te enviaremos un recordatorio 24hrs antes.
@@ -419,11 +422,7 @@ function AppointmentModal({
               <button onClick={() => setStep(2)} style={{ flex: 1, background: '#F3F4F6', color: '#6B7280', border: 'none', borderRadius: 12, padding: 14, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
                 Atrás
               </button>
-              <button
-                onClick={handleSubmit}
-                disabled={submitting ||!turnstileToken}
-                style={{ flex: 1, background: submitting ||!turnstileToken? '#9CA3AF' : '#8B5CF6', color: '#fff', border: 'none', borderRadius: 12, padding: 14, fontSize: 14, fontWeight: 600, cursor: submitting ||!turnstileToken? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-              >
+              <button onClick={handleSubmit} disabled={submitting ||!turnstileToken} style={{ flex: 1, background: submitting ||!turnstileToken? '#9CA3AF' : '#8B5CF6', color: '#fff', border: 'none', borderRadius: 12, padding: 14, fontSize: 14, fontWeight: 600, cursor: submitting ||!turnstileToken? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                 {submitting? 'Confirmando...' : 'Confirmar Cita'}
               </button>
             </div>
@@ -434,11 +433,7 @@ function AppointmentModal({
   )
 }
 
-// ─────────────────────────────────────────────
-// COMPONENTE PRINCIPAL
-// ─────────────────────────────────────────────
 export default function DoctorProfilePage() {
-  const supabase = createClient()
   const { id } = useParams()
   const router = useRouter()
   const [medico, setMedico] = useState<Medico | null>(null)
@@ -473,12 +468,10 @@ export default function DoctorProfilePage() {
         const { data, error } = await supabase.from('doctors').select('*').eq('id', id as string).single()
         if (error ||!data) { setError(true); return }
         setMedico(data)
-
         const { data: { user } } = await supabase.auth.getUser()
         if (user?.email === data.email) {
           setIsOwner(true)
         }
-
         const [licRes, eduRes, expRes, condRes, revRes] = await Promise.all([
           supabase.from('doctor_licenses').select('*').eq('doctor_id', data.id),
           supabase.from('doctor_education').select('*').eq('doctor_id', data.id).order('graduation_year', { ascending: false }),
@@ -503,29 +496,32 @@ export default function DoctorProfilePage() {
     load()
   }, [id])
 
-  const handleShare = async () => {
-    if (navigator.share) {
-      await navigator.share({
-        title: `Dr. ${medico?.full_name}`,
-        text: `Reserva con el Dr. ${medico?.full_name} - ${medico?.specialty}`,
-        url: window.location.href
-      })
-    } else {
-      await navigator.clipboard.writeText(window.location.href)
-      alert('URL copiada al portapapeles')
-    }
-  }
-
   const yearsExp = medico?.years_experience?? medico?.years_of_experience?? null
   const langs = parseLangs(medico?.languages?? null)
-  const precioMostrar = medico?.consultation_price_general || null
+  const precioPrimera = medico?.consultation_price_first_time || null
+  const precioSubsecuente = medico?.consultation_price_general || null
   const tieneAcordeon = education.length > 0 || experience.length > 0 || conditions.length > 0
+  const direccionCompleta = medico?.clinic_address || medico?.address || `${medico?.location_neighborhood || ''}, ${medico?.location_city || ''}`.trim()
+
+  const horarioParsed = (() => {
+    if (!medico?.horario) return null
+    let horario = medico.horario
+    if (typeof horario === 'string') {
+      try { horario = JSON.parse(horario) } catch { return null }
+    }
+    const normalizado: Record<string, any> = {}
+    Object.keys(horario).forEach(key => {
+      const keyNormalizada = key.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+      normalizado[keyNormalizada] = horario[key]
+    })
+    return normalizado
+  })()
 
   if (loading) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif" }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;700&display=swap'); @keyframes spin { to { transform: rotate(360deg); } }`}</style>
       <div style={{ textAlign: 'center' }}>
-        <div style={{ width: 40, height: 40, border: '3px solid #EEF2FF', borderTopColor: '#8B5CF6', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
+        <div style={{ width: 40, height: 40, border: '3px solid #EDE9FE', borderTopColor: '#8B5CF6', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
         <p style={{ color: '#9CA3AF', fontSize: 14 }}>Cargando perfil...</p>
       </div>
     </div>
@@ -549,243 +545,246 @@ export default function DoctorProfilePage() {
         @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@600;900&family=DM+Sans:wght@300;400;500;700&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
-       .fade-up { animation: fadeUp 0.35s ease-out; }
+.fade-up { animation: fadeUp 0.35s ease-out; }
         @media (max-width: 767px) {.desktop-only { display: none!important; } }
         @media (min-width: 768px) {.mobile-only { display: none!important; } }
       `}</style>
-
-      {/* HEADER */}
-      <header style={{ position: 'fixed', top: 0, left: 0, right: 0, background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(12px)', borderBottom: '1px solid #E5E7EB', zIndex: 999, padding: '16px 24px' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <button onClick={() => router.back()} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, color: '#1E3A5F' }}>
-            <ArrowLeft size={20} />
-            <span style={{ fontSize: 14, fontWeight: 600 }}>Volver</span>
-          </button>
-          <button onClick={handleShare} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6B7280' }}>
-            <Share2 size={20} />
-          </button>
-        </div>
-      </header>
-
-      {/* MAIN CONTENT */}
-      <main style={{ paddingTop: 100, maxWidth: 1200, margin: '0 auto', padding: '100px 20px 120px' }}>
-
-        {isOwner && (
-          <div style={{ marginBottom: 20 }}>
-            <button
-              onClick={() => router.push('/dashboard')}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                color: '#3730A3',
-                fontSize: 14,
-                fontWeight: 600,
-                padding: 0
-              }}
-            >
-              ← Volver
-            </button>
-          </div>
-        )}
-
-        {/* HERO SECTION */}
-        <section className="fade-up" style={{ display: 'grid', gridTemplateColumns: isMobile? '1fr' : '1fr 1fr', gap: 32, alignItems: 'end', marginBottom: 48 }}>
-          <div style={{ position: 'relative', aspectRatio: isMobile? '1/1' : '3/4', borderRadius: 32, overflow: 'hidden', background: '#EEF2FF', maxWidth: isMobile? 300 : 400, margin: isMobile? '0 auto' : '0' }}>
+      <main style={{ paddingTop: 88, maxWidth: 1200, margin: '0 auto', padding: '88px 20px 120px' }}>
+        <section className="fade-up" style={{ display: 'grid', gridTemplateColumns: isMobile? '1fr' : '320px 1fr', gap: 40, alignItems: 'start', marginBottom: 48 }}>
+          <div style={{ position: 'relative', aspectRatio: isMobile? '1/1' : '4/5', borderRadius: 24, overflow: 'hidden', background: '#EDE9FE', width: '100%', maxWidth: isMobile? 280 : 320, margin: isMobile? '0 auto' : '0' }}>
             {medico.photo_url? (
-              <img
-                src={medico.photo_url}
-                alt={medico.full_name}
-                style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'pointer' }}
-                onClick={() => setShowPhotoModal(true)}
-              />
+              <img src={medico.photo_url} alt={medico.full_name} style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'pointer' }} onClick={() => setShowPhotoModal(true)} />
             ) : (
-              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #1E3A5F, #2A9D8F)', fontFamily: "'Fraunces', serif", fontSize: 72, fontWeight: 900, color: '#fff' }}>
+              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #1E3A5F, #2A9D8F)', fontFamily: "'Fraunces', serif", fontSize: 64, fontWeight: 900, color: '#fff' }}>
                 {(medico.full_name || '?')[0].toUpperCase()}
               </div>
             )}
             {(medico.professional_license || licenses.length > 0) && (
-              <div style={{ position: 'absolute', bottom: 24, left: 24, display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(42, 157, 143, 0.95)', backdropFilter: 'blur(8px)', padding: '8px 16px', borderRadius: 50 }}>
-                <ShieldCheck size={16} color="#fff" />
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Cédula verificable</span>
+              <div style={{ position: 'absolute', bottom: 16, left: 16, display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(42, 157, 143, 0.95)', backdropFilter: 'blur(8px)', padding: '6px 12px', borderRadius: 50 }}>
+                <ShieldCheck size={14} color="#fff" />
+                <span style={{ fontSize: 10, fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Cédula verificable</span>
               </div>
             )}
           </div>
-
           <div>
-            <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: isMobile? 32 : 48, fontWeight: 900, color: '#1E3A5F', marginBottom: 8, lineHeight: 1.1 }}>
+            <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: isMobile? 28 : 40, fontWeight: 900, color: '#1E3A5F', marginBottom: 8, lineHeight: 1.1 }}>
               {medico.full_name}
             </h1>
-            <p style={{ fontSize: 16, color: '#6B7280', marginBottom: 24 }}>{medico.specialty}{medico.sub_specialty && ` · ${medico.sub_specialty}`}</p>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
-              <div style={{ background: '#fff', borderRadius: 16, padding: 16, textAlign: 'center', border: '1px solid #E5E7EB' }}>
-                <p style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 900, color: '#1E3A5F' }}>{(medico.rating_avg || 0).toFixed(1)}</p>
+            <p style={{ fontSize: 15, color: '#6B7280', marginBottom: 24 }}>{medico.specialty}{medico.sub_specialty && ` · ${medico.sub_specialty}`}</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24, maxWidth: 400 }}>
+              <div style={{ background: '#fff', borderRadius: 12, padding: 14, textAlign: 'center', border: '1px solid #E5E7EB' }}>
+                <p style={{ fontFamily: "'Fraunces', serif", fontSize: 22, fontWeight: 900, color: '#1E3A5F' }}>{(medico.rating_avg || 0).toFixed(1)}</p>
                 <div style={{ display: 'flex', justifyContent: 'center', gap: 2, marginBottom: 4 }}>
                   {[1,2,3,4,5].map(s => (
-                    <Star key={s} size={12} fill={s <= Math.round(medico.rating_avg || 0)? '#F59E0B' : 'none'} color={s <= Math.round(medico.rating_avg || 0)? '#F59E0B' : '#E5E7EB'} />
+                    <Star key={s} size={11} fill={s <= Math.round(medico.rating_avg || 0)? '#F59E0B' : 'none'} color={s <= Math.round(medico.rating_avg || 0)? '#F59E0B' : '#E5E7EB'} />
                   ))}
                 </div>
                 <p style={{ fontSize: 10, color: '#9CA3AF', textTransform: 'uppercase', fontWeight: 600 }}>Rating</p>
               </div>
-              <div style={{ background: '#fff', borderRadius: 16, padding: 16, textAlign: 'center', border: '1px solid #E5E7EB' }}>
-                <p style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 900, color: '#1E3A5F' }}>{reviews.length}</p>
+              <div style={{ background: '#fff', borderRadius: 12, padding: 14, textAlign: 'center', border: '1px solid #E5E7EB' }}>
+                <p style={{ fontFamily: "'Fraunces', serif", fontSize: 22, fontWeight: 900, color: '#1E3A5F' }}>{reviews.length}</p>
                 <p style={{ fontSize: 10, color: '#9CA3AF', textTransform: 'uppercase', fontWeight: 600, marginTop: 8 }}>Reseñas</p>
               </div>
-              <div style={{ background: '#fff', borderRadius: 16, padding: 16, textAlign: 'center', border: '1px solid #E5E7EB' }}>
-                <p style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 900, color: '#1E3A5F' }}>{yearsExp || 'N/A'}</p>
+              <div style={{ background: '#fff', borderRadius: 12, padding: 14, textAlign: 'center', border: '1px solid #E5E7EB' }}>
+                <p style={{ fontFamily: "'Fraunces', serif", fontSize: 22, fontWeight: 900, color: '#1E3A5F' }}>{yearsExp || 'N/A'}</p>
                 <p style={{ fontSize: 10, color: '#9CA3AF', textTransform: 'uppercase', fontWeight: 600, marginTop: 8 }}>Años Exp.</p>
               </div>
             </div>
-
-            {precioMostrar && (
-              <div style={{ background: '#F5F3FF', borderRadius: 16, padding: 16, marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 40, height: 40, background: '#8B5CF6', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <DollarSign size={20} color="#fff" />
-                </div>
-                <div>
-                  <p style={{ fontSize: 11, color: '#9CA3AF', textTransform: 'uppercase', fontWeight: 600 }}>Consulta</p>
-                  <p style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 900, color: '#1E3A5F' }}>${precioMostrar} MXN</p>
+            {(precioPrimera || precioSubsecuente) && (
+              <div style={{ background: '#F5F3FF', borderRadius: 12, padding: 14, marginBottom: 20, display: 'inline-block' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 36, height: 36, background: '#8B5CF6', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <DollarSign size={18} color="#fff" />
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 10, color: '#9CA3AF', textTransform: 'uppercase', fontWeight: 600, marginBottom: 4 }}>Consulta</p>
+                    {precioPrimera && precioSubsecuente? (
+                      <div style={{ display: 'flex', gap: 16, alignItems: 'baseline' }}>
+                        <div>
+                          <p style={{ fontSize: 10, color: '#6B7280', marginBottom: 2 }}>Primera vez</p>
+                          <p style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 900, color: '#1E3A5F' }}>${precioPrimera}</p>
+                        </div>
+                        <div style={{ width: 1, height: 28, background: '#DDD6FE' }} />
+                        <div>
+                          <p style={{ fontSize: 10, color: '#6B7280', marginBottom: 2 }}>Subsecuente</p>
+                          <p style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 900, color: '#1E3A5F' }}>${precioSubsecuente}</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <p style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 900, color: '#1E3A5F' }}>${precioPrimera || precioSubsecuente} MXN</p>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
-
             {medico.location_city && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#6B7280', fontSize: 14 }}>
-                <MapPin size={16} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#6B7280', fontSize: 13 }}>
+                <MapPin size={14} />
                 {medico.location_city}{medico.location_neighborhood && `, ${medico.location_neighborhood}`}
               </div>
             )}
           </div>
         </section>
-
-        {/* RESTO DEL CONTENIDO - IGUAL QUE ANTES */}
-        <section className="fade-up" style={{ marginBottom: 48 }}>
-          <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 28, fontWeight: 900, color: '#1E3A5F', marginBottom: 16 }}>Sobre el Doctor</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile? '1fr' : '2fr 1fr', gap: 32 }}>
-            <div>
-              <p style={{ fontSize: 15, color: '#4A5568', lineHeight: 1.8 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile? '1fr' : '1fr 340px', gap: 32, alignItems: 'start' }}>
+          <div>
+            <section className="fade-up" style={{ marginBottom: 40 }}>
+              <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 900, color: '#1E3A5F', marginBottom: 12 }}>Sobre el Doctor</h2>
+              <p style={{ fontSize: 14, color: '#4A5568', lineHeight: 1.7, maxWidth: 800 }}>
                 {medico.about_me || 'Información no disponible. El médico no ha completado su presentación.'}
               </p>
+            </section>
+            <section className="fade-up" style={{ marginBottom: 40 }}>
+              <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 900, color: '#1E3A5F', marginBottom: 12 }}>
+                Consulta credenciales en portales oficiales
+              </h2>
+              <div style={{ background: '#F9FAFB', borderRadius: 12, padding: 16, border: '1px solid #E5E7EB', maxWidth: 600 }}>
+                <p style={{ fontSize: 13, fontWeight: 700, color: '#1E3A5F', marginBottom: 4 }}>
+                  ⚠ Consulta en fuentes oficiales antes de agendar
+                </p>
+                <p style={{ fontSize: 11, color: '#6B7280', marginBottom: 12 }}>
+                  Tú decides con toda la información.
+                </p>
+                {medico.professional_license && (
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#F9FAFB', borderRadius: 8, padding: '8px 12px', marginBottom: 6, border: '1px solid #E5E7EB' }}>
+                      <div>
+                        <p style={{ fontSize: 12, fontWeight: 600, margin: '0 0 2px', color: '#1E3A5F' }}>Cédula profesional</p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <p style={{ fontSize: 11, color: '#8B5CF6', margin: 0 }}>No. {medico.professional_license}</p>
+                          <CopyButton text={medico.professional_license} label="número de cédula" />
+                        </div>
+                      </div>
+                    </div>
+                    <button onClick={() => setShowVerificationModal(true)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: '#fff', color: '#1E3A5F', borderRadius: 8, padding: '8px 12px', border: '1px solid #E5E7EB', fontSize: 12, fontWeight: 600, cursor: 'pointer', width: '100%' }}>
+                      <Shield size={14} /> Consultar cédula profesional
+                    </button>
+                  </div>
+                )}
+                {medico.specialty_council && (
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#F9FAFB', borderRadius: 8, padding: '8px 12px', marginBottom: 6, border: '1px solid #E5E7EB' }}>
+                      <div>
+                        <p style={{ fontSize: 12, fontWeight: 600, margin: '0 2px', color: '#1E3A5F' }}>Certificación de especialidad</p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <p style={{ fontSize: 11, color: '#8B5CF6', margin: 0 }}>{medico.specialty_council}</p>
+                          <CopyButton text={medico.full_name} label="nombre del médico" />
+                        </div>
+                      </div>
+                    </div>
+                    <button onClick={() => setShowConacemModal(true)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: '#fff', color: '#1E3A5F', borderRadius: 8, padding: '8px 12px', border: '1px solid #E5E7EB', fontSize: 12, fontWeight: 600, cursor: 'pointer', width: '100%' }}>
+                      <Shield size={14} /> Consultar certificación vigente
+                    </button>
+                  </div>
+                )}
+              </div>
+            </section>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            {direccionCompleta && (
+  <div className="fade-up" style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #E5E7EB' }}>
+    <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1E3A5F', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+      <MapPin size={16} /> Ubicación
+    </h3>
+    <p style={{ fontSize: 13, color: '#4A5568', marginBottom: 12, lineHeight: 1.5 }}>
+      {medico.clinic_name && <strong>{medico.clinic_name}<br/></strong>}
+      {direccionCompleta}
+    </p>
+    <div style={{ width: '100%', height: 200, borderRadius: 12, overflow: 'hidden', marginBottom: 12, border: '1px solid #E5E7EB' }}>
+      <iframe 
+        width="100%" 
+        height="100%" 
+        frameBorder="0" 
+        scrolling="no" 
+        src={`https://www.openstreetmap.org/export/embed.html?bbox=${(medico as any).clinic_lng - 0.01}%2C${(medico as any).clinic_lat - 0.01}%2C${(medico as any).clinic_lng + 0.01}%2C${(medico as any).clinic_lat + 0.01}&layer=mapnik&marker=${(medico as any).clinic_lat}%2C${(medico as any).clinic_lng}`} 
+        style={{ border: 0 }} 
+        title="Mapa ubicación" 
+      />
+    </div>
+    <button 
+      onClick={() => {
+        const address = encodeURIComponent(direccionCompleta)
+        const lat = (medico as any).clinic_lat
+        const lng = (medico as any).clinic_lng
+        
+        // Crear bottom sheet igual que en buscar
+        const sheet = document.createElement('div')
+        sheet.style.cssText = 'position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,0.5);display:flex;align-items:flex-end'
+        sheet.innerHTML = `
+          <div style="background:#fff;width:100%;border-radius:20px 20px 0 0;padding:24px;animation:slideUp 0.3s">
+            <div style="width:40px;height:4px;background:#E5E7EB;border-radius:2px;margin:0 auto 20px"></div>
+            <h3 style="font-size:18px;font-weight:700;margin-bottom:16px">Cómo llegar</h3>
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}" target="_blank" style="display:flex;align-items:center;gap:12px;padding:14px;background:#F9FAFB;border-radius:12px;text-decoration:none;color:#111">
+                <div style="width:40px;height:40px;background:#4285F4;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700">G</div>
+                <div><div style="font-weight:600">Google Maps</div><div style="font-size:12px;color:#6B7280">Navegación paso a paso</div></div>
+              </a>
+              <a href="https://waze.com/ul?ll=${lat},${lng}&navigate=yes" target="_blank" style="display:flex;align-items:center;gap:12px;padding:14px;background:#F9FAFB;border-radius:12px;text-decoration:none;color:#111">
+                <div style="width:40px;height:40px;background:#33CCFF;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700">W</div>
+                <div><div style="font-weight:600">Waze</div><div style="font-size:12px;color:#6B7280">Tráfico en tiempo real</div></div>
+              </a>
+              <a href="http://maps.apple.com/?daddr=${lat},${lng}" target="_blank" style="display:flex;align-items:center;gap:12px;padding:14px;background:#F9FAFB;border-radius:12px;text-decoration:none;color:#111">
+                <div style="width:40px;height:40px;background:#000;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700"></div>
+                <div><div style="font-weight:600">Apple Maps</div><div style="font-size:12px;color:#6B7280">Para iPhone</div></div>
+              </a>
             </div>
+            <button onclick="this.closest('div[style*=fixed]').remove()" style="width:100%;margin-top:16px;padding:12px;background:none;border:none;color:#6B7280;font-weight:600">Cancelar</button>
           </div>
-        </section>
-
-        <section className="fade-up" style={{ marginBottom: 48 }}>
-          <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 28, fontWeight: 900, color: '#1E3A5F', marginBottom: 16 }}>
-            Consulta credenciales en portales oficiales
-          </h2>
-          <div style={{ background: '#F9FAFB', borderRadius: 16, padding: 20, border: '1.5px solid #E5E7EB' }}>
-            <p style={{ fontSize: 14, fontWeight: 700, color: '#1E3A5F', marginBottom: 4 }}>
-              ⚠ Consulta en fuentes oficiales antes de agendar
-            </p>
-            <p style={{ fontSize: 12, color: '#6B7280', marginBottom: 16 }}>
-              Tú decides con toda la información.
-            </p>
-
-            {medico.professional_license && (
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#EEF2FF', borderRadius: 10, padding: '10px 14px', marginBottom: 8, border: '1px solid #C7D2FE' }}>
-                  <div>
-                    <p style={{ fontSize: 13, fontWeight: 600, margin: '0 0 2px', color: '#1E3A5F' }}>Cédula profesional</p>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <p style={{ fontSize: 11, color: '#8B5CF6', margin: 0 }}>No. {medico.professional_license}</p>
-                      <CopyButton text={medico.professional_license} label="número de cédula" />
-                    </div>
-                  </div>
+        `
+        sheet.onclick = (e) => { if (e.target === sheet) sheet.remove() }
+        document.body.appendChild(sheet)
+      }}
+      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', background: '#1E3A5F', color: '#fff', padding: '10px 16px', borderRadius: 10, fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer' }}
+    >
+      <Navigation size={14} /> Cómo llegar
+    </button>
+    <p style={{ fontSize: 10, color: '#9CA3AF', textAlign: 'center', marginTop: 8 }}>
+      Mapa © OpenStreetMap
+    </p>
+  </div>
+)}
+            
+            {horarioParsed && Object.keys(horarioParsed).length > 0 && (
+              <div className="fade-up" style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #E5E7EB' }}>
+                <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1E3A5F', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Clock size={16} /> Horario
+                </h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {DIAS_SEMANA.map((dia, idx) => {
+                    const horarioDia = horarioParsed?.[dia]
+                    const inicio = horarioDia?.inicio || horarioDia?.start
+                    const fin = horarioDia?.fin || horarioDia?.end
+                    const abierto = horarioDia?.abierto?? horarioDia?.open?? horarioDia?.activo??!!(inicio && fin)
+                    return (
+                      <div key={dia} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8, borderBottom: idx < 6? '1px solid #F3F4F6' : 'none' }}>
+                        <span style={{ fontSize: 13, color: '#6B7280', fontWeight: 500, width: 40 }}>{DIAS_LABELS[idx]}</span>
+                        <span style={{ fontSize: 13, color: abierto? '#111827' : '#9CA3AF', fontWeight: abierto? 600 : 400 }}>
+                          {abierto && inicio && fin? `${inicio} - ${fin}` : 'Cerrado'}
+                        </span>
+                      </div>
+                    )
+                  })}
                 </div>
-                <button
-                  onClick={() => setShowVerificationModal(true)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 6,
-                    background: '#fff',
-                    color: '#1E3A5F',
-                    borderRadius: 10,
-                    padding: '8px 14px',
-                    border: '1px solid #C7D2FE',
-                    fontSize: 12,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    width: '100%'
-                  }}
-                >
-                  <Shield size={14} /> Consultar cédula profesional
-                </button>
-              </div>
-            )}
-
-            {medico.specialty_council && (
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#EEF2FF', borderRadius: 10, padding: '10px 14px', marginBottom: 8, border: '1px solid #C7D2FE' }}>
-                  <div>
-                    <p style={{ fontSize: 13, fontWeight: 600, margin: '0 0 2px', color: '#1E3A5F' }}>Certificación de especialidad</p>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <p style={{ fontSize: 11, color: '#8B5CF6', margin: 0 }}>{medico.specialty_council}</p>
-                      <CopyButton text={medico.full_name} label="nombre del médico" />
-                    </div>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowConacemModal(true)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 6,
-                    background: '#fff',
-                    color: '#1E3A5F',
-                    borderRadius: 10,
-                    padding: '8px 14px',
-                    border: '1px solid #C7D2FE',
-                    fontSize: 12,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    width: '100%'
-                  }}
-                >
-                  <Shield size={14} /> Consultar certificación vigente
-                </button>
               </div>
             )}
           </div>
-        </section>
-
-        {/*... resto de secciones igual... */}
+        </div>
       </main>
-
-      {/* FIXED CTA */}
-      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: 'linear-gradient(to top, #fff, rgba(255,255,255,0.9))', padding: '20px 24px', zIndex: 1000, borderTop: '1px solid #E5E7EB' }}>
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: 'rgba(255, 255, 255, 0.98)', backdropFilter: 'blur(12px)', padding: '16px 20px', zIndex: 1000, borderTop: '1px solid #E5E7EB', boxShadow: '0 -4px 20px rgba(0,0,0,0.05)' }}>
         <div style={{ maxWidth: 600, margin: '0 auto', display: 'flex', gap: 12, alignItems: 'center' }}>
-          {precioMostrar && (
-            <div style={{ flex: '0 0 auto', textAlign: 'center' }}>
-              <p style={{ fontSize: 10, color: '#9CA3AF', textTransform: 'uppercase', fontWeight: 600 }}>Consulta</p>
-              <p style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 900, color: '#1E3A5F' }}>${precioMostrar} MXN</p>
+          {(precioPrimera || precioSubsecuente) && (
+            <div style={{ flex: '0 0 auto', textAlign: 'center', minWidth: 80 }}>
+              <p style={{ fontSize: 10, color: '#9CA3AF', textTransform: 'uppercase', fontWeight: 600 }}>Desde</p>
+              <p style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 900, color: '#1E3A5F' }}>${precioSubsecuente || precioPrimera}</p>
             </div>
           )}
-          <button
-            onClick={() => setShowAppointmentModal(true)}
-            style={{ flex: 1, background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)', color: '#fff', border: 'none', borderRadius: 16, padding: '16px 32px', fontSize: 15, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: '0 4px 14px rgba(139, 92, 246, 0.3)' }}
-          >
-            <Calendar size={18} /> Agendar Cita
+          <button onClick={() => setShowAppointmentModal(true)} style={{ flex: 1, background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)', color: '#fff', border: 'none', borderRadius: 12, padding: '14px 24px', fontSize: 14, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: '0 4px 14px rgba(139, 92, 246, 0.3)' }}>
+            <Calendar size={16} /> Agendar Cita
           </button>
         </div>
       </div>
-
-      {/* MODALS */}
       {showAppointmentModal && (
-        <AppointmentModal
-          medico={medico}
-          onClose={() => setShowAppointmentModal(false)}
-        />
+        <AppointmentModal medico={medico} onClose={() => setShowAppointmentModal(false)} />
       )}
-
-      {/*... resto de modales igual... */}
       {showPhotoModal && medico.photo_url && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 4000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={() => setShowPhotoModal(false)}>
           <button onClick={() => setShowPhotoModal(false)} style={{ position: 'absolute', top: 20, right: 20, background: 'none', border: 'none', color: '#fff', cursor: 'pointer', zIndex: 10 }}>
@@ -794,141 +793,46 @@ export default function DoctorProfilePage() {
           <img src={medico.photo_url} alt={medico.full_name} style={{ maxWidth: '100%', maxHeight: '80vh', borderRadius: 16 }} />
         </div>
       )}
-
       {showVerificationModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={() => setShowVerificationModal(false)}>
-          <div style={{ background: '#fff', borderRadius: 20, padding: 32, maxWidth: 480, width: '100%' }} onClick={e => e.stopPropagation()}>
-            <div style={{ textAlign: 'center', marginBottom: 20 }}>
-              <div style={{ width: 56, height: 56, background: '#EEF2FF', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
-                <Shield size={26} color="#1E3A5F" />
-              </div>
-              <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: 20, color: '#1E3A5F', marginBottom: 8 }}>Consultar cédula profesional</h3>
-              <p style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.6 }}>Sigue estos 3 pasos sencillos para consultar la cédula en el portal de la SEP:</p>
+        <InfoModal title="Consultar cédula profesional" onClose={() => setShowVerificationModal(false)}>
+          <div style={{ textAlign: 'center', marginBottom: 16 }}>
+            <div style={{ width: 48, height: 48, background: '#EDE9FE', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+              <Shield size={22} color="#1E3A5F" />
             </div>
-            <div style={{ background: '#F9FAFB', borderRadius: 12, padding: 16, marginBottom: 20 }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                  <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#1E3A5F', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>1</div>
-                  <div>
-                    <p style={{ fontSize: 13, fontWeight: 600, color: '#1E3A5F', marginBottom: 2 }}>Copia el número de cédula</p>
-                    {medico.professional_license? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#EEF2FF', borderRadius: 8, padding: '6px 10px' }}>
-                        <p style={{ fontSize: 13, color: '#1E3A5F', fontWeight: 500, margin: 0, flex: 1 }}>{medico.professional_license}</p>
-                        <CopyButton text={medico.professional_license} label="número de cédula" />
-                      </div>
-                    ) : (
-                      <p style={{ fontSize: 12, color: '#9CA3AF' }}>Este médico aún no ha registrado su cédula profesional</p>
-                    )}
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                  <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#1E3A5F', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>2</div>
-                  <p style={{ fontSize: 13, color: '#374151', lineHeight: 1.5 }}>Pega el número en el buscador del portal de la SEP.</p>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                  <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#1E3A5F', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>3</div>
-                  <p style={{ fontSize: 13, color: '#374151', lineHeight: 1.5 }}>Revisa que el nombre, título e institución coincidan.</p>
-                </div>
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button
-                onClick={() => setShowVerificationModal(false)}
-                style={{
-                  flex: 1,
-                  background: '#F3F4F6',
-                  color: '#6B7280',
-                  border: 'none',
-                  borderRadius: 8,
-                  padding: '11px',
-                  fontSize: 14,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  fontFamily: "'DM Sans', sans-serif"
-                }}
-              >
-                Cancelar
-              </button>
-              <a href="https://cedulaprofesional.sep.gob.mx/cedula/presidencia/indexAvanzada.action" target="_blank" rel="noopener noreferrer" onClick={() => setShowVerificationModal(false)} style={{ flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: '#1E3A5F', color: '#fff', border: 'none', borderRadius: 8, padding: '11px', fontSize: 14, fontWeight: 600, textDecoration: 'none', fontFamily: "'DM Sans', sans-serif" }}>
-                <ExternalLink size={14} /> Abrir portal SEP
-              </a>
-            </div>
+            <p style={{ fontSize: 13, color: '#6B7280' }}>Sigue estos pasos para verificar en SEP</p>
           </div>
-        </div>
-      )}
-
-      {showConacemModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={() => setShowConacemModal(false)}>
-          <div style={{ background: '#fff', borderRadius: 20, padding: 32, maxWidth: 480, width: '100%' }} onClick={e => e.stopPropagation()}>
-            <div style={{ textAlign: 'center', marginBottom: 20 }}>
-              <div style={{ width: 56, height: 56, background: '#EEF2FF', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
-                <Shield size={26} color="#1E3A5F" />
-              </div>
-              <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: 20, color: '#1E3A5F', marginBottom: 8 }}>Consultar certificación en CONACEM</h3>
-              <p style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.6 }}>Sigue estos 3 pasos sencillos para consultar la certificación en el portal de CONACEM:</p>
-            </div>
-            <div style={{ background: '#F9FAFB', borderRadius: 12, padding: 16, marginBottom: 20 }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                  <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#1E3A5F', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>1</div>
-                  <div>
-                    <p style={{ fontSize: 13, fontWeight: 600, color: '#1E3A5F', marginBottom: 2 }}>Copia el nombre del médico</p>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#EEF2FF', borderRadius: 8, padding: '6px 10px' }}>
-                      <p style={{ fontSize: 13, color: '#1E3A5F', fontWeight: 500, margin: 0, flex: 1 }}>{medico.full_name}</p>
-                      <CopyButton text={medico.full_name} label="nombre" />
-                    </div>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                  <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#1E3A5F', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>2</div>
-                  <p style={{ fontSize: 13, color: '#374151', lineHeight: 1.5 }}>Pega el nombre en el buscador del portal de CONACEM.</p>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                  <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#1E3A5F', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>3</div>
-                  <p style={{ fontSize: 13, color: '#374151', lineHeight: 1.5 }}>
-                    Busca al médico y revisa que su certificación esté vigente.
-                    {medico.specialty_council && (
-                      <span style={{ color: '#6B7280' }}> El consejo es: <strong>{medico.specialty_council}</strong>.</span>
-                    )}
-                  </p>
-                </div>
+          {medico.professional_license && (
+            <div style={{ background: '#F9FAFB', borderRadius: 8, padding: 12, marginBottom: 16 }}>
+              <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Número de cédula:</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', padding: '8px 12px', borderRadius: 6, border: '1px solid #E5E7EB' }}>
+                <code style={{ flex: 1, fontSize: 13 }}>{medico.professional_license}</code>
+                <CopyButton text={medico.professional_license} label="cédula" />
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => setShowConacemModal(false)} style={{ flex: 1, background: '#F3F4F6', color: '#6B7280', border: 'none', borderRadius: 8, padding: '11px', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>Cancelar</button>
-              <a href="https://conacem.org.mx/buscador" target="_blank" rel="noopener noreferrer" onClick={() => setShowConacemModal(false)} style={{ flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: '#1E3A5F', color: '#fff', border: 'none', borderRadius: 8, padding: '11px', fontSize: 14, fontWeight: 600, textDecoration: 'none', fontFamily: "'DM Sans', sans-serif" }}>
-                <ExternalLink size={14} /> Abrir portal CONACEM
-              </a>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showInsuranceModal && (
-        <InfoModal title="Seguros Aceptados" onClose={() => setShowInsuranceModal(false)}>
-          {medico.accepts_insurance && medico.insurance_names && medico.insurance_names.length > 0? (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {medico.insurance_names.map((seguro, i) => (
-                <span key={i} style={{ fontSize: 13, background: '#ECFDF5', border: '1px solid #A7F3D0', borderRadius: 20, padding: '6px 14px', color: '#065F46', fontWeight: 500 }}>{seguro}</span>
-              ))}
-            </div>
-          ) : (
-            <p style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.6 }}>Este médico no acepta seguros médicos. El pago es particular directamente en el consultorio.</p>
           )}
+          <a href="https://cedulaprofesional.sep.gob.mx/cedula/presidencia/indexAvanzada.action" target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: '#1E3A5F', color: '#fff', padding: '12px', borderRadius: 8, textDecoration: 'none', fontSize: 13, fontWeight: 600 }}>
+            <ExternalLink size={14} /> Abrir portal SEP
+          </a>
         </InfoModal>
       )}
-
-      {showPaymentModal && (
-        <InfoModal title="Métodos de Pago" onClose={() => setShowPaymentModal(false)}>
-          {medico.payment_methods && medico.payment_methods.length > 0? (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {medico.payment_methods.map((method, i) => (
-                <span key={i} style={{ fontSize: 13, background: '#F5F3FF', border: '1px solid #C7D2FE', borderRadius: 20, padding: '6px 14px', color: '#3730A3', fontWeight: 500 }}>{method}</span>
-              ))}
+      {showConacemModal && (
+        <InfoModal title="Consultar certificación CONACEM" onClose={() => setShowConacemModal(false)}>
+          <div style={{ textAlign: 'center', marginBottom: 16 }}>
+            <div style={{ width: 48, height: 48, background: '#EDE9FE', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+              <Shield size={22} color="#1E3A5F" />
             </div>
-          ) : (
-            <p style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.6 }}>Consulta directa con el médico para conocer los métodos de pago disponibles.</p>
-          )}
+            <p style={{ fontSize: 13, color: '#6B7280' }}>Verifica la certificación de especialidad</p>
+          </div>
+          <div style={{ background: '#F9FAFB', borderRadius: 8, padding: 12, marginBottom: 16 }}>
+            <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Nombre del médico:</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', padding: '8px 12px', borderRadius: 6, border: '1px solid #E5E7EB' }}>
+              <span style={{ flex: 1, fontSize: 13 }}>{medico.full_name}</span>
+              <CopyButton text={medico.full_name} label="nombre" />
+            </div>
+          </div>
+          <a href="https://conacem.org.mx/buscador" target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: '#1E3A5F', color: '#fff', padding: '12px', borderRadius: 8, textDecoration: 'none', fontSize: 13, fontWeight: 600 }}>
+            <ExternalLink size={14} /> Abrir portal CONACEM
+          </a>
         </InfoModal>
       )}
     </div>

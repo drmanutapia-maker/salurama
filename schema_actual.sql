@@ -1,0 +1,29 @@
+| definition                                   |
+| -------------------------------------------- |
+| CREATE TABLE public.admin_actions            |
+| CREATE TABLE public.admin_verificaciones_sep |
+| CREATE TABLE public.admins                   |
+| CREATE TABLE public.appointment_requests     |
+| CREATE TABLE public.appointments             |
+| CREATE TABLE public.citas                    |
+| CREATE TABLE public.cities                   |
+| CREATE TABLE public.doctor_availability      |
+| CREATE TABLE public.doctor_conditions        |
+| CREATE TABLE public.doctor_content           |
+| CREATE TABLE public.doctor_documents         |
+| CREATE TABLE public.doctor_education         |
+| CREATE TABLE public.doctor_experience        |
+| CREATE TABLE public.doctor_licenses          |
+| CREATE TABLE public.doctor_referrals         |
+| CREATE TABLE public.doctor_search_ranking    |
+| CREATE TABLE public.doctor_social_media      |
+| CREATE TABLE public.doctor_specialties       |
+| CREATE TABLE public.doctors                  |
+| CREATE TABLE public.password_resets          |
+| CREATE TABLE public.profile_metrics          |
+| CREATE TABLE public.profile_views            |
+| CREATE TABLE public.reviews                  |
+| CREATE TABLE public.sepomex                  |
+| CREATE TABLE public.specialty_councils       |
+| CREATE TABLE public.subscriptions            |
+| CREATE TABLE public.users                    |

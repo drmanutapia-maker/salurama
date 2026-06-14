@@ -1,45 +1,45 @@
-import { redirect } from 'next/navigation'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+'use client'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 
-export default async function DashboardLayout({
+export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const cookieStore = await cookies()
+  const pathname = usePathname()
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll()
-        },
-        setAll() {
-          // No-op en Server Components
-        },
-      },
-    }
+  const links = [
+    { href: '/dashboard', label: 'Inicio', exact: true },
+    { href: '/dashboard/horario', label: 'Horarios' },
+    { href: '/dashboard/citas', label: 'Citas' },
+    { href: '/dashboard/estadisticas', label: 'Estadísticas' },
+  ]
+
+  const isActive = (href: string, exact?: boolean) =>
+    exact? pathname === href : pathname.startsWith(href)
+
+  return (
+    <>
+      <nav className="hidden md:block sticky top- z-30 bg-white/95 backdrop-blur border-b border-neutral-200">
+        <div className="max-w- mx-auto px-4 flex gap-7">
+          {links.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              prefetch
+              className={`py-3.5 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors ${
+                isActive(link.href, link.exact)
+                 ? 'text-primary-500 border-primary-500'
+                  : 'text-neutral-500 border-transparent hover:text-primary-700'
+              }`}
+            >
+              {link.label}
+            </Link>
+          ))}
+        </div>
+      </nav>
+      {children}
+    </>
   )
-
-  const { data: { user }, error } = await supabase.auth.getUser()
-
-  if (error || !user) {
-    redirect('/login?redirect=/dashboard')
-  }
-
-  // Verificación adicional: ¿es médico activo?
-  const { data: doctor } = await supabase
-   .from('doctors')
-   .select('id, is_active')
-   .eq('user_id', user.id)
-   .maybeSingle()
-
-  if (!doctor?.is_active) {
-    redirect('/login?error=inactive')
-  }
-
-  return <>{children}</>
 }

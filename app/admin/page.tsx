@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabaseClient'
+import { supabase } from '@/lib/supabaseClient'
 import Link from 'next/link'
 import {
   CheckCircle, XCircle, Eye, EyeOff, ExternalLink, Copy,
@@ -35,7 +35,6 @@ interface Medico {
 }
 
 export default function AdminPanel() {
-  const supabase = createClient()
   const [autenticado, setAutenticado]   = useState(false)
   const [passInput, setPassInput]       = useState('')
   const [showPass, setShowPass]         = useState(false)

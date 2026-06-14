@@ -3,6 +3,8 @@ import "./globals.css";
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
 import CookieBanner from '@/components/CookieBanner'
+import SessionManager from '@/components/SessionManager'
+import BottomNav from '@/components/BottomNav'
 
 export const metadata: Metadata = {
   title: {
@@ -41,6 +43,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </main>
         <Footer />
         <CookieBanner />
+        <SessionManager />
+        <BottomNav />
       </body>
     </html>
   );
