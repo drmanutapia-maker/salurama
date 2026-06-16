@@ -35,19 +35,9 @@ export async function proxy(request: NextRequest) {
     }
   )
 
-  // getUser() valida contra el servidor de Supabase y garantiza que el
-  // access_token en la cookie de respuesta es el más reciente (con los
-  // claims del Auth Hook). No usar getSession() aquí — puede devolver
-  // un token stale del cookie sin re-validar.
   const {
     data: { user },
   } = await supabase.auth.getUser()
-
-  console.log('PROXY-ALL:', {
-    pathname: request.nextUrl.pathname,
-    user: !!user,
-    allCookies: request.cookies.getAll().map(c => c.name)
-  })
 
   // ─── Guard /hema/* ────────────────────────────────────────────────────────
   if (request.nextUrl.pathname.startsWith('/hema')) {
@@ -57,8 +47,35 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(loginUrl)
     }
 
-    // TEMPORAL diagnóstico — skip modules check
-    return response
+    let modules: string[] = []
+
+    const allRequestCookies = request.cookies.getAll()
+    const authCookie = allRequestCookies.find(
+      (c) => c.name.includes('auth-token') && !c.name.endsWith('-code-verifier')
+    )
+
+    if (authCookie?.value) {
+      try {
+        const raw = decodeURIComponent(authCookie.value)
+        const parsed = JSON.parse(raw)
+        const accessToken: string =
+          parsed.access_token ??
+          (Array.isArray(parsed) ? parsed[0]?.access_token : null) ??
+          ''
+        if (accessToken) {
+          modules = (decodeJwtPayload(accessToken).modules as string[]) ?? []
+        }
+      } catch {
+        modules =
+          (decodeJwtPayload(authCookie.value).modules as string[]) ?? []
+      }
+    }
+
+    if (!modules.includes('hema')) {
+      return NextResponse.redirect(
+        new URL('/dashboard?upgrade=hema', request.url)
+      )
+    }
   }
 
   return response
