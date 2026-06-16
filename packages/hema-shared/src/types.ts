@@ -231,6 +231,7 @@ export const OrderInputLabsSchema = z.object({
   ast: z.number().min(0).optional(),             // U/L
   alt: z.number().min(0).optional(),             // U/L
   lvef: z.number().min(0).max(100).optional(),   // %
+  wbc: z.number().min(0).optional(),             // ×10⁹/L — R-PRO-01 APL leucocitosis
   collected_at: IsoDateTimeSchema,               // labs con fecha >30 días → R-LAB-12 warn
 })
 export type OrderInputLabs = z.infer<typeof OrderInputLabsSchema>
@@ -266,6 +267,9 @@ export const OrderInputSchema = z.object({
   // inn → mg/m² acumulado histórico del paciente
   cumulative_doses: z.record(z.string(), z.number().nonnegative()).optional(),
   overrides: z.array(OverrideSchema).optional(),
+  diagnosis_code:  z.string().optional(),    // CIE-10 — R-PRO-01 solo C92.4 = LPA
+  neuropathy_pain: z.boolean().optional(),   // dolor asociado a neuropatía — R-NEU-01
+  hbv_screened:    z.boolean().optional(),   // serología VHB confirmada — R-PRO-03
 })
 export type OrderInput = z.infer<typeof OrderInputSchema>
 
