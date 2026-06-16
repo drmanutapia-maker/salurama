@@ -41,12 +41,16 @@ export default function BsaCard({
   const isVeryStale = days > 60
 
   const borderColor = isVeryStale ? '#DC2626' : isStale ? '#D97706' : '#16A34A'
-  const staleBg    = isVeryStale ? '#FEF2F2' : isStale ? '#FFFBEB' : undefined
+  const cardBg = isVeryStale
+    ? 'linear-gradient(135deg, #2C1010 0%, #1A0A0A 100%)'
+    : isStale
+    ? 'linear-gradient(135deg, #2C1E00 0%, #1A1200 100%)'
+    : 'linear-gradient(135deg, #1E3A5F 0%, #152D4A 100%)'
 
   return (
     <div
       style={{
-        background: staleBg ?? '#fff',
+        background: cardBg,
         border: `1.5px solid ${borderColor}`,
         borderRadius: 16,
         padding: compact ? '14px 16px' : '18px 20px',
@@ -68,7 +72,7 @@ export default function BsaCard({
             fontWeight: 700,
             textTransform: 'uppercase',
             letterSpacing: '0.08em',
-            color: '#6B7280',
+            color: 'rgba(255,255,255,0.65)',
           }}
         >
           Superficie Corporal
@@ -78,7 +82,7 @@ export default function BsaCard({
             fontSize: 11,
             fontWeight: 700,
             color: borderColor,
-            background: `${borderColor}18`,
+            background: `${borderColor}30`,
             borderRadius: 6,
             padding: '2px 8px',
           }}
@@ -94,18 +98,18 @@ export default function BsaCard({
             fontFamily: 'Fraunces, serif',
             fontSize: compact ? 40 : 52,
             fontWeight: 900,
-            color: '#1E3A5F',
+            color: '#fff',
             lineHeight: 1,
           }}
         >
           {mosteller.toFixed(2)}
         </span>
-        <span style={{ fontSize: 16, color: '#4B5563', fontWeight: 600 }}>m²</span>
+        <span style={{ fontSize: 16, color: 'rgba(255,255,255,0.85)', fontWeight: 600 }}>m²</span>
       </div>
 
       {/* Fórmula */}
       {!compact && (
-        <p style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 12, fontFamily: 'monospace' }}>
+        <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginBottom: 12, fontFamily: 'monospace' }}>
           √[({weightKg} kg × {heightCm} cm) ÷ 3600]
         </p>
       )}
@@ -117,15 +121,15 @@ export default function BsaCard({
           alignItems: 'center',
           gap: 8,
           padding: '8px 12px',
-          background: '#F3F4F6',
+          background: 'rgba(255,255,255,0.1)',
           borderRadius: 10,
           marginBottom: 12,
         }}
       >
-        <Info size={13} color="#6B7280" />
-        <span style={{ fontSize: 12, color: '#6B7280' }}>
+        <Info size={13} color="rgba(255,255,255,0.6)" />
+        <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)' }}>
           DuBois{' '}
-          <strong style={{ color: '#374151' }}>{dubois.toFixed(2)} m²</strong>
+          <strong style={{ color: '#fff' }}>{dubois.toFixed(2)} m²</strong>
           {' '}· solo referencia
         </span>
       </div>
@@ -137,7 +141,13 @@ export default function BsaCard({
         ) : (
           <CheckCircle2 size={14} color="#16A34A" />
         )}
-        <span style={{ fontSize: 12, color: isStale ? borderColor : '#6B7280', fontWeight: isStale ? 600 : 400 }}>
+        <span
+          style={{
+            fontSize: 12,
+            color: isStale ? borderColor : 'rgba(255,255,255,0.65)',
+            fontWeight: isStale ? 600 : 400,
+          }}
+        >
           {isStale
             ? `⚠ Medición de hace ${days} días (${formatDate(measuredAt)})`
             : `Medición: ${formatDate(measuredAt)}`}
@@ -150,11 +160,11 @@ export default function BsaCard({
           style={{
             marginTop: 10,
             padding: '8px 12px',
-            background: staleBg,
+            background: isVeryStale ? 'rgba(220,38,38,0.2)' : 'rgba(217,119,6,0.2)',
             border: `1px solid ${borderColor}40`,
             borderRadius: 10,
             fontSize: 12,
-            color: isVeryStale ? '#991B1B' : '#92400E',
+            color: isVeryStale ? '#FCA5A5' : '#FEF08A',
             fontWeight: 600,
           }}
         >

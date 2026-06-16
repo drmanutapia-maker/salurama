@@ -56,7 +56,9 @@ export async function proxy(request: NextRequest) {
 
     if (authCookie?.value) {
       try {
-        const raw = decodeURIComponent(authCookie.value)
+        const raw = authCookie.value.startsWith('base64-')
+          ? atob(authCookie.value.slice('base64-'.length))
+          : decodeURIComponent(authCookie.value)
         const parsed = JSON.parse(raw)
         const accessToken: string =
           parsed.access_token ??

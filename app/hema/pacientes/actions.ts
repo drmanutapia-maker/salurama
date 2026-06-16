@@ -156,3 +156,74 @@ export async function addMeasurement(formData: FormData): Promise<AddMeasurement
     bsaDubois:     Number((row as { bsa_dubois: number }).bsa_dubois),
   }
 }
+
+// ─── Action: agregar diagnóstico ─────────────────────────────────────────────
+
+const AddDiagnosisSchema = z.object({
+  patient_id:     z.string().uuid(),
+  diagnosis_code: z.string().min(1, 'Selecciona un diagnóstico'),
+  staging:        z.string().max(100).optional().or(z.literal('')),
+  is_primary:     z.coerce.boolean(),
+})
+
+export type AddDiagnosisResult =
+  | { success: true; diagnosisId: string }
+  | { success: false; error: string }
+
+export async function addDiagnosis(formData: FormData): Promise<AddDiagnosisResult> {
+  const parsed = AddDiagnosisSchema.safeParse({
+    patient_id:     formData.get('patient_id'),
+    diagnosis_code: formData.get('diagnosis_code'),
+    staging:        formData.get('staging'),
+    is_primary:     formData.get('is_primary'),
+  })
+
+  if (!parsed.success) {
+    return { success: false, error: firstErrorMsg(parsed.error) }
+  }
+
+  const supabase = await getServerSupabase()
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return { success: false, error: 'Sesión expirada. Vuelve a iniciar sesión.' }
+
+  const { patient_id, diagnosis_code, staging, is_primary } = parsed.data
+
+  // Desactivar primario anterior antes de insertar el nuevo
+  if (is_primary) {
+    const { error: updateErr } = await supabase
+      .schema('hema')
+      .from('patient_diagnoses')
+      .update({ is_primary: false })
+      .eq('patient_id', patient_id)
+      .eq('is_primary', true)
+
+    if (updateErr) {
+      return { success: false, error: `Error al actualizar diagnóstico primario: ${updateErr.message}` }
+    }
+  }
+
+  const { data, error } = await supabase
+    .schema('hema')
+    .from('patient_diagnoses')
+    .insert({
+      patient_id,
+      diagnosis_code,
+      staging:      staging || null,
+      is_primary,
+      diagnosed_at: new Date().toISOString().split('T')[0],
+    })
+    .select('id')
+    .single()
+
+  if (error) {
+    if (error.code === '23503') {
+      return { success: false, error: 'Código de diagnóstico inválido o no encontrado en el catálogo.' }
+    }
+    if (error.code === '23505') {
+      return { success: false, error: 'Este diagnóstico ya está registrado para este paciente.' }
+    }
+    return { success: false, error: `Error al guardar diagnóstico: ${error.message}` }
+  }
+
+  return { success: true, diagnosisId: (data as { id: string }).id }
+}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useTransition, useMemo } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabaseClient'
@@ -12,10 +12,17 @@ import {
   FileText,
   Ruler,
   AlertCircle,
+  AlertTriangle,
   Activity,
   ChevronRight,
   Stethoscope,
+  X,
+  Search,
+  Loader2,
 } from 'lucide-react'
+import { searchDiagnosis, CIE10_CATALOG } from '@salurama/hema-shared'
+import type { Diagnosis, DiagnosisCategory } from '@salurama/hema-shared'
+import { addDiagnosis } from '../actions'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -102,6 +109,13 @@ const DX_CATEGORY_COLOR: Record<string, string> = {
   mds: '#B45309', mpn: '#047857', otro: '#6B7280',
 }
 
+const CATEGORY_LABELS: Record<string, string> = {
+  mieloma: 'Mieloma', linfoma: 'Linfoma', leucemia: 'Leucemia',
+  mds: 'MDS', mpn: 'MPN', otro: 'Otro',
+}
+
+const CATEGORIES = ['mieloma', 'linfoma', 'leucemia', 'mds', 'mpn', 'otro'] as const
+
 // ─── BSA Mini-chart ──────────────────────────────────────────────────────────
 
 function BsaChart({ measurements }: { measurements: Measurement[] }) {
@@ -150,11 +164,382 @@ function BsaChart({ measurements }: { measurements: Measurement[] }) {
   )
 }
 
+// ─── Diagnosis Modal ──────────────────────────────────────────────────────────
+
+function DiagnosisModal({
+  open,
+  patientId,
+  onClose,
+  onSaved,
+}: {
+  open: boolean
+  patientId: string
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const [mode, setMode]                     = useState<'search' | 'detail'>('search')
+  const [query, setQuery]                   = useState('')
+  const [activeCategory, setActiveCategory] = useState<DiagnosisCategory | null>(null)
+  const [selected, setSelected]             = useState<Diagnosis | null>(null)
+  const [stagingText, setStagingText]       = useState('')
+  const [isPrimary, setIsPrimary]           = useState(true)
+  const [isPending, startTransition]        = useTransition()
+  const [apiError, setApiError]             = useState<string | null>(null)
+
+  const results = useMemo(() => {
+    if (query.trim().length > 0) return searchDiagnosis(query, activeCategory ?? undefined)
+    if (activeCategory) return CIE10_CATALOG.filter(d => d.category === activeCategory)
+    return []
+  }, [query, activeCategory])
+
+  function reset() {
+    setMode('search')
+    setQuery('')
+    setActiveCategory(null)
+    setSelected(null)
+    setStagingText('')
+    setIsPrimary(true)
+    setApiError(null)
+  }
+
+  function handleClose() { reset(); onClose() }
+  function handleBack()  { setMode('search'); setSelected(null); setApiError(null) }
+
+  function handleSelect(dx: Diagnosis) {
+    setSelected(dx)
+    setMode('detail')
+    setApiError(null)
+  }
+
+  function handleSubmit() {
+    if (!selected) return
+    setApiError(null)
+    const fd = new FormData()
+    fd.set('patient_id',     patientId)
+    fd.set('diagnosis_code', selected.code)
+    fd.set('staging',        stagingText)
+    fd.set('is_primary',     String(isPrimary))
+
+    startTransition(async () => {
+      const result = await addDiagnosis(fd)
+      if (result.success) {
+        reset()
+        onSaved()
+        onClose()
+      } else {
+        setApiError(result.error)
+      }
+    })
+  }
+
+  if (!open) return null
+
+  const catColor = selected
+    ? (DX_CATEGORY_COLOR[selected.category ?? 'otro'] ?? '#6B7280')
+    : '#6B7280'
+
+  return (
+    <>
+      <style>{`@keyframes dx-slide { from { transform: translateY(100%) } to { transform: translateY(0) } }`}</style>
+
+      {/* Overlay */}
+      <div
+        onClick={handleClose}
+        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 100 }}
+      />
+
+      {/* Bottom sheet */}
+      <div
+        style={{
+          position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 101,
+          background: '#fff', borderRadius: '20px 20px 0 0',
+          maxHeight: '92vh', display: 'flex', flexDirection: 'column',
+          fontFamily: "'DM Sans', sans-serif",
+          boxShadow: '0 -8px 40px rgba(0,0,0,0.25)',
+          animation: 'dx-slide 0.25s ease-out',
+        }}
+      >
+        {/* Header */}
+        <div
+          style={{
+            background: 'linear-gradient(135deg, #1E3A5F 0%, #152D4A 100%)',
+            borderRadius: '20px 20px 0 0',
+            padding: '16px 20px',
+            display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0,
+          }}
+        >
+          {mode === 'detail' && (
+            <button
+              onClick={handleBack}
+              style={{
+                background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 10,
+                width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', flexShrink: 0,
+              }}
+            >
+              <ArrowLeft size={18} color="#fff" />
+            </button>
+          )}
+          <h2 style={{ flex: 1, fontFamily: 'Fraunces, serif', fontSize: 18, fontWeight: 900, color: '#fff', margin: 0 }}>
+            {mode === 'search' ? 'Buscar diagnóstico' : 'Agregar diagnóstico'}
+          </h2>
+          <button
+            onClick={handleClose}
+            style={{
+              background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 10,
+              width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer',
+            }}
+          >
+            <X size={18} color="#fff" />
+          </button>
+        </div>
+
+        {/* Scrollable body */}
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+
+          {/* ─── Search mode ─── */}
+          {mode === 'search' && (
+            <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+              {/* Search input */}
+              <div style={{ position: 'relative' }}>
+                <Search
+                  size={16} color="#9CA3AF"
+                  style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}
+                />
+                <input
+                  autoFocus
+                  type="text"
+                  placeholder="Mieloma, linfoma, C90.0..."
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  style={{
+                    width: '100%', padding: '13px 14px 13px 40px',
+                    fontSize: 16, border: '1.5px solid #E5E7EB',
+                    borderRadius: 12, background: '#F9FAFB', outline: 'none',
+                    boxSizing: 'border-box', minHeight: 48,
+                  }}
+                />
+              </div>
+
+              {/* Category filter chips */}
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => setActiveCategory(null)}
+                  style={{
+                    padding: '6px 14px', borderRadius: 20, border: '1.5px solid',
+                    fontSize: 13, fontWeight: 600, cursor: 'pointer', minHeight: 36,
+                    background: !activeCategory ? '#1E3A5F' : '#fff',
+                    color:      !activeCategory ? '#fff' : '#6B7280',
+                    borderColor: !activeCategory ? '#1E3A5F' : '#E5E7EB',
+                  }}
+                >
+                  Todos
+                </button>
+                {CATEGORIES.map((cat) => {
+                  const active = activeCategory === cat
+                  const col    = DX_CATEGORY_COLOR[cat] ?? '#6B7280'
+                  return (
+                    <button
+                      key={cat}
+                      onClick={() => setActiveCategory(active ? null : cat)}
+                      style={{
+                        padding: '6px 14px', borderRadius: 20, border: '1.5px solid',
+                        fontSize: 13, fontWeight: 600, cursor: 'pointer', minHeight: 36,
+                        background:  active ? `${col}15` : '#fff',
+                        color:       active ? col : '#6B7280',
+                        borderColor: active ? col : '#E5E7EB',
+                      }}
+                    >
+                      {CATEGORY_LABELS[cat]}
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* Results */}
+              {query.trim().length === 0 && !activeCategory ? (
+                <div style={{ padding: '40px 0', textAlign: 'center' }}>
+                  <Search size={32} color="#D1D5DB" style={{ margin: '0 auto 12px' }} />
+                  <p style={{ fontSize: 14, color: '#9CA3AF', margin: 0 }}>
+                    Escribe o selecciona una categoría
+                  </p>
+                </div>
+              ) : results.length === 0 ? (
+                <div style={{ padding: '32px 0', textAlign: 'center' }}>
+                  <p style={{ fontSize: 14, color: '#9CA3AF', margin: 0 }}>
+                    Sin resultados para &ldquo;{query}&rdquo;
+                  </p>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {results.map((dx) => {
+                    const col = DX_CATEGORY_COLOR[dx.category ?? 'otro'] ?? '#6B7280'
+                    return (
+                      <button
+                        key={dx.code}
+                        onClick={() => handleSelect(dx)}
+                        style={{
+                          display: 'flex', gap: 12, alignItems: 'flex-start',
+                          padding: '12px 14px', borderRadius: 12,
+                          border: '1px solid #F3F4F6', background: '#fff',
+                          textAlign: 'left', cursor: 'pointer', width: '100%', minHeight: 56,
+                        }}
+                      >
+                        <span style={{
+                          fontFamily: 'monospace', fontSize: 13, fontWeight: 700,
+                          color: col, flexShrink: 0, paddingTop: 2,
+                        }}>
+                          {dx.code}
+                        </span>
+                        <div>
+                          <p style={{ fontSize: 14, fontWeight: 600, color: '#111827', margin: '0 0 4px' }}>
+                            {dx.description_es}
+                          </p>
+                          <span style={{
+                            fontSize: 10, fontWeight: 700, background: `${col}18`, color: col,
+                            borderRadius: 6, padding: '1px 6px',
+                            textTransform: 'uppercase', letterSpacing: '0.05em',
+                          }}>
+                            {CATEGORY_LABELS[dx.category ?? 'otro'] ?? dx.category}
+                          </span>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ─── Detail mode ─── */}
+          {mode === 'detail' && selected && (
+            <div style={{ padding: '20px' }}>
+
+              {/* Selected dx card */}
+              <div style={{
+                background: `${catColor}0D`, border: `1.5px solid ${catColor}30`,
+                borderRadius: 14, padding: '16px', marginBottom: 20,
+              }}>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 }}>
+                  <span style={{ fontFamily: 'monospace', fontSize: 14, fontWeight: 900, color: catColor }}>
+                    {selected.code}
+                  </span>
+                  <span style={{
+                    fontSize: 10, fontWeight: 700,
+                    background: `${catColor}20`, color: catColor,
+                    borderRadius: 6, padding: '2px 8px',
+                    textTransform: 'uppercase', letterSpacing: '0.06em',
+                  }}>
+                    {CATEGORY_LABELS[selected.category ?? 'otro'] ?? selected.category}
+                  </span>
+                </div>
+                <p style={{ fontSize: 16, fontWeight: 700, color: '#111827', margin: 0, lineHeight: 1.3 }}>
+                  {selected.description_es}
+                </p>
+              </div>
+
+              {/* Estadificación */}
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 8 }}>
+                  Estadificación{' '}
+                  <span style={{ fontSize: 12, color: '#9CA3AF', fontWeight: 400 }}>(opcional)</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="ISS III, Ann Arbor IVB, IPSS-R Alto..."
+                  value={stagingText}
+                  onChange={(e) => setStagingText(e.target.value)}
+                  maxLength={100}
+                  style={{
+                    width: '100%', padding: '14px 16px',
+                    fontSize: 15, border: '1.5px solid #D1D5DB',
+                    borderRadius: 12, outline: 'none',
+                    boxSizing: 'border-box', minHeight: 52, background: '#fff',
+                  }}
+                />
+              </div>
+
+              {/* isPrimary checkbox */}
+              <label
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 14,
+                  padding: '14px 16px',
+                  background: isPrimary ? 'rgba(30,58,95,0.05)' : '#F9FAFB',
+                  border: `1.5px solid ${isPrimary ? 'rgba(30,58,95,0.25)' : '#E5E7EB'}`,
+                  borderRadius: 14, cursor: 'pointer', marginBottom: 20,
+                  minHeight: 64,
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={isPrimary}
+                  onChange={(e) => setIsPrimary(e.target.checked)}
+                  style={{ width: 22, height: 22, accentColor: '#1E3A5F', cursor: 'pointer', flexShrink: 0 }}
+                />
+                <div>
+                  <p style={{ fontSize: 14, fontWeight: 700, color: '#111827', margin: '0 0 2px' }}>
+                    Diagnóstico primario
+                  </p>
+                  <p style={{ fontSize: 12, color: '#6B7280', margin: 0 }}>
+                    Define los protocolos disponibles en la indicación
+                  </p>
+                </div>
+              </label>
+
+              {/* API Error */}
+              {apiError && (
+                <div style={{
+                  marginBottom: 16, padding: '12px 16px',
+                  background: '#FEF2F2', border: '1px solid #FCA5A5',
+                  borderRadius: 12, display: 'flex', gap: 10, alignItems: 'flex-start',
+                }}>
+                  <AlertCircle size={16} color="#DC2626" style={{ flexShrink: 0, marginTop: 1 }} />
+                  <p style={{ fontSize: 13, color: '#DC2626', fontWeight: 600, margin: 0 }}>{apiError}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Submit footer — solo en modo detail */}
+        {mode === 'detail' && (
+          <div style={{ padding: '12px 20px 24px', borderTop: '1px solid #F3F4F6', flexShrink: 0 }}>
+            <button
+              onClick={handleSubmit}
+              disabled={isPending}
+              style={{
+                width: '100%', padding: '16px',
+                background: isPending ? '#9CA3AF' : '#16A34A',
+                color: '#fff', border: 'none', borderRadius: 14,
+                fontSize: 16, fontWeight: 700,
+                cursor: isPending ? 'not-allowed' : 'pointer',
+                minHeight: 56,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                transition: 'background 0.15s',
+                boxShadow: isPending ? 'none' : '0 2px 8px rgba(22,163,74,0.3)',
+              }}
+            >
+              {isPending ? (
+                <>
+                  <Loader2 size={18} style={{ animation: 'spin 0.8s linear infinite' }} />
+                  Guardando...
+                </>
+              ) : 'Guardar diagnóstico'}
+            </button>
+          </div>
+        )}
+      </div>
+    </>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function PatientProfilePage() {
-  const router = useRouter()
-  const params = useParams()
+  const router    = useRouter()
+  const params    = useParams()
   const patientId = params.id as string
 
   const [patient, setPatient]           = useState<PatientDetail | null>(null)
@@ -163,6 +548,7 @@ export default function PatientProfilePage() {
   const [orders, setOrders]             = useState<RecentOrder[]>([])
   const [loading, setLoading]           = useState(true)
   const [error, setError]               = useState<string | null>(null)
+  const [modalOpen, setModalOpen]       = useState(false)
 
   useEffect(() => {
     let mounted = true
@@ -207,6 +593,16 @@ export default function PatientProfilePage() {
     return () => { mounted = false }
   }, [patientId, router])
 
+  async function reloadDiagnoses() {
+    const { data } = await supabase
+      .schema('hema')
+      .from('patient_diagnoses')
+      .select('id, diagnosis_code, diagnosed_at, staging, is_primary, diagnoses(code, description_es, category)')
+      .eq('patient_id', patientId)
+      .order('is_primary', { ascending: false })
+    if (data) setDiagnoses(data as PatientDiagnosis[])
+  }
+
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', padding: '80px 0' }}>
@@ -232,9 +628,6 @@ export default function PatientProfilePage() {
 
   const age = calcAge(patient.birth_date)
   const hasRecentMeasurement = patient.last_measured_at !== null
-  const measurementDays = patient.last_measured_at
-    ? Math.floor((Date.now() - new Date(patient.last_measured_at).getTime()) / 86_400_000)
-    : null
 
   return (
     <>
@@ -265,9 +658,7 @@ export default function PatientProfilePage() {
           {/* Avatar */}
           <div
             style={{
-              width: 52,
-              height: 52,
-              borderRadius: '50%',
+              width: 52, height: 52, borderRadius: '50%',
               background: patient.sex === 'F' ? '#FCE7F3' : '#DBEAFE',
               color: patient.sex === 'F' ? '#BE185D' : '#1E40AF',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -295,15 +686,16 @@ export default function PatientProfilePage() {
         {patient.allergies && (
           <div
             style={{
-              marginTop: 14,
-              padding: '8px 12px',
+              marginTop: 14, padding: '8px 12px',
               background: 'rgba(220,38,38,0.18)',
-              borderRadius: 10,
-              border: '1px solid rgba(220,38,38,0.3)',
+              borderRadius: 10, border: '1px solid rgba(220,38,38,0.3)',
             }}
           >
-            <p style={{ fontSize: 12, color: '#FCA5A5', fontWeight: 700, marginBottom: 2 }}>⚠ Alergias</p>
-            <p style={{ fontSize: 13, color: '#FECACA' }}>{patient.allergies}</p>
+            <p style={{ fontSize: 12, color: '#fff', fontWeight: 700, marginBottom: 2, display: 'flex', alignItems: 'center', gap: 5 }}>
+              <AlertTriangle size={13} color="#fff" />
+              Alergias
+            </p>
+            <p style={{ fontSize: 13, color: '#FEF9C3' }}>{patient.allergies}</p>
           </div>
         )}
       </div>
@@ -311,9 +703,9 @@ export default function PatientProfilePage() {
       {/* ─── Quick actions ──────────────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 16 }}>
         {[
-          { label: 'Nueva medición', href: `/hema/pacientes/${patientId}/medicion`, icon: Ruler, color: '#1E3A5F' },
+          { label: 'Nueva medición',   href: `/hema/pacientes/${patientId}/medicion`, icon: Ruler,       color: '#1E3A5F' },
           { label: 'Nueva indicación', href: `/hema/ordenes/nueva?patient=${patientId}`, icon: FileText, color: '#16A34A' },
-          { label: 'Subir labs', href: `/hema/labs/nuevo?patient=${patientId}`, icon: FlaskConical, color: '#7C3AED' },
+          { label: 'Subir labs',       href: `/hema/labs/nuevo?patient=${patientId}`,    icon: FlaskConical, color: '#7C3AED' },
         ].map(({ label, href, icon: Icon, color }) => (
           <Link
             key={href}
@@ -400,8 +792,13 @@ export default function PatientProfilePage() {
             Diagnósticos
           </h2>
           <button
-            title="Agregar diagnóstico (próximamente)"
-            style={{ background: 'none', border: 'none', cursor: 'not-allowed', display: 'flex', alignItems: 'center', gap: 4, color: '#9CA3AF', fontSize: 13, fontWeight: 600, padding: '8px 4px', minHeight: 44 }}
+            onClick={() => setModalOpen(true)}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 4,
+              color: '#1E3A5F', fontSize: 13, fontWeight: 700,
+              padding: '8px 4px', minHeight: 44,
+            }}
           >
             <Plus size={14} /> Agregar
           </button>
@@ -410,12 +807,23 @@ export default function PatientProfilePage() {
         {diagnoses.length === 0 ? (
           <div style={{ padding: '24px', textAlign: 'center' }}>
             <Stethoscope size={28} color="#D1D5DB" style={{ margin: '0 auto 8px' }} />
-            <p style={{ fontSize: 13, color: '#9CA3AF' }}>Sin diagnósticos registrados</p>
+            <p style={{ fontSize: 13, color: '#9CA3AF', marginBottom: 12 }}>Sin diagnósticos registrados</p>
+            <button
+              onClick={() => setModalOpen(true)}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                background: '#1E3A5F', color: '#fff',
+                borderRadius: 10, padding: '8px 16px',
+                fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer',
+              }}
+            >
+              <Plus size={13} /> Agregar diagnóstico
+            </button>
           </div>
         ) : (
           diagnoses.map((dx, i) => {
-            const dxInfo = Array.isArray(dx.diagnoses) ? dx.diagnoses[0] : null
-            const cat = dxInfo?.category ?? 'otro'
+            const dxInfo   = Array.isArray(dx.diagnoses) ? dx.diagnoses[0] : null
+            const cat      = dxInfo?.category ?? 'otro'
             const catColor = DX_CATEGORY_COLOR[cat] ?? '#6B7280'
             return (
               <div
@@ -442,18 +850,22 @@ export default function PatientProfilePage() {
                     <span style={{ fontFamily: 'monospace', fontSize: 13, fontWeight: 700, color: catColor }}>
                       {dxInfo?.code ?? dx.diagnosis_code}
                     </span>
-                    {dx.is_primary && (
-                      <span style={{ fontSize: 10, fontWeight: 700, background: `${catColor}18`, color: catColor, borderRadius: 6, padding: '1px 6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        Principal
-                      </span>
-                    )}
+                    {/* Badge primario/secundario */}
+                    <span style={{
+                      fontSize: 10, fontWeight: 700, borderRadius: 6, padding: '1px 6px',
+                      textTransform: 'uppercase', letterSpacing: '0.05em',
+                      background: dx.is_primary ? '#DCFCE7' : '#F3F4F6',
+                      color:      dx.is_primary ? '#16A34A' : '#9CA3AF',
+                    }}>
+                      {dx.is_primary ? 'Principal' : 'Secundario'}
+                    </span>
                   </div>
                   <p style={{ fontSize: 14, color: '#111827', fontWeight: 600, marginBottom: 2 }}>
                     {dxInfo?.description_es ?? ''}
                   </p>
                   <p style={{ fontSize: 12, color: '#9CA3AF' }}>
                     Diagnóstico: {formatDate(dx.diagnosed_at)}
-                    {dx.staging ? ` · Estadio ${dx.staging}` : ''}
+                    {dx.staging ? ` · ${dx.staging}` : ''}
                   </p>
                 </div>
               </div>
@@ -519,6 +931,14 @@ export default function PatientProfilePage() {
       <p style={{ fontSize: 11, color: '#D1D5DB', textAlign: 'center', marginTop: 8 }}>
         Paciente registrado el {formatDate(patient.created_at)}
       </p>
+
+      {/* ─── Diagnosis Modal ─────────────────────────────────────────────── */}
+      <DiagnosisModal
+        open={modalOpen}
+        patientId={patientId}
+        onClose={() => setModalOpen(false)}
+        onSaved={reloadDiagnoses}
+      />
     </>
   )
 }
