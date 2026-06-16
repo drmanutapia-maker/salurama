@@ -101,7 +101,7 @@ function LoginContent() {
   const [remember, setRemember] = useState(false)
   const [feedback, setFeedback] = useState<Feedback | null>(null)
 
-  const redirectTo = searchParams.get('redirect') || '/dashboard'
+  const redirectTo = searchParams.get('next') || searchParams.get('redirect') || '/dashboard'
   const [checking, setChecking] = useState(true)
 
   // Corre solo una vez al montar. Deps vacías evitan que router.replace()
@@ -149,7 +149,7 @@ function LoginContent() {
           localStorage.removeItem('salurama_remember')
         }
 
-        router.replace(doctor.is_active ? redirectTo : '/dashboard?status=pending')
+        window.location.href = doctor.is_active ? redirectTo : '/dashboard?status=pending'
       }
     } catch (err) {
       setFeedback(parseAuthError(err))
