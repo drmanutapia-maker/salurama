@@ -239,7 +239,7 @@ export default function NuevaMedicionPage() {
         <h1 style={{ fontFamily: 'Fraunces, serif', fontSize: 24, fontWeight: 900, marginBottom: 4, color: '#fff' }}>
           {isFirst ? 'Medición inicial' : 'Nueva medición'}
         </h1>
-        <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)' }}>
+        <p style={{ fontSize: 13, color: '#fff' }}>
           El BSA se calcula automáticamente con la fórmula de Mosteller.
           {prevBsa && ` BSA anterior: ${prevBsa.toFixed(2)} m²`}
         </p>
