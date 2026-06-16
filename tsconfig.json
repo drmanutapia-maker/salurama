@@ -22,6 +22,9 @@
     "paths": {
       "@/*": [
         "./*"
+      ],
+      "@salurama/hema-shared": [
+        "./packages/hema-shared/src/index.ts"
       ]
     },
     "plugins": [
