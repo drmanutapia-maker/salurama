@@ -1,0 +1,5185 @@
+{
+  "protocols": [
+    {
+      "code": "VRd",
+      "name": "Bortezomib-Lenalidomida-Dexametasona",
+      "cycle_length_days": 21,
+      "total_cycles": 8,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "SWOG S0777",
+        "pubmed_id": "27669764",
+        "doi": "10.1016/S0140-6736(16)31594-X",
+        "guideline": "NCCN Multiple Myeloma v2.2024"
+      },
+      "diagnoses": [
+        {
+          "code": "C90.0",
+          "is_preferred": true
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "bortezomib",
+          "dose_value": 1.3,
+          "dose_unit": "mg/m2",
+          "route": "SC",
+          "days_of_cycle": [
+            1,
+            4,
+            8,
+            11
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": null,
+          "sequence_order": 2
+        },
+        {
+          "drug_inn": "lenalidomida",
+          "dose_value": 25,
+          "dose_unit": "mg",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": {
+            "profilaxis_tev": "AAS 100mg/d o HBPM según riesgo (obligatoria, R-DDI-02)"
+          },
+          "sequence_order": 3
+        },
+        {
+          "drug_inn": "dexametasona",
+          "dose_value": 20,
+          "dose_unit": "mg",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            2,
+            4,
+            5,
+            8,
+            9,
+            11,
+            12
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": null,
+          "sequence_order": 1
+        }
+      ]
+    },
+    {
+      "code": "VTd",
+      "name": "Bortezomib-Talidomida-Dexametasona",
+      "cycle_length_days": 21,
+      "total_cycles": 4,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "CASSIOPEIA (brazo control) / IFM 2013-04",
+        "pubmed_id": "31030986",
+        "doi": "10.1016/S0140-6736(19)31240-1",
+        "guideline": "NCCN Multiple Myeloma v2.2024"
+      },
+      "diagnoses": [
+        {
+          "code": "C90.0",
+          "is_preferred": false
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "bortezomib",
+          "dose_value": 1.3,
+          "dose_unit": "mg/m2",
+          "route": "SC",
+          "days_of_cycle": [
+            1,
+            4,
+            8,
+            11
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": null,
+          "sequence_order": 2
+        },
+        {
+          "drug_inn": "talidomida",
+          "dose_value": 100,
+          "dose_unit": "mg",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": {
+            "profilaxis_tev": "AAS 100mg/d o HBPM según riesgo (obligatoria, R-DDI-02)",
+            "nota_dosis": "100mg/d estándar; hasta 200mg/d según tolerancia"
+          },
+          "sequence_order": 3
+        },
+        {
+          "drug_inn": "dexametasona",
+          "dose_value": 40,
+          "dose_unit": "mg",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            8,
+            15
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": null,
+          "sequence_order": 1
+        }
+      ]
+    },
+    {
+      "code": "VCD",
+      "name": "Bortezomib-Ciclofosfamida-Dexametasona (CyBorD)",
+      "cycle_length_days": 28,
+      "total_cycles": 4,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "EVOLUTION / Reeder et al.",
+        "pubmed_id": "19641187",
+        "doi": "10.1038/leu.2009.194",
+        "guideline": "NCCN Multiple Myeloma v2.2024"
+      },
+      "diagnoses": [
+        {
+          "code": "C90.0",
+          "is_preferred": false
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "bortezomib",
+          "dose_value": 1.3,
+          "dose_unit": "mg/m2",
+          "route": "SC",
+          "days_of_cycle": [
+            1,
+            8,
+            15,
+            22
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": null,
+          "sequence_order": 2
+        },
+        {
+          "drug_inn": "ciclofosfamida",
+          "dose_value": 300,
+          "dose_unit": "mg/m2",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            8,
+            15,
+            22
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": {
+            "antiemetico": "ondansetrón 8mg PO 30 min antes"
+          },
+          "sequence_order": 3
+        },
+        {
+          "drug_inn": "dexametasona",
+          "dose_value": 40,
+          "dose_unit": "mg",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            8,
+            15,
+            22
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": null,
+          "sequence_order": 1
+        }
+      ]
+    },
+    {
+      "code": "D-VRd",
+      "name": "Daratumumab-Bortezomib-Lenalidomida-Dexametasona",
+      "cycle_length_days": 21,
+      "total_cycles": 8,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "GRIFFIN",
+        "pubmed_id": "32299598",
+        "doi": "10.1182/blood.2020005288",
+        "guideline": "NCCN Multiple Myeloma v2.2024"
+      },
+      "diagnoses": [
+        {
+          "code": "C90.0",
+          "is_preferred": true
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "daratumumab",
+          "dose_value": 1800,
+          "dose_unit": "mg",
+          "route": "SC",
+          "days_of_cycle": [
+            1,
+            8,
+            15
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 5,
+          "vehicle": null,
+          "premed_required": {
+            "antihistaminico": "difenhidramina 25 mg IV/PO 30 min antes",
+            "antipiretico": "acetaminofén 650 mg PO 30 min antes",
+            "corticoide": "dexametasona 20 mg IV/PO 1h antes (sustituye dosis de dexametasona del esquema en día de daratumumab)",
+            "montelukast": "10 mg PO 30 min antes (primeras 2 dosis)",
+            "nota_esquema": "Semanal C1-2, q2sem C3-6, q4sem C7+",
+            "ciclo_1_nota": "C1: dosis adicionales según ficha técnica. El wizard mostrará advertencia al médico."
+          },
+          "sequence_order": 1
+        },
+        {
+          "drug_inn": "bortezomib",
+          "dose_value": 1.3,
+          "dose_unit": "mg/m2",
+          "route": "SC",
+          "days_of_cycle": [
+            1,
+            4,
+            8,
+            11
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": null,
+          "sequence_order": 3
+        },
+        {
+          "drug_inn": "lenalidomida",
+          "dose_value": 25,
+          "dose_unit": "mg",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": {
+            "profilaxis_tev": "AAS 100mg/d o HBPM según riesgo (obligatoria, R-DDI-02)"
+          },
+          "sequence_order": 4
+        },
+        {
+          "drug_inn": "dexametasona",
+          "dose_value": 20,
+          "dose_unit": "mg",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            2,
+            4,
+            5,
+            8,
+            9,
+            11,
+            12
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": null,
+          "sequence_order": 2
+        }
+      ]
+    },
+    {
+      "code": "D-VTd",
+      "name": "Daratumumab-Bortezomib-Talidomida-Dexametasona",
+      "cycle_length_days": 21,
+      "total_cycles": 8,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "CASSIOPEIA",
+        "pubmed_id": "31678351",
+        "doi": "10.1016/S0140-6736(19)31240-1",
+        "guideline": "NCCN Multiple Myeloma v2.2024"
+      },
+      "diagnoses": [
+        {
+          "code": "C90.0",
+          "is_preferred": true
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "daratumumab",
+          "dose_value": 1800,
+          "dose_unit": "mg",
+          "route": "SC",
+          "days_of_cycle": [
+            1,
+            8,
+            15
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 5,
+          "vehicle": null,
+          "premed_required": {
+            "antihistaminico": "difenhidramina 25 mg IV/PO 30 min antes",
+            "antipiretico": "acetaminofén 650 mg PO 30 min antes",
+            "corticoide": "dexametasona 20 mg IV/PO 1h antes (sustituye dosis de dexametasona del esquema en día de daratumumab)",
+            "montelukast": "10 mg PO 30 min antes (primeras 2 dosis)",
+            "nota_esquema": "Semanal C1-2, q2sem C3-6, q4sem C7+",
+            "ciclo_1_nota": "C1: dosis adicionales según ficha técnica. El wizard mostrará advertencia al médico."
+          },
+          "sequence_order": 1
+        },
+        {
+          "drug_inn": "bortezomib",
+          "dose_value": 1.3,
+          "dose_unit": "mg/m2",
+          "route": "SC",
+          "days_of_cycle": [
+            1,
+            4,
+            8,
+            11
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": null,
+          "sequence_order": 3
+        },
+        {
+          "drug_inn": "talidomida",
+          "dose_value": 100,
+          "dose_unit": "mg",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": {
+            "profilaxis_tev": "AAS 100mg/d o HBPM según riesgo (obligatoria, R-DDI-02)"
+          },
+          "sequence_order": 4
+        },
+        {
+          "drug_inn": "dexametasona",
+          "dose_value": 20,
+          "dose_unit": "mg",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            2,
+            4,
+            5,
+            8,
+            9,
+            11,
+            12
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": null,
+          "sequence_order": 2
+        }
+      ]
+    },
+    {
+      "code": "KRd",
+      "name": "Carfilzomib-Lenalidomida-Dexametasona",
+      "cycle_length_days": 28,
+      "total_cycles": 18,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "ASPIRE",
+        "pubmed_id": "25482145",
+        "doi": "10.1056/NEJMoa1411321",
+        "guideline": "NCCN Multiple Myeloma v2.2024"
+      },
+      "diagnoses": [
+        {
+          "code": "C90.0",
+          "is_preferred": false
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "carfilzomib",
+          "dose_value": 56,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1,
+            2,
+            8,
+            9,
+            15,
+            16
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 30,
+          "vehicle": "SG5% 50-100 mL",
+          "premed_required": {
+            "antihistaminico": "difenhidramina 25-50 mg IV 30 min antes",
+            "hidratacion": "250-500 mL IV pre y post infusión",
+            "nota_escalamiento": "Ciclo 1 día 1-2: iniciar a 20 mg/m²; escalar a 56 mg/m² a partir de d8 si tolerado"
+          },
+          "sequence_order": 2
+        },
+        {
+          "drug_inn": "lenalidomida",
+          "dose_value": 25,
+          "dose_unit": "mg",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": {
+            "profilaxis_tev": "AAS 100mg/d o HBPM según riesgo (obligatoria, R-DDI-02)"
+          },
+          "sequence_order": 3
+        },
+        {
+          "drug_inn": "dexametasona",
+          "dose_value": 40,
+          "dose_unit": "mg",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            8,
+            15,
+            22
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": null,
+          "sequence_order": 1
+        }
+      ]
+    },
+    {
+      "code": "Rd-light",
+      "name": "Lenalidomida-Dexametasona dosis reducida (frágil)",
+      "cycle_length_days": 28,
+      "total_cycles": null,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "FIRST (subanálisis fragilidad) / IMWG frailty score",
+        "pubmed_id": "25184864",
+        "doi": "10.1056/NEJMoa1402551",
+        "guideline": "NCCN Multiple Myeloma v2.2024 — paciente frágil/≥80 años"
+      },
+      "diagnoses": [
+        {
+          "code": "C90.0",
+          "is_preferred": false
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "lenalidomida",
+          "dose_value": 10,
+          "dose_unit": "mg",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": {
+            "profilaxis_tev": "AAS 100mg/d o HBPM según riesgo (obligatoria, R-DDI-02)",
+            "nota_dosis": "Iniciar 10mg; reducir a 5-15mg según tolerancia y función renal"
+          },
+          "sequence_order": 2
+        },
+        {
+          "drug_inn": "dexametasona",
+          "dose_value": 20,
+          "dose_unit": "mg",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            8,
+            15,
+            22
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": null,
+          "sequence_order": 1
+        }
+      ]
+    },
+    {
+      "code": "DPd",
+      "name": "Daratumumab-Pomalidomida-Dexametasona",
+      "cycle_length_days": 28,
+      "total_cycles": null,
+      "line_of_therapy": "2L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "APOLLO",
+        "pubmed_id": "33971110",
+        "doi": "10.1016/S1470-2045(21)00128-5",
+        "guideline": "NCCN Multiple Myeloma v2.2024"
+      },
+      "diagnoses": [
+        {
+          "code": "C90.0",
+          "is_preferred": false
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "daratumumab",
+          "dose_value": 1800,
+          "dose_unit": "mg",
+          "route": "SC",
+          "days_of_cycle": [
+            1,
+            8,
+            15,
+            22
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 5,
+          "vehicle": null,
+          "premed_required": {
+            "antihistaminico": "difenhidramina 25 mg IV/PO 30 min antes",
+            "antipiretico": "acetaminofén 650 mg PO 30 min antes",
+            "corticoide": "dexametasona 20 mg IV/PO 1h antes (sustituye dosis de dexametasona del esquema en día de daratumumab)",
+            "montelukast": "10 mg PO 30 min antes (primeras 2 dosis)",
+            "nota_esquema": "Semanal C1-2, q2sem C3-6, q4sem C7+",
+            "ciclo_1_nota": "C1: dosis adicionales según ficha técnica. El wizard mostrará advertencia al médico."
+          },
+          "sequence_order": 1
+        },
+        {
+          "drug_inn": "pomalidomida",
+          "dose_value": 4,
+          "dose_unit": "mg",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": {
+            "profilaxis_tev": "AAS 100mg/d o HBPM según riesgo (obligatoria, R-DDI-02)"
+          },
+          "sequence_order": 3
+        },
+        {
+          "drug_inn": "dexametasona",
+          "dose_value": 40,
+          "dose_unit": "mg",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            8,
+            15,
+            22
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": null,
+          "sequence_order": 2
+        }
+      ]
+    },
+    {
+      "code": "D-VCd",
+      "name": "Daratumumab-Bortezomib-Ciclofosfamida-Dexametasona (Amiloidosis AL)",
+      "cycle_length_days": 28,
+      "total_cycles": 6,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "ANDROMEDA",
+        "pubmed_id": "34197467",
+        "doi": "10.1056/NEJMoa2028631",
+        "guideline": "NCCN AL Amyloidosis v1.2024"
+      },
+      "diagnoses": [
+        {
+          "code": "E85.8",
+          "is_preferred": true
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "daratumumab",
+          "dose_value": 1800,
+          "dose_unit": "mg",
+          "route": "SC",
+          "days_of_cycle": [
+            1,
+            8,
+            15,
+            22
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 5,
+          "vehicle": null,
+          "premed_required": {
+            "antihistaminico": "difenhidramina 25 mg IV/PO 30 min antes",
+            "antipiretico": "acetaminofén 650 mg PO 30 min antes",
+            "corticoide": "dexametasona 20-40 mg IV/PO 1h antes",
+            "montelukast": "10 mg PO 30 min antes (primeras 2 dosis)",
+            "nota_esquema": "Semanal C1-2, q2sem C3-6, q4sem ×24 meses (mantenimiento)",
+            "ciclo_1_nota": "C1: dosis adicionales según ficha técnica. El wizard mostrará advertencia al médico."
+          },
+          "sequence_order": 1
+        },
+        {
+          "drug_inn": "bortezomib",
+          "dose_value": 1.3,
+          "dose_unit": "mg/m2",
+          "route": "SC",
+          "days_of_cycle": [
+            1,
+            8,
+            15,
+            22
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": {
+            "nota_cardiaca": "Vigilar arritmia/hipotensión — alta prevalencia de compromiso cardiaco en amiloidosis AL"
+          },
+          "sequence_order": 3
+        },
+        {
+          "drug_inn": "ciclofosfamida",
+          "dose_value": 300,
+          "dose_unit": "mg/m2",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            8,
+            15,
+            22
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": null,
+          "sequence_order": 4
+        },
+        {
+          "drug_inn": "dexametasona",
+          "dose_value": 20,
+          "dose_unit": "mg",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            8,
+            15,
+            22
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": {
+            "nota_dosis": "20mg estándar; reducir a 10mg si NYHA III-IV o NT-proBNP muy elevado"
+          },
+          "sequence_order": 2
+        }
+      ]
+    },
+    {
+      "code": "DRC",
+      "name": "Dexametasona-Rituximab-Ciclofosfamida",
+      "cycle_length_days": 21,
+      "total_cycles": 6,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "Dimopoulos MA et al. (DRC regimen)",
+        "pubmed_id": "17577017",
+        "doi": "10.1200/JCO.2007.10.6500",
+        "guideline": "NCCN Waldenström Macroglobulinemia/LPL v1.2024"
+      },
+      "diagnoses": [
+        {
+          "code": "C88.0",
+          "is_preferred": true
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "dexametasona",
+          "dose_value": 20,
+          "dose_unit": "mg",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 15,
+          "vehicle": "SSN0.9% 100 mL",
+          "premed_required": null,
+          "sequence_order": 1
+        },
+        {
+          "drug_inn": "rituximab",
+          "dose_value": 375,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 240,
+          "vehicle": "SSN0.9% 250-500 mL",
+          "premed_required": {
+            "premedicacion_rtx": "difenhidramina 50mg IV + acetaminofén 650mg PO 30-60 min antes",
+            "screening": "VHB obligatorio antes de primera dosis (requires_hbv_screen)",
+            "nota_infusion": "Primera infusión a velocidad reducida con escalado gradual; siguientes pueden acortarse si tolerancia previa adecuada"
+          },
+          "sequence_order": 2
+        },
+        {
+          "drug_inn": "ciclofosfamida",
+          "dose_value": 100,
+          "dose_unit": "mg/m2",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": {
+            "frecuencia": "BID d1-5 (dosis indicada es por toma, no diaria total)",
+            "antiemetico": "ondansetrón 8mg PO 30 min antes de cada toma"
+          },
+          "sequence_order": 3
+        }
+      ]
+    },
+    {
+      "code": "BR-W",
+      "name": "Bendamustina-Rituximab (Waldenström)",
+      "cycle_length_days": 28,
+      "total_cycles": 6,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "Rummel MJ et al. (StiL) — linfoma indolente/WM",
+        "pubmed_id": "23433739",
+        "doi": "10.1016/S0140-6736(12)61763-2",
+        "guideline": "NCCN Waldenström Macroglobulinemia/LPL v1.2024"
+      },
+      "diagnoses": [
+        {
+          "code": "C88.0",
+          "is_preferred": true
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "bendamustina",
+          "dose_value": 90,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1,
+            2
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 60,
+          "vehicle": "SSN0.9% 500 mL",
+          "premed_required": {
+            "antiemetico": "ondansetrón 8mg IV 30 min antes",
+            "nota_extravasacion": "Irritante — vigilar sitio de infusión"
+          },
+          "sequence_order": 2
+        },
+        {
+          "drug_inn": "rituximab",
+          "dose_value": 375,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 240,
+          "vehicle": "SSN0.9% 250-500 mL",
+          "premed_required": {
+            "premedicacion_rtx": "difenhidramina 50mg IV + acetaminofén 650mg PO 30-60 min antes",
+            "screening": "VHB obligatorio antes de primera dosis (requires_hbv_screen)"
+          },
+          "sequence_order": 1
+        }
+      ]
+    },
+    {
+      "code": "IBR-W",
+      "name": "Ibrutinib (± Rituximab) — Waldenström",
+      "cycle_length_days": 28,
+      "total_cycles": null,
+      "line_of_therapy": "2L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "Treon SP et al.",
+        "pubmed_id": "25551204",
+        "doi": "10.1056/NEJMoa1501548",
+        "guideline": "NCCN Waldenström Macroglobulinemia/LPL v1.2024"
+      },
+      "diagnoses": [
+        {
+          "code": "C88.0",
+          "is_preferred": true
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "ibrutinib",
+          "dose_value": 420,
+          "dose_unit": "mg",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": {
+            "nota_continuo": "Tratamiento continuo hasta progresión o toxicidad; sin descanso entre ciclos",
+            "ddi": "Evitar inhibidores/inductores fuertes de CYP3A4 (cyp3a4_substrate)"
+          },
+          "sequence_order": 1
+        }
+      ]
+    },
+    {
+      "code": "ABVD",
+      "name": "Doxorrubicina-Bleomicina-Vinblastina-Dacarbazina",
+      "cycle_length_days": 28,
+      "total_cycles": 6,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "Canellos GP et al.",
+        "pubmed_id": "1471569",
+        "doi": "10.1056/NEJM199211193272101",
+        "guideline": "NCCN Hodgkin Lymphoma v3.2024"
+      },
+      "diagnoses": [
+        {
+          "code": "C81.1",
+          "is_preferred": true
+        },
+        {
+          "code": "C81.9",
+          "is_preferred": false
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "doxorubicina",
+          "dose_value": 25,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1,
+            15
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 15,
+          "vehicle": null,
+          "premed_required": {
+            "nota_vesicante": "Administrar por vía permeable de flujo libre; riesgo de extravasación",
+            "nota_acumulativo": "Vigilar dosis acumulada (cumulative_max_mg_m2 — riesgo cardiotoxicidad)"
+          },
+          "sequence_order": 2
+        },
+        {
+          "drug_inn": "bleomicina",
+          "dose_value": 10,
+          "dose_unit": "U/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1,
+            15
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 10,
+          "vehicle": "SSN0.9% 50-100 mL",
+          "premed_required": {
+            "dosis_prueba": "1-2U IM/IV en primera aplicación — riesgo de reacción anafilactoide",
+            "vigilancia_pulmonar": "Espirometría con DLCO basal y periódica (requires_pft); suspender si toxicidad pulmonar"
+          },
+          "sequence_order": 3
+        },
+        {
+          "drug_inn": "vinblastina",
+          "dose_value": 6,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1,
+            15
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 5,
+          "vehicle": null,
+          "premed_required": {
+            "nota_vesicante": "Administrar por vía permeable; riesgo de extravasación"
+          },
+          "sequence_order": 4
+        },
+        {
+          "drug_inn": "dacarbazina",
+          "dose_value": 375,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1,
+            15
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 60,
+          "vehicle": "SG5% 250 mL",
+          "premed_required": {
+            "antiemetico": "esquema altamente emetógeno — antagonista 5-HT3 + dexametasona + aprepitant",
+            "nota_fotosensible": "Proteger de la luz durante infusión"
+          },
+          "sequence_order": 1
+        }
+      ]
+    },
+    {
+      "code": "AVD",
+      "name": "Doxorrubicina-Vinblastina-Dacarbazina (sin bleomicina)",
+      "cycle_length_days": 28,
+      "total_cycles": 6,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "Esquema base de AVD (precursor de BV-AVD/ECHELON-1); alternativa cuando bleomicina contraindicada",
+        "pubmed_id": "29224502",
+        "doi": "10.1056/NEJMoa1708984",
+        "guideline": "NCCN Hodgkin Lymphoma v3.2024"
+      },
+      "diagnoses": [
+        {
+          "code": "C81.1",
+          "is_preferred": true
+        },
+        {
+          "code": "C81.9",
+          "is_preferred": false
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "doxorubicina",
+          "dose_value": 25,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1,
+            15
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 15,
+          "vehicle": null,
+          "premed_required": {
+            "nota_vesicante": "Administrar por vía permeable de flujo libre; riesgo de extravasación",
+            "nota_acumulativo": "Vigilar dosis acumulada (cumulative_max_mg_m2 — riesgo cardiotoxicidad)"
+          },
+          "sequence_order": 1
+        },
+        {
+          "drug_inn": "vinblastina",
+          "dose_value": 6,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1,
+            15
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 5,
+          "vehicle": null,
+          "premed_required": {
+            "nota_vesicante": "Administrar por vía permeable; riesgo de extravasación"
+          },
+          "sequence_order": 2
+        },
+        {
+          "drug_inn": "dacarbazina",
+          "dose_value": 375,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1,
+            15
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 60,
+          "vehicle": "SG5% 250 mL",
+          "premed_required": {
+            "antiemetico": "esquema altamente emetógeno — antagonista 5-HT3 + dexametasona + aprepitant",
+            "nota_fotosensible": "Proteger de la luz durante infusión"
+          },
+          "sequence_order": 3
+        }
+      ]
+    },
+    {
+      "code": "BV-AVD",
+      "name": "Brentuximab Vedotin-Doxorrubicina-Vinblastina-Dacarbazina",
+      "cycle_length_days": 28,
+      "total_cycles": 6,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "ECHELON-1 (Connors JM et al.)",
+        "pubmed_id": "29224502",
+        "doi": "10.1056/NEJMoa1708984",
+        "guideline": "NCCN Hodgkin Lymphoma v3.2024"
+      },
+      "diagnoses": [
+        {
+          "code": "C81.1",
+          "is_preferred": true
+        },
+        {
+          "code": "C81.9",
+          "is_preferred": false
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "brentuximab vedotin",
+          "dose_value": 1.2,
+          "dose_unit": "mg/kg",
+          "route": "IV",
+          "days_of_cycle": [
+            1,
+            15
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 30,
+          "vehicle": "SSN0.9% 150 mL",
+          "premed_required": {
+            "vigilancia": "Riesgo de neuropatía periférica y neutropenia febril — profilaxis con G-CSF recomendada",
+            "nota_infusion": "Vigilar reacción relacionada con infusión"
+          },
+          "sequence_order": 1
+        },
+        {
+          "drug_inn": "doxorubicina",
+          "dose_value": 25,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1,
+            15
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 15,
+          "vehicle": null,
+          "premed_required": {
+            "nota_vesicante": "Administrar por vía permeable de flujo libre; riesgo de extravasación",
+            "nota_acumulativo": "Vigilar dosis acumulada (cumulative_max_mg_m2 — riesgo cardiotoxicidad)"
+          },
+          "sequence_order": 2
+        },
+        {
+          "drug_inn": "vinblastina",
+          "dose_value": 6,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1,
+            15
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 5,
+          "vehicle": null,
+          "premed_required": {
+            "nota_vesicante": "Administrar por vía permeable; riesgo de extravasación"
+          },
+          "sequence_order": 3
+        },
+        {
+          "drug_inn": "dacarbazina",
+          "dose_value": 375,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1,
+            15
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 60,
+          "vehicle": "SG5% 250 mL",
+          "premed_required": {
+            "antiemetico": "esquema altamente emetógeno — antagonista 5-HT3 + dexametasona + aprepitant",
+            "nota_fotosensible": "Proteger de la luz durante infusión"
+          },
+          "sequence_order": 4
+        }
+      ]
+    },
+    {
+      "code": "BEACOPP",
+      "name": "BEACOPP escalado",
+      "cycle_length_days": 21,
+      "total_cycles": 6,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "German Hodgkin Study Group — HD15 (Engert A et al.)",
+        "pubmed_id": "22317840",
+        "doi": "10.1016/S0140-6736(11)61940-5",
+        "guideline": "NCCN Hodgkin Lymphoma v3.2024 — estadio avanzado/alto riesgo"
+      },
+      "diagnoses": [
+        {
+          "code": "C81.1",
+          "is_preferred": true
+        },
+        {
+          "code": "C81.2",
+          "is_preferred": false
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "bleomicina",
+          "dose_value": 10,
+          "dose_unit": "U/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            8
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 10,
+          "vehicle": "SSN0.9% 50-100 mL",
+          "premed_required": {
+            "dosis_prueba": "1-2U IM/IV en primera aplicación — riesgo de reacción anafilactoide",
+            "vigilancia_pulmonar": "Espirometría con DLCO basal y periódica (requires_pft); suspender si toxicidad pulmonar"
+          },
+          "sequence_order": 6
+        },
+        {
+          "drug_inn": "etopósido",
+          "dose_value": 200,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1,
+            2,
+            3
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 60,
+          "vehicle": "SSN0.9% 250-500 mL",
+          "premed_required": {
+            "nota_infusion": "Infusión lenta — riesgo de hipotensión si se administra rápido"
+          },
+          "sequence_order": 2
+        },
+        {
+          "drug_inn": "doxorubicina",
+          "dose_value": 35,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 15,
+          "vehicle": null,
+          "premed_required": {
+            "nota_vesicante": "Administrar por vía permeable de flujo libre; riesgo de extravasación",
+            "nota_acumulativo": "Vigilar dosis acumulada (cumulative_max_mg_m2 — riesgo cardiotoxicidad)"
+          },
+          "sequence_order": 1
+        },
+        {
+          "drug_inn": "ciclofosfamida",
+          "dose_value": 1250,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 60,
+          "vehicle": "SSN0.9% 500 mL",
+          "premed_required": {
+            "hidratacion": "Hidratación IV vigorosa pre y post; profilaxis de cistitis hemorrágica con mesna",
+            "antiemetico": "esquema altamente emetógeno"
+          },
+          "sequence_order": 3
+        },
+        {
+          "drug_inn": "vincristina",
+          "dose_value": 1.4,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            8
+          ],
+          "max_dose_mg": 2,
+          "infusion_minutes": 5,
+          "vehicle": null,
+          "premed_required": {
+            "nota_vesicante": "Administrar por vía permeable; riesgo de extravasación",
+            "nota_dosis_tope": "Dosis tope absoluta 2mg independiente de superficie corporal"
+          },
+          "sequence_order": 5
+        },
+        {
+          "drug_inn": "procarbazina",
+          "dose_value": 100,
+          "dose_unit": "mg/m2",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": {
+            "ddi": "Actividad IMAO leve — evitar alimentos ricos en tiramina y alcohol durante el tratamiento"
+          },
+          "sequence_order": 4
+        },
+        {
+          "drug_inn": "prednisona",
+          "dose_value": 40,
+          "dose_unit": "mg/m2",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": null,
+          "sequence_order": 0
+        }
+      ]
+    },
+    {
+      "code": "R-CHOP-21",
+      "name": "Rituximab-Ciclofosfamida-Doxorrubicina-Vincristina-Prednisona (q21d)",
+      "cycle_length_days": 21,
+      "total_cycles": 6,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "Coiffier B et al. (GELA)",
+        "pubmed_id": "11784147",
+        "doi": "10.1056/NEJMoa011795",
+        "guideline": "NCCN B-Cell Lymphomas v4.2024 — rango habitual 6-8 ciclos según respuesta/estadio"
+      },
+      "diagnoses": [
+        {
+          "code": "C83.3",
+          "is_preferred": true
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "rituximab",
+          "dose_value": 375,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 240,
+          "vehicle": "SSN0.9% 250-500 mL",
+          "premed_required": {
+            "premedicacion_rtx": "difenhidramina 50mg IV + acetaminofén 650mg PO 30-60 min antes",
+            "screening": "VHB obligatorio antes de primera dosis (requires_hbv_screen)"
+          },
+          "sequence_order": 1
+        },
+        {
+          "drug_inn": "ciclofosfamida",
+          "dose_value": 750,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 60,
+          "vehicle": "SSN0.9% 500 mL",
+          "premed_required": {
+            "antiemetico": "esquema moderadamente-altamente emetógeno"
+          },
+          "sequence_order": 2
+        },
+        {
+          "drug_inn": "doxorubicina",
+          "dose_value": 50,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 15,
+          "vehicle": null,
+          "premed_required": {
+            "nota_vesicante": "Administrar por vía permeable de flujo libre; riesgo de extravasación",
+            "nota_acumulativo": "Vigilar dosis acumulada (cumulative_max_mg_m2 — riesgo cardiotoxicidad)"
+          },
+          "sequence_order": 3
+        },
+        {
+          "drug_inn": "vincristina",
+          "dose_value": 1.4,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": 2,
+          "infusion_minutes": 5,
+          "vehicle": null,
+          "premed_required": {
+            "nota_vesicante": "Administrar por vía permeable; riesgo de extravasación",
+            "nota_dosis_tope": "Tope 2mg; reducir a 1.5mg si ≥70 años"
+          },
+          "sequence_order": 4
+        },
+        {
+          "drug_inn": "prednisona",
+          "dose_value": 100,
+          "dose_unit": "mg",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": null,
+          "sequence_order": 5
+        }
+      ]
+    },
+    {
+      "code": "R-CHOP-14",
+      "name": "Rituximab-Ciclofosfamida-Doxorrubicina-Vincristina-Prednisona (q14d + G-CSF)",
+      "cycle_length_days": 14,
+      "total_cycles": 6,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "RICOVER-60 (Pfreundschuh M et al.)",
+        "pubmed_id": "18361756",
+        "doi": "10.1016/S1470-2045(08)70002-0",
+        "guideline": "NCCN B-Cell Lymphomas v4.2024"
+      },
+      "diagnoses": [
+        {
+          "code": "C83.3",
+          "is_preferred": true
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "rituximab",
+          "dose_value": 375,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 240,
+          "vehicle": "SSN0.9% 250-500 mL",
+          "premed_required": {
+            "premedicacion_rtx": "difenhidramina 50mg IV + acetaminofén 650mg PO 30-60 min antes",
+            "screening": "VHB obligatorio antes de primera dosis (requires_hbv_screen)"
+          },
+          "sequence_order": 1
+        },
+        {
+          "drug_inn": "ciclofosfamida",
+          "dose_value": 750,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 60,
+          "vehicle": "SSN0.9% 500 mL",
+          "premed_required": {
+            "soporte_gcsf": "G-CSF obligatorio d2-13 dado intervalo acortado (riesgo de neutropenia febril)"
+          },
+          "sequence_order": 2
+        },
+        {
+          "drug_inn": "doxorubicina",
+          "dose_value": 50,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 15,
+          "vehicle": null,
+          "premed_required": {
+            "nota_vesicante": "Administrar por vía permeable de flujo libre; riesgo de extravasación",
+            "nota_acumulativo": "Vigilar dosis acumulada (cumulative_max_mg_m2 — riesgo cardiotoxicidad)"
+          },
+          "sequence_order": 3
+        },
+        {
+          "drug_inn": "vincristina",
+          "dose_value": 1.4,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": 2,
+          "infusion_minutes": 5,
+          "vehicle": null,
+          "premed_required": {
+            "nota_vesicante": "Administrar por vía permeable; riesgo de extravasación",
+            "nota_dosis_tope": "Tope 2mg; reducir a 1.5mg si ≥70 años"
+          },
+          "sequence_order": 4
+        },
+        {
+          "drug_inn": "prednisona",
+          "dose_value": 100,
+          "dose_unit": "mg",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": null,
+          "sequence_order": 5
+        }
+      ]
+    },
+    {
+      "code": "POLA-RCHP",
+      "name": "Polatuzumab Vedotin-Rituximab-Ciclofosfamida-Doxorrubicina-Prednisona",
+      "cycle_length_days": 21,
+      "total_cycles": 6,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "POLARIX (Tilly H et al.)",
+        "pubmed_id": "35660812",
+        "doi": "10.1056/NEJMoa2115988",
+        "guideline": "NCCN B-Cell Lymphomas v4.2024 — IPI ≥2"
+      },
+      "diagnoses": [
+        {
+          "code": "C83.3",
+          "is_preferred": true
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "polatuzumab vedotin",
+          "dose_value": 1.8,
+          "dose_unit": "mg/kg",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 90,
+          "vehicle": "SSN0.9% 250 mL",
+          "premed_required": {
+            "nota_neuropatia": "Riesgo de neuropatía periférica — evaluar antes de cada ciclo",
+            "nota_vcr_omitida": "Sustituye a vincristina (VCR omitida en este esquema)"
+          },
+          "sequence_order": 1
+        },
+        {
+          "drug_inn": "rituximab",
+          "dose_value": 375,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 240,
+          "vehicle": "SSN0.9% 250-500 mL",
+          "premed_required": {
+            "premedicacion_rtx": "difenhidramina 50mg IV + acetaminofén 650mg PO 30-60 min antes",
+            "screening": "VHB obligatorio antes de primera dosis (requires_hbv_screen)"
+          },
+          "sequence_order": 2
+        },
+        {
+          "drug_inn": "ciclofosfamida",
+          "dose_value": 750,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 60,
+          "vehicle": "SSN0.9% 500 mL",
+          "premed_required": {
+            "antiemetico": "esquema moderadamente-altamente emetógeno"
+          },
+          "sequence_order": 3
+        },
+        {
+          "drug_inn": "doxorubicina",
+          "dose_value": 50,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 15,
+          "vehicle": null,
+          "premed_required": {
+            "nota_vesicante": "Administrar por vía permeable de flujo libre; riesgo de extravasación",
+            "nota_acumulativo": "Vigilar dosis acumulada (cumulative_max_mg_m2 — riesgo cardiotoxicidad)"
+          },
+          "sequence_order": 4
+        },
+        {
+          "drug_inn": "prednisona",
+          "dose_value": 100,
+          "dose_unit": "mg",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": null,
+          "sequence_order": 5
+        }
+      ]
+    },
+    {
+      "code": "DA-EPOCH-R",
+      "name": "Dosis Ajustada EPOCH + Rituximab",
+      "cycle_length_days": 21,
+      "total_cycles": 6,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "Dunleavy K et al. (linfoma mediastinal primario de células B) / Wilson WH et al.",
+        "pubmed_id": "23692914",
+        "doi": "10.1056/NEJMoa1214561",
+        "guideline": "NCCN B-Cell Lymphomas v4.2024 — doble-hit/alto riesgo, LBCL mediastinal primario"
+      },
+      "diagnoses": [
+        {
+          "code": "C83.3",
+          "is_preferred": true
+        },
+        {
+          "code": "C85.2",
+          "is_preferred": false
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "etopósido",
+          "dose_value": 50,
+          "dose_unit": "mg/m2",
+          "route": "CIV",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 1440,
+          "vehicle": "SSN0.9% bolsa de infusión continua 96h",
+          "premed_required": {
+            "nota_infusion": "Infusión continua 96h junto con vincristina y doxorrubicina en la misma bolsa/línea"
+          },
+          "sequence_order": 2
+        },
+        {
+          "drug_inn": "vincristina",
+          "dose_value": 0.4,
+          "dose_unit": "mg/m2",
+          "route": "CIV",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "max_dose_mg": 2,
+          "infusion_minutes": 1440,
+          "vehicle": "SSN0.9% bolsa de infusión continua 96h",
+          "premed_required": {
+            "nota_dosis_tope": "Dosis tope acumulada de 2mg para todo el ciclo de 96h, no por día"
+          },
+          "sequence_order": 3
+        },
+        {
+          "drug_inn": "doxorubicina",
+          "dose_value": 10,
+          "dose_unit": "mg/m2",
+          "route": "CIV",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 1440,
+          "vehicle": "SSN0.9% bolsa de infusión continua 96h",
+          "premed_required": {
+            "nota_acumulativo": "Vigilar dosis acumulada (cumulative_max_mg_m2 — riesgo cardiotoxicidad)"
+          },
+          "sequence_order": 4
+        },
+        {
+          "drug_inn": "ciclofosfamida",
+          "dose_value": 750,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            5
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 60,
+          "vehicle": "SSN0.9% 500 mL",
+          "premed_required": {
+            "nota_ajuste": "Dosis ajustada según nadir de ANC del ciclo previo (dose-adjusted)"
+          },
+          "sequence_order": 5
+        },
+        {
+          "drug_inn": "prednisona",
+          "dose_value": 60,
+          "dose_unit": "mg/m2",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": {
+            "frecuencia": "BID d1-5 (dosis indicada es por toma)"
+          },
+          "sequence_order": 6
+        },
+        {
+          "drug_inn": "rituximab",
+          "dose_value": 375,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 240,
+          "vehicle": "SSN0.9% 250-500 mL",
+          "premed_required": {
+            "premedicacion_rtx": "difenhidramina 50mg IV + acetaminofén 650mg PO 30-60 min antes",
+            "screening": "VHB obligatorio antes de primera dosis (requires_hbv_screen)"
+          },
+          "sequence_order": 1
+        }
+      ]
+    },
+    {
+      "code": "R-CEOP",
+      "name": "Rituximab-Ciclofosfamida-Etopósido-Vincristina-Prednisona (cardioprotector)",
+      "cycle_length_days": 21,
+      "total_cycles": 6,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "Sustitución cardioprotectora de antraciclina por etopósido en pacientes con cardiopatía/FEVI reducida",
+        "pubmed_id": null,
+        "doi": null,
+        "guideline": "NCCN B-Cell Lymphomas v4.2024 — alternativa cuando antraciclina contraindicada"
+      },
+      "diagnoses": [
+        {
+          "code": "C83.3",
+          "is_preferred": true
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "rituximab",
+          "dose_value": 375,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 240,
+          "vehicle": "SSN0.9% 250-500 mL",
+          "premed_required": {
+            "premedicacion_rtx": "difenhidramina 50mg IV + acetaminofén 650mg PO 30-60 min antes",
+            "screening": "VHB obligatorio antes de primera dosis (requires_hbv_screen)"
+          },
+          "sequence_order": 1
+        },
+        {
+          "drug_inn": "ciclofosfamida",
+          "dose_value": 750,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 60,
+          "vehicle": "SSN0.9% 500 mL",
+          "premed_required": {
+            "antiemetico": "esquema moderadamente-altamente emetógeno"
+          },
+          "sequence_order": 2
+        },
+        {
+          "drug_inn": "etopósido",
+          "dose_value": 75,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1,
+            2,
+            3
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 60,
+          "vehicle": "SSN0.9% 250-500 mL",
+          "premed_required": {
+            "nota_sustitucion": "Reemplaza a doxorrubicina por cardiopatía/FEVI reducida",
+            "nota_infusion": "Infusión lenta — riesgo de hipotensión si se administra rápido"
+          },
+          "sequence_order": 3
+        },
+        {
+          "drug_inn": "vincristina",
+          "dose_value": 1.4,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": 2,
+          "infusion_minutes": 5,
+          "vehicle": null,
+          "premed_required": {
+            "nota_vesicante": "Administrar por vía permeable; riesgo de extravasación",
+            "nota_dosis_tope": "Tope 2mg; reducir a 1.5mg si ≥70 años"
+          },
+          "sequence_order": 4
+        },
+        {
+          "drug_inn": "prednisona",
+          "dose_value": 100,
+          "dose_unit": "mg",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": null,
+          "sequence_order": 5
+        }
+      ]
+    },
+    {
+      "code": "R-CODOX-M",
+      "name": "Rituximab-Ciclofosfamida-Vincristina-Doxorrubicina-Metotrexato (ciclos impares, Burkitt)",
+      "cycle_length_days": 21,
+      "total_cycles": 2,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "Magrath I et al. / Mead GM et al. — CODOX-M/IVAC",
+        "pubmed_id": "8823332",
+        "doi": "10.1200/JCO.1996.14.3.925",
+        "guideline": "NCCN B-Cell Lymphomas v4.2024 — alterna con R-IVAC; riesgo bajo: CODOX-M solo ×3, riesgo alto: alterna CODOX-M/IVAC ×2+2"
+      },
+      "diagnoses": [
+        {
+          "code": "C83.7",
+          "is_preferred": true
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "rituximab",
+          "dose_value": 375,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1,
+            9
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 240,
+          "vehicle": "SSN0.9% 250-500 mL",
+          "premed_required": {
+            "premedicacion_rtx": "difenhidramina 50mg IV + acetaminofén 650mg PO 30-60 min antes",
+            "screening": "VHB obligatorio antes de primera dosis (requires_hbv_screen)"
+          },
+          "sequence_order": 1
+        },
+        {
+          "drug_inn": "ciclofosfamida",
+          "dose_value": 800,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 60,
+          "vehicle": "SSN0.9% 500 mL",
+          "premed_required": {
+            "nota_dosis": "800mg/m² d1; continúa con 200mg/m²/d d2-5 (ver entrada separada)"
+          },
+          "sequence_order": 2
+        },
+        {
+          "drug_inn": "ciclofosfamida",
+          "dose_value": 200,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            2,
+            3,
+            4,
+            5
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 60,
+          "vehicle": "SSN0.9% 500 mL",
+          "premed_required": {
+            "hidratacion": "Hidratación IV vigorosa — profilaxis de síndrome de lisis tumoral (alto riesgo en Burkitt)"
+          },
+          "sequence_order": 3
+        },
+        {
+          "drug_inn": "vincristina",
+          "dose_value": 1.5,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1,
+            8
+          ],
+          "max_dose_mg": 2,
+          "infusion_minutes": 5,
+          "vehicle": null,
+          "premed_required": {
+            "nota_vesicante": "Administrar por vía permeable; riesgo de extravasación"
+          },
+          "sequence_order": 4
+        },
+        {
+          "drug_inn": "doxorubicina",
+          "dose_value": 40,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 15,
+          "vehicle": null,
+          "premed_required": {
+            "nota_vesicante": "Administrar por vía permeable de flujo libre; riesgo de extravasación"
+          },
+          "sequence_order": 5
+        },
+        {
+          "drug_inn": "metotrexato",
+          "dose_value": 3000,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            10
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 720,
+          "vehicle": "SG5% infusión de 12h",
+          "premed_required": {
+            "rescate": "Rescate con leucovorina obligatorio iniciando 24h tras fin de infusión, según niveles séricos",
+            "hidratacion": "Hidratación IV vigorosa + alcalinización urinaria (pH≥7) — prevenir nefrotoxicidad",
+            "monitorizacion": "Niveles de metotrexato seriados hasta <0.1 µmol/L"
+          },
+          "sequence_order": 6
+        }
+      ]
+    },
+    {
+      "code": "R-IVAC",
+      "name": "Rituximab-Ifosfamida-Etopósido-Citarabina (ciclos pares, Burkitt)",
+      "cycle_length_days": 21,
+      "total_cycles": 2,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "Magrath I et al. / Mead GM et al. — CODOX-M/IVAC",
+        "pubmed_id": "8823332",
+        "doi": "10.1200/JCO.1996.14.3.925",
+        "guideline": "NCCN B-Cell Lymphomas v4.2024 — alterna con R-CODOX-M en ciclos pares"
+      },
+      "diagnoses": [
+        {
+          "code": "C83.7",
+          "is_preferred": true
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "rituximab",
+          "dose_value": 375,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            3,
+            7
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 240,
+          "vehicle": "SSN0.9% 250-500 mL",
+          "premed_required": {
+            "premedicacion_rtx": "difenhidramina 50mg IV + acetaminofén 650mg PO 30-60 min antes",
+            "screening": "VHB obligatorio antes de primera dosis (requires_hbv_screen)"
+          },
+          "sequence_order": 1
+        },
+        {
+          "drug_inn": "ifosfamida",
+          "dose_value": 1500,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 60,
+          "vehicle": "SSN0.9% 500 mL",
+          "premed_required": {
+            "uroproteccion": "Mesna obligatorio (co-administración) — profilaxis de cistitis hemorrágica",
+            "hidratacion": "Hidratación IV vigorosa — profilaxis de síndrome de lisis tumoral"
+          },
+          "sequence_order": 2
+        },
+        {
+          "drug_inn": "etopósido",
+          "dose_value": 60,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 60,
+          "vehicle": "SSN0.9% 250-500 mL",
+          "premed_required": {
+            "nota_infusion": "Infusión lenta — riesgo de hipotensión si se administra rápido"
+          },
+          "sequence_order": 3
+        },
+        {
+          "drug_inn": "citarabina",
+          "dose_value": 2000,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1,
+            2
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 180,
+          "vehicle": "SSN0.9% 500 mL",
+          "premed_required": {
+            "frecuencia": "q12h ×2 dosis/día (dosis indicada es por toma) d1-2",
+            "profilaxis_neuro": "Colirio con corticoide profiláctico — riesgo de conjuntivitis; vigilar neurotoxicidad cerebelosa"
+          },
+          "sequence_order": 4
+        }
+      ]
+    },
+    {
+      "code": "BR-F",
+      "name": "Bendamustina-Rituximab (Linfoma Folicular)",
+      "cycle_length_days": 28,
+      "total_cycles": 6,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "Rummel MJ et al. (StiL) — linfoma indolente",
+        "pubmed_id": "23433739",
+        "doi": "10.1016/S0140-6736(12)61763-2",
+        "guideline": "NCCN B-Cell Lymphomas v4.2024 — folicular"
+      },
+      "diagnoses": [
+        {
+          "code": "C82.9",
+          "is_preferred": true
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "bendamustina",
+          "dose_value": 90,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1,
+            2
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 60,
+          "vehicle": "SSN0.9% 500 mL",
+          "premed_required": {
+            "antiemetico": "ondansetrón 8mg IV 30 min antes",
+            "nota_extravasacion": "Irritante — vigilar sitio de infusión"
+          },
+          "sequence_order": 2
+        },
+        {
+          "drug_inn": "rituximab",
+          "dose_value": 375,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 240,
+          "vehicle": "SSN0.9% 250-500 mL",
+          "premed_required": {
+            "premedicacion_rtx": "difenhidramina 50mg IV + acetaminofén 650mg PO 30-60 min antes",
+            "screening": "VHB obligatorio antes de primera dosis (requires_hbv_screen)"
+          },
+          "sequence_order": 1
+        }
+      ]
+    },
+    {
+      "code": "R-CHOP-F",
+      "name": "R-CHOP (Linfoma Folicular grado 3b/transformado)",
+      "cycle_length_days": 21,
+      "total_cycles": 6,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "Esquema idéntico a R-CHOP-21; indicado en folicular grado 3b o transformado a LDCBG",
+        "pubmed_id": null,
+        "doi": null,
+        "guideline": "NCCN B-Cell Lymphomas v4.2024 — folicular grado 3b/transformado"
+      },
+      "diagnoses": [
+        {
+          "code": "C82.9",
+          "is_preferred": true
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "rituximab",
+          "dose_value": 375,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 240,
+          "vehicle": "SSN0.9% 250-500 mL",
+          "premed_required": {
+            "premedicacion_rtx": "difenhidramina 50mg IV + acetaminofén 650mg PO 30-60 min antes",
+            "screening": "VHB obligatorio antes de primera dosis (requires_hbv_screen)"
+          },
+          "sequence_order": 1
+        },
+        {
+          "drug_inn": "ciclofosfamida",
+          "dose_value": 750,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 60,
+          "vehicle": "SSN0.9% 500 mL",
+          "premed_required": {
+            "antiemetico": "esquema moderadamente-altamente emetógeno"
+          },
+          "sequence_order": 2
+        },
+        {
+          "drug_inn": "doxorubicina",
+          "dose_value": 50,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 15,
+          "vehicle": null,
+          "premed_required": {
+            "nota_vesicante": "Administrar por vía permeable de flujo libre; riesgo de extravasación",
+            "nota_acumulativo": "Vigilar dosis acumulada (cumulative_max_mg_m2 — riesgo cardiotoxicidad)"
+          },
+          "sequence_order": 3
+        },
+        {
+          "drug_inn": "vincristina",
+          "dose_value": 1.4,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": 2,
+          "infusion_minutes": 5,
+          "vehicle": null,
+          "premed_required": {
+            "nota_vesicante": "Administrar por vía permeable; riesgo de extravasación",
+            "nota_dosis_tope": "Tope 2mg; reducir a 1.5mg si ≥70 años"
+          },
+          "sequence_order": 4
+        },
+        {
+          "drug_inn": "prednisona",
+          "dose_value": 100,
+          "dose_unit": "mg",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": null,
+          "sequence_order": 5
+        }
+      ]
+    },
+    {
+      "code": "R-CVP",
+      "name": "Rituximab-Ciclofosfamida-Vincristina-Prednisona",
+      "cycle_length_days": 21,
+      "total_cycles": 8,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "Marcus R et al. — CVP-R vs CVP en linfoma folicular avanzado no tratado",
+        "pubmed_id": null,
+        "doi": null,
+        "guideline": "NCCN B-Cell Lymphomas v4.2024 — folicular, perfil de toxicidad reducido vs R-CHOP/BR"
+      },
+      "diagnoses": [
+        {
+          "code": "C82.9",
+          "is_preferred": true
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "rituximab",
+          "dose_value": 375,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 240,
+          "vehicle": "SSN0.9% 250-500 mL",
+          "premed_required": {
+            "premedicacion_rtx": "difenhidramina 50mg IV + acetaminofén 650mg PO 30-60 min antes",
+            "screening": "VHB obligatorio antes de primera dosis (requires_hbv_screen)"
+          },
+          "sequence_order": 1
+        },
+        {
+          "drug_inn": "ciclofosfamida",
+          "dose_value": 750,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 60,
+          "vehicle": "SSN0.9% 500 mL",
+          "premed_required": {
+            "antiemetico": "esquema moderadamente-altamente emetógeno"
+          },
+          "sequence_order": 2
+        },
+        {
+          "drug_inn": "vincristina",
+          "dose_value": 1.4,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": 2,
+          "infusion_minutes": 5,
+          "vehicle": null,
+          "premed_required": {
+            "nota_vesicante": "Administrar por vía permeable; riesgo de extravasación"
+          },
+          "sequence_order": 3
+        },
+        {
+          "drug_inn": "prednisona",
+          "dose_value": 40,
+          "dose_unit": "mg/m2",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": null,
+          "sequence_order": 4
+        }
+      ]
+    },
+    {
+      "code": "OBI-BENDA",
+      "name": "Obinutuzumab-Bendamustina (GALLIUM)",
+      "cycle_length_days": 28,
+      "total_cycles": 6,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "GALLIUM (Marcus R et al.)",
+        "pubmed_id": null,
+        "doi": null,
+        "guideline": "NCCN B-Cell Lymphomas v4.2024 — folicular"
+      },
+      "diagnoses": [
+        {
+          "code": "C82.9",
+          "is_preferred": true
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "obinutuzumab",
+          "dose_value": 1000,
+          "dose_unit": "mg",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 240,
+          "vehicle": "SSN0.9% 250-500 mL",
+          "premed_required": {
+            "nota_esquema_c1": "LIMITACIÓN DE ESQUEMA: en Ciclo 1 se administra adicionalmente en d8 y d15 (esquema 1000mg d1,8,15 → C2+ solo d1). El campo days_of_cycle de esta entrada no distingue por número de ciclo; documentar manualmente las dosis extra de C1 en la orden",
+            "premedicacion": "difenhidramina + acetaminofén + corticoide IV 30-60 min antes; riesgo de reacción a la infusión alto en primera dosis",
+            "ciclo_1_nota": "C1: dosis adicionales según ficha técnica. El wizard mostrará advertencia al médico."
+          },
+          "sequence_order": 1
+        },
+        {
+          "drug_inn": "bendamustina",
+          "dose_value": 90,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1,
+            2
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 60,
+          "vehicle": "SSN0.9% 500 mL",
+          "premed_required": {
+            "antiemetico": "ondansetrón 8mg IV 30 min antes",
+            "nota_extravasacion": "Irritante — vigilar sitio de infusión"
+          },
+          "sequence_order": 2
+        }
+      ]
+    },
+    {
+      "code": "RTX-MANT",
+      "name": "Rituximab mantenimiento",
+      "cycle_length_days": 60,
+      "total_cycles": 12,
+      "line_of_therapy": "mantenimiento",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "PRIMA (Salles G et al.)",
+        "pubmed_id": "21259062",
+        "doi": "10.1016/S0140-6736(10)62175-7",
+        "guideline": "NCCN B-Cell Lymphomas v4.2024 — mantenimiento post-inducción, folicular"
+      },
+      "diagnoses": [
+        {
+          "code": "C82.9",
+          "is_preferred": true
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "rituximab",
+          "dose_value": 375,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 240,
+          "vehicle": "SSN0.9% 250-500 mL",
+          "premed_required": {
+            "premedicacion_rtx": "difenhidramina 50mg IV + acetaminofén 650mg PO 30-60 min antes",
+            "nota_duracion": "q2 meses ×2 años (12 dosis totales); cycle_length_days=60 representa el intervalo entre dosis, no un ciclo de quimioterapia"
+          },
+          "sequence_order": 1
+        }
+      ]
+    },
+    {
+      "code": "VR-CAP",
+      "name": "Bortezomib-Rituximab-Ciclofosfamida-Doxorrubicina-Prednisona (Manto)",
+      "cycle_length_days": 21,
+      "total_cycles": 6,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "LYM-3002 (Robak T et al.)",
+        "pubmed_id": null,
+        "doi": null,
+        "guideline": "NCCN Mantle Cell Lymphoma v2.2024"
+      },
+      "diagnoses": [
+        {
+          "code": "C83.1",
+          "is_preferred": true
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "bortezomib",
+          "dose_value": 1.3,
+          "dose_unit": "mg/m2",
+          "route": "SC",
+          "days_of_cycle": [
+            1,
+            4,
+            8,
+            11
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": {
+            "nota_sustitucion": "Reemplaza a vincristina en el esquema R-CHOP"
+          },
+          "sequence_order": 4
+        },
+        {
+          "drug_inn": "rituximab",
+          "dose_value": 375,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 240,
+          "vehicle": "SSN0.9% 250-500 mL",
+          "premed_required": {
+            "premedicacion_rtx": "difenhidramina 50mg IV + acetaminofén 650mg PO 30-60 min antes",
+            "screening": "VHB obligatorio antes de primera dosis (requires_hbv_screen)"
+          },
+          "sequence_order": 1
+        },
+        {
+          "drug_inn": "ciclofosfamida",
+          "dose_value": 750,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 60,
+          "vehicle": "SSN0.9% 500 mL",
+          "premed_required": {
+            "antiemetico": "esquema moderadamente-altamente emetógeno"
+          },
+          "sequence_order": 2
+        },
+        {
+          "drug_inn": "doxorubicina",
+          "dose_value": 50,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 15,
+          "vehicle": null,
+          "premed_required": {
+            "nota_vesicante": "Administrar por vía permeable de flujo libre; riesgo de extravasación",
+            "nota_acumulativo": "Vigilar dosis acumulada (cumulative_max_mg_m2 — riesgo cardiotoxicidad)"
+          },
+          "sequence_order": 3
+        },
+        {
+          "drug_inn": "prednisona",
+          "dose_value": 100,
+          "dose_unit": "mg",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": null,
+          "sequence_order": 5
+        }
+      ]
+    },
+    {
+      "code": "BR-MCL",
+      "name": "Bendamustina-Rituximab (Manto)",
+      "cycle_length_days": 28,
+      "total_cycles": 6,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "Rummel MJ et al. (StiL) / Flinn IW et al. (BRIGHT)",
+        "pubmed_id": null,
+        "doi": null,
+        "guideline": "NCCN Mantle Cell Lymphoma v2.2024"
+      },
+      "diagnoses": [
+        {
+          "code": "C83.1",
+          "is_preferred": true
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "bendamustina",
+          "dose_value": 90,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1,
+            2
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 60,
+          "vehicle": "SSN0.9% 500 mL",
+          "premed_required": {
+            "antiemetico": "ondansetrón 8mg IV 30 min antes",
+            "nota_extravasacion": "Irritante — vigilar sitio de infusión"
+          },
+          "sequence_order": 2
+        },
+        {
+          "drug_inn": "rituximab",
+          "dose_value": 375,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 240,
+          "vehicle": "SSN0.9% 250-500 mL",
+          "premed_required": {
+            "premedicacion_rtx": "difenhidramina 50mg IV + acetaminofén 650mg PO 30-60 min antes",
+            "screening": "VHB obligatorio antes de primera dosis (requires_hbv_screen)"
+          },
+          "sequence_order": 1
+        }
+      ]
+    },
+    {
+      "code": "MATRIX",
+      "name": "Metotrexato-Citarabina-Tiotepa-Rituximab (IELSG32)",
+      "cycle_length_days": 21,
+      "total_cycles": 4,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "IELSG32 (Ferreri AJ et al.)",
+        "pubmed_id": "27039499",
+        "doi": "10.1016/S2352-3026(16)00036-3",
+        "guideline": "NCCN CNS Cancers v1.2024 — linfoma primario del SNC"
+      },
+      "diagnoses": [
+        {
+          "code": "C85.7",
+          "is_preferred": true
+        },
+        {
+          "code": "C71.9",
+          "is_preferred": false
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "rituximab",
+          "dose_value": 375,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1,
+            6
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 240,
+          "vehicle": "SSN0.9% 250-500 mL",
+          "premed_required": {
+            "nota_dias": "Rituximab d-5/d0 original → d1/d6; MTX d1→d7; AraC d2-3→d8-9; Tiotepa d4→d10 en este sistema",
+            "premedicacion_rtx": "difenhidramina 50mg IV + acetaminofén 650mg PO 30-60 min antes"
+          },
+          "sequence_order": 1
+        },
+        {
+          "drug_inn": "metotrexato",
+          "dose_value": 3500,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            7
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 240,
+          "vehicle": "SG5% infusión de 4h",
+          "premed_required": {
+            "rescate": "Rescate con leucovorina obligatorio iniciando 24h tras fin de infusión, según niveles séricos",
+            "hidratacion": "Hidratación IV vigorosa + alcalinización urinaria (pH≥7)",
+            "monitorizacion": "Niveles de metotrexato seriados hasta <0.1 µmol/L"
+          },
+          "sequence_order": 2
+        },
+        {
+          "drug_inn": "citarabina",
+          "dose_value": 2000,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            8,
+            9
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 180,
+          "vehicle": "SSN0.9% 500 mL",
+          "premed_required": {
+            "frecuencia": "BID (dosis indicada es por toma) d2,3",
+            "profilaxis_neuro": "Colirio con corticoide profiláctico — riesgo de conjuntivitis; vigilar neurotoxicidad cerebelosa"
+          },
+          "sequence_order": 3
+        },
+        {
+          "drug_inn": "tiotepa",
+          "dose_value": 30,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            10
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 60,
+          "vehicle": "SSN0.9% 250 mL",
+          "premed_required": null,
+          "sequence_order": 4
+        }
+      ]
+    },
+    {
+      "code": "7+3",
+      "name": "Daunorrubicina-Citarabina (inducción clásica)",
+      "cycle_length_days": 28,
+      "total_cycles": 1,
+      "line_of_therapy": "induccion",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "7+3 (esquema clásico de inducción)",
+        "pubmed_id": null,
+        "doi": null,
+        "guideline": "NCCN AML v3.2024"
+      },
+      "diagnoses": [
+        {
+          "code": "C92.0",
+          "is_preferred": true
+        },
+        {
+          "code": "C92.9",
+          "is_preferred": false
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "daunorrubicina",
+          "dose_value": 60,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1,
+            2,
+            3
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 30,
+          "vehicle": "SSN0.9% 100 mL",
+          "premed_required": {
+            "cardiotoxicidad": "Vigilar dosis acumulada de antraciclina; ecocardiograma basal recomendado"
+          },
+          "sequence_order": 1
+        },
+        {
+          "drug_inn": "citarabina",
+          "dose_value": 100,
+          "dose_unit": "mg/m2",
+          "route": "CIV",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": "SG5% o SSN0.9% en bomba de infusión continua 24h",
+          "premed_required": {
+            "profilaxis_neuro": "Colirio con corticoide profiláctico — riesgo de conjuntivitis"
+          },
+          "sequence_order": 2
+        }
+      ]
+    },
+    {
+      "code": "7+3-MIDO",
+      "name": "Daunorrubicina-Citarabina-Midostaurina (FLT3+)",
+      "cycle_length_days": 28,
+      "total_cycles": 1,
+      "line_of_therapy": "induccion",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "RATIFY (CALGB 10603) — Stone RM et al.",
+        "pubmed_id": "28204023",
+        "doi": "10.1056/NEJMoa1614359",
+        "guideline": "NCCN AML v3.2024"
+      },
+      "diagnoses": [
+        {
+          "code": "C92.0",
+          "is_preferred": true
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "daunorrubicina",
+          "dose_value": 60,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1,
+            2,
+            3
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 30,
+          "vehicle": "SSN0.9% 100 mL",
+          "premed_required": {
+            "cardiotoxicidad": "Vigilar dosis acumulada de antraciclina; ecocardiograma basal recomendado"
+          },
+          "sequence_order": 1
+        },
+        {
+          "drug_inn": "citarabina",
+          "dose_value": 100,
+          "dose_unit": "mg/m2",
+          "route": "CIV",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": "SG5% o SSN0.9% en bomba de infusión continua 24h",
+          "premed_required": {
+            "profilaxis_neuro": "Colirio con corticoide profiláctico — riesgo de conjuntivitis"
+          },
+          "sequence_order": 2
+        },
+        {
+          "drug_inn": "midostaurina",
+          "dose_value": 50,
+          "dose_unit": "mg",
+          "route": "PO",
+          "days_of_cycle": [
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": {
+            "biomarcador_requerido": "Indicado solo en LMA FLT3-ITD/TKD positiva confirmada por biología molecular antes de iniciar",
+            "frecuencia": "BID — dosis indicada es por toma",
+            "interaccion": "Evitar inhibidores potentes de CYP3A4 concomitantes"
+          },
+          "sequence_order": 3
+        }
+      ]
+    },
+    {
+      "code": "HiDAC",
+      "name": "Citarabina dosis alta (consolidación)",
+      "cycle_length_days": 28,
+      "total_cycles": 4,
+      "line_of_therapy": "consolidacion",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "HiDAC consolidación (CALGB 8525 — Mayer RJ et al.)",
+        "pubmed_id": null,
+        "doi": null,
+        "guideline": "NCCN AML v3.2024"
+      },
+      "diagnoses": [
+        {
+          "code": "C92.0",
+          "is_preferred": true
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "citarabina",
+          "dose_value": 3000,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1,
+            3,
+            5
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 180,
+          "vehicle": "SSN0.9% 500 mL",
+          "premed_required": {
+            "frecuencia": "BID — dosis indicada es por toma, administrar c/12h d1,3,5 (total 6 dosis/ciclo)",
+            "profilaxis_neuro": "Colirio con corticoide profiláctico; vigilar neurotoxicidad cerebelosa, ajustar/suspender en >60 años o disfunción renal"
+          },
+          "sequence_order": 1
+        }
+      ]
+    },
+    {
+      "code": "CPX-351",
+      "name": "Daunorrubicina-Citarabina liposomal (LMA secundaria/LMA-RM)",
+      "cycle_length_days": 28,
+      "total_cycles": 2,
+      "line_of_therapy": "induccion",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "CPX-351 vs 7+3 (Lancet JE et al.)",
+        "pubmed_id": null,
+        "doi": null,
+        "guideline": "NCCN AML v3.2024"
+      },
+      "diagnoses": [
+        {
+          "code": "C92.0",
+          "is_preferred": true
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "cpx-351",
+          "dose_value": 44,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1,
+            3,
+            5
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 90,
+          "vehicle": "SSN0.9%, formulación liposomal lista para infusión",
+          "premed_required": {
+            "nota_formulacion": "Liposoma daunorrubicina:citarabina en proporción fija 1:5; dosis expresada en equivalente de daunorrubicina (44 mg/m2 ≈ 100 mg/m2 de citarabina liposomal)",
+            "indicacion_restringida": "Indicado solo en LMA secundaria a tratamiento o LMA con cambios relacionados a SMD (LMA-RM)",
+            "reinduccion_nota": "Segunda inducción (si requerida): mismo esquema solo d1 y 3 (sin d5)"
+          },
+          "sequence_order": 1
+        }
+      ]
+    },
+    {
+      "code": "AZA-VEN",
+      "name": "Azacitidina-Venetoclax",
+      "cycle_length_days": 28,
+      "total_cycles": 12,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "VIALE-A (DiNardo CD et al.)",
+        "pubmed_id": "32786189",
+        "doi": "10.1056/NEJMoa2012971",
+        "guideline": "NCCN AML v3.2024"
+      },
+      "diagnoses": [
+        {
+          "code": "C92.0",
+          "is_preferred": true
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "azacitidina",
+          "dose_value": 75,
+          "dose_unit": "mg/m2",
+          "route": "SC",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": {
+            "antiemetico": "Profilaxis antiemética según riesgo emetógeno moderado"
+          },
+          "sequence_order": 1
+        },
+        {
+          "drug_inn": "venetoclax",
+          "dose_value": 400,
+          "dose_unit": "mg",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": {
+            "rampa_inicial": "Ramp-up obligatorio: 100mg d1, 200mg d2, 400mg d3 en adelante (riesgo de síndrome de lisis tumoral)",
+            "profilaxis_slt": "Hidratación + alopurinol/rasburicasa según riesgo; hospitalización en ramp-up si carga tumoral alta",
+            "ajuste_azoles": "Reducir dosis a 100mg/d si se usa con azol potente (posaconazol) o a 70mg/d con voriconazol",
+            "duracion_real": "Continuar hasta progresión o toxicidad inaceptable; total_cycles=12 es valor representativo del sistema, no un límite clínico"
+          },
+          "sequence_order": 2
+        }
+      ]
+    },
+    {
+      "code": "ATRA-ATO",
+      "name": "Tretinoína-Trióxido de arsénico (inducción LPA)",
+      "cycle_length_days": 28,
+      "total_cycles": 1,
+      "line_of_therapy": "induccion",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "APL0406 (Lo-Coco F et al.)",
+        "pubmed_id": "23841729",
+        "doi": "10.1056/NEJMoa1300874",
+        "guideline": "NCCN AML v3.2024 — LPA"
+      },
+      "diagnoses": [
+        {
+          "code": "C92.4",
+          "is_preferred": true
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "tretinoína",
+          "dose_value": 45,
+          "dose_unit": "mg/m2",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": {
+            "frecuencia": "Dividida BID",
+            "sx_diferenciacion": "Vigilar síndrome de diferenciación (fiebre, disnea, infiltrados, derrame); dexametasona profiláctica 2.5mg/m2 c/12h si leucocitos en ascenso",
+            "duracion_real": "Continuar hasta remisión completa morfológica confirmada por aspirado de médula ósea (habitualmente 28-60 días); cycle_length_days=28 es representativo"
+          },
+          "sequence_order": 1
+        },
+        {
+          "drug_inn": "trióxido de arsénico",
+          "dose_value": 0.15,
+          "dose_unit": "mg/kg",
+          "route": "IV",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 120,
+          "vehicle": "SSN0.9% 250 mL",
+          "premed_required": {
+            "ecg_basal": "ECG basal y seriado — riesgo de prolongación QTc; corregir Mg/K antes de cada dosis",
+            "duracion_real": "Continuar hasta remisión completa morfológica; cycle_length_days=28 es representativo"
+          },
+          "sequence_order": 2
+        }
+      ]
+    },
+    {
+      "code": "ATO-CONS",
+      "name": "Trióxido de arsénico-Tretinoína (consolidación LPA)",
+      "cycle_length_days": 28,
+      "total_cycles": 4,
+      "line_of_therapy": "consolidacion",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "APL0406 (Lo-Coco F et al.)",
+        "pubmed_id": "23841729",
+        "doi": "10.1056/NEJMoa1300874",
+        "guideline": "NCCN AML v3.2024 — LPA"
+      },
+      "diagnoses": [
+        {
+          "code": "C92.4",
+          "is_preferred": true
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "trióxido de arsénico",
+          "dose_value": 0.15,
+          "dose_unit": "mg/kg",
+          "route": "IV",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            8,
+            9,
+            10,
+            11,
+            12,
+            15,
+            16,
+            17,
+            18,
+            19,
+            22,
+            23,
+            24,
+            25,
+            26
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 120,
+          "vehicle": "SSN0.9% 250 mL",
+          "premed_required": {
+            "esquema": "5 días/semana x4 semanas por ciclo (4 ciclos totales)",
+            "ecg_basal": "ECG basal y seriado — riesgo de prolongación QTc; corregir Mg/K antes de cada dosis"
+          },
+          "sequence_order": 1
+        },
+        {
+          "drug_inn": "tretinoína",
+          "dose_value": 45,
+          "dose_unit": "mg/m2",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": {
+            "frecuencia": "Dividida BID",
+            "nota_alternancia": "En el esquema original (APL0406) los pulsos de ATRA se administran en ciclos alternos, no en todos; este sistema lo representa en cada ciclo por limitación del esquema — el médico debe ajustar manualmente si corresponde"
+          },
+          "sequence_order": 2
+        }
+      ]
+    },
+    {
+      "code": "HCVAD-A",
+      "name": "Ciclofosfamida-Vincristina-Doxorrubicina-Dexametasona (Hyper-CVAD, ciclo A)",
+      "cycle_length_days": 21,
+      "total_cycles": 4,
+      "line_of_therapy": "induccion",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "Hyper-CVAD (Kantarjian HM et al.)",
+        "pubmed_id": null,
+        "doi": null,
+        "guideline": "NCCN ALL v2.2024"
+      },
+      "diagnoses": [
+        {
+          "code": "C91.0",
+          "is_preferred": true
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "ciclofosfamida",
+          "dose_value": 300,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1,
+            2,
+            3
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 180,
+          "vehicle": "SSN0.9% o SG5% 500 mL en 3h",
+          "premed_required": {
+            "frecuencia": "BID — dosis indicada es por toma, c/12h d1-3 (total 6 dosis)",
+            "profilaxis_uroprotectora": "Mesna IV concurrente y mismo horario por riesgo de cistitis hemorrágica",
+            "profilaxis_antiemetica": "Esquema altamente emetógeno — antiemético triple"
+          },
+          "sequence_order": 1
+        },
+        {
+          "drug_inn": "vincristina",
+          "dose_value": 2,
+          "dose_unit": "mg",
+          "route": "IV",
+          "days_of_cycle": [
+            4,
+            11
+          ],
+          "max_dose_mg": 2,
+          "infusion_minutes": 15,
+          "vehicle": null,
+          "premed_required": {
+            "dosis_fija": "Dosis tope absoluta 2mg independiente de superficie corporal (no escalar por peso/talla)"
+          },
+          "sequence_order": 2
+        },
+        {
+          "drug_inn": "doxorubicina",
+          "dose_value": 50,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            4
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 1440,
+          "vehicle": "infusión continua 24h en bomba",
+          "premed_required": {
+            "cardiotoxicidad": "Vigilar dosis acumulada de antraciclina; ecocardiograma basal"
+          },
+          "sequence_order": 3
+        },
+        {
+          "drug_inn": "dexametasona",
+          "dose_value": 40,
+          "dose_unit": "mg",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            11,
+            12,
+            13,
+            14
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": null,
+          "sequence_order": 4
+        }
+      ]
+    },
+    {
+      "code": "HCVAD-B",
+      "name": "Metotrexato-Citarabina (Hyper-CVAD, ciclo B)",
+      "cycle_length_days": 21,
+      "total_cycles": 4,
+      "line_of_therapy": "induccion",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "Hyper-CVAD (Kantarjian HM et al.)",
+        "pubmed_id": null,
+        "doi": null,
+        "guideline": "NCCN ALL v2.2024"
+      },
+      "diagnoses": [
+        {
+          "code": "C91.0",
+          "is_preferred": false
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "metotrexato",
+          "dose_value": 1000,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 1440,
+          "vehicle": "SG5% en bomba de infusión 24h: bolo inicial 200mg/m2 en 2h seguido de 800mg/m2 en 22h",
+          "premed_required": {
+            "rescate": "Rescate con leucovorina obligatorio tras nivel sérico, iniciar 24h post-infusión",
+            "hidratacion": "Hidratación IV vigorosa + alcalinización urinaria (pH≥7)",
+            "monitorizacion": "Niveles de metotrexato seriados hasta <0.1 µmol/L"
+          },
+          "sequence_order": 1
+        },
+        {
+          "drug_inn": "citarabina",
+          "dose_value": 3000,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            2,
+            3
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 120,
+          "vehicle": "SSN0.9% 500 mL en 2h",
+          "premed_required": {
+            "frecuencia": "BID — dosis indicada es por toma, c/12h d2,3 (total 4 dosis)",
+            "profilaxis_neuro": "Colirio con corticoide profiláctico; vigilar neurotoxicidad cerebelosa"
+          },
+          "sequence_order": 2
+        }
+      ]
+    },
+    {
+      "code": "BLIN",
+      "name": "Blinatumomab",
+      "cycle_length_days": 42,
+      "total_cycles": null,
+      "line_of_therapy": "2L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "TOWER (Kantarjian H et al.)",
+        "pubmed_id": "28249752",
+        "doi": "10.1056/NEJMoa1609783",
+        "guideline": "NCCN ALL v2.2024"
+      },
+      "diagnoses": [
+        {
+          "code": "C91.0",
+          "is_preferred": false
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "blinatumomab",
+          "dose_value": 0.028,
+          "dose_unit": "mg",
+          "route": "CIV",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": "bomba de infusión continua ambulatoria, cambio de bolsa c/96h",
+          "premed_required": {
+            "dosis_original": "28 µg/día (=0.028 mg/día); este sistema no soporta la unidad µg en dose_unit, convertido a mg",
+            "escalada_inicial": "Ciclo 1 semana 1: dosis de escalada 9 µg/día (=0.009 mg/día) antes de alcanzar 28 µg/día — no representable en este campo único, ver advertencia del wizard",
+            "sx_liberacion_citoquinas": "Riesgo de síndrome de liberación de citoquinas y neurotoxicidad — premedicar con dexametasona antes de inicio e infusiones de reinicio; hospitalización recomendada primeros días",
+            "tocilizumab_disponible": "Tener tocilizumab disponible en caso de CRS grave"
+          },
+          "sequence_order": 1
+        }
+      ]
+    },
+    {
+      "code": "IMA",
+      "name": "Imatinib",
+      "cycle_length_days": 28,
+      "total_cycles": null,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "IRIS (O'Brien SG et al.)",
+        "pubmed_id": "12944571",
+        "doi": "10.1056/NEJMoa022457",
+        "guideline": "NCCN CML v1.2024"
+      },
+      "diagnoses": [
+        {
+          "code": "C92.1",
+          "is_preferred": true
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "imatinib",
+          "dose_value": 400,
+          "dose_unit": "mg",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": {
+            "toma": "Con alimentos para reducir intolerancia GI"
+          },
+          "sequence_order": 1
+        }
+      ]
+    },
+    {
+      "code": "DASA",
+      "name": "Dasatinib",
+      "cycle_length_days": 28,
+      "total_cycles": null,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "DASISION (Kantarjian H et al.)",
+        "pubmed_id": "20525995",
+        "doi": "10.1056/NEJMoa1002315",
+        "guideline": "NCCN CML v1.2024"
+      },
+      "diagnoses": [
+        {
+          "code": "C92.1",
+          "is_preferred": true
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "dasatinib",
+          "dose_value": 100,
+          "dose_unit": "mg",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": {
+            "alerta": "Vigilar derrame pleural/pericárdico e hipertensión pulmonar; evitar antiácidos/IBP 2h antes-después"
+          },
+          "sequence_order": 1
+        }
+      ]
+    },
+    {
+      "code": "NILO",
+      "name": "Nilotinib",
+      "cycle_length_days": 28,
+      "total_cycles": null,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "ENESTnd (Saglio G et al.)",
+        "pubmed_id": "20525993",
+        "doi": "10.1056/NEJMoa1002630",
+        "guideline": "NCCN CML v1.2024"
+      },
+      "diagnoses": [
+        {
+          "code": "C92.1",
+          "is_preferred": true
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "nilotinib",
+          "dose_value": 300,
+          "dose_unit": "mg",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": {
+            "frecuencia": "BID — dosis indicada es por toma, en ayuno estricto (1h antes o 2h después de alimentos)",
+            "alerta_qtc": "Riesgo de prolongación QTc — ECG basal y seriado; evitar hipokalemia/hipomagnesemia"
+          },
+          "sequence_order": 1
+        }
+      ]
+    },
+    {
+      "code": "BOSA",
+      "name": "Bosutinib",
+      "cycle_length_days": 28,
+      "total_cycles": null,
+      "line_of_therapy": "2L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "BFORE (Cortes JE et al.)",
+        "pubmed_id": null,
+        "doi": null,
+        "guideline": "NCCN CML v1.2024"
+      },
+      "diagnoses": [
+        {
+          "code": "C92.1",
+          "is_preferred": true
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "bosutinib",
+          "dose_value": 500,
+          "dose_unit": "mg",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": {
+            "alerta": "Vigilar toxicidad hepática y gastrointestinal; tomar con alimentos"
+          },
+          "sequence_order": 1
+        }
+      ]
+    },
+    {
+      "code": "PONA",
+      "name": "Ponatinib",
+      "cycle_length_days": 28,
+      "total_cycles": null,
+      "line_of_therapy": "3L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "PACE (Cortes JE et al.)",
+        "pubmed_id": "24180494",
+        "doi": "10.1056/NEJMoa1306494",
+        "guideline": "NCCN CML v1.2024",
+        "indicacion": "T315I o multi-resistente"
+      },
+      "diagnoses": [
+        {
+          "code": "C92.1",
+          "is_preferred": true
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "ponatinib",
+          "dose_value": 45,
+          "dose_unit": "mg",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": {
+            "alerta_vascular": "Riesgo de eventos arteriales oclusivos — vigilar HTA, perfil lipídico; considerar reducción de dosis (30mg o 15mg) tras respuesta para mitigar toxicidad vascular",
+            "indicacion_restringida": "Reservado para LMC con mutación T315I o resistencia/intolerancia a múltiples ITK previos"
+          },
+          "sequence_order": 1
+        }
+      ]
+    },
+    {
+      "code": "ACALA",
+      "name": "Acalabrutinib",
+      "cycle_length_days": 28,
+      "total_cycles": null,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "ELEVATE-TN (Sharman JP et al.)",
+        "pubmed_id": null,
+        "doi": null,
+        "guideline": "NCCN CLL/SLL v1.2024"
+      },
+      "diagnoses": [
+        {
+          "code": "C91.1",
+          "is_preferred": true
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "acalabrutinib",
+          "dose_value": 100,
+          "dose_unit": "mg",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": {
+            "frecuencia": "BID — dosis indicada es por toma",
+            "interaccion": "Evitar IBP; espaciar antiácidos 2h y anti-H2 2h antes/después"
+          },
+          "sequence_order": 1
+        }
+      ]
+    },
+    {
+      "code": "IBR-R",
+      "name": "Ibrutinib-Rituximab",
+      "cycle_length_days": 28,
+      "total_cycles": 6,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "HELIOS (Chanan-Khan A et al.)",
+        "pubmed_id": null,
+        "doi": null,
+        "guideline": "NCCN CLL/SLL v1.2024"
+      },
+      "diagnoses": [
+        {
+          "code": "C91.1",
+          "is_preferred": false
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "ibrutinib",
+          "dose_value": 420,
+          "dose_unit": "mg",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": {
+            "duracion_real": "Ibrutinib continúa como monoterapia indefinida tras el ciclo 6, cuando rituximab se suspende; total_cycles=6 refleja solo la fase combinada"
+          },
+          "sequence_order": 1
+        },
+        {
+          "drug_inn": "rituximab",
+          "dose_value": 375,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 240,
+          "vehicle": "SSN0.9% 250-500 mL",
+          "premed_required": {
+            "premedicacion_rtx": "difenhidramina 50mg IV + acetaminofén 650mg PO 30-60 min antes; vigilar reacción a infusión, especialmente C1 por riesgo de síndrome de liberación de citoquinas/lisis tumoral",
+            "duracion_limitada": "Rituximab limitado a 6 ciclos; ibrutinib continúa solo — no representable como cambio de fase en este sistema"
+          },
+          "sequence_order": 2
+        }
+      ]
+    },
+    {
+      "code": "ZANU",
+      "name": "Zanubrutinib",
+      "cycle_length_days": 28,
+      "total_cycles": null,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "SEQUOIA (Tam CS et al.)",
+        "pubmed_id": null,
+        "doi": null,
+        "guideline": "NCCN CLL/SLL v1.2024"
+      },
+      "diagnoses": [
+        {
+          "code": "C91.1",
+          "is_preferred": true
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "zanubrutinib",
+          "dose_value": 160,
+          "dose_unit": "mg",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": {
+            "frecuencia": "BID — dosis indicada es por toma"
+          },
+          "sequence_order": 1
+        }
+      ]
+    },
+    {
+      "code": "VEN-OBI",
+      "name": "Venetoclax-Obinutuzumab",
+      "cycle_length_days": 28,
+      "total_cycles": 12,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "CLL14 (Fischer K et al.)",
+        "pubmed_id": "31141631",
+        "doi": "10.1056/NEJMoa1815281",
+        "guideline": "NCCN CLL/SLL v1.2024"
+      },
+      "diagnoses": [
+        {
+          "code": "C91.1",
+          "is_preferred": true
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "obinutuzumab",
+          "dose_value": 1000,
+          "dose_unit": "mg",
+          "route": "IV",
+          "days_of_cycle": [
+            1,
+            8,
+            15
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": {
+            "nota_esquema_c1": "C1: 100mg d1, 900mg d1 o d2, 1000mg d8 y d15 (split-dose por riesgo de síndrome de liberación de citoquinas); C2-6: 1000mg d1 único",
+            "premedicacion": "Corticoide IV + antihistamínico + antipirético obligatorios antes de cada infusión, especialmente C1",
+            "ciclo_1_nota": "C1: dosis adicionales según ficha técnica. El wizard mostrará advertencia al médico.",
+            "duracion_obi": "Obinutuzumab limitado a 6 ciclos (C1-6); venetoclax continúa hasta completar 12 ciclos en monoterapia — no representable como cambio de fase en este sistema"
+          },
+          "sequence_order": 1
+        },
+        {
+          "drug_inn": "venetoclax",
+          "dose_value": 400,
+          "dose_unit": "mg",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": {
+            "rampa_inicial": "Ramp-up obligatorio en 5 semanas: 20mg sem1, 50mg sem2, 100mg sem3, 200mg sem4, 400mg sem5 en adelante (riesgo de síndrome de lisis tumoral)",
+            "profilaxis_slt": "Hidratación + alopurinol/rasburicasa según riesgo; hospitalización en ramp-up si carga tumoral alta (ganglios >5cm o linfocitos >25,000)",
+            "ajuste_azoles": "Reducir dosis si se usa con inhibidores potentes de CYP3A4",
+            "duracion_real": "Duración fija de 12 ciclos (CLL14) — a diferencia de AZA-VEN en LMA, que es indefinido"
+          },
+          "sequence_order": 2
+        }
+      ]
+    },
+    {
+      "code": "FCR",
+      "name": "Fludarabina-Ciclofosfamida-Rituximab",
+      "cycle_length_days": 28,
+      "total_cycles": 6,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "CLL8 (Hallek M et al.)",
+        "pubmed_id": "20888994",
+        "doi": "10.1016/S0140-6736(10)61381-5",
+        "guideline": "NCCN CLL/SLL v1.2024"
+      },
+      "diagnoses": [
+        {
+          "code": "C91.1",
+          "is_preferred": false
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "fludarabina",
+          "dose_value": 25,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1,
+            2,
+            3
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 30,
+          "vehicle": "SSN0.9% 100 mL",
+          "premed_required": {
+            "hematologica": "Vigilar mielosupresión profunda; profilaxis anti-PCP (TMP-SMX) y antiviral (aciclovir) obligatoria durante y ≥6 meses post-tratamiento por inmunosupresión prolongada"
+          },
+          "sequence_order": 1
+        },
+        {
+          "drug_inn": "ciclofosfamida",
+          "dose_value": 250,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1,
+            2,
+            3
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 60,
+          "vehicle": "SSN0.9% 250 mL",
+          "premed_required": {
+            "profilaxis_antiemetica": "Esquema moderadamente emetógeno"
+          },
+          "sequence_order": 2
+        },
+        {
+          "drug_inn": "rituximab",
+          "dose_value": 500,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 240,
+          "vehicle": "SSN0.9% 250-500 mL",
+          "premed_required": {
+            "ciclo_1_nota": "C1: dosis reducida a 375 mg/m2 por mayor riesgo de síndrome de liberación de citoquinas/lisis tumoral con alta carga leucémica circulante; C2-6: 500 mg/m2",
+            "premedicacion_rtx": "difenhidramina 50mg IV + acetaminofén 650mg PO 30-60 min antes; considerar premedicación con corticoide si linfocitosis >25,000"
+          },
+          "sequence_order": 3
+        }
+      ]
+    },
+    {
+      "code": "CLAD",
+      "name": "Cladribina",
+      "cycle_length_days": 28,
+      "total_cycles": 1,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "Cladribina en tricoleucemia (Saven A et al.)",
+        "pubmed_id": null,
+        "doi": null,
+        "guideline": "NCCN Hairy Cell Leukemia v1.2024"
+      },
+      "diagnoses": [
+        {
+          "code": "C91.4",
+          "is_preferred": true
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "cladribina",
+          "dose_value": 0.1,
+          "dose_unit": "mg/kg",
+          "route": "CIV",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": "infusión continua 24h x7 días en bomba",
+          "premed_required": {
+            "esquema_alternativo": "Alternativa: 0.14 mg/kg SC diaria x5 días (no representada en esta entrada; usar protocolo separado si se requiere)",
+            "mielosupresion": "Mielosupresión profunda esperada; profilaxis antiinfecciosa según riesgo"
+          },
+          "sequence_order": 1
+        }
+      ]
+    },
+    {
+      "code": "PENTO",
+      "name": "Pentostatina",
+      "cycle_length_days": 14,
+      "total_cycles": 6,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "Pentostatina en tricoleucemia (Grever M et al.)",
+        "pubmed_id": null,
+        "doi": null,
+        "guideline": "NCCN Hairy Cell Leukemia v1.2024"
+      },
+      "diagnoses": [
+        {
+          "code": "C91.4",
+          "is_preferred": true
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "pentostatina",
+          "dose_value": 4,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 30,
+          "vehicle": "SSN0.9% 100 mL",
+          "premed_required": {
+            "frecuencia_ciclo": "Administrar c/2 semanas; cycle_length_days=14 refleja este intervalo",
+            "hidratacion": "Hidratación IV antes y después de la infusión"
+          },
+          "sequence_order": 1
+        }
+      ]
+    },
+    {
+      "code": "AZA",
+      "name": "Azacitidina",
+      "cycle_length_days": 28,
+      "total_cycles": null,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "AZA-001 (Fenaux P et al.)",
+        "pubmed_id": "19230772",
+        "doi": "10.1016/S1470-2045(09)70003-8",
+        "guideline": "NCCN MDS v2.2024"
+      },
+      "diagnoses": [
+        {
+          "code": "D46.0",
+          "is_preferred": true
+        },
+        {
+          "code": "D46.2",
+          "is_preferred": false
+        },
+        {
+          "code": "D46.9",
+          "is_preferred": false
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "azacitidina",
+          "dose_value": 75,
+          "dose_unit": "mg/m2",
+          "route": "SC",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": {
+            "antiemetico": "Profilaxis antiemética según riesgo emetógeno moderado",
+            "reaccion_local": "Rotar sitios de inyección SC; aplicar antihistamínico/corticoide tópico si reacción local"
+          },
+          "sequence_order": 1
+        }
+      ]
+    },
+    {
+      "code": "DECI",
+      "name": "Decitabina",
+      "cycle_length_days": 28,
+      "total_cycles": null,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "Decitabina en SMD (Kantarjian H et al. / Lübbert M et al.)",
+        "pubmed_id": null,
+        "doi": null,
+        "guideline": "NCCN MDS v2.2024"
+      },
+      "diagnoses": [
+        {
+          "code": "D46.2",
+          "is_preferred": true
+        },
+        {
+          "code": "D46.0",
+          "is_preferred": false
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "decitabina",
+          "dose_value": 20,
+          "dose_unit": "mg/m2",
+          "route": "IV",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 60,
+          "vehicle": "SSN0.9% 100 mL",
+          "premed_required": null,
+          "sequence_order": 1
+        }
+      ]
+    },
+    {
+      "code": "AZA-VEN-MDS",
+      "name": "Azacitidina-Venetoclax (SMD alto riesgo)",
+      "cycle_length_days": 28,
+      "total_cycles": null,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "Azacitidina-venetoclax en SMD de alto riesgo (DiNardo CD et al., fase 1b/2)",
+        "pubmed_id": null,
+        "doi": null,
+        "guideline": "NCCN MDS v2.2024 — uso extrapolado de esquema en LMA, considerar protocolo institucional/ensayo clínico"
+      },
+      "diagnoses": [
+        {
+          "code": "D46.2",
+          "is_preferred": true
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "azacitidina",
+          "dose_value": 75,
+          "dose_unit": "mg/m2",
+          "route": "SC",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": {
+            "antiemetico": "Profilaxis antiemética según riesgo emetógeno moderado"
+          },
+          "sequence_order": 1
+        },
+        {
+          "drug_inn": "venetoclax",
+          "dose_value": 400,
+          "dose_unit": "mg",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": {
+            "rampa_inicial": "Ramp-up igual que en LMA: 100mg d1, 200mg d2, 400mg d3 en adelante",
+            "duracion_dias": "En SMD habitualmente 21 de 28 días (no continuo) — esquema en investigación, ajustar según protocolo institucional/ensayo clínico",
+            "profilaxis_slt": "Hidratación + alopurinol/rasburicasa según riesgo"
+          },
+          "sequence_order": 2
+        }
+      ]
+    },
+    {
+      "code": "LEN-MDS",
+      "name": "Lenalidomida (SMD del 5q)",
+      "cycle_length_days": 28,
+      "total_cycles": null,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "MDS-003/MDS-004 (List A et al.)",
+        "pubmed_id": "16641397",
+        "doi": "10.1056/NEJMoa061101",
+        "guideline": "NCCN MDS v2.2024"
+      },
+      "diagnoses": [
+        {
+          "code": "D46.A",
+          "is_preferred": true
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "lenalidomida",
+          "dose_value": 10,
+          "dose_unit": "mg",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": {
+            "profilaxis_tev": "AAS 100mg/d o HBPM según riesgo (obligatoria, R-DDI-02)",
+            "hematologica": "Vigilar citopenias profundas las primeras semanas, especialmente trombocitopenia"
+          },
+          "sequence_order": 1
+        }
+      ]
+    },
+    {
+      "code": "LUSPA",
+      "name": "Luspatercept",
+      "cycle_length_days": 21,
+      "total_cycles": null,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "MEDALIST (Fenaux P et al.)",
+        "pubmed_id": "32289214",
+        "doi": "10.1056/NEJMoa1908892",
+        "guideline": "NCCN MDS v2.2024"
+      },
+      "diagnoses": [
+        {
+          "code": "D46.1",
+          "is_preferred": true
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "luspatercept",
+          "dose_value": 1,
+          "dose_unit": "mg/kg",
+          "route": "SC",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": {
+            "frecuencia_ciclo": "Administrar c/21 días",
+            "titulacion": "Iniciar 1.0 mg/kg; escalar hasta 1.75 mg/kg si respuesta insuficiente tras 2 ciclos sin reducción de necesidad transfusional"
+          },
+          "sequence_order": 1
+        }
+      ]
+    },
+    {
+      "code": "HU",
+      "name": "Hidroxiurea",
+      "cycle_length_days": 28,
+      "total_cycles": null,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "Hidroxiurea en NMP (esquema clásico)",
+        "pubmed_id": null,
+        "doi": null,
+        "guideline": "NCCN MPN v2.2024"
+      },
+      "diagnoses": [
+        {
+          "code": "D45",
+          "is_preferred": true
+        },
+        {
+          "code": "D47.3",
+          "is_preferred": false
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "hidroxiurea",
+          "dose_value": 500,
+          "dose_unit": "mg",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": {
+            "frecuencia": "Iniciar 500mg BID-TID; ajustar dosis según conteo sanguíneo (objetivo Hto<45% en PV, plaquetas<400,000 en TE)",
+            "monitorizacion": "BH completa c/2 semanas hasta dosis estable, luego mensual"
+          },
+          "sequence_order": 1
+        }
+      ]
+    },
+    {
+      "code": "RUXO",
+      "name": "Ruxolitinib",
+      "cycle_length_days": 28,
+      "total_cycles": null,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "COMFORT-I (Verstovsek S et al.)",
+        "pubmed_id": "22375971",
+        "doi": "10.1056/NEJMoa1110557",
+        "guideline": "NCCN MPN v2.2024"
+      },
+      "diagnoses": [
+        {
+          "code": "D47.4",
+          "is_preferred": true
+        },
+        {
+          "code": "D45",
+          "is_preferred": false
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "ruxolitinib",
+          "dose_value": 20,
+          "dose_unit": "mg",
+          "route": "PO",
+          "days_of_cycle": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": {
+            "frecuencia": "BID — dosis indicada es por toma; ajustar según conteo plaquetario (5mg BID si plt 50-100k, 15mg BID si >200k)",
+            "suspension_abrupta": "No suspender abruptamente — riesgo de síndrome de descontinuación (rebote de síntomas, posible crisis blástica); reducir gradualmente"
+          },
+          "sequence_order": 1
+        }
+      ]
+    },
+    {
+      "code": "PEG-IFN",
+      "name": "Peginterferón alfa-2a",
+      "cycle_length_days": 7,
+      "total_cycles": null,
+      "line_of_therapy": "1L",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "PEG-IFN en NMP (Quintás-Cardama A et al. / PROUD-PV)",
+        "pubmed_id": null,
+        "doi": null,
+        "guideline": "NCCN MPN v2.2024"
+      },
+      "diagnoses": [
+        {
+          "code": "D45",
+          "is_preferred": true
+        },
+        {
+          "code": "D47.3",
+          "is_preferred": false
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "peg-interferón alfa-2a",
+          "dose_value": 0.09,
+          "dose_unit": "mg",
+          "route": "SC",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": null,
+          "vehicle": null,
+          "premed_required": {
+            "dosis_original": "90 µg/semana (=0.09 mg/semana); este sistema no soporta la unidad µg en dose_unit, convertido a mg",
+            "titulacion": "Iniciar 45 µg (0.045mg)/semana, escalar según tolerancia hasta 90-180 µg (0.09-0.18mg)/semana",
+            "preferencia_embarazo": "Preferido sobre hidroxiurea en mujeres en edad fértil/embarazo por ausencia de teratogenicidad"
+          },
+          "sequence_order": 1
+        }
+      ]
+    },
+    {
+      "code": "HIERRO-SAC",
+      "name": "Hierro Sacarosa IV 200 mg (Venofer)",
+      "cycle_length_days": 1,
+      "total_cycles": null,
+      "line_of_therapy": "hierro_iv",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "Manejo de ferropenia en oncohematología (consenso ASH/NCCN)",
+        "pubmed_id": null,
+        "doi": null,
+        "guideline": "NCCN Hematopoietic Growth Factors / ASH Iron Deficiency Anemia Guidelines"
+      },
+      "diagnoses": [
+        {
+          "code": "D50.9",
+          "is_preferred": true
+        },
+        {
+          "code": "D63.0",
+          "is_preferred": false
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "hierro sacarosa",
+          "dose_value": 200,
+          "dose_unit": "mg",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 30,
+          "vehicle": "Salina 0.9% 100ml",
+          "premed_required": null,
+          "sequence_order": 1
+        }
+      ]
+    },
+    {
+      "code": "HIERRO-CARBX",
+      "name": "Carboximaltosa Férrica IV 1000 mg (Ferinject)",
+      "cycle_length_days": 1,
+      "total_cycles": null,
+      "line_of_therapy": "hierro_iv",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "Manejo de ferropenia en oncohematología (consenso ASH/NCCN)",
+        "pubmed_id": null,
+        "doi": null,
+        "guideline": "NCCN Hematopoietic Growth Factors / ASH Iron Deficiency Anemia Guidelines"
+      },
+      "diagnoses": [
+        {
+          "code": "D50.9",
+          "is_preferred": true
+        },
+        {
+          "code": "D63.0",
+          "is_preferred": false
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "carboximaltosa férrica",
+          "dose_value": 1000,
+          "dose_unit": "mg",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 15,
+          "vehicle": "Salina 0.9% 250ml",
+          "premed_required": null,
+          "sequence_order": 1
+        }
+      ]
+    },
+    {
+      "code": "HIERRO-DEXT",
+      "name": "Dextrano de Hierro IV con dosis de prueba (Cosmofer)",
+      "cycle_length_days": 1,
+      "total_cycles": null,
+      "line_of_therapy": "hierro_iv",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "Manejo de ferropenia en oncohematología (consenso ASH/NCCN)",
+        "pubmed_id": null,
+        "doi": null,
+        "guideline": "NCCN Hematopoietic Growth Factors / ASH Iron Deficiency Anemia Guidelines"
+      },
+      "diagnoses": [
+        {
+          "code": "D50.9",
+          "is_preferred": true
+        },
+        {
+          "code": "D63.0",
+          "is_preferred": false
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "dextrano de hierro",
+          "dose_value": 25,
+          "dose_unit": "mg",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 15,
+          "vehicle": null,
+          "premed_required": {
+            "observacion": "15 min post-prueba antes de continuar"
+          },
+          "sequence_order": 1
+        },
+        {
+          "drug_inn": "dextrano de hierro",
+          "dose_value": 500,
+          "dose_unit": "mg",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 180,
+          "vehicle": null,
+          "premed_required": {
+            "validador": "Activa regla R-HIERRO-01: requiere dosis de prueba (sequence_order:1) completada el mismo día antes de autorizar esta dosis completa"
+          },
+          "sequence_order": 2
+        }
+      ]
+    },
+    {
+      "code": "HIERRO-ISO",
+      "name": "Hierro Isomaltósido IV 20 mg/kg (Monofer)",
+      "cycle_length_days": 1,
+      "total_cycles": null,
+      "line_of_therapy": "hierro_iv",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "Manejo de ferropenia en oncohematología (consenso ASH/NCCN)",
+        "pubmed_id": null,
+        "doi": null,
+        "guideline": "NCCN Hematopoietic Growth Factors / ASH Iron Deficiency Anemia Guidelines"
+      },
+      "diagnoses": [
+        {
+          "code": "D50.9",
+          "is_preferred": true
+        },
+        {
+          "code": "D63.0",
+          "is_preferred": false
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "hierro isomaltósido",
+          "dose_value": 20,
+          "dose_unit": "mg/kg",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 30,
+          "vehicle": "Salina 0.9% 100ml",
+          "premed_required": null,
+          "sequence_order": 1
+        }
+      ]
+    },
+    {
+      "code": "HIERRO-GLUC",
+      "name": "Gluconato Férrico Sódico IV 125 mg (Ferrlecit)",
+      "cycle_length_days": 1,
+      "total_cycles": null,
+      "line_of_therapy": "hierro_iv",
+      "specialty": "hematologia",
+      "active": false,
+      "protocol_references": {
+        "trial_name": "Manejo de ferropenia en oncohematología (consenso ASH/NCCN)",
+        "pubmed_id": null,
+        "doi": null,
+        "guideline": "NCCN Hematopoietic Growth Factors / ASH Iron Deficiency Anemia Guidelines"
+      },
+      "diagnoses": [
+        {
+          "code": "D50.9",
+          "is_preferred": true
+        },
+        {
+          "code": "D63.0",
+          "is_preferred": false
+        }
+      ],
+      "protocol_drugs": [
+        {
+          "drug_inn": "gluconato férrico sódico",
+          "dose_value": 125,
+          "dose_unit": "mg",
+          "route": "IV",
+          "days_of_cycle": [
+            1
+          ],
+          "max_dose_mg": null,
+          "infusion_minutes": 60,
+          "vehicle": "Salina 0.9% 100ml",
+          "premed_required": null,
+          "sequence_order": 1
+        }
+      ]
+    }
+  ]
+}

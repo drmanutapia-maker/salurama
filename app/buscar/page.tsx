@@ -47,8 +47,8 @@ interface Medico {
   full_name: string
   specialty: string
   photo_url: string | null
-  location_city: string
-  location_state: string
+  ciudad: string | null
+  estado: string | null
   consultation_price_general: number | null
   years_experience: number | null
   min_patient_age: number | null
@@ -65,7 +65,7 @@ interface Medico {
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
 const norm = (t: string | null | undefined): string =>
-  t? t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() : ''
+  t ? t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() : ''
 
 const haversine = (la1: number, lo1: number, la2: number, lo2: number): number => {
   const R = 6371
@@ -107,7 +107,7 @@ const PAGE_STYLES = `
     background: #fff;
     color: #111827;
     outline: none;
-    transition: border-color.18s, box-shadow.18s;
+    transition: border-color .18s, box-shadow .18s;
     box-shadow: 0 2px 8px rgba(42,157,143,.08);
   }
 .buscar-input::placeholder { color: #9CA3AF; }
@@ -130,7 +130,7 @@ const PAGE_STYLES = `
     font-weight: 600;
     font-family: 'DM Sans', sans-serif;
     cursor: pointer;
-    transition: all.18s;
+    transition: all .18s;
     white-space: nowrap;
   }
 .chip-filtro:hover {
@@ -159,7 +159,7 @@ const PAGE_STYLES = `
     padding: 20px;
     box-shadow: 0 2px 8px rgba(17,28,44,.06);
     border: 1px solid #E5E7EB;
-    transition: border-color.2s, box-shadow.2s, transform.2s;
+    transition: border-color .2s, box-shadow .2s, transform .2s;
     cursor: pointer;
   }
 .card-medico:hover {
@@ -237,7 +237,7 @@ const PAGE_STYLES = `
     display: flex;
     align-items: center;
     gap: 10px;
-    transition: background.12s;
+    transition: background .12s;
   }
 .sugerencia-item:last-child { border-bottom: none; }
 .sugerencia-item:hover { background: #F5F3FF; color: #7C3AED; }
@@ -255,7 +255,7 @@ const PAGE_STYLES = `
     display: flex;
     align-items: center;
     gap: 6px;
-    transition: opacity.15s, transform.15s, box-shadow.15s;
+    transition: opacity .15s, transform .15s, box-shadow .15s;
     box-shadow: 0 2px 8px rgba(139,92,246,.3);
   }
 .btn-ver-perfil:hover {
@@ -278,7 +278,7 @@ const PAGE_STYLES = `
     align-items: center;
     gap: 5px;
     font-size: 13.5px;
-    transition: border-color.15s, background.15s;
+    transition: border-color .15s, background .15s;
   }
 .btn-mapa:hover {
     border-color: #2A9D8F;
@@ -296,7 +296,7 @@ const PAGE_STYLES = `
     justify-content: center;
     z-index: 2000;
     padding: 20px;
-    animation: fadeIn.2s ease-out;
+    animation: fadeIn .2s ease-out;
     backdrop-filter: blur(3px);
   }
 
@@ -338,7 +338,7 @@ function BuscarContent() {
   // ── Cerrar sugerencias al clic fuera ────────────────────────────────────────
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (sugerenciasRef.current &&!sugerenciasRef.current.contains(e.target as Node))
+      if (sugerenciasRef.current && !sugerenciasRef.current.contains(e.target as Node))
         setShowSugerencias(false)
     }
     document.addEventListener('mousedown', handler)
@@ -364,14 +364,14 @@ function BuscarContent() {
   useEffect(() => {
     setLoading(true)
     supabase
- .from('doctors')
- .select(`id, full_name, specialty, photo_url, location_city, location_state,
-        consultation_price_general, years_experience, min_patient_age, max_patient_age,
-        clinic_lat, clinic_lng, hospital_affiliation, languages, insurance_accepted, professional_license`)
- .eq('is_active', true)
- .order('created_at', { ascending: false })
- .limit(100)
- .then(({ data, error }) => {
+      .from('doctors')
+      .select(`id, full_name, specialty, photo_url, ciudad, estado,
+             consultation_price_general, years_experience, min_patient_age, max_patient_age,
+             clinic_lat, clinic_lng, hospital_affiliation, languages, insurance_accepted, professional_license`)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+      .limit(100)
+      .then(({ data, error }) => {
         if (!error && data) {
           setMedicos(data)
         }
@@ -387,16 +387,16 @@ function BuscarContent() {
     const t = setTimeout(async () => {
       try {
         const { data } = await supabase
-     .from('doctors')
-     .select('specialty')
-     .ilike('specialty', `%${inputValue.trim()}%`)
-     .eq('is_active', true)
-     .not('specialty', 'is', null)
-     .limit(50)
-     .abortSignal(controller.signal)
+          .from('doctors')
+          .select('specialty')
+          .ilike('specialty', `%${inputValue.trim()}%`)
+          .eq('is_active', true)
+          .not('specialty', 'is', null)
+          .limit(50)
+          .abortSignal(controller.signal)
 
         const dbMatches = data
-     ? (Array.from(new Set(data.map(d => d.specialty).filter(Boolean))) as string[])
+          ? (Array.from(new Set(data.map(d => d.specialty).filter(Boolean))) as string[])
           : []
         const conacemMatches = ESPECIALIDADES_CONACEM.filter(e => norm(e).includes(norm(inputValue)))
         const merged = Array.from(new Set([...conacemMatches,...dbMatches])).slice(0, 9)
@@ -404,7 +404,7 @@ function BuscarContent() {
         setSugerencias(merged)
         setShowSugerencias(merged.length > 0)
       } catch (e: any) {
-        if (e.name!== 'AbortError') console.error(e)
+        if (e.name !== 'AbortError') console.error(e)
       }
     }, 200)
 
@@ -419,28 +419,31 @@ function BuscarContent() {
       const t = norm(busqueda)
       r = r.filter(m => norm(m.full_name).includes(t) || norm(m.specialty).includes(t))
     }
-    if (selectedState) { const s = norm(selectedState); r = r.filter(m => norm(m.location_state).includes(s)) }
+    if (selectedState) { 
+      const s = norm(selectedState); 
+      r = r.filter(m => m.estado && norm(m.estado).includes(s)) 
+    }
 
     if (filtros.includes('ninos')) {
       r = r.filter(m => {
         const s = norm(m.specialty)
-        return s.includes('pediatr') || s.includes('neonat') || s.includes('infantil') || (m.min_patient_age?? 0) < 18
+        return s.includes('pediatr') || s.includes('neonat') || s.includes('infantil') || (m.min_patient_age ?? 0) < 18
       })
     }
 
     if (filtros.includes('cerca') && userLocation) {
       r = r
-   .map(m => ({
-     ...m,
-          distance: (m.clinic_lat!== null && m.clinic_lng!== null)
-       ? haversine(userLocation.lat, userLocation.lng, m.clinic_lat, m.clinic_lng)
+        .map(m => ({
+          ...m,
+          distance: (m.clinic_lat !== null && m.clinic_lng !== null)
+            ? haversine(userLocation.lat, userLocation.lng, m.clinic_lat, m.clinic_lng)
             : 9999,
         }))
-   .sort((a, b) => (a.distance?? 9999) - (b.distance?? 9999))
+        .sort((a, b) => (a.distance ?? 9999) - (b.distance ?? 9999))
     } else if (filtros.includes('experiencia')) {
-      r.sort((a, b) => (b.years_experience?? 0) - (a.years_experience?? 0))
+      r.sort((a, b) => (b.years_experience ?? 0) - (a.years_experience ?? 0))
     } else if (filtros.includes('precio')) {
-      r.sort((a, b) => (a.consultation_price_general?? 99999) - (b.consultation_price_general?? 99999))
+      r.sort((a, b) => (a.consultation_price_general ?? 99999) - (b.consultation_price_general ?? 99999))
     }
 
     return r
@@ -449,7 +452,7 @@ function BuscarContent() {
   // ── Toggle filtro ─────────────────────────────────────────────────────────────
   const toggleFiltro = useCallback(async (id: FiltroId) => {
     if (filtros.includes(id)) {
-      setFiltros(prev => prev.filter(f => f!== id))
+      setFiltros(prev => prev.filter(f => f !== id))
       if (id === 'cerca') setUserLocation(null)
       return
     }
@@ -485,13 +488,13 @@ function BuscarContent() {
             console.error('Error buscando doctores cercanos:', err)
           }
 
-          setFiltros(prev => [...prev.filter(f => f!== 'precio' && f!== 'experiencia'), 'cerca'])
+          setFiltros(prev => [...prev.filter(f => f !== 'precio' && f !== 'experiencia'), 'cerca'])
           setLocating(false)
         },
         (err) => {
           clearTimeout(timeoutId)
           setLocating(false)
-          const msg = err.code === 1? 'Permiso denegado. Activa la ubicación en tu navegador.' : 'No pudimos obtener tu ubicación'
+          const msg = err.code === 1 ? 'Permiso denegado. Activa la ubicación en tu navegador.' : 'No pudimos obtener tu ubicación'
           alert(msg)
         },
         { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
@@ -499,7 +502,7 @@ function BuscarContent() {
       return
     }
 
-    setFiltros(prev => [...prev.filter(f => f!== 'cerca'), id])
+    setFiltros(prev => [...prev.filter(f => f !== 'cerca'), id])
   }, [filtros])
 
   // ── Limpiar todo — sin reload ─────────────────────────────────────────────────
@@ -521,7 +524,7 @@ function BuscarContent() {
     if (selectedState) params.set('estado', selectedState)
 
     const queryString = params.toString()
-    router.push(`/doctor/${doctorId}${queryString? `?${queryString}` : ''}`)
+    router.push(`/doctor/${doctorId}${queryString ? `?${queryString}` : ''}`)
   }, [busqueda, selectedState, router])
 
   const handleSearch = useCallback(() => {
@@ -529,7 +532,7 @@ function BuscarContent() {
     setShowSugerencias(false)
   }, [inputValue])
 
-  // ─── Render ──────────────────────────────────────────────────────────────────
+  // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <div style={{ minHeight: '100vh', background: '#F9FAFB', fontFamily: "'DM Sans', sans-serif", color: '#111827' }}>
@@ -647,7 +650,7 @@ function BuscarContent() {
                   display: 'flex',
                   alignItems: 'center',
                   gap: 8,
-                  transition: 'background.15s, transform.15s',
+                  transition: 'background .15s, transform .15s',
                   boxShadow: '0 2px 8px rgba(139,92,246,.3)',
                   flexShrink: 0,
                   whiteSpace: 'nowrap',
@@ -681,13 +684,13 @@ function BuscarContent() {
                   onMouseLeave={() => setActiveTooltip(null)}
                 >
                   <button
-                    className={`chip-filtro${filtros.includes(chip.id)? ' activo' : ''}`}
+                    className={`chip-filtro${filtros.includes(chip.id) ? ' activo' : ''}`}
                     onClick={() => toggleFiltro(chip.id)}
                     disabled={chip.id === 'cerca' && locating}
                     aria-pressed={filtros.includes(chip.id)}
                   >
                     {chip.id === 'cerca' && locating
-                 ? <Loader2 size={15} style={{ animation: 'spin.7s linear infinite' }} />
+                      ? <Loader2 size={15} style={{ animation: 'spin .7s linear infinite' }} />
                       : chip.icon
                     }
                     {chip.label}
@@ -718,7 +721,7 @@ function BuscarContent() {
                     padding: '9px 24px', borderRadius: 50, fontSize: 13.5, fontWeight: 700,
                     fontFamily: "'DM Sans', sans-serif", cursor: 'pointer',
                     display: 'inline-flex', alignItems: 'center', gap: 6,
-                    transition: 'background.15s, color.15s',
+                    transition: 'background .15s, color .15s',
                   }}
                   onMouseEnter={e => { e.currentTarget.style.background = '#8B5CF6'; e.currentTarget.style.color = '#fff' }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#8B5CF6' }}
@@ -740,7 +743,7 @@ function BuscarContent() {
                   fontSize: 13, color: '#6B7280', fontWeight: 600,
                   background: '#F3F4F6', padding: '5px 12px', borderRadius: 99,
                 }}>
-                  {filteredMedicos.length} resultado{filteredMedicos.length!== 1? 's' : ''}
+                  {filteredMedicos.length} resultado{filteredMedicos.length !== 1 ? 's' : ''}
                 </span>
               )}
             </div>
@@ -773,11 +776,11 @@ function BuscarContent() {
                   <Filter size={28} color="#9CA3AF" />
                 </div>
                 <p style={{ color: '#374151', fontSize: 17, fontWeight: 700, marginBottom: 8 }}>
-                  {medicos.length === 0? 'Pronto habrá especialistas aquí' : 'Sin resultados para tu búsqueda'}
+                  {medicos.length === 0 ? 'Pronto habrá especialistas aquí' : 'Sin resultados para tu búsqueda'}
                 </p>
                 <p style={{ color: '#6B7280', fontSize: 14, marginBottom: 20, maxWidth: 360, margin: '0 auto 20px', lineHeight: 1.6 }}>
                   {medicos.length === 0
-               ? 'Estamos incorporando médicos verificados. Si eres médico, únete ahora sin costo.'
+                    ? 'Estamos incorporando médicos verificados. Si eres médico, únete ahora sin costo.'
                     : 'Intenta con otra especialidad o quita algún filtro.'}
                 </p>
                 {hayFiltros && (
@@ -815,7 +818,7 @@ function BuscarContent() {
                           fontSize: 28, fontWeight: 900, color: '#fff',
                         }}>
                           {medico.photo_url
-                       ? <img src={medico.photo_url} alt={medico.full_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            ? <img src={medico.photo_url} alt={medico.full_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                             : (medico.full_name || '?')[0].toUpperCase()
                           }
                         </div>
@@ -872,12 +875,12 @@ function BuscarContent() {
                             <span className="tag-badge">
                               <Globe size={11} />
                               {Array.isArray(medico.languages)
-                           ? medico.languages[0]
+                                ? medico.languages[0]
                                 : String(medico.languages).split(',')[0].trim()
                               }
                             </span>
                           )}
-                          {medico.distance!== undefined && medico.distance < 9999 && (
+                          {medico.distance !== undefined && medico.distance < 9999 && (
                             <span className="tag-badge" style={{ background: '#F5F3FF', color: '#7C3AED' }}>
                               <Navigation size={11} /> {medico.distance.toFixed(1)} km
                             </span>
@@ -893,7 +896,9 @@ function BuscarContent() {
                         <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12, fontSize: 12.5, color: '#6B7280' }}>
                           <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                             <MapPin size={13} color="#9CA3AF" />
-                            {medico.location_city}, {medico.location_state}
+                            {medico.ciudad && medico.estado 
+                              ? `${medico.ciudad}, ${medico.estado}`
+                              : medico.ciudad || medico.estado || 'Ubicación no disponible'}
                           </span>
                           {medico.hospital_affiliation && (
                             <span style={{ display: 'flex', alignItems: 'center', gap: 4, overflow: 'hidden' }}>
@@ -921,7 +926,7 @@ function BuscarContent() {
                         </p>
                         <p style={{ fontSize: 18, color: '#1E3A5F', fontWeight: 900, lineHeight: 1 }}>
                           {medico.consultation_price_general
-                       ? <>${medico.consultation_price_general.toLocaleString('es-MX')} <span style={{ fontSize: 12, fontWeight: 400, color: '#6B7280' }}>MXN</span></>
+                            ? <>${medico.consultation_price_general.toLocaleString('es-MX')} <span style={{ fontSize: 12, fontWeight: 400, color: '#6B7280' }}>MXN</span></>
                             : <span style={{ fontSize: 14, color: '#9CA3AF' }}>Consultar precio</span>
                           }
                         </p>
@@ -993,7 +998,9 @@ function BuscarContent() {
                   fontSize: 12, color: '#6B7280', margin: '2px 0 0',
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                 }}>
-                  {showMapModal.location_city}, {showMapModal.location_state}
+                  {showMapModal.ciudad && showMapModal.estado 
+                    ? `${showMapModal.ciudad}, ${showMapModal.estado}`
+                    : showMapModal.ciudad || showMapModal.estado || 'Ubicación no disponible'}
                 </p>
               </div>
               <button
@@ -1031,21 +1038,21 @@ function BuscarContent() {
               borderTop: '1px solid #E5E7EB',
             }}>
               <button
-  onClick={() => {
-    setShowMapModal(null)
-    setTimeout(() => setShowActionSheet(true), 150)
-  }}
-  style={{
-    width: '100%', padding: '14px',
-    background: '#2A9D8F', color: 'white',
-    border: 'none', borderRadius: 12,
-    fontSize: 15, fontWeight: 700,
-    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-    cursor: 'pointer',
-  }}
->
-  <Navigation size={18} /> Cómo llegar
-</button>
+                onClick={() => {
+                  setShowMapModal(null)
+                  setTimeout(() => setShowActionSheet(true), 150)
+                }}
+                style={{
+                  width: '100%', padding: '14px',
+                  background: '#2A9D8F', color: 'white',
+                  border: 'none', borderRadius: 12,
+                  fontSize: 15, fontWeight: 700,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  cursor: 'pointer',
+                }}
+              >
+                <Navigation size={18} /> Cómo llegar
+              </button>
             </div>
           </div>
         </div>

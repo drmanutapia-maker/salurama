@@ -141,8 +141,8 @@ interface Medico {
   full_name: string
   specialty: string
   photo_url: string | null
-  location_city: string
-  location_state: string
+  ciudad: string | null
+  estado: string | null
   clinic_name: string | null
   consultation_price_general: number | null
   whatsapp_available: boolean
@@ -197,7 +197,7 @@ export default function HomePage() {
       try {
         const { data, error } = await supabase
         .from('doctors')
-        .select(`id, full_name, specialty, photo_url, location_city, location_state, clinic_name, consultation_price_general, whatsapp_available`)
+        .select(`id, full_name, specialty, photo_url, ciudad, estado, clinic_name, consultation_price_general, whatsapp_available`)
         .eq('is_active', true)
         .order('created_at', { ascending: false })
         .limit(50)
@@ -351,7 +351,7 @@ export default function HomePage() {
                         <p style={{ fontSize: 14, color: '#6B7280' }}>{medico.specialty}</p>
                       </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#6B7280' }}><MapPin size={14} />{medico.location_city}, {medico.location_state}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#6B7280' }}><MapPin size={14} />{medico.ciudad}, {medico.estado}</div>
                   </Link>
                 ))}
               </div>

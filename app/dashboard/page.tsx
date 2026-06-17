@@ -1,451 +1,417 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
-  X, Calendar, Edit2, TrendingUp, Users, Eye,
-  ChevronRight, MoreVertical, Lightbulb, ArrowRight,
-  Share2, Copy, MessageCircle, CheckCircle
+  Search,
+  MapPin,
+  Stethoscope,
+  Shield,
+  Star,
+  MessageCircle,
 } from 'lucide-react'
+import { STATES } from '@/lib/locations'
+import BottomNav from '@/components/BottomNav'
+
+// ─── Constantes ────────────────────────────────────────────────────────────────
+
+const ESPECIALIDADES_CONACEM: string[] = [
+  'Alergología',
+  'Anestesiología',
+  'Angiología y Cirugía Vascular',
+  'Cardiología',
+  'Cardiología Pediátrica',
+  'Cirugía Cardiovascular',
+  'Cirugía General',
+  'Cirugía Maxilofacial',
+  'Cirugía Pediátrica',
+  'Cirugía Plástica y Reconstructiva',
+  'Dermatología',
+  'Endocrinología',
+  'Endocrinología Pediátrica',
+  'Gastroenterología',
+  'Gastroenterología y Endoscopia Pediátrica',
+  'Geriatría',
+  'Hematología',
+  'Hematología Pediátrica',
+  'Infectología',
+  'Infectología Pediátrica',
+  'Medicina Crítica',
+  'Medicina Familiar',
+  'Medicina Física y Rehabilitación',
+  'Medicina Interna',
+  'Nefrología',
+  'Nefrología Pediátrica',
+  'Neonatología',
+  'Neumología',
+  'Neumología Pediátrica',
+  'Neurocirugía',
+  'Neurología',
+  'Neurología Pediátrica',
+  'Oncología',
+  'Oncología Pediátrica',
+  'Oftalmología',
+  'Ortopedia y Traumatología',
+  'Otorrinolaringología',
+  'Pediatría',
+  'Psiquiatría',
+  'Psiquiatría Infantil y de la Adolescencia',
+  'Radiología e Imagen',
+  'Reumatología',
+  'Reumatología Pediátrica',
+  'Urología',
+  'Ginecología y Obstetricia',
+  'Medicina General',
+  'Nutrición',
+  'Oncología Radioterápica',
+  'Patología',
+  'Pediatría del Desarrollo y Conducta',
+]
+
+const MAS_BUSCADAS = [
+  'Oncología',
+  'Cardiología',
+  'Dermatología',
+  'Psiquiatría',
+  'Ginecología y Obstetricia',
+  'Pediatría',
+  'Cirugía Plástica y Reconstructiva',
+  'Oftalmología',
+  'Geriatría',
+  'Gastroenterología',
+]
+
+const PAGE_STYLES = `
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@600;900&family=DM+Sans:wght@400;500;700&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+.fade-up { animation: fadeUp 0.4s ease-out; }
+.fade-in { animation: fadeIn 0.3s ease-out; }
+
+  h1, h2, h3, h4, h5, h6 { font-family: 'Fraunces', serif; }
+
+.btn-violeta {
+    background: #8B5CF6;
+    color: white;
+    border: none;
+    transition: all 0.2s ease;
+  }
+.btn-violeta:hover {
+    background: #7C3AED;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
+  }
+
+.chip:hover {
+    background: #8B5CF6;
+    color: white;
+    border-color: #8B5CF6;
+    transform: translateY(-2px);
+  }
+
+.card-medico {
+    transition: all 0.3s ease;
+    border: 1px solid #2A9D8F;
+  }
+.card-medico:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(42, 157, 143, 0.15);
+    border-color: #8B5CF6;
+  }
+
+.nav-link:hover { color: #8B5CF6; }
+
+  @media (min-width: 768px) {
+  .desktop-only { display: flex!important; }
+  .mobile-only { display: none!important; }
+  }
+  @media (max-width: 767px) {
+  .desktop-only { display: none!important; }
+  .mobile-only { display: flex!important; }
+  }
+`
 
 interface Medico {
   id: string
   full_name: string
-  email: string
   specialty: string
-  professional_title: string | null
-  location_city: string
   photo_url: string | null
-  phone: string
-  clinic_lat: number | null
-  clinic_lng: number | null
-  whatsapp_available: boolean
-  whatsapp_phone: string | null
-  clinic_phone: string | null
-  about_me: string | null
-  horario: any
-  languages: string[] | string | null
-  consultation_price_first_time: number | null
+  ciudad: string | null
+  estado: string | null
+  clinic_name: string | null
   consultation_price_general: number | null
-  user_id?: string
+  whatsapp_available: boolean
 }
 
-interface Cita {
-  id: string
-  patient_name: string
-  requested_date: string
-  requested_time: string
-  status: 'solicitada' | 'confirmada' | 'terminada' | 'cancelada'
-}
+const normalizarTexto = (texto: string): string =>
+  texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 
-interface StatsResumen {
-  citas_solicitadas_totales: number
-  citas_solicitadas_mes: number
-  rating_promedio: number
-  reseñas_count: number
-}
-
-export default function DashboardMedico() {
+export default function HomePage() {
   const router = useRouter()
-  const [medico, setMedico] = useState<Medico | null>(null)
+  const sugerenciasRef = useRef<HTMLDivElement>(null)
+
+  const [inputValue, setInputValue] = useState('')
+  const [selectedSpecialty, setSelectedSpecialty] = useState('')
+  const [selectedState, setSelectedState] = useState('')
+  const [sugerencias, setSugerencias] = useState<string[]>([])
+  const [showSugerencias, setShowSugerencias] = useState(false)
+  const [especialidades, setEspecialidades] = useState<string[]>(ESPECIALIDADES_CONACEM)
+  const [medicos, setMedicos] = useState<Medico[]>([])
   const [loading, setLoading] = useState(true)
-  const [showPhotoModal, setShowPhotoModal] = useState(false)
-  const [citasHoy, setCitasHoy] = useState<Cita[]>([])
-  const [stats, setStats] = useState<StatsResumen | null>(null)
-  const [consejo, setConsejo] = useState<any>(null)
-  const [profileCompletion, setProfileCompletion] = useState(0)
-  const [isMobile, setIsMobile] = useState(false)
-  const [showShareMenu, setShowShareMenu] = useState(false)
-  const [photoTs] = useState(() => Date.now())
 
   useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768)
-    checkMobile()
-    window.addEventListener('resize', checkMobile)
-    return () => window.removeEventListener('resize', checkMobile)
+    const handleClickOutside = (e: MouseEvent) => {
+      if (sugerenciasRef.current && !sugerenciasRef.current.contains(e.target as Node)) {
+        setShowSugerencias(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
   useEffect(() => {
-    let mounted = true
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
-      if (!session && mounted) router.replace('/login')
-    })
-
-    async function load() {
+    async function loadEspecialidades() {
       try {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) { router.replace('/login'); return }
-
-        let { data: doctor } = await supabase
-      .from('doctors')
-      .select('*')
-      .eq('user_id', user.id)
-      .maybeSingle()
-
-        if (!doctor) {
-          const { data: byEmail } = await supabase
+        const { data, error } = await supabase
         .from('doctors')
-        .select('*')
-        .ilike('email', user.email || '')
-        .maybeSingle()
-
-          if (byEmail) {
-            await supabase.from('doctors').update({ user_id: user.id }).eq('id', byEmail.id)
-            doctor = {...byEmail, user_id: user.id }
-          }
-        }
-
-        if (!doctor) {
-          router.replace('/dashboard/editar-perfil?onboarding=1')
-          return
-        }
-
-        if (!mounted) return
-        setMedico(doctor)
-
-        const hoy = new Date().toISOString().split('T')[0]
-        const inicioMes = new Date()
-        inicioMes.setDate(1)
-        const inicioMesStr = inicioMes.toISOString().split('T')[0]
-
-        const [citasRes, totalesRes, mesRes, eduRes, expRes, condRes] = await Promise.all([
-          supabase.from('appointment_requests')
-        .select('id, patient_name, requested_date, requested_time, status')
-        .eq('doctor_id', doctor.id).eq('requested_date', hoy)
-        .in('status', ['solicitada','confirmada']).order('requested_time'),
-          supabase.from('appointment_requests')
-        .select('*', { count: 'exact', head: true })
-        .eq('doctor_id', doctor.id).eq('status', 'solicitada'),
-          supabase.from('appointment_requests')
-        .select('*', { count: 'exact', head: true })
-        .eq('doctor_id', doctor.id).eq('status', 'solicitada')
-        .gte('requested_date', inicioMesStr),
-          supabase.from('doctor_education').select('id').eq('doctor_id', doctor.id),
-          supabase.from('doctor_experience').select('id').eq('doctor_id', doctor.id),
-          supabase.from('doctor_conditions').select('id').eq('doctor_id', doctor.id),
-        ])
-
-        let ratingData = { promedio: 0, total: 0 }
-        try {
-          const r = await supabase.rpc('get_doctor_rating', { doctor_uuid: doctor.id })
-          ratingData = r.data?.[0] || ratingData
-        } catch {}
-
-        setCitasHoy(citasRes.data || [])
-        setStats({
-          citas_solicitadas_totales: totalesRes.count || 0,
-          citas_solicitadas_mes: mesRes.count || 0,
-          rating_promedio: parseFloat(Number(ratingData.promedio || 0).toFixed(1)),
-          reseñas_count: ratingData.total || 0
-        })
-
-        const tieneHorarioActivo =!!(doctor.horario && Object.values(doctor.horario).some((d: any) => d?.activo || d?.abierto))
-        const checks = [
-      !!doctor.photo_url,
-      !!(doctor.about_me && doctor.about_me.length > 100),
-      !!(doctor.clinic_lat && doctor.clinic_lng),
-          tieneHorarioActivo,
-      !!(doctor.consultation_price_first_time && doctor.consultation_price_general),
-      !!(doctor.phone || doctor.whatsapp_phone || doctor.clinic_phone),
-      !!(Array.isArray(doctor.languages) && doctor.languages.length >= 1),
-          (expRes.data?.length || 0) > 0,
-          (eduRes.data?.length || 0) > 0,
-          (condRes.data?.length || 0) > 0,
-        ]
-        const pct = Math.round((checks.filter(Boolean).length / checks.length) * 100)
-        setProfileCompletion(pct)
-
-        const consejos = []
-        if (!tieneHorarioActivo) consejos.push({
-          id: 'horario',
-          titulo: 'Configura tu horario',
-          descripcion: 'Los pacientes solo agendan cuando ven disponibilidad',
-          impacto: '+35% más citas',
-          cta: 'Configurar',
-          link: '/dashboard/horario',
-          color: '#8B5CF6'
-        })
-        if (!doctor.photo_url) consejos.push({
-          id: 'foto',
-          titulo: 'Sube tu foto profesional',
-          descripcion: 'Perfiles con foto generan 3× más confianza',
-          impacto: '+200% confianza',
-          cta: 'Subir foto',
-          link: '/dashboard/editar-perfil',
-          color: '#1E3A5F'
-        })
-        if (!doctor.consultation_price_first_time ||!doctor.consultation_price_general) consejos.push({
-          id: 'precios',
-          titulo: 'Publica tus precios',
-          descripcion: 'Transparencia aumenta las reservas',
-          impacto: '+28% reservas',
-          cta: 'Agregar precios',
-          link: '/dashboard/editar-perfil',
-          color: '#D97706'
-        })
-        if (!doctor.about_me || doctor.about_me.length < 100) consejos.push({
-          id: 'bio',
-          titulo: 'Escribe tu biografía',
-          descripcion: 'Cuenta tu experiencia y enfoque',
-          impacto: '+50% conversión',
-          cta: 'Escribir',
-          link: '/dashboard/editar-perfil',
-          color: '#2A9D8F'
-        })
-        if (!(doctor.clinic_lat && doctor.clinic_lng)) consejos.push({
-          id: 'ubicacion',
-          titulo: 'Agrega tu ubicación exacta',
-          descripcion: 'Pacientes buscan médicos cercanos con GPS',
-          impacto: '+40% visibilidad',
-          cta: 'Agregar',
-          link: '/dashboard/editar-perfil',
-          color: '#8B5CF6'
-        })
-        if (!(doctor.phone || doctor.whatsapp_phone || doctor.clinic_phone)) consejos.push({
-          id: 'contacto',
-          titulo: 'Agrega teléfono o WhatsApp',
-          descripcion: 'Pacientes necesitan contactarte',
-          impacto: '+60% contactos',
-          cta: 'Agregar',
-          link: '/dashboard/editar-perfil',
-          color: '#DC2626'
-        })
-        if ((eduRes.data?.length || 0) === 0) consejos.push({
-          id: 'educacion',
-          titulo: 'Agrega tu formación',
-          descripcion: 'Tu preparación genera confianza',
-          impacto: '+25% credibilidad',
-          cta: 'Agregar',
-          link: '/dashboard/editar-perfil',
-          color: '#1E3A5F'
-        })
-
-        if (consejos.length > 0) {
-          const randomIndex = Math.floor(Math.random() * Math.min(3, consejos.length))
-          setConsejo(consejos[randomIndex])
-        } else {
-          setConsejo(null)
-        }
-
+        .select('specialty')
+        .not('specialty', 'is', null)
+        if (error) throw error
+        const fromDB = Array.from(new Set((data ?? []).map((d) => d.specialty).filter(Boolean))) as string[]
+        const extras = fromDB.filter((esp) => !ESPECIALIDADES_CONACEM.includes(esp)).sort()
+        setEspecialidades([...ESPECIALIDADES_CONACEM, ...extras])
       } catch (err) {
-        console.error(err)
-      } finally {
-        if (mounted) setLoading(false)
+        console.error('Error loading especialidades:', err)
       }
     }
+    loadEspecialidades()
+  }, [])
 
-    load()
-
-    return () => {
-      mounted = false
-      subscription.unsubscribe()
+  useEffect(() => {
+    async function loadMedicos() {
+      try {
+        console.log('🔍 Iniciando consulta a Supabase...');
+        
+        const { data, error, status, statusText } = await supabase
+          .from('doctors')
+          .select(`id, full_name, specialty, photo_url, ciudad, estado, clinic_name, consultation_price_general, whatsapp_available`)
+          .eq('is_active', true)
+          .order('created_at', { ascending: false })
+          .limit(50);
+        
+        console.log('📦 status:', status, statusText);
+        console.log('📦 error:', error);
+        console.log('📦 data:', data);
+        
+        if (error) {
+          console.error('❌ Supabase error:', error.message, error.details, error.hint, error.code);
+          throw error;
+        }
+        
+        setMedicos(data ?? []);
+      } catch (err: any) {
+        console.error('❌ Catch error - typeof:', typeof err);
+        console.error('❌ Catch error - value:', err);
+        console.error('❌ Error keys:', Object.keys(err || {}));
+        console.error('❌ Error message:', err?.message);
+        console.error('❌ Error toString:', String(err));
+        setMedicos([]);
+      } finally {
+        setLoading(false);
+      }
     }
-  }, [router])
+    loadMedicos();
+  }, [])
 
-  const handleCopyLink = async () => {
-    if (!medico) return
-    const url = `https://salurama.mx/doctor/${medico.id}`
-    await navigator.clipboard.writeText(url)
-    setShowShareMenu(false)
+  useEffect(() => {
+    if (inputValue.trim().length < 2) {
+      setShowSugerencias(false)
+      return
+    }
+    const normalizado = normalizarTexto(inputValue)
+    const filtradas = especialidades.filter((esp) => normalizarTexto(esp).includes(normalizado)).slice(0, 8)
+    setSugerencias(filtradas)
+    setShowSugerencias(filtradas.length > 0)
+  }, [inputValue, especialidades])
+
+  const handleSearch = useCallback(() => {
+    const params = new URLSearchParams()
+    const especialidadFinal = selectedSpecialty || inputValue.trim()
+    if (especialidadFinal) params.set('especialidad', especialidadFinal)
+    if (selectedState) params.set('estado', selectedState)
+    router.push(`/buscar?${params.toString()}`)
+  }, [selectedSpecialty, inputValue, selectedState, router])
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputValue(e.target.value)
+    setSelectedSpecialty('')
   }
 
-  const handleShareWhatsApp = () => {
-    if (!medico) return
-    const url = `https://salurama.mx/doctor/${medico.id}`
-    const titulo = medico.professional_title || 'Dr.'
-    const nombre = medico.full_name
-    const especialidad = medico.specialty
-    const ciudad = medico.location_city
-    const text = `Soy ${titulo} ${nombre}, ${especialidad} en ${ciudad}.\n\nAgenda tu cita en línea:\n${url}`
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
-    setShowShareMenu(false)
+  const handleSugerenciaClick = (sugerencia: string) => {
+    setSelectedSpecialty(sugerencia)
+    setInputValue(sugerencia)
+    setShowSugerencias(false)
   }
 
-  const saludo = () => {
-    const h = new Date().getHours()
-    return h < 12? 'Buenos días' : h < 19? 'Buenas tardes' : 'Buenas noches'
+  const handleChipClick = (esp: string) => {
+    const params = new URLSearchParams()
+    params.set('especialidad', esp)
+    if (selectedState) params.set('estado', selectedState)
+    router.push(`/buscar?${params.toString()}`)
   }
-
-  const nombreCorto = () => {
-    if (!medico) return ''
-    const p = medico.full_name.trim().split(/\s+/)
-    return p.length === 1? p[0] : `${p[0]} ${p[p.length-1]}`
-  }
-
-  if (loading) {
-    return (
-      <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center' }}>
-        <style>{`@keyframes s{to{transform:rotate(360deg)}}`}</style>
-        <div style={{ width:40, height:40, border:'3px solid #E5E7EB', borderTopColor:'#1E3A5F', borderRadius:'50%', animation:'s.8s linear infinite' }}/>
-      </div>
-    )
-  }
-  if (!medico) return null
 
   return (
-    <div style={{ minHeight:'100vh', background:'#F9FAFB', fontFamily:"'DM Sans',sans-serif", paddingBottom: isMobile?80:0 }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@900&family=DM+Sans:wght@400;600&display=swap');`}</style>
+    <div style={{ minHeight: '100vh', background: '#F9FAFB', fontFamily: "'DM Sans', sans-serif", color: '#111827' }}>
+      <style>{PAGE_STYLES}</style>
 
-<div style={{ maxWidth:1100, margin:'0 auto', padding:'24px 16px 0' }}>
-  <div style={{ background:'#fff', borderRadius:16, padding:24, border:'1px solid #E5E7EB', display:'flex', gap:20, flexDirection: isMobile? 'column' : 'row', alignItems: isMobile? 'center' : 'center', textAlign: isMobile? 'center' : 'left' }}>
-    {medico.photo_url? (
-      <img onClick={()=>setShowPhotoModal(true)} src={`${medico.photo_url}?t=${photoTs}`} alt="" style={{ width:96, height:96, borderRadius:'50%', objectFit:'cover', cursor:'pointer', border:'3px solid #E5E7EB', flexShrink:0 }}/>
-    ) : (
-      <div style={{ width:96, height:96, borderRadius:'50%', background:'linear-gradient(135deg,#1E3A5F,#2A9D8F)', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontSize:36, fontFamily:'Fraunces', flexShrink:0 }}>
-        {medico.full_name[0]}
-      </div>
-    )}
-    <div style={{ flex:1, width: '100%' }}>
-      <h1 style={{ fontFamily:'Fraunces', fontSize:24, fontWeight:900, marginBottom:16 }}>{saludo()}, {nombreCorto()}</h1>
-
-      <div style={{ display:'flex', gap:12, flexDirection: isMobile? 'column' : 'row', position:'relative' }}>
-        <Link href="/dashboard/editar-perfil" style={{ background:'#1E3A5F', color:'#fff', padding:'10px 20px', borderRadius:12, fontSize:14, fontWeight:600, textDecoration:'none', display:'flex', alignItems:'center', justifyContent:'center', gap:8, height:40, boxSizing:'border-box' }}>
-          <Edit2 size={16}/>Editar perfil
-        </Link>
-        <button onClick={()=>router.push(`/doctor/${medico.id}`)} style={{ background:'#fff', color:'#1E3A5F', border:'1.5px solid #E5E7EB', padding:'10px 20px', borderRadius:12, fontSize:14, fontWeight:600, display:'flex', alignItems:'center', justifyContent:'center', gap:8, cursor:'pointer', height:40, boxSizing:'border-box' }}>
-          <Eye size={16}/>Ver perfil
-        </button>
-        <div style={{ position:'relative' }}>
-          <button onClick={()=>setShowShareMenu(!showShareMenu)} style={{ background:'#fff', color:'#1E3A5F', border:'1.5px solid #E5E7EB', padding:'10px 20px', borderRadius:12, fontSize:14, fontWeight:600, display:'flex', alignItems:'center', justifyContent:'center', gap:8, cursor:'pointer', height:40, boxSizing:'border-box', width: isMobile? '100%' : 'auto' }}>
-            <Share2 size={16}/>Compartir
-          </button>
-          {showShareMenu && (
-            <div style={{ position:'absolute', top:'100%', right:0, marginTop:8, background:'#fff', border:'1px solid #E5E7EB', borderRadius:12, boxShadow:'0 4px 12px rgba(0,0,0,0.1)', zIndex:10, minWidth:200, overflow:'hidden' }}>
-              <button onClick={handleShareWhatsApp} style={{ width:'100%', padding:'12px 16px', border:'none', background:'none', textAlign:'left', fontSize:14, cursor:'pointer', display:'flex', alignItems:'center', gap:8, borderBottom:'1px solid #F3F4F6' }}>
-                <MessageCircle size={16} color="#25D366"/>WhatsApp
-              </button>
-              <button onClick={handleCopyLink} style={{ width:'100%', padding:'12px 16px', border:'none', background:'none', textAlign:'left', fontSize:14, cursor:'pointer', display:'flex', alignItems:'center', gap:8 }}>
-                <Copy size={16}/>Copiar link
-              </button>
+      <main style={{ paddingTop: 80, paddingBottom: 100 }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 20px' }}>
+          <section className="fade-up" style={{ maxWidth: 1200, margin: '0 auto', padding: '20px 20px 40px', textAlign: 'center' }}>
+            <div style={{ marginBottom: 24 }}>
+              <span style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(48px, 10vw, 72px)', fontWeight: 900, color: '#1E3A5F' }}>Salu</span>
+              <span style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(48px, 10vw, 72px)', fontWeight: 600, color: '#2A9D8F' }}>rama</span>
             </div>
-          )}
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
 
-            <div style={{ maxWidth:1100, margin:'16px auto 0', padding:'0 16px' }}>
-        <div style={{ background:'#fff', borderRadius:12, padding:16, border:'1px solid #E5E7EB' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: '#1E3A5F' }}>Perfil completado: {profileCompletion}%</span>
-          </div>
-          <div style={{ height: 8, background: '#E5E7EB', borderRadius: 4, overflow: 'hidden' }}>
-            <div style={{ height: '100%', width: `${profileCompletion}%`, background: profileCompletion >= 80? '#2A9D8F' : profileCompletion >= 50? '#F59E0B' : '#1E3A5F', transition: 'width 0.4s ease', borderRadius: 4 }} />
-          </div>
-        </div>
-      </div>
+            <h1 style={{ fontSize: 'clamp(24px, 5vw, 40px)', fontWeight: 900, color: '#1E3A5F', marginBottom: 32, lineHeight: 1.2 }}>
+              Verifica credenciales y agenda con confianza
+            </h1>
 
-      {consejo && (
-        <div style={{ maxWidth:1100, margin:'16px auto 0', padding:'0 16px' }}>
-          <div style={{
-            background: 'linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 100%)',
-            border: '1.5px solid #DDD6FE',
-            borderRadius:12,
-            padding:16,
-            display:'flex',
-            alignItems:'flex-start',
-            gap:12
-          }}>
-            <div style={{
-              width:36,
-              height:36,
-              borderRadius:10,
-              background: consejo.color,
-              display:'flex',
-              alignItems:'center',
-              justifyContent:'center',
-              flexShrink:0
-            }}>
-              <Lightbulb size={18} color="#fff" />
-            </div>
-            <div style={{ flex:1, minWidth:0 }}>
-              <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4, flexWrap:'wrap' }}>
-                <p style={{ fontWeight:700, fontSize:14, color:'#1E3A5F' }}>{consejo.titulo}</p>
-                <span style={{
-                  fontSize:11,
-                  fontWeight:700,
-                  color:'#fff',
-                  background: consejo.color,
-                  padding:'2px 8px',
-                  borderRadius:12,
-                  whiteSpace:'nowrap'
-                }}>
-                  {consejo.impacto}
-                </span>
-              </div>
-              <p style={{ fontSize:13, color:'#6B7280', marginBottom:8, lineHeight:1.4 }}>{consejo.descripcion}</p>
-              <Link href={consejo.link} prefetch={true} style={{
-                background:'none',
-                border:'none',
-                color: consejo.color,
-                fontSize:13,
-                fontWeight:600,
-                textDecoration:'none',
-                display:'inline-flex',
-                alignItems:'center',
-                gap:4,
-                padding:0,
-                fontFamily:"'DM Sans', sans-serif"
-              }}>
-                {consejo.cta} <ArrowRight size={14}/>
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
+            <div style={{ maxWidth: 900, margin: '0 auto 40px' }}>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'stretch' }}>
+                <div ref={sugerenciasRef} style={{ flex: '1 1 400px', position: 'relative', minWidth: 280 }}>
+                  <input
+                    type="text"
+                    placeholder="Especialidad o médico..."
+                    value={inputValue}
+                    onChange={handleInputChange}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                    style={{
+                      width: '100%',
+                      height: 56,
+                      padding: '0 24px',
+                      borderRadius: 16,
+                      border: '1.5px solid #2A9D8F',
+                      fontSize: 15,
+                      background: '#fff',
+                      outline: 'none',
+                      boxShadow: '0 2px 8px rgba(42,157,143,.08)',
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = '#8B5CF6'
+                      e.currentTarget.style.boxShadow = '0 0 0 3px rgba(139,92,246,.12), 0 2px 8px rgba(42,157,143,.08)'
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = '#2A9D8F'
+                      e.currentTarget.style.boxShadow = '0 2px 8px rgba(42,157,143,.08)'
+                    }}
+                  />
 
-      <div style={{ maxWidth:1100, margin:'16px auto 0', padding:'0 16px' }}>
-        <div style={{ display:'grid', gridTemplateColumns: isMobile?'1fr':'repeat(2,1fr)', gap:16 }}>
-          <div style={{ background:'#fff', padding:24, borderRadius:16, border:'1px solid #E5E7EB' }}>
-            <p style={{ fontSize:11, color:'#9CA3AF', textTransform:'uppercase', fontWeight:600 }}>Solicitudes</p>
-            <p style={{ fontSize:32, fontFamily:'Fraunces', fontWeight:900, color:'#1E3A5F', margin:'8px 0' }}>{stats?.citas_solicitadas_totales || 0}</p>
-            <div style={{ display:'flex', alignItems:'center', gap:4, color:'#059669', fontSize:12 }}><TrendingUp size={14}/>{stats?.citas_solicitadas_mes || 0} este mes</div>
-          </div>
-          <div style={{ background:'#fff', padding:24, borderRadius:16, border:'1px solid #E5E7EB' }}>
-            <p style={{ fontSize:11, color:'#9CA3AF', textTransform:'uppercase', fontWeight:600 }}>Calificación</p>
-            <div style={{ display:'flex', alignItems:'baseline', gap:6, margin:'8px 0' }}>
-              <p style={{ fontSize:32, fontFamily:'Fraunces', fontWeight:900, color:'#1E3A5F' }}>{stats?.rating_promedio || '0.0'}</p>
-              <span style={{ color:'#9CA3AF' }}>/5</span>
-            </div>
-            <div style={{ display:'flex', alignItems:'center', gap:4, color:'#6B7280', fontSize:12 }}><Users size={14}/>{stats?.reseñas_count? `${stats.reseñas_count} reseñas` : 'Sin reseñas'}</div>
-          </div>
-        </div>
-      </div>
-
-      <div style={{ maxWidth:1100, margin:'16px auto 20px', padding:'0 16px' }}>
-        <div style={{ background:'#fff', padding:24, borderRadius:16, border:'1px solid #E5E7EB' }}>
-          <div style={{ display:'flex', justifyContent:'space-between', marginBottom:16 }}>
-            <h2 style={{ fontFamily:'Fraunces', fontSize:20, fontWeight:900 }}>Citas de Hoy</h2>
-            <Link href="/dashboard/citas" prefetch={true} style={{ color:'#1E3A5F', fontSize:13, fontWeight:600, textDecoration:'none', display:'flex', alignItems:'center', gap:4 }}>Ver todas<ChevronRight size={14}/></Link>
-          </div>
-          {citasHoy.length? citasHoy.map(c => (
-            <div key={c.id} style={{ background:'#F9FAFB', padding:16, borderRadius:12, display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12, borderLeft:`4px solid ${c.status==='confirmada'?'#059669':'#F59E0B'}` }}>
-              <div style={{ display:'flex', gap:12, alignItems:'center' }}>
-                <div style={{ width:44, height:44, borderRadius:'50%', background:c.status==='confirmada'?'#059669':'#F59E0B', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700 }}>{c.patient_name.split(' ').map(n=>n[0]).join('').slice(0,2)}</div>
-                <div>
-                  <p style={{ fontWeight:600, fontSize:14 }}>{c.patient_name}</p>
-                  <p style={{ fontSize:13, color:'#6B7280' }}>{c.requested_time} • {c.status==='confirmada'?'Confirmada':'Por confirmar'}</p>
+                  {showSugerencias && (
+                    <div className="fade-in" style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0, background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', boxShadow: '0 8px 24px rgba(0,0,0,0.12)', zIndex: 100, maxHeight: 300, overflowY: 'auto' }}>
+                      {sugerencias.map((sugerencia, index) => (
+                        <button key={sugerencia} onMouseDown={(e) => { e.preventDefault(); handleSugerenciaClick(sugerencia) }} style={{ width: '100%', padding: '12px 16px', background: 'none', border: 'none', borderBottom: index < sugerencias.length - 1 ? '1px solid #F3F4F6' : 'none', textAlign: 'left', fontSize: 14, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", transition: 'background 0.15s' }} onMouseEnter={(e) => (e.currentTarget.style.background = '#F5F3FF')} onMouseLeave={(e) => (e.currentTarget.style.background = '#fff')}>
+                          {sugerencia}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              </div>
-              <MoreVertical size={18} color="#9CA3AF"/>
-            </div>
-          )) : (
-            <div style={{ textAlign:'center', padding:40, background:'#F9FAFB', borderRadius:12 }}>
-              <Calendar size={40} color="#9CA3AF" style={{ margin:'0 auto 12px' }}/>
-              <p style={{ color:'#6B7280' }}>Sin citas para hoy</p>
-            </div>
-          )}
-        </div>
-      </div>
 
-      {showPhotoModal && medico.photo_url && (
-        <div onClick={()=>setShowPhotoModal(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.9)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:2000 }}>
-          <X size={24} color="#fff" style={{ position:'absolute', top:20, right:20, cursor:'pointer' }}/>
-          <img src={`${medico.photo_url}?t=${photoTs}`} style={{ maxWidth:'90%', maxHeight:'90%', borderRadius:12 }} alt=""/>
+                <select value={selectedState} onChange={(e) => setSelectedState(e.target.value)} style={{ height: 56, width: '100%', maxWidth: 200, padding: '0 36px 0 16px', borderRadius: 16, border: '1.5px solid #2A9D8F', fontSize: 15, fontFamily: "'DM Sans', sans-serif", background: '#fff', cursor: 'pointer', outline: 'none', appearance: 'none', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '16px', boxShadow: '0 2px 8px rgba(42,157,143,.08)', flexShrink: 0 }}>
+                  <option value="">Todos los estados</option>
+                  {STATES.map((state) => (<option key={state} value={state}>{state}</option>))}
+                </select>
+
+                <button onClick={handleSearch} style={{ height: 56, padding: '0 28px', background: '#8B5CF6', border: 'none', borderRadius: 16, color: 'white', fontWeight: 700, fontSize: 15, fontFamily: "'DM Sans', sans-serif", cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, transition: 'all 0.15s', boxShadow: '0 2px 8px rgba(139,92,246,.3)', flexShrink: 0, whiteSpace: 'nowrap' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#7C3AED'; e.currentTarget.style.transform = 'translateY(-1px)' }} onMouseLeave={(e) => { e.currentTarget.style.background = '#8B5CF6'; e.currentTarget.style.transform = 'translateY(0)' }}>
+                  <Search size={18} /> Buscar
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <p style={{ fontSize: 14, color: '#6B7280', marginBottom: 16 }}>Especialidades más buscadas:</p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', maxWidth: 900, margin: '0 auto' }}>
+                {MAS_BUSCADAS.map((esp) => (
+                  <button key={esp} onClick={() => handleChipClick(esp)} className="chip" style={{ background: '#fff', border: '1px solid #2A9D8F', borderRadius: 50, padding: '8px 16px', fontSize: 13, color: '#4A5568', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", transition: 'all 0.2s ease' }}>
+                    {esp}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          <section className="fade-up" style={{ maxWidth: 1200, margin: '0 auto', padding: '40px 20px', borderTop: '1px solid #E5E7EB' }}>
+            <div style={{ marginBottom: 32 }}>
+              <h2 style={{ fontSize: 'clamp(24px, 4vw, 36px)', fontWeight: 900, color: '#1E3A5F', marginBottom: 8 }}>Nuestros especialistas</h2>
+            </div>
+
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: 60 }}>
+                <div style={{ width: 40, height: 40, border: '3px solid #E8ECF3', borderTopColor: '#8B5CF6', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }} />
+                <p style={{ color: '#9CA3AF', fontSize: 14 }}>Cargando médicos...</p>
+              </div>
+            ) : medicos.length > 0 ? (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24 }}>
+                {medicos.map((medico) => (
+                  <Link key={medico.id} href={`/doctor/${medico.id}`} className="card-medico" style={{ background: '#fff', borderRadius: 16, padding: 20, textDecoration: 'none', display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                      {medico.photo_url ? (<img src={medico.photo_url} alt={medico.full_name} style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover' }} />) : (<div aria-hidden="true" style={{ width: 64, height: 64, borderRadius: '50%', background: 'linear-gradient(135deg, #1E3A5F, #2A9D8F)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 24, color: '#fff', flexShrink: 0 }}>{(medico.full_name || '?')[0].toUpperCase()}</div>)}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1E3A5F', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{medico.full_name}</h3>
+                        <p style={{ fontSize: 14, color: '#6B7280' }}>{medico.specialty}</p>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#6B7280' }}>
+                      <MapPin size={14} />
+                      {medico.ciudad && medico.estado 
+                        ? `${medico.ciudad}, ${medico.estado}`
+                        : medico.ciudad || medico.estado || 'Ubicación no disponible'}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '80px 20px', background: '#F9FAFB', borderRadius: 16, border: '1px dashed #D1D5DB' }}>
+                <div style={{ width: 64, height: 64, background: '#F5F3FF', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}><Stethoscope size={32} color="#8B5CF6" /></div>
+                <h3 style={{ fontSize: 20, fontWeight: 700, color: '#1E3A5F', marginBottom: 8 }}>Aún no hay médicos registrados</h3>
+                <p style={{ fontSize: 15, color: '#6B7280', maxWidth: 500, margin: '0 auto' }}>Sé el primero en unirte a nuestra plataforma</p>
+                <Link href="/registro" className="btn-violeta" style={{ display: 'inline-block', marginTop: 20, padding: '12px 32px', borderRadius: 50, textDecoration: 'none', fontWeight: 600 }}>Registrarme como médico</Link>
+              </div>
+            )}
+          </section>
+
+          <section className="fade-up" style={{ maxWidth: 1200, margin: '0 auto', padding: '40px 20px', borderTop: '1px solid #E5E7EB' }}>
+            <div style={{ textAlign: 'center', marginBottom: 40 }}>
+              <h2 style={{ fontSize: 'clamp(24px, 4vw, 36px)', fontWeight: 900, color: '#1E3A5F', marginBottom: 8 }}>¿Por qué <span style={{ color: '#2A9D8F' }}>Salurama</span>?</h2>
+              <p style={{ fontSize: 15, color: '#6B7280' }}>Herramientas para tomar decisiones informadas</p>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
+              <div className="card-medico" style={{ background: '#fff', borderRadius: 16, padding: 32, textAlign: 'center' }}>
+                <div style={{ width: 64, height: 64, background: '#F5F3FF', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}><Shield size={32} color="#8B5CF6" /></div>
+                <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1E3A5F', marginBottom: 12 }}>Verifica en SEP/CONACEM</h3>
+                <p style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.6 }}>Accede a portales oficiales para verificar credenciales antes de agendar</p>
+              </div>
+              <div className="card-medico" style={{ background: '#fff', borderRadius: 16, padding: 32, textAlign: 'center' }}>
+                <div style={{ width: 64, height: 64, background: '#FEF3C7', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}><Star size={32} color="#F59E0B" /></div>
+                <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1E3A5F', marginBottom: 12 }}>Reseñas de pacientes reales</h3>
+                <p style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.6 }}>Solo pacientes que agendaron cita pueden dejar reseñas verificadas</p>
+              </div>
+              <div className="card-medico" style={{ background: '#fff', borderRadius: 16, padding: 32, textAlign: 'center' }}>
+                <div style={{ width: 64, height: 64, background: '#ECFDF5', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}><MessageCircle size={32} color="#059669" /></div>
+                <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1E3A5F', marginBottom: 12 }}>Contacto directo</h3>
+                <p style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.6 }}>Sin intermediarios, sin costos adicionales. Habla directo con el consultorio</p>
+              </div>
+            </div>
+          </section>
         </div>
-      )}
+      </main>
+
+      <BottomNav />
     </div>
   )
 }

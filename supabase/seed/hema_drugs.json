@@ -2,7 +2,10 @@
   "drugs": [
     {
       "inn": "bortezomib",
-      "trade_names": ["Velcade", "Bortevive"],
+      "trade_names": [
+        "Velcade",
+        "Bortevive"
+      ],
       "atc_code": "L01XG01",
       "is_anthracycline": false,
       "is_vesicant": false,
@@ -14,7 +17,9 @@
     },
     {
       "inn": "lenalidomida",
-      "trade_names": ["Revlimid"],
+      "trade_names": [
+        "Revlimid"
+      ],
       "atc_code": "L04AX04",
       "is_anthracycline": false,
       "is_vesicant": false,
@@ -26,7 +31,10 @@
     },
     {
       "inn": "talidomida",
-      "trade_names": ["Thalidomide Celgene", "Thalomid"],
+      "trade_names": [
+        "Thalidomide Celgene",
+        "Thalomid"
+      ],
       "atc_code": "L04AX02",
       "is_anthracycline": false,
       "is_vesicant": false,
@@ -38,7 +46,10 @@
     },
     {
       "inn": "pomalidomida",
-      "trade_names": ["Pomalyst", "Imnovid"],
+      "trade_names": [
+        "Pomalyst",
+        "Imnovid"
+      ],
       "atc_code": "L04AX06",
       "is_anthracycline": false,
       "is_vesicant": false,
@@ -50,7 +61,9 @@
     },
     {
       "inn": "daratumumab",
-      "trade_names": ["Darzalex"],
+      "trade_names": [
+        "Darzalex"
+      ],
       "atc_code": "L01XC24",
       "is_anthracycline": false,
       "is_vesicant": false,
@@ -62,7 +75,9 @@
     },
     {
       "inn": "carfilzomib",
-      "trade_names": ["Kyprolis"],
+      "trade_names": [
+        "Kyprolis"
+      ],
       "atc_code": "L01XG02",
       "is_anthracycline": false,
       "is_vesicant": false,
@@ -74,7 +89,10 @@
     },
     {
       "inn": "doxorubicina",
-      "trade_names": ["Adriamycin", "Doxo-cell"],
+      "trade_names": [
+        "Adriamycin",
+        "Doxo-cell"
+      ],
       "atc_code": "L01DB01",
       "is_anthracycline": true,
       "is_vesicant": true,
@@ -86,7 +104,10 @@
     },
     {
       "inn": "epirrubicina",
-      "trade_names": ["Ellence", "Farmorubicin"],
+      "trade_names": [
+        "Ellence",
+        "Farmorubicin"
+      ],
       "atc_code": "L01DB03",
       "is_anthracycline": true,
       "is_vesicant": true,
@@ -98,7 +119,10 @@
     },
     {
       "inn": "daunorrubicina",
-      "trade_names": ["Cerubidine", "DaunoXome"],
+      "trade_names": [
+        "Cerubidine",
+        "DaunoXome"
+      ],
       "atc_code": "L01DB02",
       "is_anthracycline": true,
       "is_vesicant": true,
@@ -110,7 +134,9 @@
     },
     {
       "inn": "idarrubicina",
-      "trade_names": ["Idamycin"],
+      "trade_names": [
+        "Idamycin"
+      ],
       "atc_code": "L01DB06",
       "is_anthracycline": true,
       "is_vesicant": true,
@@ -122,7 +148,9 @@
     },
     {
       "inn": "mitoxantrona",
-      "trade_names": ["Novantrone"],
+      "trade_names": [
+        "Novantrone"
+      ],
       "atc_code": "L01DB07",
       "is_anthracycline": true,
       "is_vesicant": false,
@@ -134,7 +162,10 @@
     },
     {
       "inn": "vincristina",
-      "trade_names": ["Oncovin", "Vincasar"],
+      "trade_names": [
+        "Oncovin",
+        "Vincasar"
+      ],
       "atc_code": "L01CA02",
       "is_anthracycline": false,
       "is_vesicant": true,
@@ -146,7 +177,9 @@
     },
     {
       "inn": "vinblastina",
-      "trade_names": ["Velban"],
+      "trade_names": [
+        "Velban"
+      ],
       "atc_code": "L01CA01",
       "is_anthracycline": false,
       "is_vesicant": true,
@@ -158,7 +191,11 @@
     },
     {
       "inn": "rituximab",
-      "trade_names": ["Rituxan", "Mabthera", "Truxima"],
+      "trade_names": [
+        "Rituxan",
+        "Mabthera",
+        "Truxima"
+      ],
       "atc_code": "L01XC02",
       "is_anthracycline": false,
       "is_vesicant": false,
@@ -170,7 +207,10 @@
     },
     {
       "inn": "obinutuzumab",
-      "trade_names": ["Gazyva", "Gazyvaro"],
+      "trade_names": [
+        "Gazyva",
+        "Gazyvaro"
+      ],
       "atc_code": "L01XC15",
       "is_anthracycline": false,
       "is_vesicant": false,
@@ -182,7 +222,10 @@
     },
     {
       "inn": "ciclofosfamida",
-      "trade_names": ["Cytoxan", "Endoxan"],
+      "trade_names": [
+        "Cytoxan",
+        "Endoxan"
+      ],
       "atc_code": "L01AA01",
       "is_anthracycline": false,
       "is_vesicant": false,
@@ -194,7 +237,9 @@
     },
     {
       "inn": "dexametasona",
-      "trade_names": ["Decadron"],
+      "trade_names": [
+        "Decadron"
+      ],
       "atc_code": "H02AB02",
       "is_anthracycline": false,
       "is_vesicant": false,
@@ -206,7 +251,10 @@
     },
     {
       "inn": "prednisona",
-      "trade_names": ["Deltasone", "Rayos"],
+      "trade_names": [
+        "Deltasone",
+        "Rayos"
+      ],
       "atc_code": "H02AB07",
       "is_anthracycline": false,
       "is_vesicant": false,
@@ -218,7 +266,9 @@
     },
     {
       "inn": "bleomicina",
-      "trade_names": ["Blenoxane"],
+      "trade_names": [
+        "Blenoxane"
+      ],
       "atc_code": "L01DC01",
       "is_anthracycline": false,
       "is_vesicant": false,
@@ -230,7 +280,10 @@
     },
     {
       "inn": "citarabina",
-      "trade_names": ["Cytosar-U", "Ara-C"],
+      "trade_names": [
+        "Cytosar-U",
+        "Ara-C"
+      ],
       "atc_code": "L01BC01",
       "is_anthracycline": false,
       "is_vesicant": false,
@@ -242,7 +295,10 @@
     },
     {
       "inn": "metotrexato",
-      "trade_names": ["Trexall", "Rheumatrex"],
+      "trade_names": [
+        "Trexall",
+        "Rheumatrex"
+      ],
       "atc_code": "L01BA01",
       "is_anthracycline": false,
       "is_vesicant": false,
@@ -254,7 +310,10 @@
     },
     {
       "inn": "etopósido",
-      "trade_names": ["VePesid", "VP-16"],
+      "trade_names": [
+        "VePesid",
+        "VP-16"
+      ],
       "atc_code": "L01CB01",
       "is_anthracycline": false,
       "is_vesicant": false,
@@ -266,7 +325,10 @@
     },
     {
       "inn": "ifosfamida",
-      "trade_names": ["Ifex", "Holoxan"],
+      "trade_names": [
+        "Ifex",
+        "Holoxan"
+      ],
       "atc_code": "L01AA06",
       "is_anthracycline": false,
       "is_vesicant": false,
@@ -278,7 +340,11 @@
     },
     {
       "inn": "bendamustina",
-      "trade_names": ["Treanda", "Levact", "Bendeka"],
+      "trade_names": [
+        "Treanda",
+        "Levact",
+        "Bendeka"
+      ],
       "atc_code": "L01AA09",
       "is_anthracycline": false,
       "is_vesicant": false,
@@ -290,7 +356,10 @@
     },
     {
       "inn": "azacitidina",
-      "trade_names": ["Vidaza", "Onureg"],
+      "trade_names": [
+        "Vidaza",
+        "Onureg"
+      ],
       "atc_code": "L01BC07",
       "is_anthracycline": false,
       "is_vesicant": false,
@@ -302,7 +371,9 @@
     },
     {
       "inn": "decitabina",
-      "trade_names": ["Dacogen"],
+      "trade_names": [
+        "Dacogen"
+      ],
       "atc_code": "L01BC08",
       "is_anthracycline": false,
       "is_vesicant": false,
@@ -314,7 +385,10 @@
     },
     {
       "inn": "venetoclax",
-      "trade_names": ["Venclexta", "Venclyxto"],
+      "trade_names": [
+        "Venclexta",
+        "Venclyxto"
+      ],
       "atc_code": "L01XH02",
       "is_anthracycline": false,
       "is_vesicant": false,
@@ -326,7 +400,9 @@
     },
     {
       "inn": "ibrutinib",
-      "trade_names": ["Imbruvica"],
+      "trade_names": [
+        "Imbruvica"
+      ],
       "atc_code": "L01EL01",
       "is_anthracycline": false,
       "is_vesicant": false,
@@ -338,7 +414,9 @@
     },
     {
       "inn": "acalabrutinib",
-      "trade_names": ["Calquence"],
+      "trade_names": [
+        "Calquence"
+      ],
       "atc_code": "L01EL02",
       "is_anthracycline": false,
       "is_vesicant": false,
@@ -350,7 +428,9 @@
     },
     {
       "inn": "zanubrutinib",
-      "trade_names": ["Brukinsa"],
+      "trade_names": [
+        "Brukinsa"
+      ],
       "atc_code": "L01EL03",
       "is_anthracycline": false,
       "is_vesicant": false,
@@ -362,7 +442,10 @@
     },
     {
       "inn": "cladribina",
-      "trade_names": ["Leustatin", "Mavenclad"],
+      "trade_names": [
+        "Leustatin",
+        "Mavenclad"
+      ],
       "atc_code": "L01BB04",
       "is_anthracycline": false,
       "is_vesicant": false,
@@ -374,7 +457,9 @@
     },
     {
       "inn": "pentostatina",
-      "trade_names": ["Nipent"],
+      "trade_names": [
+        "Nipent"
+      ],
       "atc_code": "L01BB05",
       "is_anthracycline": false,
       "is_vesicant": false,
@@ -386,7 +471,10 @@
     },
     {
       "inn": "fludarabina",
-      "trade_names": ["Fludara", "Oforta"],
+      "trade_names": [
+        "Fludara",
+        "Oforta"
+      ],
       "atc_code": "L01BB05",
       "is_anthracycline": false,
       "is_vesicant": false,
@@ -398,7 +486,10 @@
     },
     {
       "inn": "tretinoína",
-      "trade_names": ["Vesanoid", "ATRA"],
+      "trade_names": [
+        "Vesanoid",
+        "ATRA"
+      ],
       "atc_code": "L01XA03",
       "is_anthracycline": false,
       "is_vesicant": false,
@@ -410,7 +501,9 @@
     },
     {
       "inn": "trióxido de arsénico",
-      "trade_names": ["Trisenox"],
+      "trade_names": [
+        "Trisenox"
+      ],
       "atc_code": "L01XA05",
       "is_anthracycline": false,
       "is_vesicant": false,
@@ -422,7 +515,9 @@
     },
     {
       "inn": "brentuximab vedotin",
-      "trade_names": ["Adcetris"],
+      "trade_names": [
+        "Adcetris"
+      ],
       "atc_code": "L01XC12",
       "is_anthracycline": false,
       "is_vesicant": false,
@@ -434,7 +529,9 @@
     },
     {
       "inn": "midostaurina",
-      "trade_names": ["Rydapt"],
+      "trade_names": [
+        "Rydapt"
+      ],
       "atc_code": "L01EX04",
       "is_anthracycline": false,
       "is_vesicant": false,
@@ -446,7 +543,10 @@
     },
     {
       "inn": "hidroxiurea",
-      "trade_names": ["Hydrea", "Droxia"],
+      "trade_names": [
+        "Hydrea",
+        "Droxia"
+      ],
       "atc_code": "L01XX05",
       "is_anthracycline": false,
       "is_vesicant": false,
@@ -458,7 +558,10 @@
     },
     {
       "inn": "ruxolitinib",
-      "trade_names": ["Jakafi", "Jakavi"],
+      "trade_names": [
+        "Jakafi",
+        "Jakavi"
+      ],
       "atc_code": "L01EJ01",
       "is_anthracycline": false,
       "is_vesicant": false,
@@ -470,7 +573,9 @@
     },
     {
       "inn": "luspatercept",
-      "trade_names": ["Reblozyl"],
+      "trade_names": [
+        "Reblozyl"
+      ],
       "atc_code": "B03XA04",
       "is_anthracycline": false,
       "is_vesicant": false,
@@ -482,7 +587,9 @@
     },
     {
       "inn": "polatuzumab vedotin",
-      "trade_names": ["Polivy"],
+      "trade_names": [
+        "Polivy"
+      ],
       "atc_code": "L01XC36",
       "is_anthracycline": false,
       "is_vesicant": false,
@@ -494,7 +601,9 @@
     },
     {
       "inn": "blinatumomab",
-      "trade_names": ["Blincyto"],
+      "trade_names": [
+        "Blincyto"
+      ],
       "atc_code": "L01XC19",
       "is_anthracycline": false,
       "is_vesicant": false,
@@ -506,7 +615,9 @@
     },
     {
       "inn": "dacarbazina",
-      "trade_names": ["DTIC-Dome"],
+      "trade_names": [
+        "DTIC-Dome"
+      ],
       "atc_code": "L01AX04",
       "is_anthracycline": false,
       "is_vesicant": false,
@@ -518,7 +629,10 @@
     },
     {
       "inn": "procarbazina",
-      "trade_names": ["Matulane", "Natulan"],
+      "trade_names": [
+        "Matulane",
+        "Natulan"
+      ],
       "atc_code": "L01XB01",
       "is_anthracycline": false,
       "is_vesicant": false,
@@ -530,7 +644,9 @@
     },
     {
       "inn": "tiotepa",
-      "trade_names": ["Tepadina"],
+      "trade_names": [
+        "Tepadina"
+      ],
       "atc_code": "L01AC01",
       "is_anthracycline": false,
       "is_vesicant": false,
@@ -542,7 +658,10 @@
     },
     {
       "inn": "imatinib",
-      "trade_names": ["Gleevec", "Glivec"],
+      "trade_names": [
+        "Gleevec",
+        "Glivec"
+      ],
       "atc_code": "L01EA01",
       "is_anthracycline": false,
       "is_vesicant": false,
@@ -554,7 +673,9 @@
     },
     {
       "inn": "dasatinib",
-      "trade_names": ["Sprycel"],
+      "trade_names": [
+        "Sprycel"
+      ],
       "atc_code": "L01EA02",
       "is_anthracycline": false,
       "is_vesicant": false,
@@ -566,7 +687,9 @@
     },
     {
       "inn": "nilotinib",
-      "trade_names": ["Tasigna"],
+      "trade_names": [
+        "Tasigna"
+      ],
       "atc_code": "L01EA03",
       "is_anthracycline": false,
       "is_vesicant": false,
@@ -578,7 +701,9 @@
     },
     {
       "inn": "bosutinib",
-      "trade_names": ["Bosulif"],
+      "trade_names": [
+        "Bosulif"
+      ],
       "atc_code": "L01EA04",
       "is_anthracycline": false,
       "is_vesicant": false,
@@ -590,7 +715,9 @@
     },
     {
       "inn": "ponatinib",
-      "trade_names": ["Iclusig"],
+      "trade_names": [
+        "Iclusig"
+      ],
       "atc_code": "L01EA05",
       "is_anthracycline": false,
       "is_vesicant": false,
@@ -602,7 +729,9 @@
     },
     {
       "inn": "cpx-351",
-      "trade_names": ["Vyxeos"],
+      "trade_names": [
+        "Vyxeos"
+      ],
       "atc_code": "L01DB99",
       "is_anthracycline": true,
       "is_vesicant": true,
@@ -614,7 +743,9 @@
     },
     {
       "inn": "peg-interferón alfa-2a",
-      "trade_names": ["Pegasys"],
+      "trade_names": [
+        "Pegasys"
+      ],
       "atc_code": "L03AB11",
       "is_anthracycline": false,
       "is_vesicant": false,
@@ -623,6 +754,84 @@
       "cyp3a4_strong_inhibitor": false,
       "requires_hbv_screen": false,
       "requires_pft": false
+    },
+    {
+      "inn": "hierro sacarosa",
+      "trade_names": [
+        "Venofer"
+      ],
+      "atc_code": "B03AC02",
+      "is_anthracycline": false,
+      "is_vesicant": false,
+      "cumulative_max_mg_m2": null,
+      "cyp3a4_substrate": false,
+      "cyp3a4_strong_inhibitor": false,
+      "requires_hbv_screen": false,
+      "requires_pft": false,
+      "requires_test_dose": false
+    },
+    {
+      "inn": "carboximaltosa férrica",
+      "trade_names": [
+        "Ferinject",
+        "Injectafer"
+      ],
+      "atc_code": "B03AC01",
+      "is_anthracycline": false,
+      "is_vesicant": false,
+      "cumulative_max_mg_m2": null,
+      "cyp3a4_substrate": false,
+      "cyp3a4_strong_inhibitor": false,
+      "requires_hbv_screen": false,
+      "requires_pft": false,
+      "requires_test_dose": false
+    },
+    {
+      "inn": "dextrano de hierro",
+      "trade_names": [
+        "Cosmofer",
+        "INFeD"
+      ],
+      "atc_code": "B03AC06",
+      "is_anthracycline": false,
+      "is_vesicant": false,
+      "cumulative_max_mg_m2": null,
+      "cyp3a4_substrate": false,
+      "cyp3a4_strong_inhibitor": false,
+      "requires_hbv_screen": false,
+      "requires_pft": false,
+      "requires_test_dose": true
+    },
+    {
+      "inn": "hierro isomaltósido",
+      "trade_names": [
+        "Monofer",
+        "Monoferric"
+      ],
+      "atc_code": "B03AC09",
+      "is_anthracycline": false,
+      "is_vesicant": false,
+      "cumulative_max_mg_m2": null,
+      "cyp3a4_substrate": false,
+      "cyp3a4_strong_inhibitor": false,
+      "requires_hbv_screen": false,
+      "requires_pft": false,
+      "requires_test_dose": false
+    },
+    {
+      "inn": "gluconato férrico sódico",
+      "trade_names": [
+        "Ferrlecit"
+      ],
+      "atc_code": "B03AC03",
+      "is_anthracycline": false,
+      "is_vesicant": false,
+      "cumulative_max_mg_m2": null,
+      "cyp3a4_substrate": false,
+      "cyp3a4_strong_inhibitor": false,
+      "requires_hbv_screen": false,
+      "requires_pft": false,
+      "requires_test_dose": false
     }
   ]
 }
