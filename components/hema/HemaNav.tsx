@@ -12,9 +12,9 @@ import {
 const NAV_LINKS = [
   { href: '/hema', label: 'Inicio', icon: LayoutDashboard, exact: true },
   { href: '/hema/pacientes', label: 'Pacientes', icon: Users },
-  { href: '/hema/ordenes', label: 'Indicaciones', icon: FileText },
+  { href: '/hema/ordenes/nueva', label: 'Indicaciones', icon: FileText },
   { href: '/hema/labs', label: 'Labs', icon: FlaskConical },
-  { href: '/hema/admin', label: 'Admin', icon: ShieldCheck },
+  { href: '/hema/admin/protocolos', label: 'Admin', icon: ShieldCheck },
 ]
 
 export default function HemaNav() {
