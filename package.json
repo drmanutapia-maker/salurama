@@ -16,6 +16,9 @@
   },
   "dependencies": {
     "@marsidev/react-turnstile": "^1.5.2",
+    "@salurama/hema-pdf": "workspace:*",
+    "@salurama/hema-shared": "workspace:*",
+    "@salurama/hema-validator": "workspace:*",
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.47.0",
     "@upstash/ratelimit": "^2.0.8",
