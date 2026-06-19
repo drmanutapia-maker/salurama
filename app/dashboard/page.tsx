@@ -195,7 +195,6 @@ export default function DashboardMedico() {
         // Simulación de crecimiento (en producción sería tabla de visitas con fecha)
         const visitasCrecimiento = Math.floor(Math.random() * 30) + 5
 
-        setCitasHoy(citasRes.data || [])
         setStats({
           visitas_mes: visitasMes,
           visitas_crecimiento: visitasCrecimiento,

@@ -1,5 +1,6 @@
 'use server'
 
+import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
@@ -15,9 +16,10 @@ const LabValueInputSchema = z.object({
 })
 
 const CreateLabPanelSchema = z.object({
-  patient_id:   z.string().uuid(),
-  collected_at: z.string().optional(),
-  values:       z.array(LabValueInputSchema).min(1, 'Captura al menos un valor de laboratorio'),
+  patient_id:     z.string().uuid(),
+  collected_at:   z.string().optional(),
+  values:         z.array(LabValueInputSchema).min(1, 'Captura al menos un valor de laboratorio'),
+  ocr_image_path: z.string().optional(),
 })
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -70,9 +72,10 @@ export async function createLabPanel(formData: FormData): Promise<CreateLabPanel
   }
 
   const parsed = CreateLabPanelSchema.safeParse({
-    patient_id:   formData.get('patient_id'),
-    collected_at: formData.get('collected_at') || undefined,
-    values:       parsedValues,
+    patient_id:     formData.get('patient_id'),
+    collected_at:   formData.get('collected_at') || undefined,
+    values:         parsedValues,
+    ocr_image_path: formData.get('ocr_image_path') || undefined,
   })
 
   if (!parsed.success) {
@@ -86,14 +89,15 @@ export async function createLabPanel(formData: FormData): Promise<CreateLabPanel
   const tenantId = extractTenantId(session.access_token)
   if (!tenantId) return { success: false, error: 'Sin tenant configurado. Contacta al administrador.' }
 
-  const { patient_id, collected_at, values } = parsed.data
+  const { patient_id, collected_at, values, ocr_image_path } = parsed.data
 
   const { data: panelId, error: panelError } = await supabase.rpc('hema_create_lab_panel', {
-    p_patient_id:   patient_id,
-    p_tenant_id:    tenantId,
-    p_source:       'manual',
-    p_collected_at: collected_at ? new Date(collected_at).toISOString() : new Date().toISOString(),
-    p_reviewed_by:  session.user.id,
+    p_patient_id:      patient_id,
+    p_tenant_id:       tenantId,
+    p_source:          ocr_image_path ? 'ocr' : 'manual',
+    p_collected_at:    collected_at ? new Date(collected_at).toISOString() : new Date().toISOString(),
+    p_reviewed_by:     session.user.id,
+    p_ocr_image_path:  ocr_image_path ?? null,
   })
 
   if (panelError) {
@@ -115,4 +119,54 @@ export async function createLabPanel(formData: FormData): Promise<CreateLabPanel
   }
 
   return { success: true, panelId: panelId as string }
+}
+
+// ─── Action: subir imagen de referencia para OCR ─────────────────────────────
+
+const ALLOWED_IMAGE_MIME = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
+const EXTENSION_BY_MIME: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'application/pdf': 'pdf',
+}
+const MAX_IMAGE_BYTES = 15 * 1024 * 1024 // coincide con el límite del bucket hema-lab-images
+
+export type UploadLabImageResult =
+  | { success: true; imagePath: string }
+  | { success: false; error: string }
+
+export async function uploadLabImage(formData: FormData): Promise<UploadLabImageResult> {
+  const patientId = String(formData.get('patient_id') ?? '')
+  if (!z.string().uuid().safeParse(patientId).success) {
+    return { success: false, error: 'Paciente inválido.' }
+  }
+
+  const file = formData.get('file')
+  if (!(file instanceof File)) return { success: false, error: 'Archivo inválido.' }
+  if (!ALLOWED_IMAGE_MIME.includes(file.type)) {
+    return { success: false, error: 'Formato no soportado. Usa JPG, PNG, WEBP o PDF.' }
+  }
+  if (file.size > MAX_IMAGE_BYTES) {
+    return { success: false, error: 'El archivo supera el límite de 15 MB.' }
+  }
+
+  const supabase = await getServerSupabase()
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return { success: false, error: 'Sesión expirada. Vuelve a iniciar sesión.' }
+
+  const tenantId = extractTenantId(session.access_token)
+  if (!tenantId) return { success: false, error: 'Sin tenant configurado. Contacta al administrador.' }
+
+  const ext = EXTENSION_BY_MIME[file.type]
+  const path = `${tenantId}/${patientId}/${randomUUID()}.${ext}`
+  const buffer = Buffer.from(await file.arrayBuffer())
+
+  const { error: uploadError } = await supabase.storage
+    .from('hema-lab-images')
+    .upload(path, buffer, { contentType: file.type, upsert: false })
+
+  if (uploadError) return { success: false, error: `Error al subir la imagen: ${uploadError.message}` }
+
+  return { success: true, imagePath: path }
 }

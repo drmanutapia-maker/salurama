@@ -56,6 +56,7 @@ function NuevoLabContent() {
 
   const [values, setValues] = useState<ValuesState>(emptyValues())
   const [collectedAt, setCollectedAt] = useState(nowLocalDatetime())
+  const [ocrImagePath, setOcrImagePath] = useState<string | null>(null)
   const [apiError, setApiError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [isPending, startTransition] = useTransition()
@@ -140,6 +141,7 @@ function NuevoLabContent() {
     fd.set('patient_id', patient.id)
     fd.set('collected_at', collectedAt)
     fd.set('values_json', JSON.stringify(entries))
+    if (ocrImagePath) fd.set('ocr_image_path', ocrImagePath)
 
     startTransition(async () => {
       const result = await createLabPanel(fd)
@@ -221,7 +223,12 @@ function NuevoLabContent() {
 
       <form onSubmit={handleSubmit} noValidate>
         <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 16, padding: 20, marginBottom: 16 }}>
-          <OcrDropzone />
+          <OcrDropzone
+            patientId={patient.id}
+            imagePath={ocrImagePath}
+            onImageUploaded={setOcrImagePath}
+            onImageRemoved={() => setOcrImagePath(null)}
+          />
 
           <div style={{ marginBottom: 20 }}>
             <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#374151', marginBottom: 5 }}>

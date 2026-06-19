@@ -12,11 +12,13 @@
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^2.0.0",
+    "@types/qrcode": "^1.5.5",
     "typescript": "^5.7.2",
     "vitest": "^2.0.0"
   },
   "dependencies": {
     "@salurama/hema-shared": "workspace:*",
-    "pdf-lib": "^1.17.1"
+    "pdf-lib": "^1.17.1",
+    "qrcode": "^1.5.4"
   }
 }

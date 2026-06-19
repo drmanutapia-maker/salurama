@@ -12,48 +12,55 @@ export default function VerificarCitaPage() {
   const [message, setMessage] = useState('')
 
   useEffect(() => {
-    if (!token) {
+  if (!token) {
+    setStatus('error')
+    setMessage('Token no válido.')
+    return
+  }
+
+  async function verify() {
+    console.log('🔍 Verificando token:', token)
+
+    const { data: cita, error } = await supabase
+      .from('citas')
+      .select('*')
+      .eq('verification_token', token)
+      .single()
+
+    console.log('📦 Cita encontrada:', cita)
+    console.log('📦 Error:', error)
+
+    if (error || !cita) {
       setStatus('error')
-      setMessage('Token no válido.')
+      setMessage(`Este enlace no es válido o ya expiró. Token: ${token.slice(0, 8)}...`)
       return
     }
 
-    async function verify() {
-      const { data: cita, error } = await supabase
-        .from('citas')
-        .select('*')
-        .eq('verification_token', token)
-        .single()
-
-      if (error || !cita) {
-        setStatus('error')
-        setMessage('Este enlace no es válido o ya expiró.')
-        return
-      }
-
-      if (cita.estado === 'confirmed') {
-        setStatus('success')
-        setMessage('Esta cita ya estaba confirmada.')
-        return
-      }
-
-      const { error: updateError } = await supabase
-        .from('citas')
-        .update({ estado: 'confirmed' })
-        .eq('id', cita.id)
-
-      if (updateError) {
-        setStatus('error')
-        setMessage('Error al confirmar la cita. Intenta de nuevo.')
-        return
-      }
-
+    if (cita.estado === 'confirmed') {
       setStatus('success')
-      setMessage('¡Cita confirmada con éxito!')
+      setMessage('Esta cita ya estaba confirmada.')
+      return
     }
 
-    verify()
-  }, [token])
+    const { error: updateError } = await supabase
+      .from('citas')
+      .update({ estado: 'confirmed' })
+      .eq('id', cita.id)
+
+    console.log('📦 Update error:', updateError)
+
+    if (updateError) {
+      setStatus('error')
+      setMessage('Error al confirmar la cita. Intenta de nuevo.')
+      return
+    }
+
+    setStatus('success')
+    setMessage('¡Cita confirmada con éxito!')
+  }
+
+  verify()
+}, [token])
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif", background: '#F9FAFB', padding: 20 }}>
