@@ -145,7 +145,10 @@ function NuevoLabContent() {
       const result = await createLabPanel(fd)
       if (result.success) {
         setSuccess(true)
-        setTimeout(() => router.push(`/hema/pacientes/${patient.id}`), 1600)
+        setTimeout(() => {
+          router.push(`/hema/pacientes/${patient.id}`)
+          router.refresh()
+        }, 1600)
       } else {
         setApiError(result.error)
       }

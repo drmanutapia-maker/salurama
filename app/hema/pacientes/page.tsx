@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useEffect, useState, useMemo } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabaseClient'
 import {
@@ -11,6 +11,7 @@ import {
   User,
   Clock,
   AlertCircle,
+  FlaskConical,
 } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -270,8 +271,10 @@ function PatientRow({ p }: { p: PatientRow }) {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default function PacientesPage() {
+function PacientesContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const showLabsBanner = searchParams.get('labs') === 'true'
   const [patients, setPatients] = useState<PatientRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -369,6 +372,22 @@ export default function PacientesPage() {
           Nuevo paciente
         </Link>
       </div>
+
+      {/* ─── Banner: viene de "+ Nuevo panel" en /hema/labs ───────────────── */}
+      {showLabsBanner && (
+        <div
+          style={{
+            display: 'flex', alignItems: 'center', gap: 10,
+            background: 'rgba(124,58,237,0.08)', border: '1.5px solid rgba(124,58,237,0.3)',
+            borderRadius: 14, padding: '12px 16px', marginBottom: 16,
+          }}
+        >
+          <FlaskConical size={18} color="#7C3AED" style={{ flexShrink: 0 }} />
+          <p style={{ fontSize: 13, color: '#6D28D9', fontWeight: 600, margin: 0 }}>
+            Selecciona un paciente para subir sus labs
+          </p>
+        </div>
+      )}
 
       {/* ─── Búsqueda ───────────────────────────────────────────────────── */}
       <div style={{ position: 'relative', marginBottom: 16 }}>
@@ -538,5 +557,20 @@ export default function PacientesPage() {
         </p>
       )}
     </>
+  )
+}
+
+// ─── Export con Suspense (useSearchParams lo requiere) ──────────────────────
+
+export default function PacientesPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ display: 'flex', justifyContent: 'center', padding: '80px 0' }}>
+        <div style={{ width: 36, height: 36, border: '3px solid #E5E7EB', borderTopColor: '#1E3A5F', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      </div>
+    }>
+      <PacientesContent />
+    </Suspense>
   )
 }

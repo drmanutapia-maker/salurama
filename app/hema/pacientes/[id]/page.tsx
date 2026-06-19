@@ -591,6 +591,7 @@ export default function PatientProfilePage() {
       setMeasurements((measRes.data as Measurement[]) ?? [])
       setDiagnoses((dxRes.data as PatientDiagnosis[]) ?? [])
       setOrders((ordRes.data as RecentOrder[]) ?? [])
+      if (labRes.error) console.error('hema_get_lab_panels:', labRes.error.message)
       const labRows = (labRes.data as { collected_at: string; lab_values: LabValueRow[] }[]) ?? []
       setLabPanel(labRows[0] ? { collected_at: labRows[0].collected_at, values: labRows[0].lab_values } : null)
       setLoading(false)
