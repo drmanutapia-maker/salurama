@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { AlertCircle, AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react'
+import { AlertCircle, AlertTriangle, CheckCircle2, FlaskConical, Loader2 } from 'lucide-react'
 import { ResultItem } from '@/components/hema/ResultItem'
 import { buildOrderInput } from './calc'
 import Step3ClinicalInputs from './Step3ClinicalInputs'
@@ -16,6 +16,21 @@ import type {
   WizardPatient,
   WizardProtocol,
 } from './types'
+
+// ─── Labs recientes (≤30 días) — prellenado automático ──────────────────────
+
+const LAB_ANALYTE_TO_FIELD: Record<string, keyof ClinicalInputs> = {
+  anc: 'anc', platelets: 'platelets', hemoglobin: 'hemoglobin', creatinine: 'creatinine',
+  crcl: 'crcl', bilirubin_total: 'bilirubin_total', ast: 'ast', alt: 'alt',
+  lvef: 'lvef', wbc: 'wbc',
+}
+
+interface LabValueRow { analyte: string; value: number | null }
+interface LabPanelRow { collected_at: string; lab_values: LabValueRow[] }
+
+function isClinicalInputsEmpty(c: ClinicalInputs): boolean {
+  return Object.keys(LAB_ANALYTE_TO_FIELD).every((f) => c[f as keyof ClinicalInputs] === '')
+}
 
 // ─── Props ───────────────────────────────────────────────────────────────────
 
@@ -45,6 +60,33 @@ export default function Step3Dose({
 }: Step3DoseProps) {
   const [cumulativeDoses, setCumulativeDoses] = useState<CumulativeDoseEntry[]>([])
   const [validateError, setValidateError] = useState<string | null>(null)
+  const [labsPrefilledAt, setLabsPrefilledAt] = useState<string | null>(null)
+
+  // ── Pre-llenado de labs recientes (≤30 días) — solo si el paso aún está vacío ──
+  useEffect(() => {
+    let mounted = true
+    async function loadRecentLabs() {
+      const { data } = await supabase.rpc('hema_get_lab_panels', { p_patient_id: patient.id, p_limit: 1 })
+      if (!mounted) return
+      const panel = ((data as LabPanelRow[]) ?? [])[0]
+      if (!panel) return
+      const daysOld = (Date.now() - new Date(panel.collected_at).getTime()) / 86_400_000
+      if (daysOld > 30) return
+      if (!isClinicalInputsEmpty(clinicalInputs)) return
+
+      const next = { ...clinicalInputs }
+      for (const v of panel.lab_values) {
+        const field = LAB_ANALYTE_TO_FIELD[v.analyte]
+        if (field && v.value !== null) (next[field] as string) = String(v.value)
+      }
+      next.labs_collected_at = panel.collected_at.slice(0, 16)
+      onClinicalInputsChange(next)
+      setLabsPrefilledAt(panel.collected_at)
+    }
+    loadRecentLabs()
+    return () => { mounted = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [patient.id])
 
   // ── Dosis acumuladas históricas (R-CUM-*) ────────────────────────────────
   useEffect(() => {
@@ -123,6 +165,20 @@ export default function Step3Dose({
           <p style={{ fontSize: 13, color: '#92400E', fontWeight: 700, margin: 0 }}>
             ⚠ Protocolo pendiente de aprobación — solo disponible en modo desarrollo
           </p>
+        </div>
+      )}
+
+      {labsPrefilledAt && (
+        <div
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            fontSize: 12, fontWeight: 700, color: '#7C3AED',
+            background: 'rgba(124,58,237,0.1)', borderRadius: 20,
+            padding: '5px 12px', marginBottom: 12,
+          }}
+        >
+          <FlaskConical size={13} />
+          Labs del {new Date(labsPrefilledAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })} (prellenados)
         </div>
       )}
 

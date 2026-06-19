@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabaseClient'
 import BsaCard from '@/components/hema/BsaCard'
+import LabsSummaryCard, { type LabValueRow } from '@/components/hema/LabsSummaryCard'
 import {
   ArrowLeft,
   Plus,
@@ -548,6 +549,7 @@ export default function PatientProfilePage() {
   const [measurements, setMeasurements] = useState<Measurement[]>([])
   const [diagnoses, setDiagnoses]       = useState<PatientDiagnosis[]>([])
   const [orders, setOrders]             = useState<RecentOrder[]>([])
+  const [labPanel, setLabPanel]         = useState<{ collected_at: string; values: LabValueRow[] } | null>(null)
   const [loading, setLoading]           = useState(true)
   const [error, setError]               = useState<string | null>(null)
   const [modalOpen, setModalOpen]       = useState(false)
@@ -559,7 +561,7 @@ export default function PatientProfilePage() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { router.replace('/login?next=/hema/pacientes'); return }
 
-      const [patRes, measRes, dxRes, ordRes] = await Promise.all([
+      const [patRes, measRes, dxRes, ordRes, labRes] = await Promise.all([
         supabase.rpc('hema_get_patient', { p_patient_id: patientId }),
         supabase.schema('hema').from('patient_measurements')
           .select('id, measured_at, weight_kg, height_cm, bsa_mosteller, bsa_dubois')
@@ -575,6 +577,7 @@ export default function PatientProfilePage() {
           .eq('patient_id', patientId)
           .order('scheduled_for', { ascending: false })
           .limit(5),
+        supabase.rpc('hema_get_lab_panels', { p_patient_id: patientId, p_limit: 1 }),
       ])
 
       if (!mounted) return
@@ -588,6 +591,8 @@ export default function PatientProfilePage() {
       setMeasurements((measRes.data as Measurement[]) ?? [])
       setDiagnoses((dxRes.data as PatientDiagnosis[]) ?? [])
       setOrders((ordRes.data as RecentOrder[]) ?? [])
+      const labRows = (labRes.data as { collected_at: string; lab_values: LabValueRow[] }[]) ?? []
+      setLabPanel(labRows[0] ? { collected_at: labRows[0].collected_at, values: labRows[0].lab_values } : null)
       setLoading(false)
     }
 
@@ -777,6 +782,48 @@ export default function PatientProfilePage() {
               }}
             >
               <Ruler size={15} /> Registrar medición
+            </Link>
+          </div>
+        )}
+      </div>
+
+      {/* ─── Labs recientes ─────────────────────────────────────────────── */}
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+          <h2 style={{ fontFamily: 'Fraunces, serif', fontSize: 17, fontWeight: 900, color: '#111827' }}>
+            Labs recientes
+          </h2>
+          <Link
+            href={`/hema/labs/nuevo?patient=${patientId}`}
+            style={{ fontSize: 13, color: '#7C3AED', fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 3, minHeight: 44 }}
+          >
+            <Plus size={14} /> Subir labs
+          </Link>
+        </div>
+
+        {labPanel && labPanel.values.length > 0 ? (
+          <LabsSummaryCard collectedAt={labPanel.collected_at} values={labPanel.values} />
+        ) : (
+          <div
+            style={{
+              background: '#F9FAFB', border: '1.5px dashed #D1D5DB',
+              borderRadius: 14, padding: '24px 20px', textAlign: 'center',
+            }}
+          >
+            <FlaskConical size={32} color="#D1D5DB" style={{ margin: '0 auto 10px' }} />
+            <p style={{ fontSize: 14, fontWeight: 700, color: '#374151', marginBottom: 4 }}>
+              Sin laboratorios registrados
+            </p>
+            <Link
+              href={`/hema/labs/nuevo?patient=${patientId}`}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+                background: '#7C3AED', color: '#fff',
+                borderRadius: 12, padding: '10px 20px', marginTop: 12,
+                fontSize: 14, fontWeight: 700, textDecoration: 'none', minHeight: 48,
+              }}
+            >
+              <FlaskConical size={15} /> Subir labs
             </Link>
           </div>
         )}
