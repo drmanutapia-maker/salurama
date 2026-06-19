@@ -58,12 +58,13 @@ interface PatientDiagnosis {
   diagnosed_at: string
   staging: string | null
   is_primary: boolean
-  // Supabase devuelve arrays para relaciones FK en .select()
+  // Relación muchos-a-uno (patient_diagnoses.diagnosis_code → diagnoses.code):
+  // PostgREST embebe el lado "uno" como objeto singular, no como arreglo.
   diagnoses: {
     code: string
     description_es: string
     category: string | null
-  }[] | null
+  } | null
 }
 
 interface RecentOrder {
@@ -71,8 +72,9 @@ interface RecentOrder {
   status: string
   cycle_number: number
   scheduled_for: string
-  // Supabase devuelve array para la relación FK
-  protocols: { code: string; name: string }[] | null
+  // Relación muchos-a-uno (orders.protocol_id → protocols.id):
+  // PostgREST embebe el lado "uno" como objeto singular, no como arreglo.
+  protocols: { code: string; name: string } | null
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -822,7 +824,7 @@ export default function PatientProfilePage() {
           </div>
         ) : (
           diagnoses.map((dx, i) => {
-            const dxInfo   = Array.isArray(dx.diagnoses) ? dx.diagnoses[0] : null
+            const dxInfo   = dx.diagnoses
             const cat      = dxInfo?.category ?? 'otro'
             const catColor = DX_CATEGORY_COLOR[cat] ?? '#6B7280'
             return (
@@ -912,7 +914,7 @@ export default function PatientProfilePage() {
               <div style={{ width: 10, height: 10, borderRadius: '50%', background: STATUS_COLOR[o.status] ?? '#9CA3AF', flexShrink: 0 }} />
               <div style={{ flex: 1 }}>
                 <p style={{ fontSize: 14, fontWeight: 600, color: '#111827', marginBottom: 2 }}>
-                  {(o.protocols?.[0]?.code) ?? '—'} · Ciclo {o.cycle_number}
+                  {(o.protocols?.code) ?? '—'} · Ciclo {o.cycle_number}
                 </p>
                 <p style={{ fontSize: 12, color: '#9CA3AF' }}>
                   {formatDate(o.scheduled_for)} ·{' '}

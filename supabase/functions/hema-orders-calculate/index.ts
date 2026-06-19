@@ -18,6 +18,19 @@ function isRateLimited(userId: string): boolean {
   return hits.length > RATE_LIMIT
 }
 
+// hema-auth-hook inyecta { modules, tenant_id } en los claims del JWT (Customize
+// Access Token Hook), NO en auth.users.user_metadata. getUser() solo expone
+// user_metadata, así que para leer modules hay que decodificar el JWT directo —
+// mismo patrón que decodeJwtPayload() en app/hema/layout.tsx y actions.ts.
+function decodeJwtPayload(token: string): Record<string, unknown> {
+  try {
+    const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
+    return JSON.parse(atob(base64))
+  } catch {
+    return {}
+  }
+}
+
 // ─── Types (inline — sin Zod para compatibilidad Deno) ────────────────────────
 
 interface OrderInputDrug {
@@ -243,7 +256,8 @@ Deno.serve(async (req: Request) => {
     if (authError || !user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
-    const modules = (user.user_metadata?.modules ?? []) as string[]
+    const claims  = decodeJwtPayload(token)
+    const modules = (claims.modules ?? []) as string[]
     if (!modules.includes('hema')) {
       return new Response(JSON.stringify({ error: 'Módulo HEMA no activado para este usuario' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
