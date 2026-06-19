@@ -2,13 +2,14 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
-import { Star, Calendar, TrendingUp, CheckCircle, BarChart2 } from 'lucide-react'
+import { Star, Calendar, TrendingUp, CheckCircle, BarChart2, Eye } from 'lucide-react'
 import BackButton from '@/components/BackButton'
+import { calculateProfileCompletion } from '@/hooks/useProfileCompletion'
 
 interface Cita {
   id: string
-  status: 'solicitada' | 'confirmada' | 'atendida' | 'cancelada'
-  requested_date: string
+  estado: 'pending_verification' | 'confirmed' | 'completed' | 'cancelled'
+  fecha: string
 }
 
 interface Review {
@@ -19,32 +20,20 @@ interface Review {
   created_at: string
 }
 
-interface MedicoStats {
-  id: string
-  full_name: string
-  photo_url: string | null
-  specialty: string
-  about_me: string | null
-  clinic_address: string | null
-  whatsapp_available: boolean
-  horario: Record<string, unknown> | null
-  consultation_price_first_time: number | null
-  consultation_price_general: number | null
-  professional_license: string | null
-}
-
 const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
 const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 
 export default function EstadisticasPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
-  const [medico, setMedico] = useState<MedicoStats | null>(null)
+  const [medico, setMedico] = useState<any>(null)
   const [citas, setCitas] = useState<Cita[]>([])
   const [reviews, setReviews] = useState<Review[]>([])
   const [education, setEducation] = useState<any[]>([])
   const [experience, setExperience] = useState<any[]>([])
   const [conditions, setConditions] = useState<any[]>([])
+  const [profileViews, setProfileViews] = useState(0)
+  const [completionData, setCompletionData] = useState<{ checks: any[]; percentage: number }>({ checks: [], percentage: 0 })
 
   useEffect(() => {
     async function load() {
@@ -52,16 +41,17 @@ export default function EstadisticasPage() {
       if (!user) { await supabase.auth.signOut(); router.push('/login'); return }
 
       const { data: doc } = await supabase
-   .from('doctors')
-   .select('id, full_name, photo_url, specialty, about_me, clinic_address, whatsapp_available, horario, consultation_price_first_time, consultation_price_general, professional_license, languages')
-   .eq('user_id', user.id)
-   .single()
+        .from('doctors')
+        .select('id, full_name, photo_url, specialty, about_me, clinic_lat, clinic_lng, horario, consultation_price_first_time, consultation_price_general, phone, clinic_phone, whatsapp_phone, languages, profile_views')
+        .eq('user_id', user.id)
+        .single()
       if (!doc) { router.push('/dashboard'); return }
       setMedico(doc)
+      setProfileViews(doc.profile_views || 0)
 
       const [citasRes, reviewsRes, eduRes, expRes, condRes] = await Promise.all([
-        supabase.from('appointment_requests').select('id, status, requested_date').eq('doctor_id', doc.id || '').order('requested_date'),
-        supabase.from('reviews').select('id, rating, comment, user_name, created_at').eq('doctor_id', doc.id || '').eq('is_visible', true).order('created_at', { ascending: false }),
+        supabase.from('citas').select('id, estado, fecha').eq('medico_id', doc.id).order('fecha'),
+        supabase.from('reviews').select('id, rating, comment, user_name, created_at').eq('doctor_id', doc.id).eq('is_visible', true).order('created_at', { ascending: false }),
         supabase.from('doctor_education').select('id').eq('doctor_id', doc.id),
         supabase.from('doctor_experience').select('id').eq('doctor_id', doc.id),
         supabase.from('doctor_conditions').select('id').eq('doctor_id', doc.id),
@@ -71,6 +61,16 @@ export default function EstadisticasPage() {
       setEducation(eduRes.data || [])
       setExperience(expRes.data || [])
       setConditions(condRes.data || [])
+
+      // Calcular completitud con el hook compartido
+      const result = calculateProfileCompletion({
+        medico: doc,
+        experienceCount: expRes.data?.length || 0,
+        educationCount: eduRes.data?.length || 0,
+        conditionsCount: condRes.data?.length || 0,
+      })
+      setCompletionData(result)
+
       setLoading(false)
     }
     load()
@@ -78,17 +78,17 @@ export default function EstadisticasPage() {
 
   const total = citas.length
   const porStatus = {
-    solicitada: citas.filter(c => c.status === 'solicitada').length,
-    confirmada: citas.filter(c => c.status === 'confirmada').length,
-    atendida: citas.filter(c => c.status === 'atendida').length,
-    cancelada: citas.filter(c => c.status === 'cancelada').length,
+    pending_verification: citas.filter(c => c.estado === 'pending_verification').length,
+    confirmed: citas.filter(c => c.estado === 'confirmed').length,
+    completed: citas.filter(c => c.estado === 'completed').length,
+    cancelled: citas.filter(c => c.estado === 'cancelled').length,
   }
   const tasaConfirmacion = total > 0
-? Math.round(((porStatus.confirmada + porStatus.atendida) / total) * 100)
+    ? Math.round(((porStatus.confirmed + porStatus.completed) / total) * 100)
     : 0
 
   const ratingPromedio = reviews.length > 0
-? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length
+    ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length
     : 0
 
   const hoy = new Date()
@@ -97,7 +97,7 @@ export default function EstadisticasPage() {
     const mesNum = d.getMonth()
     const anio = d.getFullYear()
     const count = citas.filter(c => {
-      const cd = new Date(c.requested_date + 'T00:00:00')
+      const cd = new Date(c.fecha + 'T00:00:00')
       return cd.getMonth() === mesNum && cd.getFullYear() === anio
     }).length
     return { label: MESES[mesNum], count }
@@ -106,29 +106,18 @@ export default function EstadisticasPage() {
 
   const citasPorDia = DIAS.map((label, idx) => ({
     label,
-    count: citas.filter(c => new Date(c.requested_date + 'T00:00:00').getDay() === idx).length,
+    count: citas.filter(c => new Date(c.fecha + 'T00:00:00').getDay() === idx).length,
   }))
   const maxDia = Math.max(...citasPorDia.map(d => d.count), 1)
 
   const ratingDist = [5, 4, 3, 2, 1].map(r => ({
     stars: r,
     count: reviews.filter(rv => rv.rating === r).length,
-    pct: reviews.length > 0? (reviews.filter(rv => rv.rating === r).length / reviews.length) * 100 : 0,
+    pct: reviews.length > 0 ? (reviews.filter(rv => rv.rating === r).length / reviews.length) * 100 : 0,
   }))
 
-  const campos = [
-    { label: 'Foto de perfil', ok:!!medico?.photo_url },
-    { label: 'Sobre mí / Bio', ok:!!(medico?.about_me && medico.about_me.length > 100) },
-    { label: 'Dirección del consultorio', ok:!!medico?.clinic_address },
-    { label: 'Horario de disponibilidad', ok:!!(medico?.horario && Object.values(medico.horario).some((d: any) => d?.activo || d?.abierto)) },
-    { label: 'Precios (primera y subsecuente)', ok:!!(medico?.consultation_price_first_time && medico?.consultation_price_general) },
-    { label: 'Cédula profesional', ok:!!medico?.professional_license },
-    { label: 'Idiomas', ok:!!(Array.isArray(medico?.languages) && medico.languages.length >= 1) },
-    { label: 'Experiencia profesional', ok: experience.length > 0 },
-    { label: 'Formación académica', ok: education.length > 0 },
-    { label: 'Enfermedades que trata', ok: conditions.length > 0 },
-  ]
-  const completionPct = Math.round((campos.filter(c => c.ok).length / campos.length) * 100)
+  const { checks, percentage: completionPct } = completionData
+  const colorProgreso = completionPct >= 80 ? '#2A9D8F' : completionPct >= 50 ? '#F59E0B' : '#EF4444'
 
   if (loading) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif" }}>
@@ -148,9 +137,9 @@ export default function EstadisticasPage() {
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
         @keyframes growY { from{transform:scaleY(0)} to{transform:scaleY(1)} }
-  .fade-up { animation: fadeUp 0.4s ease-out; }
-  .card { background:#fff; border-radius:16px; border:1px solid #E5E7EB; padding:24px; }
-  .section-title { font-family:'Fraunces',serif; font-size:16px; font-weight:900; color:#111827; margin-bottom:16px; }
+        .fade-up { animation: fadeUp 0.4s ease-out; }
+        .card { background:#fff; border-radius:16px; border:1px solid #E5E7EB; padding:24px; }
+        .section-title { font-family:'Fraunces',serif; font-size:16px; font-weight:900; color:#111827; margin-bottom:16px; }
         @media(max-width:640px) {.kpi-grid { grid-template-columns: repeat(2,1fr)!important; } }
       `}</style>
 
@@ -163,12 +152,13 @@ export default function EstadisticasPage() {
           <p style={{ fontSize: 14, color: '#6B7280' }}>Resumen de tu actividad en Salurama</p>
         </div>
 
+        {/* KPIs */}
         <div className="kpi-grid fade-up" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
           {[
+            { icon: <Eye size={20} color="#8B5CF6" />, label: 'Vistas al perfil', value: profileViews, bg: '#F5F3FF', color: '#8B5CF6' },
             { icon: <Calendar size={20} color="#1E3A5F" />, label: 'Total citas', value: total, bg: '#E8ECF3', color: '#1E3A5F' },
             { icon: <CheckCircle size={20} color="#2A9D8F" />, label: 'Tasa confirmación', value: `${tasaConfirmacion}%`, bg: '#E8F7F5', color: '#2A9D8F' },
-            { icon: <Star size={20} color="#D97706" />, label: 'Rating promedio', value: reviews.length > 0? ratingPromedio.toFixed(1) : '—', bg: '#FFFBEB', color: '#D97706' },
-            { icon: <TrendingUp size={20} color="#8B5CF6" />, label: 'Reseñas', value: reviews.length, bg: '#F5F3FF', color: '#8B5CF6' },
+            { icon: <Star size={20} color="#D97706" />, label: 'Rating promedio', value: reviews.length > 0 ? ratingPromedio.toFixed(1) : '—', bg: '#FFFBEB', color: '#D97706' },
           ].map(k => (
             <div key={k.label} style={{ background: k.bg, borderRadius: 14, padding: '18px 16px', textAlign: 'center' }}>
               <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>{k.icon}</div>
@@ -178,18 +168,19 @@ export default function EstadisticasPage() {
           ))}
         </div>
 
+        {/* Distribución de citas + Últimos 6 meses */}
         <div className="fade-up" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 16, marginBottom: 16 }}>
           <div className="card">
             <p className="section-title">Distribución de citas</p>
-            {total === 0? (
+            {total === 0 ? (
               <p style={{ fontSize: 14, color: '#9CA3AF', textAlign: 'center', padding: '20px 0' }}>Aún no tienes citas registradas</p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {[
-                  { label: 'Solicitadas', count: porStatus.solicitada, color: '#F59E0B' },
-                  { label: 'Confirmadas', count: porStatus.confirmada, color: '#2A9D8F' },
-                  { label: 'Atendidas', count: porStatus.atendida, color: '#8B5CF6' },
-                  { label: 'Canceladas', count: porStatus.cancelada, color: '#EF4444' },
+                  { label: 'Pendientes', count: porStatus.pending_verification, color: '#F59E0B' },
+                  { label: 'Confirmadas', count: porStatus.confirmed, color: '#2A9D8F' },
+                  { label: 'Completadas', count: porStatus.completed, color: '#8B5CF6' },
+                  { label: 'Canceladas', count: porStatus.cancelled, color: '#EF4444' },
                 ].map(({ label, count, color }) => (
                   <div key={label}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
@@ -197,7 +188,7 @@ export default function EstadisticasPage() {
                       <span style={{ fontSize: 13, fontWeight: 700, color }}>{count}</span>
                     </div>
                     <div style={{ height: 8, background: '#F3F4F6', borderRadius: 4, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${total > 0? (count / total) * 100 : 0}%`, background: color, borderRadius: 4, transition: 'width 0.6s ease' }} />
+                      <div style={{ height: '100%', width: `${total > 0 ? (count / total) * 100 : 0}%`, background: color, borderRadius: 4, transition: 'width 0.6s ease' }} />
                     </div>
                   </div>
                 ))}
@@ -212,8 +203,8 @@ export default function EstadisticasPage() {
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: 120 }}>
               {citasPorMes.map(({ label, count }) => (
                 <div key={label} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, height: '100%', justifyContent: 'flex-end' }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: '#1E3A5F', opacity: count > 0? 1 : 0 }}>{count}</span>
-                  <div style={{ width: '100%', background: '#E8ECF3', borderRadius: '4px 4px 0 0', height: `${(count / maxMes) * 90}%`, minHeight: count > 0? 4 : 0, transformOrigin: 'bottom', animation: 'growY 0.6s ease' }} />
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#1E3A5F', opacity: count > 0 ? 1 : 0 }}>{count}</span>
+                  <div style={{ width: '100%', background: '#E8ECF3', borderRadius: '4px 4px 0 0', height: `${(count / maxMes) * 90}%`, minHeight: count > 0 ? 4 : 0, transformOrigin: 'bottom', animation: 'growY 0.6s ease' }} />
                   <span style={{ fontSize: 10, color: '#9CA3AF', fontWeight: 600 }}>{label}</span>
                 </div>
               ))}
@@ -221,14 +212,15 @@ export default function EstadisticasPage() {
           </div>
         </div>
 
+        {/* Citas por día + Distribución de reseñas */}
         <div className="fade-up" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 16, marginBottom: 16 }}>
           <div className="card">
             <p className="section-title">Citas por día de semana</p>
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 100 }}>
               {citasPorDia.map(({ label, count }) => (
                 <div key={label} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, height: '100%', justifyContent: 'flex-end' }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: '#2A9D8F', opacity: count > 0? 1 : 0 }}>{count}</span>
-                  <div style={{ width: '100%', background: '#E8F7F5', borderRadius: '3px 3px 0 0', height: `${(count / maxDia) * 80}%`, minHeight: count > 0? 4 : 0, animation: 'growY 0.6s ease', transformOrigin: 'bottom' }} />
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#2A9D8F', opacity: count > 0 ? 1 : 0 }}>{count}</span>
+                  <div style={{ width: '100%', background: '#E8F7F5', borderRadius: '3px 3px 0 0', height: `${(count / maxDia) * 80}%`, minHeight: count > 0 ? 4 : 0, animation: 'growY 0.6s ease', transformOrigin: 'bottom' }} />
                   <span style={{ fontSize: 10, color: '#9CA3AF', fontWeight: 600 }}>{label}</span>
                 </div>
               ))}
@@ -237,7 +229,7 @@ export default function EstadisticasPage() {
 
           <div className="card">
             <p className="section-title">Distribución de reseñas</p>
-            {reviews.length === 0? (
+            {reviews.length === 0 ? (
               <p style={{ fontSize: 14, color: '#9CA3AF', textAlign: 'center', padding: '20px 0' }}>Aún no tienes reseñas verificadas</p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -252,13 +244,14 @@ export default function EstadisticasPage() {
                   </div>
                 ))}
                 <p style={{ fontSize: 12, color: '#6B7280', marginTop: 4, textAlign: 'center' }}>
-                  Promedio: <strong style={{ color: '#D97706' }}>{ratingPromedio.toFixed(1)} ★</strong> de {reviews.length} reseña{reviews.length!== 1? 's' : ''}
+                  Promedio: <strong style={{ color: '#D97706' }}>{ratingPromedio.toFixed(1)} ★</strong> de {reviews.length} reseña{reviews.length !== 1 ? 's' : ''}
                 </p>
               </div>
             )}
           </div>
         </div>
 
+        {/* Últimas reseñas */}
         {reviews.length > 0 && (
           <div className="card fade-up" style={{ marginBottom: 16 }}>
             <p className="section-title">Últimas reseñas</p>
@@ -269,7 +262,7 @@ export default function EstadisticasPage() {
                     <span style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{r.user_name || 'Paciente'}</span>
                     <div style={{ display: 'flex', gap: 2 }}>
                       {Array.from({ length: 5 }).map((_, i) => (
-                        <Star key={i} size={12} color="#F59E0B" fill={i < r.rating? '#F59E0B' : 'none'} />
+                        <Star key={i} size={12} color="#F59E0B" fill={i < r.rating ? '#F59E0B' : 'none'} />
                       ))}
                     </div>
                   </div>
@@ -280,25 +273,26 @@ export default function EstadisticasPage() {
           </div>
         )}
 
+        {/* Perfil completado (CHECKLIST UNIFICADO) */}
         <div className="card fade-up">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <p className="section-title" style={{ marginBottom: 0 }}>Has completado el {completionPct}%</p>
-            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 900, color: completionPct >= 80? '#2A9D8F' : completionPct >= 50? '#D97706' : '#DC2626' }}>
+            <p className="section-title" style={{ marginBottom: 0 }}>Perfil completado</p>
+            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 900, color: completionPct >= 80 ? '#2A9D8F' : completionPct >= 50 ? '#D97706' : '#DC2626' }}>
               {completionPct}%
             </span>
           </div>
           <div style={{ height: 8, background: '#F3F4F6', borderRadius: 4, overflow: 'hidden', marginBottom: 16 }}>
-            <div style={{ height: '100%', width: `${completionPct}%`, background: completionPct >= 80? '#2A9D8F' : completionPct >= 50? '#F59E0B' : '#EF4444', borderRadius: 4, transition: 'width 0.8s ease' }} />
+            <div style={{ height: '100%', width: `${completionPct}%`, background: colorProgreso, borderRadius: 4, transition: 'width 0.8s ease' }} />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 8 }}>
-            {campos.map(({ label, ok }) => (
+            {checks.map(({ label, ok }) => (
               <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ width: 18, height: 18, borderRadius: '50%', background: ok? '#E8F7F5' : '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <div style={{ width: 18, height: 18, borderRadius: '50%', background: ok ? '#E8F7F5' : '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   {ok
-               ? <CheckCircle size={12} color="#2A9D8F" />
+                    ? <CheckCircle size={12} color="#2A9D8F" />
                     : <span style={{ width: 6, height: 6, background: '#D1D5DB', borderRadius: '50%' }} />}
                 </div>
-                <span style={{ fontSize: 13, color: ok? '#111827' : '#9CA3AF', fontWeight: ok? 500 : 400 }}>{label}</span>
+                <span style={{ fontSize: 13, color: ok ? '#111827' : '#9CA3AF', fontWeight: ok ? 500 : 400 }}>{label}</span>
               </div>
             ))}
           </div>

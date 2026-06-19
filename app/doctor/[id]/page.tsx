@@ -7,17 +7,26 @@ import { Turnstile } from '@marsidev/react-turnstile'
 import {
   MapPin, Star, ShieldCheck, Shield, ExternalLink, Copy, CheckCircle, X,
   ChevronDown, Briefcase, GraduationCap, Heart, Calendar, DollarSign, Info,
-  Clock, Navigation
+  Clock, Navigation, Phone, MessageCircle, Globe, Share2
 } from 'lucide-react'
 
 interface Medico {
   id: string
   full_name: string
+  display_name: string | null
+  professional_title: string | null
   email: string
   specialty: string
   sub_specialty: string | null
-  location_city: string
-  location_neighborhood: string
+  ciudad: string | null
+  estado: string | null
+  colonia: string | null
+  cp: string | null
+  street: string | null
+  ext_number: string | null
+  int_number: string | null
+  floor: string | null
+  clinic_type: string | null
   address: string
   consultation_price_general: number | null
   consultation_price_first_time: number | null
@@ -39,7 +48,10 @@ interface Medico {
   clinic_address: string | null
   clinic_phone: string | null
   whatsapp_available: boolean
-  clinic_whatsapp: string | null
+  whatsapp_phone: string | null
+  facebook_url: string | null
+  instagram_url: string | null
+  tiktok_url: string | null
   professional_license: string | null
   specialty_council: string | null
   min_patient_age: number | null
@@ -66,6 +78,9 @@ interface ExperienceItem {
   id: string
   institution_name: string
   position: string
+  location: string
+  start_date?: string | null
+  end_date?: string | null
   is_current: boolean
 }
 
@@ -106,10 +121,10 @@ function CopyButton({ text, label }: { text: string; label: string }) {
   return (
     <button
       onClick={handleCopy}
-      style={{ background: 'none', border: 'none', cursor: 'pointer', color: copied? '#10B981' : '#9CA3AF', padding: 4, display: 'flex', alignItems: 'center' }}
+      style={{ background: 'none', border: 'none', cursor: 'pointer', color: copied ? '#10B981' : '#9CA3AF', padding: 4, display: 'flex', alignItems: 'center' }}
       type="button"
     >
-      {copied? <CheckCircle size={14} /> : <Copy size={14} />}
+      {copied ? <CheckCircle size={14} /> : <Copy size={14} />}
     </button>
   )
 }
@@ -176,14 +191,14 @@ function AppointmentModal({
     if (!horarioDia) return []
     const inicio = horarioDia.inicio || horarioDia.start
     const fin = horarioDia.fin || horarioDia.end
-    const abierto = horarioDia.abierto?? horarioDia.open?? horarioDia.activo??!!(inicio && fin)
-    if (!abierto ||!inicio ||!fin) return []
+    const abierto = horarioDia.abierto ?? horarioDia.open ?? horarioDia.activo ?? !!(inicio && fin)
+    if (!abierto || !inicio || !fin) return []
     const slots: string[] = []
     const [startH, startM] = inicio.split(':').map(Number)
     const [endH, endM] = fin.split(':').map(Number)
     const lunchStart = horarioDia.comida_inicio || horarioDia.lunch_start || horarioDia.inicio_comida || horarioDia.descanso_inicio
     const lunchEnd = horarioDia.comida_fin || horarioDia.lunch_end || horarioDia.fin_comida || horarioDia.descanso_fin
-    const tieneComida = horarioDia.tiene_comida || horarioDia.has_lunch || (!!lunchStart &&!!lunchEnd)
+    const tieneComida = horarioDia.tiene_comida || horarioDia.has_lunch || (!!lunchStart && !!lunchEnd)
     let currentH = startH
     let currentM = startM
     while (currentH < endH || (currentH === endH && currentM < endM)) {
@@ -245,7 +260,7 @@ function AppointmentModal({
             Te enviamos un email a <strong>{formData.patient_email}</strong> para confirmar tu cita. Haz clic en el enlace dentro de 24 horas.
           </p>
           <div style={{ background: '#F9FAFB', borderRadius: 12, padding: 16, marginBottom: 24, textAlign: 'left' }}>
-            <p style={{ fontSize: 13, fontWeight: 600, color: '#1E3A5F', marginBottom: 8 }}>{medico.full_name}</p>
+            <p style={{ fontSize: 13, fontWeight: 600, color: '#1E3A5F', marginBottom: 8 }}>{medico.display_name || medico.full_name}</p>
             <p style={{ fontSize: 13, color: '#6B7280' }}>{medico.specialty}</p>
             <p style={{ fontSize: 13, color: '#6B7280', marginTop: 8 }}>{formData.requested_date} - {formData.requested_time}</p>
             {(medico.consultation_price_first_time || medico.consultation_price_general) && (
@@ -310,7 +325,7 @@ function AppointmentModal({
         </div>
         <div style={{ display: 'flex', gap: 8, marginBottom: 32 }}>
           {[1, 2, 3].map(s => (
-            <div key={s} style={{ flex: 1, height: 4, background: s <= step? '#8B5CF6' : '#E5E7EB', borderRadius: 2 }} />
+            <div key={s} style={{ flex: 1, height: 4, background: s <= step ? '#8B5CF6' : '#E5E7EB', borderRadius: 2 }} />
           ))}
         </div>
         {error && (
@@ -318,38 +333,38 @@ function AppointmentModal({
             <p style={{ fontSize: 13, color: '#DC2626' }}>{error}</p>
           </div>
         )}
-        <input type="text" name="website" value={formData.honeypot} onChange={e => setFormData({...formData, honeypot: e.target.value })} style={{ position: 'absolute', left: '-9999px', opacity: 0, height: 0 }} tabIndex={-1} autoComplete="off" />
+        <input type="text" name="website" value={formData.honeypot} onChange={e => setFormData({ ...formData, honeypot: e.target.value })} style={{ position: 'absolute', left: '-9999px', opacity: 0, height: 0 }} tabIndex={-1} autoComplete="off" />
         {step === 1 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 8, color: '#1E3A5F' }}>Fecha</label>
-              <input type="date" value={formData.requested_date} onChange={e => setFormData({...formData, requested_date: e.target.value, requested_time: '' })} min={new Date().toISOString().split('T')[0]} style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: 12, fontSize: 14 }} />
+              <input type="date" value={formData.requested_date} onChange={e => setFormData({ ...formData, requested_date: e.target.value, requested_time: '' })} min={new Date().toISOString().split('T')[0]} style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: 12, fontSize: 14 }} />
             </div>
             <div>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 8, color: '#1E3A5F' }}>
                 Hora disponible - {dayName}
                 {isDayClosed && <span style={{ color: '#DC2626', fontWeight: 400 }}> (cerrado)</span>}
               </label>
-              {isDayClosed? (
+              {isDayClosed ? (
                 <div style={{ padding: '24px', background: '#FEF2F2', borderRadius: 12, textAlign: 'center' }}>
                   <p style={{ fontSize: 14, color: '#DC2626', fontWeight: 600 }}>
-                    {esHoy? 'No hay horarios disponibles hoy' : 'No hay horarios disponibles este día'}
+                    {esHoy ? 'No hay horarios disponibles hoy' : 'No hay horarios disponibles este día'}
                   </p>
                   <p style={{ fontSize: 12, color: '#991B1B', marginTop: 4 }}>
-                    {esHoy? 'Selecciona mañana' : 'Selecciona otra fecha'}
+                    {esHoy ? 'Selecciona mañana' : 'Selecciona otra fecha'}
                   </p>
                 </div>
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
                   {timeSlots.map(time => (
-                    <button key={time} type="button" onClick={() => setFormData({...formData, requested_time: time })} style={{ padding: '10px 12px', border: formData.requested_time === time? '2px solid #8B5CF6' : '1px solid #E5E7EB', borderRadius: 8, background: formData.requested_time === time? '#F5F3FF' : '#fff', color: formData.requested_time === time? '#8B5CF6' : '#4A5568', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                    <button key={time} type="button" onClick={() => setFormData({ ...formData, requested_time: time })} style={{ padding: '10px 12px', border: formData.requested_time === time ? '2px solid #8B5CF6' : '1px solid #E5E7EB', borderRadius: 8, background: formData.requested_time === time ? '#F5F3FF' : '#fff', color: formData.requested_time === time ? '#8B5CF6' : '#4A5568', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                       {time}
                     </button>
                   ))}
                 </div>
               )}
             </div>
-            <button onClick={() => setStep(2)} disabled={!formData.requested_time || isDayClosed} style={{ background: (!formData.requested_time || isDayClosed)? '#9CA3AF' : '#8B5CF6', color: '#fff', border: 'none', borderRadius: 12, padding: 14, fontSize: 14, fontWeight: 600, cursor: (!formData.requested_time || isDayClosed)? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            <button onClick={() => setStep(2)} disabled={!formData.requested_time || isDayClosed} style={{ background: (!formData.requested_time || isDayClosed) ? '#9CA3AF' : '#8B5CF6', color: '#fff', border: 'none', borderRadius: 12, padding: 14, fontSize: 14, fontWeight: 600, cursor: (!formData.requested_time || isDayClosed) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
               Continuar <ChevronDown size={16} />
             </button>
           </div>
@@ -358,25 +373,25 @@ function AppointmentModal({
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#1E3A5F' }}>Nombre completo *</label>
-              <input type="text" value={formData.patient_name} onChange={e => setFormData({...formData, patient_name: e.target.value })} style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: 12, fontSize: 14 }} placeholder="Tu nombre completo" />
+              <input type="text" value={formData.patient_name} onChange={e => setFormData({ ...formData, patient_name: e.target.value })} style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: 12, fontSize: 14 }} placeholder="Tu nombre completo" />
             </div>
             <div>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#1E3A5F' }}>Email *</label>
-              <input type="email" value={formData.patient_email} onChange={e => setFormData({...formData, patient_email: e.target.value })} style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: 12, fontSize: 14 }} placeholder="tu@email.com" />
+              <input type="email" value={formData.patient_email} onChange={e => setFormData({ ...formData, patient_email: e.target.value })} style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: 12, fontSize: 14 }} placeholder="tu@email.com" />
             </div>
             <div>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#1E3A5F' }}>Teléfono *</label>
-              <input type="tel" value={formData.patient_phone} onChange={e => setFormData({...formData, patient_phone: e.target.value })} style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: 12, fontSize: 14 }} placeholder="55 1234 5678" />
+              <input type="tel" value={formData.patient_phone} onChange={e => setFormData({ ...formData, patient_phone: e.target.value })} style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: 12, fontSize: 14 }} placeholder="55 1234 5678" />
             </div>
             <div>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#1E3A5F' }}>Motivo de consulta (opcional)</label>
-              <textarea value={formData.reason} onChange={e => setFormData({...formData, reason: e.target.value })} rows={3} style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: 12, fontSize: 14, resize: 'vertical' }} placeholder="Breve descripción..." />
+              <textarea value={formData.reason} onChange={e => setFormData({ ...formData, reason: e.target.value })} rows={3} style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: 12, fontSize: 14, resize: 'vertical' }} placeholder="Breve descripción..." />
             </div>
             <div style={{ display: 'flex', gap: 12 }}>
               <button onClick={() => setStep(1)} style={{ flex: 1, background: '#F3F4F6', color: '#6B7280', border: 'none', borderRadius: 12, padding: 14, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
                 Atrás
               </button>
-              <button onClick={() => setStep(3)} disabled={!formData.patient_name ||!formData.patient_email ||!formData.patient_phone} style={{ flex: 1, background:!formData.patient_name ||!formData.patient_email ||!formData.patient_phone? '#9CA3AF' : '#8B5CF6', color: '#fff', border: 'none', borderRadius: 12, padding: 14, fontSize: 14, fontWeight: 600, cursor:!formData.patient_name ||!formData.patient_email ||!formData.patient_phone? 'not-allowed' : 'pointer' }}>
+              <button onClick={() => setStep(3)} disabled={!formData.patient_name || !formData.patient_email || !formData.patient_phone} style={{ flex: 1, background: !formData.patient_name || !formData.patient_email || !formData.patient_phone ? '#9CA3AF' : '#8B5CF6', color: '#fff', border: 'none', borderRadius: 12, padding: 14, fontSize: 14, fontWeight: 600, cursor: !formData.patient_name || !formData.patient_email || !formData.patient_phone ? 'not-allowed' : 'pointer' }}>
                 Continuar
               </button>
             </div>
@@ -389,7 +404,7 @@ function AppointmentModal({
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ fontSize: 13, color: '#6B7280' }}>Médico</span>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: '#1E3A5F' }}>{medico.full_name}</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#1E3A5F' }}>{medico.display_name || medico.full_name}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ fontSize: 13, color: '#6B7280' }}>Especialidad</span>
@@ -422,8 +437,8 @@ function AppointmentModal({
               <button onClick={() => setStep(2)} style={{ flex: 1, background: '#F3F4F6', color: '#6B7280', border: 'none', borderRadius: 12, padding: 14, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
                 Atrás
               </button>
-              <button onClick={handleSubmit} disabled={submitting ||!turnstileToken} style={{ flex: 1, background: submitting ||!turnstileToken? '#9CA3AF' : '#8B5CF6', color: '#fff', border: 'none', borderRadius: 12, padding: 14, fontSize: 14, fontWeight: 600, cursor: submitting ||!turnstileToken? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                {submitting? 'Confirmando...' : 'Confirmar Cita'}
+              <button onClick={handleSubmit} disabled={submitting || !turnstileToken} style={{ flex: 1, background: submitting || !turnstileToken ? '#9CA3AF' : '#8B5CF6', color: '#fff', border: 'none', borderRadius: 12, padding: 14, fontSize: 14, fontWeight: 600, cursor: submitting || !turnstileToken ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                {submitting ? 'Confirmando...' : 'Confirmar Cita'}
               </button>
             </div>
           </div>
@@ -449,11 +464,8 @@ export default function DoctorProfilePage() {
   const [showVerificationModal, setShowVerificationModal] = useState(false)
   const [showConacemModal, setShowConacemModal] = useState(false)
   const [showPhotoModal, setShowPhotoModal] = useState(false)
-  const [showInsuranceModal, setShowInsuranceModal] = useState(false)
-  const [showPaymentModal, setShowPaymentModal] = useState(false)
-  const [acordeonAbierto, setAcordeonAbierto] = useState(false)
   const [isOwner, setIsOwner] = useState(false)
-  const [mostrarTodasResenas, setMostrarTodasResenas] = useState(false)
+  const [copiedToast, setCopiedToast] = useState(false)
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768)
@@ -466,7 +478,7 @@ export default function DoctorProfilePage() {
     async function load() {
       try {
         const { data, error } = await supabase.from('doctors').select('*').eq('id', id as string).single()
-        if (error ||!data) { setError(true); return }
+        if (error || !data) { setError(true); return }
         setMedico(data)
         const { data: { user } } = await supabase.auth.getUser()
         if (user?.email === data.email) {
@@ -496,12 +508,61 @@ export default function DoctorProfilePage() {
     load()
   }, [id])
 
-  const yearsExp = medico?.years_experience?? medico?.years_of_experience?? null
-  const langs = parseLangs(medico?.languages?? null)
+  const yearsExp = medico?.years_experience ?? medico?.years_of_experience ?? null
+  const langs = parseLangs(medico?.languages ?? null)
   const precioPrimera = medico?.consultation_price_first_time || null
   const precioSubsecuente = medico?.consultation_price_general || null
-  const tieneAcordeon = education.length > 0 || experience.length > 0 || conditions.length > 0
-  const direccionCompleta = medico?.clinic_address || medico?.address || `${medico?.location_neighborhood || ''}, ${medico?.location_city || ''}`.trim()
+  const displayName = medico?.display_name || medico?.full_name || ''
+  const titlePrefix = medico?.professional_title ? `${medico.professional_title} ` : ''
+  const profileUrl = typeof window !== 'undefined' ? window.location.href : ''
+
+  const tieneRedes = !!(medico?.facebook_url || medico?.instagram_url || medico?.tiktok_url)
+
+  // ─── COMPARTIR PERFIL ───
+  const handleShare = async () => {
+    const shareText = `Te recomiendo al ${titlePrefix}${displayName} - ${medico?.specialty || ''} en Salurama. Verifica sus credenciales y agenda aquí:`
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `${titlePrefix}${displayName} - ${medico?.specialty}`,
+          text: shareText,
+          url: profileUrl,
+        })
+        return
+      } catch {}
+    }
+
+    try {
+      await navigator.clipboard.writeText(`${shareText} ${profileUrl}`)
+      setCopiedToast(true)
+      setTimeout(() => setCopiedToast(false), 3000)
+    } catch {
+      const textArea = document.createElement('textarea')
+      textArea.value = `${shareText} ${profileUrl}`
+      document.body.appendChild(textArea)
+      textArea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textArea)
+      setCopiedToast(true)
+      setTimeout(() => setCopiedToast(false), 3000)
+    }
+  }
+
+  // Dirección completa desde SEPOMEX
+  const direccionCompleta = [
+    medico?.street,
+    medico?.ext_number ? `#${medico.ext_number}` : '',
+    medico?.int_number ? `Int. ${medico.int_number}` : '',
+  ].filter(Boolean).join(' ') || ''
+
+  const direccionExtendida = [
+    direccionCompleta,
+    medico?.colonia,
+    medico?.cp ? `CP ${medico.cp}` : '',
+    medico?.ciudad,
+    medico?.estado,
+  ].filter(Boolean).join(', ')
 
   const horarioParsed = (() => {
     if (!medico?.horario) return null
@@ -527,7 +588,7 @@ export default function DoctorProfilePage() {
     </div>
   )
 
-  if (error ||!medico) return (
+  if (error || !medico) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif", padding: 24 }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@900&family=DM+Sans:wght@400;700&display=swap');`}</style>
       <div style={{ textAlign: 'center', maxWidth: 340 }}>
@@ -545,18 +606,23 @@ export default function DoctorProfilePage() {
         @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@600;900&family=DM+Sans:wght@300;400;500;700&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
-.fade-up { animation: fadeUp 0.35s ease-out; }
+        @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+        @keyframes toastIn { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+        .fade-up { animation: fadeUp 0.35s ease-out; }
+        .toast { animation: toastIn 0.3s ease-out; }
         @media (max-width: 767px) {.desktop-only { display: none!important; } }
         @media (min-width: 768px) {.mobile-only { display: none!important; } }
       `}</style>
       <main style={{ paddingTop: 88, maxWidth: 1200, margin: '0 auto', padding: '88px 20px 120px' }}>
-        <section className="fade-up" style={{ display: 'grid', gridTemplateColumns: isMobile? '1fr' : '320px 1fr', gap: 40, alignItems: 'start', marginBottom: 48 }}>
-          <div style={{ position: 'relative', aspectRatio: isMobile? '1/1' : '4/5', borderRadius: 24, overflow: 'hidden', background: '#EDE9FE', width: '100%', maxWidth: isMobile? 280 : 320, margin: isMobile? '0 auto' : '0' }}>
-            {medico.photo_url? (
-              <img src={medico.photo_url} alt={medico.full_name} style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'pointer' }} onClick={() => setShowPhotoModal(true)} />
+
+        {/* ─── HEADER ─── */}
+        <section className="fade-up" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '320px 1fr', gap: 40, alignItems: 'start', marginBottom: 48 }}>
+          <div style={{ position: 'relative', aspectRatio: isMobile ? '1/1' : '4/5', borderRadius: 24, overflow: 'hidden', background: '#EDE9FE', width: '100%', maxWidth: isMobile ? 280 : 320, margin: isMobile ? '0 auto' : '0' }}>
+            {medico.photo_url ? (
+              <img src={medico.photo_url} alt={displayName} style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'pointer' }} onClick={() => setShowPhotoModal(true)} />
             ) : (
               <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #1E3A5F, #2A9D8F)', fontFamily: "'Fraunces', serif", fontSize: 64, fontWeight: 900, color: '#fff' }}>
-                {(medico.full_name || '?')[0].toUpperCase()}
+                {(displayName || '?')[0].toUpperCase()}
               </div>
             )}
             {(medico.professional_license || licenses.length > 0) && (
@@ -567,16 +633,51 @@ export default function DoctorProfilePage() {
             )}
           </div>
           <div>
-            <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: isMobile? 28 : 40, fontWeight: 900, color: '#1E3A5F', marginBottom: 8, lineHeight: 1.1 }}>
-              {medico.full_name}
+            {/* Nombre + especialidad (sin competir con botones) */}
+            <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: isMobile ? 28 : 40, fontWeight: 900, color: '#1E3A5F', marginBottom: 4, lineHeight: 1.1 }}>
+              {titlePrefix}{displayName}
             </h1>
-            <p style={{ fontSize: 15, color: '#6B7280', marginBottom: 24 }}>{medico.specialty}{medico.sub_specialty && ` · ${medico.sub_specialty}`}</p>
+            <p style={{ fontSize: 15, color: '#6B7280', marginBottom: 12 }}>{medico.specialty}{medico.sub_specialty && ` · ${medico.sub_specialty}`}</p>
+
+            {/* Redes sociales + Compartir (iconos circulares unificados) */}
+            {(tieneRedes || true) && (
+              <div style={{ display: 'flex', gap: 10, marginBottom: 16, alignItems: 'center' }}>
+                {medico.facebook_url && (
+                  <a href={medico.facebook_url} target="_blank" rel="noopener noreferrer" style={{ width: 36, height: 36, borderRadius: '50%', background: '#1877F2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', flexShrink: 0 }} title="Facebook">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                  </a>
+                )}
+                {medico.instagram_url && (
+                  <a href={medico.instagram_url} target="_blank" rel="noopener noreferrer" style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(45deg, #FCAF45, #E1306C, #C13584, #833AB4)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', flexShrink: 0 }} title="Instagram">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
+                  </a>
+                )}
+                {medico.tiktok_url && (
+                  <a href={medico.tiktok_url} target="_blank" rel="noopener noreferrer" style={{ width: 36, height: 36, borderRadius: '50%', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', flexShrink: 0 }} title="TikTok">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>
+                  </a>
+                )}
+                <button
+                  onClick={handleShare}
+                  style={{
+                    width: 36, height: 36, borderRadius: '50%',
+                    background: '#F5F3FF', border: '1.5px solid #DDD6FE',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'pointer', color: '#7C3AED', flexShrink: 0
+                  }}
+                  title="Compartir perfil"
+                >
+                  <Share2 size={15} />
+                </button>
+              </div>
+            )}
+
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24, maxWidth: 400 }}>
               <div style={{ background: '#fff', borderRadius: 12, padding: 14, textAlign: 'center', border: '1px solid #E5E7EB' }}>
                 <p style={{ fontFamily: "'Fraunces', serif", fontSize: 22, fontWeight: 900, color: '#1E3A5F' }}>{(medico.rating_avg || 0).toFixed(1)}</p>
                 <div style={{ display: 'flex', justifyContent: 'center', gap: 2, marginBottom: 4 }}>
-                  {[1,2,3,4,5].map(s => (
-                    <Star key={s} size={11} fill={s <= Math.round(medico.rating_avg || 0)? '#F59E0B' : 'none'} color={s <= Math.round(medico.rating_avg || 0)? '#F59E0B' : '#E5E7EB'} />
+                  {[1, 2, 3, 4, 5].map(s => (
+                    <Star key={s} size={11} fill={s <= Math.round(medico.rating_avg || 0) ? '#F59E0B' : 'none'} color={s <= Math.round(medico.rating_avg || 0) ? '#F59E0B' : '#E5E7EB'} />
                   ))}
                 </div>
                 <p style={{ fontSize: 10, color: '#9CA3AF', textTransform: 'uppercase', fontWeight: 600 }}>Rating</p>
@@ -598,7 +699,7 @@ export default function DoctorProfilePage() {
                   </div>
                   <div>
                     <p style={{ fontSize: 10, color: '#9CA3AF', textTransform: 'uppercase', fontWeight: 600, marginBottom: 4 }}>Consulta</p>
-                    {precioPrimera && precioSubsecuente? (
+                    {precioPrimera && precioSubsecuente ? (
                       <div style={{ display: 'flex', gap: 16, alignItems: 'baseline' }}>
                         <div>
                           <p style={{ fontSize: 10, color: '#6B7280', marginBottom: 2 }}>Primera vez</p>
@@ -617,22 +718,99 @@ export default function DoctorProfilePage() {
                 </div>
               </div>
             )}
-            {medico.location_city && (
+            {(medico.ciudad || medico.estado) && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#6B7280', fontSize: 13 }}>
                 <MapPin size={14} />
-                {medico.location_city}{medico.location_neighborhood && `, ${medico.location_neighborhood}`}
+                {medico.ciudad}{medico.estado ? `, ${medico.estado}` : ''}
               </div>
             )}
           </div>
         </section>
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile? '1fr' : '1fr 340px', gap: 32, alignItems: 'start' }}>
+
+        {/* ─── CONTENIDO PRINCIPAL + SIDEBAR ─── */}
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 340px', gap: 32, alignItems: 'start' }}>
           <div>
+            {/* Sobre el Doctor */}
             <section className="fade-up" style={{ marginBottom: 40 }}>
               <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 900, color: '#1E3A5F', marginBottom: 12 }}>Sobre el Doctor</h2>
-              <p style={{ fontSize: 14, color: '#4A5568', lineHeight: 1.7, maxWidth: 800 }}>
+              <p style={{ fontSize: 14, color: '#4A5568', lineHeight: 1.7 }}>
                 {medico.about_me || 'Información no disponible. El médico no ha completado su presentación.'}
               </p>
             </section>
+
+            {/* Formación académica */}
+            {education.length > 0 && (
+              <section className="fade-up" style={{ marginBottom: 32 }}>
+                <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 900, color: '#1E3A5F', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <GraduationCap size={20} /> Formación académica
+                </h2>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {education.map(edu => (
+                    <div key={edu.id} style={{ display: 'flex', gap: 12, padding: 14, background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB' }}>
+                      <div style={{ width: 40, height: 40, background: '#EEF2FF', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <GraduationCap size={18} color="#1E3A5F" />
+                      </div>
+                      <div>
+                        <p style={{ fontWeight: 700, fontSize: 14, color: '#111827' }}>{edu.institution}</p>
+                        <p style={{ fontSize: 13, color: '#6B7280' }}>{edu.degree}{edu.field_of_study ? ` en ${edu.field_of_study}` : ''}{edu.graduation_year ? ` · ${edu.graduation_year}` : ''}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Experiencia profesional */}
+            {experience.length > 0 && (
+              <section className="fade-up" style={{ marginBottom: 32 }}>
+                <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 900, color: '#1E3A5F', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Briefcase size={20} /> Experiencia profesional
+                </h2>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {experience.map(exp => (
+                    <div key={exp.id} style={{ display: 'flex', gap: 12, padding: 14, background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB' }}>
+                      <div style={{ width: 40, height: 40, background: '#FEF3C7', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <Briefcase size={18} color="#D97706" />
+                      </div>
+                      <div>
+                        <p style={{ fontWeight: 700, fontSize: 14, color: '#111827' }}>{exp.institution_name}</p>
+                        <p style={{ fontSize: 13, color: '#6B7280' }}>{exp.position}{exp.location ? ` · ${exp.location}` : ''}{exp.is_current ? ' · Actual' : ''}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Padecimientos que atiende */}
+            {conditions.length > 0 && (
+              <section className="fade-up" style={{ marginBottom: 32 }}>
+                <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 900, color: '#1E3A5F', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Heart size={20} /> Padecimientos que atiende
+                </h2>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {conditions.map(c => (
+                    <span key={c.id} style={{ padding: '6px 14px', background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 20, fontSize: 13, color: '#374151' }}>{c.condition_name}</span>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Idiomas */}
+            {langs.length > 0 && (
+              <section className="fade-up" style={{ marginBottom: 32 }}>
+                <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 900, color: '#1E3A5F', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Globe size={20} /> Idiomas
+                </h2>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {langs.map((lang, i) => (
+                    <span key={i} style={{ padding: '6px 14px', background: '#E8F7F5', borderRadius: 20, fontSize: 13, color: '#1E3A5F', fontWeight: 500 }}>{lang}</span>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Credenciales */}
             <section className="fade-up" style={{ marginBottom: 40 }}>
               <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 900, color: '#1E3A5F', marginBottom: 12 }}>
                 Consulta credenciales en portales oficiales
@@ -667,7 +845,7 @@ export default function DoctorProfilePage() {
                         <p style={{ fontSize: 12, fontWeight: 600, margin: '0 2px', color: '#1E3A5F' }}>Certificación de especialidad</p>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                           <p style={{ fontSize: 11, color: '#8B5CF6', margin: 0 }}>{medico.specialty_council}</p>
-                          <CopyButton text={medico.full_name} label="nombre del médico" />
+                          <CopyButton text={displayName} label="nombre del médico" />
                         </div>
                       </div>
                     </div>
@@ -679,70 +857,96 @@ export default function DoctorProfilePage() {
               </div>
             </section>
           </div>
+
+          {/* ─── SIDEBAR ─── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            {direccionCompleta && (
-  <div className="fade-up" style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #E5E7EB' }}>
-    <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1E3A5F', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-      <MapPin size={16} /> Ubicación
-    </h3>
-    <p style={{ fontSize: 13, color: '#4A5568', marginBottom: 12, lineHeight: 1.5 }}>
-      {medico.clinic_name && <strong>{medico.clinic_name}<br/></strong>}
-      {direccionCompleta}
-    </p>
-    <div style={{ width: '100%', height: 200, borderRadius: 12, overflow: 'hidden', marginBottom: 12, border: '1px solid #E5E7EB' }}>
-      <iframe 
-        width="100%" 
-        height="100%" 
-        frameBorder="0" 
-        scrolling="no" 
-        src={`https://www.openstreetmap.org/export/embed.html?bbox=${(medico as any).clinic_lng - 0.01}%2C${(medico as any).clinic_lat - 0.01}%2C${(medico as any).clinic_lng + 0.01}%2C${(medico as any).clinic_lat + 0.01}&layer=mapnik&marker=${(medico as any).clinic_lat}%2C${(medico as any).clinic_lng}`} 
-        style={{ border: 0 }} 
-        title="Mapa ubicación" 
-      />
-    </div>
-    <button 
-      onClick={() => {
-        const address = encodeURIComponent(direccionCompleta)
-        const lat = (medico as any).clinic_lat
-        const lng = (medico as any).clinic_lng
-        
-        // Crear bottom sheet igual que en buscar
-        const sheet = document.createElement('div')
-        sheet.style.cssText = 'position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,0.5);display:flex;align-items:flex-end'
-        sheet.innerHTML = `
-          <div style="background:#fff;width:100%;border-radius:20px 20px 0 0;padding:24px;animation:slideUp 0.3s">
-            <div style="width:40px;height:4px;background:#E5E7EB;border-radius:2px;margin:0 auto 20px"></div>
-            <h3 style="font-size:18px;font-weight:700;margin-bottom:16px">Cómo llegar</h3>
-            <div style="display:flex;flex-direction:column;gap:12px">
-              <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}" target="_blank" style="display:flex;align-items:center;gap:12px;padding:14px;background:#F9FAFB;border-radius:12px;text-decoration:none;color:#111">
-                <div style="width:40px;height:40px;background:#4285F4;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700">G</div>
-                <div><div style="font-weight:600">Google Maps</div><div style="font-size:12px;color:#6B7280">Navegación paso a paso</div></div>
-              </a>
-              <a href="https://waze.com/ul?ll=${lat},${lng}&navigate=yes" target="_blank" style="display:flex;align-items:center;gap:12px;padding:14px;background:#F9FAFB;border-radius:12px;text-decoration:none;color:#111">
-                <div style="width:40px;height:40px;background:#33CCFF;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700">W</div>
-                <div><div style="font-weight:600">Waze</div><div style="font-size:12px;color:#6B7280">Tráfico en tiempo real</div></div>
-              </a>
-              <a href="http://maps.apple.com/?daddr=${lat},${lng}" target="_blank" style="display:flex;align-items:center;gap:12px;padding:14px;background:#F9FAFB;border-radius:12px;text-decoration:none;color:#111">
-                <div style="width:40px;height:40px;background:#000;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700"></div>
-                <div><div style="font-weight:600">Apple Maps</div><div style="font-size:12px;color:#6B7280">Para iPhone</div></div>
-              </a>
-            </div>
-            <button onclick="this.closest('div[style*=fixed]').remove()" style="width:100%;margin-top:16px;padding:12px;background:none;border:none;color:#6B7280;font-weight:600">Cancelar</button>
-          </div>
-        `
-        sheet.onclick = (e) => { if (e.target === sheet) sheet.remove() }
-        document.body.appendChild(sheet)
-      }}
-      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', background: '#1E3A5F', color: '#fff', padding: '10px 16px', borderRadius: 10, fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer' }}
-    >
-      <Navigation size={14} /> Cómo llegar
-    </button>
-    <p style={{ fontSize: 10, color: '#9CA3AF', textAlign: 'center', marginTop: 8 }}>
-      Mapa © OpenStreetMap
-    </p>
-  </div>
-)}
-            
+
+            {/* Ubicación */}
+            {direccionExtendida && (
+              <div className="fade-up" style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #E5E7EB' }}>
+                <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1E3A5F', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <MapPin size={16} /> Ubicación
+                </h3>
+                {medico.clinic_name && <p style={{ fontSize: 13, fontWeight: 600, color: '#111827', marginBottom: 4 }}>{medico.clinic_name}</p>}
+                {direccionCompleta && <p style={{ fontSize: 13, color: '#4A5568', marginBottom: 2 }}>{direccionCompleta}</p>}
+                {medico.colonia && <p style={{ fontSize: 13, color: '#4A5568', marginBottom: 2 }}>Col. {medico.colonia}</p>}
+                <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 12 }}>
+                  {[
+                    medico.cp ? `CP ${medico.cp}` : '',
+                    medico.ciudad,
+                    medico.estado,
+                  ].filter(Boolean).join(', ')}
+                </p>
+                {(() => {
+                  const lat = medico.clinic_lat
+                  const lng = medico.clinic_lng
+                  const tieneCoordenadas = lat != null && lng != null && !isNaN(Number(lat)) && !isNaN(Number(lng))
+
+                  if (!tieneCoordenadas) {
+                    return (
+                      <div style={{ padding: '14px', background: '#FEF3C7', borderRadius: 10, border: '1px solid #FCD34D', textAlign: 'center' }}>
+                        <p style={{ fontSize: 12, color: '#92400E' }}>Ubicación exacta no configurada</p>
+                      </div>
+                    )
+                  }
+
+                  const latNum = Number(lat)
+                  const lngNum = Number(lng)
+
+                  const handleNavigate = (e: React.MouseEvent) => {
+                    const sheet = document.createElement('div')
+                    sheet.style.cssText = 'position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,0.5);display:flex;align-items:flex-end'
+                    sheet.innerHTML = `
+                      <div style="background:#fff;width:100%;border-radius:20px 20px 0 0;padding:24px;animation:slideUp 0.3s">
+                        <div style="width:40px;height:4px;background:#E5E7EB;border-radius:2px;margin:0 auto 20px"></div>
+                        <h3 style="font-size:18px;font-weight:700;margin-bottom:16px">Cómo llegar</h3>
+                        <div style="display:flex;flex-direction:column;gap:12px">
+                          <a href="https://www.google.com/maps/dir/?api=1&destination=${latNum},${lngNum}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:12px;padding:14px;background:#F9FAFB;border-radius:12px;text-decoration:none;color:#111" onclick="setTimeout(()=>this.closest('div[style*=fixed]').remove(),300)">
+                            <div style="width:40px;height:40px;background:#4285F4;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700">G</div>
+                            <div><div style="font-weight:600">Google Maps</div><div style="font-size:12px;color:#6B7280">Navegación paso a paso</div></div>
+                          </a>
+                          <a href="https://waze.com/ul?ll=${latNum},${lngNum}&navigate=yes" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:12px;padding:14px;background:#F9FAFB;border-radius:12px;text-decoration:none;color:#111" onclick="setTimeout(()=>this.closest('div[style*=fixed]').remove(),300)">
+                            <div style="width:40px;height:40px;background:#33CCFF;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700">W</div>
+                            <div><div style="font-weight:600">Waze</div><div style="font-size:12px;color:#6B7280">Tráfico en tiempo real</div></div>
+                          </a>
+                          <a href="http://maps.apple.com/?daddr=${latNum},${lngNum}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:12px;padding:14px;background:#F9FAFB;border-radius:12px;text-decoration:none;color:#111" onclick="setTimeout(()=>this.closest('div[style*=fixed]').remove(),300)">
+                            <div style="width:40px;height:40px;background:#000;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700"></div>
+                            <div><div style="font-weight:600">Apple Maps</div><div style="font-size:12px;color:#6B7280">Para iPhone</div></div>
+                          </a>
+                        </div>
+                        <button onclick="this.closest('div[style*=fixed]').remove()" style="width:100%;margin-top:16px;padding:12px;background:none;border:none;color:#6B7280;font-weight:600">Cancelar</button>
+                      </div>
+                    `
+                    sheet.onclick = (ev) => { if (ev.target === sheet) sheet.remove() }
+                    document.body.appendChild(sheet)
+                  }
+
+                  return (
+                    <>
+                      <div style={{ width: '100%', height: 200, borderRadius: 12, overflow: 'hidden', marginBottom: 12, border: '1px solid #E5E7EB' }}>
+                        <iframe
+                          width="100%"
+                          height="100%"
+                          frameBorder="0"
+                          scrolling="no"
+                          src={`https://www.openstreetmap.org/export/embed.html?bbox=${lngNum - 0.01}%2C${latNum - 0.01}%2C${lngNum + 0.01}%2C${latNum + 0.01}&layer=mapnik&marker=${latNum}%2C${lngNum}`}
+                          style={{ border: 0 }}
+                          title="Mapa ubicación"
+                        />
+                      </div>
+                      <button
+                        onClick={handleNavigate}
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', background: '#1E3A5F', color: '#fff', padding: '10px 16px', borderRadius: 10, fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer' }}
+                      >
+                        <Navigation size={14} /> Cómo llegar
+                      </button>
+                    </>
+                  )
+                })()}
+              </div>
+            )}
+
+            {/* Horario */}
             {horarioParsed && Object.keys(horarioParsed).length > 0 && (
               <div className="fade-up" style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #E5E7EB' }}>
                 <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1E3A5F', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -753,12 +957,12 @@ export default function DoctorProfilePage() {
                     const horarioDia = horarioParsed?.[dia]
                     const inicio = horarioDia?.inicio || horarioDia?.start
                     const fin = horarioDia?.fin || horarioDia?.end
-                    const abierto = horarioDia?.abierto?? horarioDia?.open?? horarioDia?.activo??!!(inicio && fin)
+                    const abierto = horarioDia?.abierto ?? horarioDia?.open ?? horarioDia?.activo ?? !!(inicio && fin)
                     return (
-                      <div key={dia} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8, borderBottom: idx < 6? '1px solid #F3F4F6' : 'none' }}>
+                      <div key={dia} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8, borderBottom: idx < 6 ? '1px solid #F3F4F6' : 'none' }}>
                         <span style={{ fontSize: 13, color: '#6B7280', fontWeight: 500, width: 40 }}>{DIAS_LABELS[idx]}</span>
-                        <span style={{ fontSize: 13, color: abierto? '#111827' : '#9CA3AF', fontWeight: abierto? 600 : 400 }}>
-                          {abierto && inicio && fin? `${inicio} - ${fin}` : 'Cerrado'}
+                        <span style={{ fontSize: 13, color: abierto ? '#111827' : '#9CA3AF', fontWeight: abierto ? 600 : 400 }}>
+                          {abierto && inicio && fin ? `${inicio} - ${fin}` : 'Cerrado'}
                         </span>
                       </div>
                     )
@@ -766,9 +970,55 @@ export default function DoctorProfilePage() {
                 </div>
               </div>
             )}
+
+            {/* Seguros */}
+            {medico.accepts_insurance && Array.isArray(medico.insurance_names) && medico.insurance_names.length > 0 && (
+              <div className="fade-up" style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #E5E7EB' }}>
+                <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1E3A5F', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Shield size={16} /> Seguros aceptados
+                </h3>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {medico.insurance_names.map((seg, i) => (
+                    <span key={i} style={{ padding: '4px 10px', background: '#ECFDF5', borderRadius: 20, fontSize: 12, color: '#059669', fontWeight: 500 }}>{seg}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* WhatsApp */}
+            {medico.whatsapp_available && medico.whatsapp_phone && (
+              <div className="fade-up" style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #E5E7EB' }}>
+                <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1E3A5F', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <MessageCircle size={16} /> Contacto directo
+                </h3>
+                <a
+                  href={`https://wa.me/52${medico.whatsapp_phone.replace(/\D/g, '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: '#25D366', color: '#fff', borderRadius: 10, textDecoration: 'none', fontWeight: 600, fontSize: 13, justifyContent: 'center' }}
+                >
+                  <MessageCircle size={16} /> WhatsApp
+                </a>
+                {medico.clinic_phone && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10, fontSize: 13, color: '#6B7280', justifyContent: 'center' }}>
+                    <Phone size={14} /> {medico.clinic_phone}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </main>
+
+      {/* Toast: Link copiado */}
+      {copiedToast && (
+        <div className="toast" style={{ position: 'fixed', bottom: 100, left: '50%', transform: 'translateX(-50%)', background: '#1E3A5F', color: '#fff', padding: '12px 24px', borderRadius: 50, fontSize: 13, fontWeight: 600, zIndex: 5000, boxShadow: '0 8px 24px rgba(0,0,0,0.2)', whiteSpace: 'nowrap' }}>
+          <CheckCircle size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+          Link copiado al portapapeles
+        </div>
+      )}
+
+      {/* Sticky bottom bar */}
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: 'rgba(255, 255, 255, 0.98)', backdropFilter: 'blur(12px)', padding: '16px 20px', zIndex: 1000, borderTop: '1px solid #E5E7EB', boxShadow: '0 -4px 20px rgba(0,0,0,0.05)' }}>
         <div style={{ maxWidth: 600, margin: '0 auto', display: 'flex', gap: 12, alignItems: 'center' }}>
           {(precioPrimera || precioSubsecuente) && (
@@ -782,6 +1032,7 @@ export default function DoctorProfilePage() {
           </button>
         </div>
       </div>
+
       {showAppointmentModal && (
         <AppointmentModal medico={medico} onClose={() => setShowAppointmentModal(false)} />
       )}
@@ -790,7 +1041,7 @@ export default function DoctorProfilePage() {
           <button onClick={() => setShowPhotoModal(false)} style={{ position: 'absolute', top: 20, right: 20, background: 'none', border: 'none', color: '#fff', cursor: 'pointer', zIndex: 10 }}>
             <X size={32} />
           </button>
-          <img src={medico.photo_url} alt={medico.full_name} style={{ maxWidth: '100%', maxHeight: '80vh', borderRadius: 16 }} />
+          <img src={medico.photo_url} alt={displayName} style={{ maxWidth: '100%', maxHeight: '80vh', borderRadius: 16 }} />
         </div>
       )}
       {showVerificationModal && (
@@ -826,8 +1077,8 @@ export default function DoctorProfilePage() {
           <div style={{ background: '#F9FAFB', borderRadius: 8, padding: 12, marginBottom: 16 }}>
             <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Nombre del médico:</p>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', padding: '8px 12px', borderRadius: 6, border: '1px solid #E5E7EB' }}>
-              <span style={{ flex: 1, fontSize: 13 }}>{medico.full_name}</span>
-              <CopyButton text={medico.full_name} label="nombre" />
+              <span style={{ flex: 1, fontSize: 13 }}>{displayName}</span>
+              <CopyButton text={displayName} label="nombre" />
             </div>
           </div>
           <a href="https://conacem.org.mx/buscador" target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: '#1E3A5F', color: '#fff', padding: '12px', borderRadius: 8, textDecoration: 'none', fontSize: 13, fontWeight: 600 }}>

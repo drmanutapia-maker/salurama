@@ -136,7 +136,8 @@ export async function POST(request: NextRequest) {
     const dayName = days[dayOfWeek]
     const horarioDia = medico.horario?.[dayName]
 
-    if (!horarioDia?.activo) {
+    const diaActivo = horarioDia?.abierto ?? horarioDia?.open ?? horarioDia?.activo ?? !!(horarioDia?.inicio && horarioDia?.fin)
+    if (!diaActivo) {
       return NextResponse.json({ error: 'Horario no disponible' }, { status: 400 })
     }
 
@@ -184,23 +185,22 @@ export async function POST(request: NextRequest) {
 
     const verificationToken = crypto.randomUUID()
     const { data: cita, error } = await supabase
-     .from('citas')
-     .insert({
+      .from('citas')
+      .insert({
         medico_id: medicoId,
         paciente_nombre: pacienteNombre,
         paciente_email: pacienteEmail,
         paciente_telefono: pacienteTelefono || null,
         fecha,
-        hora,
+        hora: hora + ':00',
         motivo: motivo || null,
         estado: 'pending_verification',
         verification_token: verificationToken,
         expires_at: new Date(Date.now() + 24 * 3600000).toISOString(),
         ip_address: ip,
-        user_agent: request.headers.get('user-agent')?.slice(0, 255),
       })
-     .select('id')
-     .single()
+      .select('id')
+      .single()
 
     if (error) throw error
 

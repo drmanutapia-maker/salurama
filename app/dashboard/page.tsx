@@ -139,36 +139,49 @@ export default function DashboardMedico() {
         inicioMes.setDate(1)
         const inicioMesStr = inicioMes.toISOString().split('T')[0]
 
-        // Mes anterior para calcular crecimiento
         const inicioMesAnterior = new Date()
         inicioMesAnterior.setMonth(inicioMesAnterior.getMonth() - 1)
         const inicioMesAnteriorStr = inicioMesAnterior.toISOString().split('T')[0]
 
-        const [citasRes, totalesRes, mesRes, mesAnteriorRes, pendientesRes, eduRes, expRes, condRes] = await Promise.all([
-          supabase.from('appointment_requests')
-            .select('id, patient_name, requested_date, requested_time, status')
-            .eq('doctor_id', doctor.id).eq('requested_date', hoy)
-            .in('status', ['solicitada', 'confirmada']).order('requested_time'),
-          supabase.from('appointment_requests')
+        const [citasHoyRes, totalesRes, mesRes, mesAnteriorRes, pendientesRes, eduRes, expRes, condRes] = await Promise.all([
+          supabase.from('citas')
+            .select('id, paciente_nombre, fecha, hora, estado')
+            .eq('medico_id', doctor.id)
+            .eq('fecha', hoy)
+            .in('estado', ['pending_verification', 'confirmed'])
+            .order('hora'),
+          supabase.from('citas')
             .select('*', { count: 'exact', head: true })
-            .eq('doctor_id', doctor.id).eq('status', 'solicitada'),
-          supabase.from('appointment_requests')
+            .eq('medico_id', doctor.id)
+            .eq('estado', 'pending_verification'),
+          supabase.from('citas')
             .select('*', { count: 'exact', head: true })
-            .eq('doctor_id', doctor.id).eq('status', 'solicitada')
-            .gte('requested_date', inicioMesStr),
-          supabase.from('appointment_requests')
+            .eq('medico_id', doctor.id)
+            .eq('estado', 'pending_verification')
+            .gte('fecha', inicioMesStr),
+          supabase.from('citas')
             .select('*', { count: 'exact', head: true })
-            .eq('doctor_id', doctor.id).eq('status', 'solicitada')
-            .gte('requested_date', inicioMesAnteriorStr)
-            .lt('requested_date', inicioMesStr),
-          supabase.from('appointment_requests')
+            .eq('medico_id', doctor.id)
+            .eq('estado', 'pending_verification')
+            .gte('fecha', inicioMesAnteriorStr)
+            .lt('fecha', inicioMesStr),
+          supabase.from('citas')
             .select('*', { count: 'exact', head: true })
-            .eq('doctor_id', doctor.id).in('status', ['solicitada', 'confirmada'])
-            .gte('requested_date', hoy),
+            .eq('medico_id', doctor.id)
+            .in('estado', ['pending_verification', 'confirmed'])
+            .gte('fecha', hoy),
           supabase.from('doctor_education').select('id').eq('doctor_id', doctor.id),
           supabase.from('doctor_experience').select('id').eq('doctor_id', doctor.id),
           supabase.from('doctor_conditions').select('id').eq('doctor_id', doctor.id),
         ])
+
+        setCitasHoy((citasHoyRes.data || []).map((c: any) => ({
+          id: c.id,
+          patient_name: c.paciente_nombre,
+          requested_date: c.fecha,
+          requested_time: c.hora?.slice(0, 5),
+          status: c.estado === 'pending_verification' ? 'solicitada' : c.estado === 'confirmed' ? 'confirmada' : c.estado,
+        })))
 
         // Rating
         let ratingData = { promedio: 0, total: 0 }
@@ -193,27 +206,60 @@ export default function DashboardMedico() {
           reseñas_count: ratingData.total || 0
         })
 
-        // CÁLCULO DE COMPLETITUD (10 items × 10% = 100%)
+        // ✅ NUEVO CÓDIGO (10 checks unificados)
         const tieneHorarioActivo = !!(doctor.horario && Object.values(doctor.horario).some((d: any) => d?.activo || d?.abierto))
-        const tieneTelefono = !!(doctor.phone || doctor.whatsapp_phone)
+        const tieneUbicacionVerificada = !!(doctor.clinic_lat && doctor.clinic_lng)
+        const tieneTelefono = !!(doctor.phone || doctor.clinic_phone || doctor.whatsapp_phone)
+
         const checks = [
-          !!doctor.photo_url,                              // 1. Foto
-          !!(doctor.about_me && doctor.about_me.length > 100), // 2. Bio
-          !!doctor.clinic_address,                         // 3. Dirección
-          tieneHorarioActivo,                              // 4. Horario
-          !!(doctor.consultation_price_first_time && doctor.consultation_price_general), // 5. Precios
-          !!doctor.professional_license,                   // 6. Cédula
-          !!(Array.isArray(doctor.languages) && doctor.languages.length >= 1), // 7. Idiomas
-          (expRes.data?.length || 0) > 0,                  // 8. Experiencia
-          (eduRes.data?.length || 0) > 0,                  // 9. Educación
-          (condRes.data?.length || 0) > 0,                 // 10. Condiciones
+          !!doctor.photo_url,
+          !!(doctor.about_me && doctor.about_me.length > 100),
+          tieneUbicacionVerificada,
+          tieneHorarioActivo,
+          !!(doctor.consultation_price_first_time && doctor.consultation_price_general),
+          tieneTelefono,
+          !!(Array.isArray(doctor.languages) && doctor.languages.length >= 1),
+          (expRes.data?.length || 0) > 0,
+          (eduRes.data?.length || 0) > 0,
+          (condRes.data?.length || 0) > 0,
         ]
         const pct = Math.round((checks.filter(Boolean).length / checks.length) * 100)
         setProfileCompletion(pct)
 
-        // CONSEJOS INTELIGENTES (solo lo que falta, orden aleatorio)
+        // CONSEJOS INTELIGENTES (basados en los 10 checks unificados)
         const consejosDisponibles: Consejo[] = []
         
+        // 1. Foto
+        if (!doctor.photo_url) consejosDisponibles.push({
+          id: 'foto',
+          titulo: 'Sube tu foto profesional',
+          descripcion: 'Perfiles con foto generan 3× más confianza',
+          impacto: '+200% confianza',
+          cta: 'Subir foto',
+          link: '/dashboard/editar-perfil',
+          color: '#1E3A5F'
+        })
+        // 2. Biografía
+        if (!doctor.about_me || doctor.about_me.length < 100) consejosDisponibles.push({
+          id: 'bio',
+          titulo: 'Escribe tu biografía',
+          descripcion: 'Cuenta tu experiencia y enfoque profesional',
+          impacto: '+50% conversión',
+          cta: 'Escribir',
+          link: '/dashboard/editar-perfil',
+          color: '#2A9D8F'
+        })
+        // 3. Ubicación verificada
+        if (!tieneUbicacionVerificada) consejosDisponibles.push({
+          id: 'ubicacion',
+          titulo: 'Verifica tu ubicación',
+          descripcion: 'Sin coordenadas exactas no apareces en "Cerca de mí"',
+          impacto: '+40% visibilidad',
+          cta: 'Agregar dirección',
+          link: '/dashboard/editar-perfil',
+          color: '#8B5CF6'
+        })
+        // 4. Horario
         if (!tieneHorarioActivo) consejosDisponibles.push({
           id: 'horario',
           titulo: 'Configura tu horario',
@@ -223,15 +269,7 @@ export default function DashboardMedico() {
           link: '/dashboard/horario',
           color: '#8B5CF6'
         })
-        if (!tieneTelefono) consejosDisponibles.push({
-          id: 'telefono',
-          titulo: 'Agrega tu teléfono',
-          descripcion: 'Pacientes necesitan contactarte directamente',
-          impacto: '+30% contacto',
-          cta: 'Agregar teléfono',
-          link: '/dashboard/editar-perfil',
-          color: '#1E3A5F'
-        })
+        // 5. Precios
         if (!doctor.consultation_price_first_time || !doctor.consultation_price_general) consejosDisponibles.push({
           id: 'precios',
           titulo: 'Publica tus precios',
@@ -241,32 +279,55 @@ export default function DashboardMedico() {
           link: '/dashboard/editar-perfil',
           color: '#D97706'
         })
-        if (!doctor.about_me || doctor.about_me.length < 100) consejosDisponibles.push({
-          id: 'bio',
-          titulo: 'Escribe tu biografía',
-          descripcion: 'Cuenta tu experiencia y enfoque',
-          impacto: '+50% conversión',
-          cta: 'Escribir',
+        // 6. Teléfono
+        if (!tieneTelefono) consejosDisponibles.push({
+          id: 'telefono',
+          titulo: 'Agrega tu teléfono',
+          descripcion: 'Pacientes necesitan contactarte directamente',
+          impacto: '+30% contacto',
+          cta: 'Agregar teléfono',
+          link: '/dashboard/editar-perfil',
+          color: '#1E3A5F'
+        })
+        // 7. Idiomas
+        if (!(Array.isArray(doctor.languages) && doctor.languages.length >= 1)) consejosDisponibles.push({
+          id: 'idiomas',
+          titulo: 'Agrega idiomas',
+          descripcion: 'Amplía tu alcance a pacientes extranjeros',
+          impacto: '+20% alcance',
+          cta: 'Agregar idiomas',
           link: '/dashboard/editar-perfil',
           color: '#2A9D8F'
         })
-        if (!doctor.clinic_address) consejosDisponibles.push({
-          id: 'direccion',
-          titulo: 'Agrega tu dirección',
-          descripcion: 'Pacientes buscan médicos cercanos',
-          impacto: '+40% visibilidad',
-          cta: 'Agregar',
+        // 8. Experiencia
+        if ((expRes.data?.length || 0) === 0) consejosDisponibles.push({
+          id: 'experiencia',
+          titulo: 'Agrega tu experiencia',
+          descripcion: 'Tus años de práctica y hospitales generan confianza',
+          impacto: '+20% preferencia',
+          cta: 'Agregar experiencia',
           link: '/dashboard/editar-perfil',
-          color: '#8B5CF6'
+          color: '#2A9D8F'
         })
+        // 9. Educación
         if ((eduRes.data?.length || 0) === 0) consejosDisponibles.push({
           id: 'educacion',
           titulo: 'Agrega tu formación',
-          descripcion: 'Tu preparación genera confianza',
+          descripcion: 'Tu preparación académica genera credibilidad',
           impacto: '+25% credibilidad',
-          cta: 'Agregar',
+          cta: 'Agregar formación',
           link: '/dashboard/editar-perfil',
           color: '#1E3A5F'
+        })
+        // 10. Condiciones
+        if ((condRes.data?.length || 0) === 0) consejosDisponibles.push({
+          id: 'condiciones',
+          titulo: 'Agrega enfermedades que tratas',
+          descripcion: 'Pacientes te encuentran por padecimientos específicos',
+          impacto: '+35% búsquedas',
+          cta: 'Agregar condiciones',
+          link: '/dashboard/editar-perfil',
+          color: '#8B5CF6'
         })
 
         if (consejosDisponibles.length > 0) {

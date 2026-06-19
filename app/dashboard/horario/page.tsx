@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { toast } from 'sonner'
 import BackButton from '@/components/BackButton'
@@ -29,13 +29,13 @@ const DIAS: { key: DiaSemana; label: string }[] = [
 
 const HORAS = Array.from({ length: 48 }, (_, i) => {
   const h = Math.floor(i / 2).toString().padStart(2, '0')
-  const m = i % 2 === 0? '00' : '30'
+  const m = i % 2 === 0 ? '00' : '30'
   return `${h}:${m}`
 })
 
 const HORARIO_DEFAULT: Horario = DIAS.reduce((acc, { key }) => {
   acc[key] = {
-    activo: ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'].includes(key),
+    activo: false,
     inicio: '09:00',
     fin: '18:00'
   }
@@ -49,33 +49,65 @@ export default function HorarioDoctor() {
   const [saving, setSaving] = useState(false)
   const [hasChanges, setHasChanges] = useState(false)
 
-  useEffect(() => { loadHorario() }, [])
-
-  const loadHorario = async () => {
+  const loadHorario = useCallback(async () => {
+    setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    const { data: doctor } = await supabase.from('doctors').select('horario, duracion_cita_minutos').eq('user_id', user.id).single()
-    if (doctor?.horario) setHorario(doctor.horario as Horario)
+    if (!user) { setLoading(false); return }
+    
+    const { data: doctor } = await supabase
+      .from('doctors')
+      .select('horario, duracion_cita_minutos')
+      .eq('user_id', user.id)
+      .single()
+
+        if (doctor?.horario && typeof doctor.horario === 'object') {
+      const horarioCargado = { ...HORARIO_DEFAULT }
+      const raw = doctor.horario as Record<string, any>
+      
+      DIAS.forEach(({ key }) => {
+        if (raw[key]) {
+          horarioCargado[key] = {
+            activo: raw[key].abierto ?? raw[key].open ?? raw[key].activo ?? !!(raw[key].inicio || raw[key].start),
+            inicio: raw[key].inicio || raw[key].start || '09:00',
+            fin: raw[key].fin || raw[key].end || '18:00',
+            descanso_inicio: raw[key].descanso_inicio || raw[key].lunch_start || raw[key].comida_inicio,
+            descanso_fin: raw[key].descanso_fin || raw[key].lunch_end || raw[key].comida_fin,
+          }
+        }
+      })
+      
+      setHorario(horarioCargado)
+    }
+    
     setDuracion(doctor?.duracion_cita_minutos || 30)
     setLoading(false)
-  }
+  }, [])
+
+  useEffect(() => { loadHorario() }, [loadHorario])
 
   const updateDia = (dia: DiaSemana, campo: keyof HorarioDia, valor: any) => {
-    setHorario(prev => ({...prev, [dia]: {...prev[dia], [campo]: valor } }))
+    setHorario(prev => ({ ...prev, [dia]: { ...prev[dia], [campo]: valor } }))
     setHasChanges(true)
   }
 
-  const toggleDia = (dia: DiaSemana) => updateDia(dia, 'activo',!horario[dia].activo)
+  const toggleDia = (dia: DiaSemana) => updateDia(dia, 'activo', !horario[dia].activo)
 
   const toggleDescanso = (dia: DiaSemana, checked: boolean) => {
-    setHorario(prev => ({...prev, [dia]: {...prev[dia], descanso_inicio: checked? '14:00' : undefined, descanso_fin: checked? '15:00' : undefined } }))
+    setHorario(prev => ({
+      ...prev,
+      [dia]: {
+        ...prev[dia],
+        descanso_inicio: checked ? '14:00' : undefined,
+        descanso_fin: checked ? '15:00' : undefined
+      }
+    }))
     setHasChanges(true)
   }
 
   const copiarATodos = (diaOrigen: DiaSemana) => {
     const origen = horario[diaOrigen]
-    const nuevo = {...horario }
-    DIAS.forEach(({ key }) => { if (key!== diaOrigen) nuevo[key] = {...origen } })
+    const nuevo = { ...horario }
+    DIAS.forEach(({ key }) => { if (key !== diaOrigen) nuevo[key] = { ...origen } })
     setHorario(nuevo)
     setHasChanges(true)
     toast.success('Horario copiado a todos los días')
@@ -84,30 +116,51 @@ export default function HorarioDoctor() {
   const guardar = async () => {
     setSaving(true)
     const { data: { user } } = await supabase.auth.getUser()
-    const { error } = await supabase.from('doctors').update({ horario, duracion_cita_minutos: duracion, updated_at: new Date().toISOString() }).eq('user_id', user!.id)
+    const { error } = await supabase
+      .from('doctors')
+      .update({
+        horario,
+        duracion_cita_minutos: duracion,
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', user!.id)
     setSaving(false)
     if (error) toast.error('Error al guardar')
     else { toast.success('Horario actualizado'); setHasChanges(false) }
   }
 
-  useEffect(() => { if (!hasChanges) return; const timer = setTimeout(() => guardar(), 2000); return () => clearTimeout(timer) }, [horario, duracion, hasChanges])
-
-  if (loading) return <div className="p-8">Cargando...</div>
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif" }}>
+        <div style={{ width: 40, height: 40, border: '3px solid #E5E7EB', borderTopColor: '#1E3A5F', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    )
+  }
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <div className="mb-6">
+    <div style={{ maxWidth: 900, margin: '0 auto', padding: '24px 16px 80px', fontFamily: "'DM Sans', sans-serif", color: '#111827' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@600;900&family=DM+Sans:wght@400;500;600;700&display=swap');`}</style>
+      
+      <div style={{ marginBottom: 16 }}>
         <BackButton fallback="/dashboard" />
       </div>
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold">Horario de atención</h1>
-        <p className="text-gray-600 mt-1">Define cuándo pueden agendar citas tus pacientes</p>
+      
+      <div style={{ marginBottom: 32 }}>
+        <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 28, fontWeight: 900, color: '#111827', marginBottom: 4 }}>Horario de atención</h1>
+        <p style={{ fontSize: 14, color: '#6B7280' }}>Define cuándo pueden agendar citas tus pacientes</p>
       </div>
-      <div className="bg-white rounded-xl border p-6 mb-6">
-        <h2 className="font-medium mb-4">Configuración general</h2>
-        <div className="flex items-center gap-4">
-          <label className="text-sm">Duración de cada cita:</label>
-          <select value={duracion} onChange={(e) => { setDuracion(Number(e.target.value)); setHasChanges(true) }} className="border rounded-lg px-3 py-2">
+
+      {/* Duración */}
+      <div style={{ background: '#fff', borderRadius: 16, padding: 24, border: '1px solid #E5E7EB', marginBottom: 16 }}>
+        <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16, color: '#111827' }}>Configuración general</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <label style={{ fontSize: 14, color: '#374151', fontWeight: 500 }}>Duración de cada cita:</label>
+          <select
+            value={duracion}
+            onChange={(e) => { setDuracion(Number(e.target.value)); setHasChanges(true) }}
+            style={{ padding: '10px 14px', border: '1.5px solid #E5E7EB', borderRadius: 10, fontSize: 14, background: '#fff', fontFamily: "'DM Sans', sans-serif", cursor: 'pointer' }}
+          >
             <option value={15}>15 minutos</option>
             <option value={20}>20 minutos</option>
             <option value={30}>30 minutos</option>
@@ -116,36 +169,72 @@ export default function HorarioDoctor() {
           </select>
         </div>
       </div>
-      <div className="bg-white rounded-xl border overflow-hidden">
+
+      {/* Días */}
+      <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #E5E7EB', overflow: 'hidden', marginBottom: 16 }}>
         {DIAS.map(({ key, label }) => {
           const dia = horario[key]
           return (
-            <div key={key} className="border-b last:border-0 p-5 hover:bg-gray-50">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4 w-32">
-                  <button onClick={() => toggleDia(key)} className={`relative w-11 h-6 rounded-full transition-colors ${dia.activo? 'bg-blue-600' : 'bg-gray-300'}`}>
-                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${dia.activo? 'translate-x-5' : ''}`} />
+            <div key={key} style={{ padding: '18px 20px', borderBottom: '1px solid #F3F4F6' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 140 }}>
+                  <button
+                    onClick={() => toggleDia(key)}
+                    style={{
+                      width: 44, height: 26, borderRadius: 13,
+                      background: dia.activo ? '#1E3A5F' : '#D1D5DB',
+                      border: 'none', cursor: 'pointer', position: 'relative',
+                      transition: 'background 0.2s', flexShrink: 0
+                    }}
+                    aria-label={`${dia.activo ? 'Desactivar' : 'Activar'} ${label}`}
+                  >
+                    <span style={{
+                      position: 'absolute', top: 2, left: dia.activo ? 20 : 2,
+                      width: 22, height: 22, borderRadius: '50%', background: '#fff',
+                      transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                    }} />
                   </button>
-                  <span className={`font-medium ${!dia.activo? 'text-gray-400' : ''}`}>{label}</span>
+                  <span style={{ fontWeight: 600, fontSize: 15, color: dia.activo ? '#111827' : '#9CA3AF' }}>{label}</span>
                 </div>
-                {dia.activo? (
-                  <div className="flex items-center gap-3 flex-1 justify-end">
-                    <select value={dia.inicio} onChange={(e) => updateDia(key, 'inicio', e.target.value)} className="border rounded-lg px-3 py-2 text-sm">{HORAS.map(h => <option key={h} value={h}>{h}</option>)}</select>
-                    <span className="text-gray-400">—</span>
-                    <select value={dia.fin} onChange={(e) => updateDia(key, 'fin', e.target.value)} className="border rounded-lg px-3 py-2 text-sm">{HORAS.map(h => <option key={h} value={h}>{h}</option>)}</select>
-                    <button onClick={() => copiarATodos(key)} className="ml-4 text-xs text-blue-600 hover:text-blue-700">Copiar a todos</button>
+
+                {dia.activo ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                    <select value={dia.inicio} onChange={(e) => updateDia(key, 'inicio', e.target.value)} style={{ padding: '8px 10px', border: '1.5px solid #E5E7EB', borderRadius: 8, fontSize: 13, background: '#fff', fontFamily: "'DM Sans', sans-serif" }}>
+                      {HORAS.map(h => <option key={h} value={h}>{h}</option>)}
+                    </select>
+                    <span style={{ color: '#9CA3AF' }}>—</span>
+                    <select value={dia.fin} onChange={(e) => updateDia(key, 'fin', e.target.value)} style={{ padding: '8px 10px', border: '1.5px solid #E5E7EB', borderRadius: 8, fontSize: 13, background: '#fff', fontFamily: "'DM Sans', sans-serif" }}>
+                      {HORAS.map(h => <option key={h} value={h}>{h}</option>)}
+                    </select>
+                    <button onClick={() => copiarATodos(key)} style={{ background: 'none', border: 'none', color: '#1E3A5F', fontSize: 12, fontWeight: 600, cursor: 'pointer', marginLeft: 8 }}>
+                      Copiar a todos
+                    </button>
                   </div>
-                ) : <span className="text-sm text-gray-400">No disponible</span>}
+                ) : (
+                  <span style={{ fontSize: 13, color: '#9CA3AF' }}>No disponible</span>
+                )}
               </div>
+
               {dia.activo && (
-                <div className="mt-3 ml-16 flex items-center gap-2">
-                  <input type="checkbox" checked={!!dia.descanso_inicio} onChange={(e) => toggleDescanso(key, e.target.checked)} className="rounded" />
-                  <span className="text-xs text-gray-600">Agregar hora de comida</span>
+                <div style={{ marginTop: 12, marginLeft: 56, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13, color: '#6B7280' }}>
+                    <input
+                      type="checkbox"
+                      checked={!!dia.descanso_inicio}
+                      onChange={(e) => toggleDescanso(key, e.target.checked)}
+                      style={{ accentColor: '#1E3A5F', width: 16, height: 16 }}
+                    />
+                    Agregar hora de comida
+                  </label>
                   {dia.descanso_inicio && (
                     <>
-                      <select value={dia.descanso_inicio} onChange={(e) => updateDia(key, 'descanso_inicio', e.target.value)} className="border rounded px-2 py-1 text-xs ml-2">{HORAS.map(h => <option key={h} value={h}>{h}</option>)}</select>
-                      <span className="text-xs">—</span>
-                      <select value={dia.descanso_fin} onChange={(e) => updateDia(key, 'descanso_fin', e.target.value)} className="border rounded px-2 py-1 text-xs">{HORAS.map(h => <option key={h} value={h}>{h}</option>)}</select>
+                      <select value={dia.descanso_inicio} onChange={(e) => updateDia(key, 'descanso_inicio', e.target.value)} style={{ padding: '6px 8px', border: '1px solid #E5E7EB', borderRadius: 6, fontSize: 12, background: '#fff' }}>
+                        {HORAS.map(h => <option key={h} value={h}>{h}</option>)}
+                      </select>
+                      <span style={{ fontSize: 12, color: '#9CA3AF' }}>—</span>
+                      <select value={dia.descanso_fin} onChange={(e) => updateDia(key, 'descanso_fin', e.target.value)} style={{ padding: '6px 8px', border: '1px solid #E5E7EB', borderRadius: 6, fontSize: 12, background: '#fff' }}>
+                        {HORAS.map(h => <option key={h} value={h}>{h}</option>)}
+                      </select>
                     </>
                   )}
                 </div>
@@ -154,15 +243,38 @@ export default function HorarioDoctor() {
           )
         })}
       </div>
-      <div className="mt-6 bg-blue-50 rounded-xl p-5">
-        <h3 className="font-medium text-sm mb-2">Vista previa para pacientes</h3>
-        <div className="text-sm text-gray-700">{DIAS.filter(d => horario[d.key].activo).map(d => `${d.label.slice(0,3)}: ${horario[d.key].inicio}-${horario[d.key].fin}`).join(' • ') || 'Sin horario configurado'}</div>
+
+      {/* Vista previa */}
+      <div style={{ background: '#F0F4FF', borderRadius: 16, padding: 20, border: '1px solid #C7D2FE', marginBottom: 16 }}>
+        <h3 style={{ fontSize: 14, fontWeight: 700, color: '#1E3A5F', marginBottom: 8 }}>Vista previa para pacientes</h3>
+        <p style={{ fontSize: 14, color: '#374151', margin: 0, lineHeight: 1.6 }}>
+          {DIAS.filter(d => horario[d.key].activo).length > 0
+            ? DIAS.filter(d => horario[d.key].activo)
+                .map(d => `${d.label.slice(0, 3)}: ${horario[d.key].inicio}–${horario[d.key].fin}`)
+                .join('  •  ')
+            : 'Sin horario configurado'
+          }
+        </p>
       </div>
-      <div className="mt-4 flex items-center justify-end gap-3">
-        {hasChanges &&!saving && <span className="text-sm text-amber-600">Cambios sin guardar...</span>}
-        {saving && <span className="text-sm text-gray-600">Guardando...</span>}
-        {!hasChanges &&!saving && <span className="text-sm text-green-600">✓ Guardado</span>}
-        <button onClick={guardar} disabled={saving ||!hasChanges} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm disabled:opacity-50">Guardar ahora</button>
+
+      {/* Guardar */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 12 }}>
+        {hasChanges && !saving && <span style={{ fontSize: 13, color: '#D97706' }}>Cambios sin guardar...</span>}
+        {saving && <span style={{ fontSize: 13, color: '#6B7280' }}>Guardando...</span>}
+        {!hasChanges && !saving && <span style={{ fontSize: 13, color: '#059669', display: 'flex', alignItems: 'center', gap: 4 }}>✓ Guardado</span>}
+        <button
+          onClick={guardar}
+          disabled={saving || !hasChanges}
+          style={{
+            padding: '10px 20px', background: '#1E3A5F', color: '#fff',
+            border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600,
+            cursor: saving || !hasChanges ? 'not-allowed' : 'pointer',
+            opacity: saving || !hasChanges ? 0.5 : 1,
+            fontFamily: "'DM Sans', sans-serif"
+          }}
+        >
+          Guardar ahora
+        </button>
       </div>
     </div>
   )
