@@ -10,28 +10,33 @@ import BackButton from '@/components/BackButton'
 
 interface Cita {
   id: string
-  patient_name: string
-  patient_email: string
-  patient_phone: string
-  requested_date: string
-  requested_time: string
-  reason: string | null
-  clinic_address: string | null
-  status: 'solicitada' | 'confirmada' | 'atendida' | 'cancelada'
+  paciente_nombre: string
+  paciente_email: string
+  paciente_telefono: string
+  fecha: string
+  hora: string
+  motivo: string | null
+  estado: 'pending_verification' | 'confirmed' | 'completed' | 'cancelled'
   created_at: string
-  review_sent: boolean
-  review_verified: boolean
 }
 
-type Tab = 'todas' | 'solicitada' | 'confirmada' | 'atendida'
+interface MedicoData {
+  full_name: string
+  specialty: string
+  clinic_lat: number | null
+  clinic_lng: number | null
+  clinic_phone: string | null
+}
+
+type Tab = 'todas' | 'pending_verification' | 'confirmed' | 'completed'
 
 export default function CitasPage() {
   const router = useRouter()
   const [citas, setCitas] = useState<Cita[]>([])
+  const [medico, setMedico] = useState<MedicoData | null>(null)
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<Tab>('todas')
   const [procesando, setProcesando] = useState<string | null>(null)
-  const [sendingEmail, setSendingEmail] = useState<string | null>(null)
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
 
   const showToast = (msg: string, type: 'success' | 'error') => {
@@ -41,11 +46,11 @@ export default function CitasPage() {
 
   const cargarCitas = useCallback(async (docId: string) => {
     const { data } = await supabase
-     .from('appointment_requests')
-     .select('*')
-     .eq('doctor_id', docId)
-     .order('requested_date', { ascending: false })
-     .order('requested_time', { ascending: true })
+      .from('citas')
+      .select('*')
+      .eq('medico_id', docId)
+      .order('fecha', { ascending: false })
+      .order('hora', { ascending: true })
     setCitas((data as Cita[]) || [])
   }, [])
 
@@ -53,99 +58,186 @@ export default function CitasPage() {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { await supabase.auth.signOut(); router.push('/login'); return }
-      const { data: medico } = await supabase.from('doctors').select('id').eq('user_id', user.id).single()
-      if (!medico) { router.push('/dashboard'); return }
-      await cargarCitas(medico.id)
+      
+      const { data: medicoData } = await supabase
+        .from('doctors')
+        .select('id, full_name, specialty, clinic_lat, clinic_lng, clinic_phone')
+        .eq('user_id', user.id)
+        .single()
+      
+      if (!medicoData) { router.push('/dashboard'); return }
+      
+      setMedico(medicoData)
+      await cargarCitas(medicoData.id)
       setLoading(false)
     }
     load()
   }, [router, cargarCitas])
 
-  const cambiarStatus = async (citaId: string, nuevoStatus: Cita['status']) => {
-    setProcesando(citaId + nuevoStatus)
+  const cambiarEstado = async (citaId: string, nuevoEstado: Cita['estado']) => {
+    setProcesando(citaId + nuevoEstado)
     const { error } = await supabase
-     .from('appointment_requests')
-     .update({ status: nuevoStatus })
-     .eq('id', citaId)
+      .from('citas')
+      .update({ estado: nuevoEstado })
+      .eq('id', citaId)
     if (error) {
       showToast('Error al actualizar la cita', 'error')
-    } else {
-      setCitas(prev => prev.map(c => c.id === citaId? {...c, status: nuevoStatus } : c))
-      const labels: Record<string, string> = {
-        confirmada: 'Cita confirmada',
-        cancelada: 'Cita cancelada',
-        atendida: 'Marcada como atendida',
-      }
-      showToast(labels[nuevoStatus] || 'Cita actualizada', 'success')
+      setProcesando(null)
+      return
     }
-    setProcesando(null)
-  }
+    
+    setCitas(prev => prev.map(c => c.id === citaId ? { ...c, estado: nuevoEstado } : c))
+    const labels: Record<string, string> = {
+      confirmed: 'Cita confirmada',
+      cancelled: 'Cita cancelada',
+      completed: 'Marcada como completada',
+    }
+    showToast(labels[nuevoEstado] || 'Cita actualizada', 'success')
 
-  const sendReviewEmail = async (cita: Cita) => {
-    setSendingEmail(cita.id)
-    try {
-      const token = crypto.randomUUID()
-      const { data: { session } } = await supabase.auth.getSession()
-      const res = await fetch('/api/send-review-email', {
+// Si se marcó como completada, enviar email de reseña
+if (nuevoEstado === 'completed') {
+  const cita = citas.find(c => c.id === citaId)
+  if (cita?.paciente_email) {
+    const reviewToken = crypto.randomUUID()
+    
+    await supabase.from('citas').update({ 
+      review_token: reviewToken, 
+      review_sent_at: new Date().toISOString() 
+    }).eq('id', citaId)
+    
+    const { data: { session } } = await supabase.auth.getSession()
+    
+    if (session?.access_token) {
+      fetch('/api/send-review-email', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token?? ''}`,
+          'Authorization': `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
-          email: cita.patient_email,
-          token,
-          doctorName: 'el médico',
-          appointmentDate: new Date(cita.requested_date).toLocaleDateString('es-MX'),
+          email: cita.paciente_email,
+          token: reviewToken,
+          doctorName: medico?.full_name || 'tu médico',
         }),
-      })
-      if (!res.ok) {
-        showToast('Error al enviar el email', 'error')
-        return
+      }).catch(console.error)
+    }
+  }
+}
+
+    setProcesando(null)
+
+    // Si se marcó como completada, enviar email de reseña
+    if (nuevoEstado === 'completed') {
+      const cita = citas.find(c => c.id === citaId)
+      if (cita?.paciente_email) {
+        const reviewToken = crypto.randomUUID()
+        
+        // Guardar token en la cita
+        await supabase.from('citas').update({ 
+          review_token: reviewToken, 
+          review_sent_at: new Date().toISOString() 
+        }).eq('id', citaId)
+        
+        // Obtener el token JWT de la sesión actual
+        const { data: { session } } = await supabase.auth.getSession()
+        
+        if (session?.access_token) {
+          fetch('/api/send-review-email', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({
+              email: cita.paciente_email,
+              token: reviewToken,
+              doctorName: medico?.full_name || 'tu médico',
+            }),
+          }).catch(console.error)
+        }
       }
-      await supabase.from('appointment_requests').update({ review_sent: true, review_token: token }).eq('id', cita.id)
-      setCitas(prev => prev.map(c => c.id === cita.id? {...c, review_sent: true } : c))
-      showToast('Email de reseña enviado', 'success')
-    } catch {
-      showToast('Error al enviar el email', 'error')
-    } finally {
-      setSendingEmail(null)
     }
   }
 
-  const canRequestReview = (cita: Cita) => {
-    const citaDate = new Date(cita.requested_date + 'T' + (cita.requested_time || '00:00'))
-    const oneDayAfter = new Date(citaDate)
-    oneDayAfter.setDate(oneDayAfter.getDate() + 1)
-    return new Date() >= oneDayAfter
-  }
-
-  const getWhatsAppLink = (phone: string, date: string, time: string, name: string) => {
+  const getWhatsAppLink = (phone: string, fecha: string, hora: string, nombre: string) => {
     const clean = phone.replace(/\D/g, '')
-    const msg = `Hola ${name}, te contacto respecto a tu cita del ${date} a las ${time}.`
-    return `https://wa.me/52${clean}?text=${encodeURIComponent(msg)}`
+    const d = new Date(fecha + 'T00:00:00')
+    const fechaFormateada = d.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })
+    
+    const nombreMedico = medico?.full_name || 'el médico'
+    
+    // Convertir especialidad a profesión
+    const esp = medico?.specialty?.toLowerCase() || ''
+    let profesion = ''
+    
+    if (esp.includes('alergolog')) profesion = 'alergólogo'
+    else if (esp.includes('anestesiolog')) profesion = 'anestesiólogo'
+    else if (esp.includes('angiolog')) profesion = 'angiólogo'
+    else if (esp.includes('cardiolog')) profesion = 'cardiólogo'
+    else if (esp.includes('cirug')) profesion = 'cirujano'
+    else if (esp.includes('dermatolog')) profesion = 'dermatólogo'
+    else if (esp.includes('endocrinolog')) profesion = 'endocrinólogo'
+    else if (esp.includes('gastroenterolog')) profesion = 'gastroenterólogo'
+    else if (esp.includes('geriatr')) profesion = 'geriatra'
+    else if (esp.includes('hematolog')) profesion = 'hematólogo'
+    else if (esp.includes('infectolog')) profesion = 'infectólogo'
+    else if (esp.includes('medicina crítica')) profesion = 'intensivista'
+    else if (esp.includes('medicina familiar')) profesion = 'médico familiar'
+    else if (esp.includes('medicina física')) profesion = 'médico de rehabilitación'
+    else if (esp.includes('medicina interna')) profesion = 'internista'
+    else if (esp.includes('medicina general')) profesion = 'médico general'
+    else if (esp.includes('nefrolog')) profesion = 'nefrólogo'
+    else if (esp.includes('neonatolog')) profesion = 'neonatólogo'
+    else if (esp.includes('neumolog')) profesion = 'neumólogo'
+    else if (esp.includes('neurocirug')) profesion = 'neurocirujano'
+    else if (esp.includes('neurolog')) profesion = 'neurólogo'
+    else if (esp.includes('nutric')) profesion = 'nutriólogo'
+    else if (esp.includes('oncolog')) profesion = 'oncólogo'
+    else if (esp.includes('oftalmolog')) profesion = 'oftalmólogo'
+    else if (esp.includes('ortopedia') || esp.includes('traumatolog')) profesion = 'traumatólogo'
+    else if (esp.includes('otorrinolaringolog')) profesion = 'otorrinolaringólogo'
+    else if (esp.includes('patolog')) profesion = 'patólogo'
+    else if (esp.includes('pediatr')) profesion = 'pediatra'
+    else if (esp.includes('psiquiatr')) profesion = 'psiquiatra'
+    else if (esp.includes('radiolog')) profesion = 'radiólogo'
+    else if (esp.includes('reumatolog')) profesion = 'reumatólogo'
+    else if (esp.includes('urolog')) profesion = 'urólogo'
+    else if (esp.includes('ginecolog') || esp.includes('obstetric')) profesion = 'ginecólogo'
+    else profesion = medico?.specialty || ''
+    
+    let msg = `Hola ${nombre}, soy el Dr. ${nombreMedico}`
+    if (profesion) msg += `, ${profesion}`
+    msg += `.%0ATe espero en tu cita el ${fechaFormateada} a las ${hora?.slice(0, 5)}.`
+    
+    if (medico?.clinic_lat && medico?.clinic_lng) {
+      msg += `%0A📍 Cómo llegar: https://maps.google.com/?q=${medico.clinic_lat},${medico.clinic_lng}`
+    }
+    
+    msg += `%0A¿Tienes alguna duda?`
+    
+    return `https://wa.me/52${clean}?text=${msg}`
   }
 
-  const formatFecha = (fecha: string) => {
-    const d = new Date(fecha + 'T00:00:00')
+  const formatFecha = (fechaStr: string) => {
+    const d = new Date(fechaStr + 'T00:00:00')
     const hoy = new Date().toISOString().split('T')[0]
     const ayer = new Date(Date.now() - 86400000).toISOString().split('T')[0]
-    if (fecha === hoy) return 'Hoy'
-    if (fecha === ayer) return 'Ayer'
+    if (fechaStr === hoy) return 'Hoy'
+    if (fechaStr === ayer) return 'Ayer'
     return d.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })
   }
 
-  const isFutura = (fecha: string) => new Date(fecha + 'T00:00') > new Date()
+  const isFutura = (fechaStr: string) => new Date(fechaStr + 'T00:00') > new Date()
 
   const statusColors: Record<string, { bg: string; text: string; label: string }> = {
-    solicitada: { bg: '#FEF3C7', text: '#92400E', label: 'Solicitada' },
-    confirmada: { bg: '#DCFCE7', text: '#059669', label: 'Confirmada' },
-    cancelada: { bg: '#FEE2E2', text: '#DC2626', label: 'Cancelada' },
-    atendida: { bg: '#E0E7FF', text: '#3730A3', label: 'Atendida' },
+    pending_verification: { bg: '#FEF3C7', text: '#92400E', label: 'Pendiente' },
+    confirmed: { bg: '#DCFCE7', text: '#059669', label: 'Confirmada' },
+    cancelled: { bg: '#FEE2E2', text: '#DC2626', label: 'Cancelada' },
+    completed: { bg: '#E0E7FF', text: '#3730A3', label: 'Completada' },
   }
 
-  const citasFiltradas = tab === 'todas'? citas : citas.filter(c => c.status === tab)
-  const countPorStatus = (s: string) => citas.filter(c => c.status === s).length
+  const citasFiltradas = tab === 'todas' ? citas : citas.filter(c => c.estado === tab)
+  const countPorEstado = (s: string) => citas.filter(c => c.estado === s).length
 
   if (loading) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif" }}>
@@ -158,22 +250,22 @@ export default function CitasPage() {
   )
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F9FAFB', fontFamily: "'DM Sans', sans-serif", color: '#1A2E' }}>
+    <div style={{ minHeight: '100vh', background: '#F9FAFB', fontFamily: "'DM Sans', sans-serif", color: '#111827' }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@600;900&family=DM+Sans:wght@400;500;700&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
-       .fade-up { animation: fadeUp 0.35s ease-out; }
-       .action-btn { display:inline-flex; align-items:center; gap:6px; border-radius:50px; padding:8px 14px; font-size:13px; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; border:none; transition:all 0.18s; }
-       .action-btn:disabled { opacity:0.5; cursor:not-allowed; }
-       .tab-btn { padding:8px 16px; border-radius:50px; font-size:13px; font-weight:600; cursor:pointer; border:none; font-family:'DM Sans',sans-serif; transition:all 0.18s; }
+        .fade-up { animation: fadeUp 0.35s ease-out; }
+        .action-btn { display:inline-flex; align-items:center; gap:6px; border-radius:50px; padding:8px 14px; font-size:13px; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; border:none; transition:all 0.18s; }
+        .action-btn:disabled { opacity:0.5; cursor:not-allowed; }
+        .tab-btn { padding:8px 16px; border-radius:50px; font-size:13px; font-weight:600; cursor:pointer; border:none; font-family:'DM Sans',sans-serif; transition:all 0.18s; }
         @media(max-width:600px) {.cita-header { flex-direction:column!important; }.cita-actions { flex-wrap:wrap!important; } }
       `}</style>
 
       {toast && (
-        <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 9999, background: toast.type === 'success'? '#DCFCE7' : '#FEF2', color: toast.type === 'success'? '#059669' : '#DC2626', border: `1px solid ${toast.type === 'success'? '#86EFAC' : '#FECACA'}`, borderRadius: 10, padding: '12px 18px', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-          {toast.type === 'success'? <CheckCircle size={15} /> : <XCircle size={15} />}
+        <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 9999, background: toast.type === 'success' ? '#DCFCE7' : '#FEF2F2', color: toast.type === 'success' ? '#059669' : '#DC2626', border: `1px solid ${toast.type === 'success' ? '#86EFAC' : '#FECACA'}`, borderRadius: 10, padding: '12px 18px', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+          {toast.type === 'success' ? <CheckCircle size={15} /> : <XCircle size={15} />}
           {toast.msg}
         </div>
       )}
@@ -185,8 +277,8 @@ export default function CitasPage() {
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 12 }}>
             <div>
-              <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 28, fontWeight: 900, color: '#1A1A2E', marginBottom: 4 }}>Mis Citas</h1>
-              <p style={{ fontSize: 14, color: '#6B7280' }}>{citas.length} {citas.length === 1? 'cita' : 'citas'} en total</p>
+              <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 28, fontWeight: 900, color: '#111827', marginBottom: 4 }}>Mis Citas</h1>
+              <p style={{ fontSize: 14, color: '#6B7280' }}>{citas.length} {citas.length === 1 ? 'cita' : 'citas'} en total</p>
             </div>
           </div>
         </div>
@@ -194,23 +286,23 @@ export default function CitasPage() {
         <div className="fade-up" style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
           {([
             { id: 'todas', label: 'Todas', count: citas.length },
-            { id: 'solicitada', label: 'Pendientes', count: countPorStatus('solicitada') },
-            { id: 'confirmada', label: 'Confirmadas', count: countPorStatus('confirmada') },
-            { id: 'atendida', label: 'Atendidas', count: countPorStatus('atendida') },
+            { id: 'pending_verification', label: 'Pendientes', count: countPorEstado('pending_verification') },
+            { id: 'confirmed', label: 'Confirmadas', count: countPorEstado('confirmed') },
+            { id: 'completed', label: 'Completadas', count: countPorEstado('completed') },
           ] as { id: Tab; label: string; count: number }[]).map(t => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
               className="tab-btn"
               style={{
-                background: tab === t.id? '#1E3A5F' : '#fff',
-                color: tab === t.id? '#fff' : '#6B7280',
-                border: `1px solid ${tab === t.id? '#1E3A5F' : '#E5E7EB'}`,
+                background: tab === t.id ? '#1E3A5F' : '#fff',
+                color: tab === t.id ? '#fff' : '#6B7280',
+                border: `1px solid ${tab === t.id ? '#1E3A5F' : '#E5E7EB'}`,
               }}
             >
               {t.label}
               {t.count > 0 && (
-                <span style={{ marginLeft: 6, background: tab === t.id? 'rgba(255,255,0.2)' : '#F3F4F6', borderRadius: 20, padding: '1px 7px', fontSize: 11 }}>
+                <span style={{ marginLeft: 6, background: tab === t.id ? 'rgba(255,255,255,0.2)' : '#F3F4F6', borderRadius: 20, padding: '1px 7px', fontSize: 11 }}>
                   {t.count}
                 </span>
               )}
@@ -219,117 +311,97 @@ export default function CitasPage() {
         </div>
 
         <div className="fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {citasFiltradas.length === 0? (
+          {citasFiltradas.length === 0 ? (
             <div style={{ background: '#fff', borderRadius: 16, padding: '60px 20px', border: '1px solid #E5E7EB', textAlign: 'center' }}>
               <Calendar size={48} color="#D1D5DB" style={{ margin: '0 auto 16px' }} />
               <p style={{ fontSize: 16, color: '#374151', fontWeight: 700, marginBottom: 8 }}>
-                {tab === 'solicitada'? 'Sin citas pendientes' : tab === 'confirmada'? 'Sin citas confirmadas' : tab === 'atendida'? 'Sin citas atendidas' : 'Aún no tienes citas'}
+                {tab === 'pending_verification' ? 'Sin citas pendientes' : tab === 'confirmed' ? 'Sin citas confirmadas' : tab === 'completed' ? 'Sin citas completadas' : 'Aún no tienes citas'}
               </p>
               <p style={{ fontSize: 14, color: '#9CA3AF' }}>
-                {tab === 'todas'? 'Cuando los pacientes soliciten citas, aparecerán aquí' : 'Cambia el filtro de arriba para ver otras citas'}
+                {tab === 'todas' ? 'Cuando los pacientes soliciten citas, aparecerán aquí' : 'Cambia el filtro de arriba para ver otras citas'}
               </p>
             </div>
           ) : (
             citasFiltradas.map(cita => {
-              const sc = statusColors[cita.status] || statusColors.solicitada
+              const sc = statusColors[cita.estado] || statusColors.pending_verification
               const esProc = (suffix: string) => procesando === cita.id + suffix
-              const futura = isFutura(cita.requested_date)
-              const puedeReseña =!cita.review_sent &&!cita.review_verified && cita.status!== 'cancelada' && canRequestReview(cita)
+              const futura = isFutura(cita.fecha)
+              const horaMostrada = cita.hora?.slice(0, 5) || ''
 
               return (
-                <div key={cita.id} style={{ background: '#fff', borderRadius: 14, border: '1.5px solid #E5E7EB', padding: '20px', opacity: cita.status === 'cancelada'? 0.65 : 1 }}>
+                <div key={cita.id} style={{ background: '#fff', borderRadius: 14, border: '1.5px solid #E5E7EB', padding: '20px', opacity: cita.estado === 'cancelled' ? 0.65 : 1 }}>
                   <div className="cita-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                       <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'linear-gradient(135deg,#1E3A5F,#2A9D8F)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 18, color: '#fff', flexShrink: 0 }}>
-                        {cita.patient_name.charAt(0).toUpperCase()}
+                        {cita.paciente_nombre.charAt(0).toUpperCase()}
                       </div>
                       <div>
-                        <p style={{ fontSize: 16, fontWeight: 700, color: '#1A1A2E', marginBottom: 4 }}>{cita.patient_name}</p>
+                        <p style={{ fontSize: 16, fontWeight: 700, color: '#111827', marginBottom: 4 }}>{cita.paciente_nombre}</p>
                         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                           <span style={{ background: sc.bg, color: sc.text, padding: '2px 10px', borderRadius: 12, fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>
                             {sc.label}
                           </span>
-                          {futura && cita.status!== 'cancelada' && (
+                          {futura && cita.estado !== 'cancelled' && (
                             <span style={{ background: '#EEF2FF', color: '#1E3A5F', padding: '2px 10px', borderRadius: 12, fontSize: 11, fontWeight: 600 }}>
                               Futura
-                            </span>
-                          )}
-                          {cita.review_verified && (
-                            <span style={{ background: '#DCFCE7', color: '#059669', padding: '2px 10px', borderRadius: 12, fontSize: 11, fontWeight: 600 }}>
-                              ✓ Reseña
                             </span>
                           )}
                         </div>
                       </div>
                     </div>
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      <p style={{ fontSize: 14, fontWeight: 700, color: '#1A2E' }}>{formatFecha(cita.requested_date)}</p>
-                      <p style={{ fontSize: 13, color: '#6B7280' }}>{cita.requested_time}</p>
+                      <p style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>{formatFecha(cita.fecha)}</p>
+                      <p style={{ fontSize: 13, color: '#6B7280' }}>{horaMostrada}</p>
                     </div>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px,1fr))', gap: 12, padding: '14px 0', borderTop: '1px solid #F3F4F6', borderBottom: '1px solid #F3F4F6', marginBottom: 16 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <Phone size={13} color="#9CA3AF" />
-                      <a href={`tel:${cita.patient_phone}`} style={{ fontSize: 13, color: '#1A2E', textDecoration: 'none' }}>{cita.patient_phone}</a>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <Mail size={13} color="#9CA3AF" />
-                      <span style={{ fontSize: 13, color: '#6B7280' }}>{cita.patient_email}</span>
-                    </div>
-                    {cita.clinic_address && (
+                    {cita.paciente_telefono && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <MapPin size={13} color="#9CA3AF" />
-                        <span style={{ fontSize: 13, color: '#6B7280' }}>{cita.clinic_address}</span>
+                        <Phone size={13} color="#9CA3AF" />
+                        <a href={`tel:${cita.paciente_telefono}`} style={{ fontSize: 13, color: '#111827', textDecoration: 'none' }}>{cita.paciente_telefono}</a>
                       </div>
                     )}
-                    {cita.reason && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Mail size={13} color="#9CA3AF" />
+                      <span style={{ fontSize: 13, color: '#6B7280' }}>{cita.paciente_email}</span>
+                    </div>
+                    {cita.motivo && (
                       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, gridColumn: '1 / -1' }}>
                         <FileText size={13} color="#9CA3AF" style={{ marginTop: 2, flexShrink: 0 }} />
-                        <span style={{ fontSize: 13, color: '#6B7280' }}>{cita.reason}</span>
+                        <span style={{ fontSize: 13, color: '#6B7280' }}>{cita.motivo}</span>
                       </div>
                     )}
                   </div>
                   <div className="cita-actions" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    {cita.status === 'solicitada' && (
+                    {cita.estado === 'pending_verification' && (
                       <>
-                        <button className="action-btn" onClick={() => cambiarStatus(cita.id, 'confirmada')} disabled={!!esProc('confirmada')} style={{ background: '#DCFCE7', color: '#059669' }}>
-                          {esProc('confirmada')? <span style={{ width: 13, height: 13, border: '2px solid #05966944', borderTopColor: '#059669', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> : <Check size={14} />}
+                        <button className="action-btn" onClick={() => cambiarEstado(cita.id, 'confirmed')} disabled={!!esProc('confirmed')} style={{ background: '#DCFCE7', color: '#059669' }}>
+                          {esProc('confirmed') ? <span style={{ width: 13, height: 13, border: '2px solid #05966944', borderTopColor: '#059669', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> : <Check size={14} />}
                           Confirmar
                         </button>
-                        <button className="action-btn" onClick={() => cambiarStatus(cita.id, 'cancelada')} disabled={!!esProc('cancelada')} style={{ background: '#FEE2E2', color: '#DC2626' }}>
-                          {esProc('cancelada')? <span style={{ width: 13, height: 13, border: '2px solid #DC262644', borderTopColor: '#DC2626', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> : <XCircle size={14} />}
+                        <button className="action-btn" onClick={() => cambiarEstado(cita.id, 'cancelled')} disabled={!!esProc('cancelled')} style={{ background: '#FEE2E2', color: '#DC2626' }}>
+                          {esProc('cancelled') ? <span style={{ width: 13, height: 13, border: '2px solid #DC262644', borderTopColor: '#DC2626', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> : <XCircle size={14} />}
                           Rechazar
                         </button>
                       </>
                     )}
-                    {cita.status === 'confirmada' && (
+                    {cita.estado === 'confirmed' && (
                       <>
-                        <button className="action-btn" onClick={() => cambiarStatus(cita.id, 'atendida')} disabled={!!esProc('atendida')} style={{ background: '#E0E7FF', color: '#3730A3' }}>
-                          {esProc('atendida')? <span style={{ width: 13, height: 13, border: '2px solid #3730A344', borderTopColor: '#3730A3', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> : <CheckCircle size={14} />}
-                          Marcar atendida
+                        <button className="action-btn" onClick={() => cambiarEstado(cita.id, 'completed')} disabled={!!esProc('completed')} style={{ background: '#E0E7FF', color: '#3730A3' }}>
+                          {esProc('completed') ? <span style={{ width: 13, height: 13, border: '2px solid #3730A344', borderTopColor: '#3730A3', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> : <CheckCircle size={14} />}
+                          Marcar completada
                         </button>
-                        <button className="action-btn" onClick={() => cambiarStatus(cita.id, 'cancelada')} disabled={!!esProc('cancelada')} style={{ background: '#FEE2E2', color: '#DC2626' }}>
-                          {esProc('cancelada')? <span style={{ width: 13, height: 13, border: '2px solid #DC262644', borderTopColor: '#DC2626', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> : <XCircle size={14} />}
+                        <button className="action-btn" onClick={() => cambiarEstado(cita.id, 'cancelled')} disabled={!!esProc('cancelled')} style={{ background: '#FEE2E2', color: '#DC2626' }}>
+                          {esProc('cancelled') ? <span style={{ width: 13, height: 13, border: '2px solid #DC262644', borderTopColor: '#DC2626', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> : <XCircle size={14} />}
                           Cancelar
                         </button>
                       </>
                     )}
-                    {cita.status!== 'cancelada' && (
-                      <a href={getWhatsAppLink(cita.patient_phone, cita.requested_date, cita.requested_time, cita.patient_name)} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#25D366', color: '#fff', borderRadius: 50, padding: '8px 14px', fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>
+                    {cita.estado !== 'cancelled' && cita.paciente_telefono && (
+                      <a href={getWhatsAppLink(cita.paciente_telefono, cita.fecha, cita.hora, cita.paciente_nombre)} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#25D366', color: '#fff', borderRadius: 50, padding: '8px 14px', fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>
                         <MessageCircle size={14} />
                         WhatsApp
                       </a>
-                    )}
-                    {puedeReseña && (
-                      <button className="action-btn" onClick={() => sendReviewEmail(cita)} disabled={sendingEmail === cita.id} style={{ background: '#F5F3FF', color: '#8B5CF6' }}>
-                        {sendingEmail === cita.id? <span style={{ width: 13, height: 13, border: '2px solid #8B5CF644', borderTopColor: '#8B5CF6', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> : <Send size={14} />}
-                        {sendingEmail === cita.id? 'Enviando...' : 'Pedir reseña'}
-                      </button>
-                    )}
-                    {cita.review_sent &&!cita.review_verified && (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#F3F4F6', color: '#9CA3AF', borderRadius: 50, padding: '8px 14px', fontSize: 12, fontWeight: 500 }}>
-                        ✓ Reseña solicitada
-                      </span>
                     )}
                   </div>
                 </div>

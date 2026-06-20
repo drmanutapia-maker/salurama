@@ -92,7 +92,7 @@ export async function buildOrderPdf(input: OrderPdfInput): Promise<OrderPdfResul
     { x: MARGIN, maxWidth: contentWidth, font, size: 10, color: COLOR_MUTED },
   )
   if (input.patient.allergies) {
-    drawWrapped(cursor, `⚠ Alergias: ${input.patient.allergies}`, {
+    drawWrapped(cursor, `ALERGIAS: ${input.patient.allergies}`, {
       x: MARGIN, maxWidth: contentWidth, font: fontBold, size: 10, color: COLOR_ALERT,
     })
   }

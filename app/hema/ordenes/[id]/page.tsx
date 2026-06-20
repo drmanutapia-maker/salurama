@@ -236,7 +236,7 @@ export default function OrderDetailPage() {
         <p style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.65)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
           Paciente
         </p>
-        <h3 style={{ fontFamily: 'Fraunces, serif', fontSize: 19, fontWeight: 900, marginBottom: 4 }}>
+        <h3 style={{ fontFamily: 'Fraunces, serif', fontSize: 19, fontWeight: 900, marginBottom: 4, color: '#fff' }}>
           {order.patient_display_name}
         </h3>
         <p style={{ fontSize: 12, color: '#A0BBCC', fontFamily: 'monospace', marginBottom: 4 }}>
