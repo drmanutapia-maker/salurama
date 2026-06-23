@@ -1108,7 +1108,7 @@ function BookingForm({ medico, onSave, saving }: any) {
     whatsapp_phone: medico.whatsapp_phone || '',
     clinic_phone: medico.clinic_phone || '',
   })
-  const toggleInsurance = (seg: string) => setForm(prev => ({...prev, insurance_names: prev.insurance_names.includes(seg)? prev.insurance_names.filter(s => s!== seg) : [...prev.insurance_names, seg] }))
+  const toggleInsurance = (seg: string) => setForm(prev => ({...prev, insurance_names: prev.insurance_names.includes(seg)? prev.insurance_names.filter((s: string) => s !== seg) : [...prev.insurance_names, seg] }))
   const submit = (e: React.FormEvent) => { e.preventDefault(); onSave({ consultation_price_first_time: form.consultation_price_first_time? Number(form.consultation_price_first_time) : null, consultation_price_general: form.consultation_price_general? Number(form.consultation_price_general) : null, accepts_insurance: form.accepts_insurance, insurance_names: form.insurance_names, whatsapp_available: form.whatsapp_available, whatsapp_phone: form.whatsapp_phone || null, clinic_phone: form.clinic_phone || null }) }
   return (
     <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
