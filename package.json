@@ -5,7 +5,7 @@
   "packageManager": "pnpm@11.5.3",
   "scripts": {
     "dev": "next dev",
-    "build": "node --max-old-space-size=4096 node_modules/.bin/next build"
+    "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "test:hema": "pnpm --filter '@salurama/hema-*' test",
