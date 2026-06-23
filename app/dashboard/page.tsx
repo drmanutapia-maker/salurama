@@ -737,7 +737,7 @@ export default function DashboardMedico() {
               <span style={{ color: '#9CA3AF', marginLeft: 4 }}>este mes</span>
             </div>
             <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', gap: 4, color: '#2A9D8F', fontSize: 13, fontWeight: 600 }}>
-              {stats?.citas_pendientes > 0 ? 'Responder ahora' : 'Ver historial'} <ArrowRight size={14} />
+              {(stats?.citas_pendientes ?? 0) > 0 ? 'Responder ahora' : 'Ver historial'} <ArrowRight size={14} />
             </div>
           </Link>
 
