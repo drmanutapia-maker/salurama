@@ -147,6 +147,8 @@ interface Medico {
   years_experience: number | null
   languages: string[]
   horario: Record<string, unknown> | null
+  cp: string | null
+  postal_code: string | null
 }
 
 interface SpecialtyWithLicense {
