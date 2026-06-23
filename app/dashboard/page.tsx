@@ -58,6 +58,7 @@ interface Consejo {
   cta: string
   link: string
   color: string
+  completo?: boolean
 }
 
 export default function DashboardMedico() {
