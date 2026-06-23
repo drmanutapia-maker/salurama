@@ -1,0 +1,13 @@
+npm warn Unknown project config "public-hoist-pattern". This will stop working in the next major version of npm.
+npm warn Unknown project config "auto-install-peers". This will stop working in the next major version of npm.
+npm warn Unknown project config "strict-peer-dependencies". This will stop working in the next major version of npm.
+app/hema/pacientes/[id]/page.tsx(593,18): error TS2352: Conversion of type '{ id: any; status: any; cycle_number: any; scheduled_for: any; protocols: { code: any; name: any; }[]; }[] | null' to type 'RecentOrder[]' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type '{ id: any; status: any; cycle_number: any; scheduled_for: any; protocols: { code: any; name: any; }[]; }[]' is not comparable to type 'RecentOrder[]'.
+    Type '{ id: any; status: any; cycle_number: any; scheduled_for: any; protocols: { code: any; name: any; }[]; }' is not comparable to type 'RecentOrder'.
+      Types of property 'protocols' are incompatible.
+        Type '{ code: any; name: any; }[]' is missing the following properties from type '{ code: string; name: string; }': code, name
+app/hema/pacientes/[id]/page.tsx(611,28): error TS2352: Conversion of type '{ id: any; diagnosis_code: any; diagnosed_at: any; staging: any; is_primary: any; diagnoses: { code: any; description_es: any; category: any; }[]; }[]' to type 'PatientDiagnosis[]' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type '{ id: any; diagnosis_code: any; diagnosed_at: any; staging: any; is_primary: any; diagnoses: { code: any; description_es: any; category: any; }[]; }' is not comparable to type 'PatientDiagnosis'.
+    Types of property 'diagnoses' are incompatible.
+      Type '{ code: any; description_es: any; category: any; }[]' is missing the following properties from type '{ code: string; description_es: string; category: string | null; }': code, description_es, category
+components/BottomNav.tsx(81,51): error TS2339: Property 'exact' does not exist on type '{ href: string; label: string; icon: ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>; }'.

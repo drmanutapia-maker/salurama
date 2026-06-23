@@ -1,0 +1,22 @@
+npm warn Unknown project config "public-hoist-pattern". This will stop working in the next major version of npm.
+npm warn Unknown project config "auto-install-peers". This will stop working in the next major version of npm.
+npm warn Unknown project config "strict-peer-dependencies". This will stop working in the next major version of npm.
+
+<--- Last few GCs --->
+
+[34440:000001E7CDBBD000]    40441 ms: Scavenge (interleaved) 2044.5 (2048.7) -> 2044.5 (2049.7) MB, pooled: 0 MB, 18.77 / 0.00 ms  (average mu = 0.234, current mu = 0.179) allocation failure; 
+[34440:000001E7CDBBD000]    41694 ms: Mark-Compact (reduce) 2044.6 (2049.7) -> 2044.6 (2047.7) MB, pooled: 0 MB, 1038.61 / 0.00 ms  (+ 2.3 ms in 2 steps since start of marking, biggest step 2.0 ms, walltime since start of marking 1049 ms) (average mu = 0.
+FATAL ERROR: Ineffective mark-compacts near heap limit Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+ 1: 00007FF75CC7C36F node::OnFatalError+1343
+ 2: 00007FF75D8C4D77 v8::Function::NewInstance+423
+ 3: 00007FF75D6C5467 v8::base::AddressSpaceReservation::AddressSpaceReservation+322071
+ 4: 00007FF75D6C9174 v8::base::AddressSpaceReservation::AddressSpaceReservation+337700
+ 5: 00007FF75D6D810C v8::internal::StrongRootAllocatorBase::deallocate_impl+16604
+ 6: 00007FF75D6D794B v8::internal::StrongRootAllocatorBase::deallocate_impl+14619
+ 7: 00007FF75EB5DAED v8::base::UnsignedDivisionByConstant<unsigned __int64>+2791421
+ 8: 00007FF75D6C2F30 v8::base::AddressSpaceReservation::AddressSpaceReservation+312544
+ 9: 00007FF75D746C09 v8::Unlocker::~Unlocker+9273
+10: 00007FF75D2BC842 v8::String::Utf8Value::~Utf8Value+142210
+11: 000001E79FE7733A 

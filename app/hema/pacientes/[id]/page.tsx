@@ -589,8 +589,8 @@ export default function PatientProfilePage() {
 
       setPatient(rows[0])
       setMeasurements((measRes.data as Measurement[]) ?? [])
-      setDiagnoses((dxRes.data as any[]) ?? [])
-      setOrders((ordRes.data as RecentOrder[]) ?? [])
+      setDiagnoses(((dxRes.data as unknown) as PatientDiagnosis[]) ?? [])
+      setOrders(((ordRes.data as unknown) as RecentOrder[]) ?? [])
       if (labRes.error) console.error('hema_get_lab_panels:', labRes.error.message)
       const labRows = (labRes.data as { collected_at: string; lab_values: LabValueRow[] }[]) ?? []
       setLabPanel(labRows[0] ? { collected_at: labRows[0].collected_at, values: labRows[0].lab_values } : null)
@@ -608,7 +608,7 @@ export default function PatientProfilePage() {
       .select('id, diagnosis_code, diagnosed_at, staging, is_primary, diagnoses(code, description_es, category)')
       .eq('patient_id', patientId)
       .order('is_primary', { ascending: false })
-    if (data) setDiagnoses(data as PatientDiagnosis[])
+    if (data) setDiagnoses((data as unknown) as PatientDiagnosis[])
   }
 
   if (loading) {

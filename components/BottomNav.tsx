@@ -7,8 +7,10 @@ import {
   Search, Heart, Calendar, User,
   Home, Clock, BarChart3
 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 
 type Role = 'doctor' | 'patient' | null
+type NavItem = { href: string; label: string; icon: LucideIcon; exact?: boolean }
 
 export default function BottomNav() {
   const pathname = usePathname()
@@ -55,14 +57,14 @@ export default function BottomNav() {
   // No renderiza nada hasta saber el rol, y nunca en logout
   if (!role) return null
 
-  const doctorNav = [
+  const doctorNav: NavItem[] = [
     { href: '/dashboard', label: 'Inicio', icon: Home, exact: true },
     { href: '/dashboard/horario', label: 'Horarios', icon: Clock },
     { href: '/dashboard/citas', label: 'Citas', icon: Calendar },
     { href: '/dashboard/estadisticas', label: 'Stats', icon: BarChart3 },
   ]
 
-  const patientNav = [
+  const patientNav: NavItem[] = [
     { href: '/buscar', label: 'Buscar', icon: Search },
     { href: '/favoritos', label: 'Favoritos', icon: Heart },
     { href: '/citas', label: 'Citas', icon: Calendar },
