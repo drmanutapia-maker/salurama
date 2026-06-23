@@ -12,55 +12,80 @@ export default function VerificarCitaPage() {
   const [message, setMessage] = useState('')
 
   useEffect(() => {
-  if (!token) {
-    setStatus('error')
-    setMessage('Token no válido.')
-    return
-  }
-
-  async function verify() {
-    console.log('🔍 Verificando token:', token)
-
-    const { data: cita, error } = await supabase
-      .from('citas')
-      .select('*')
-      .eq('verification_token', token)
-      .single()
-
-    console.log('📦 Cita encontrada:', cita)
-    console.log('📦 Error:', error)
-
-    if (error || !cita) {
+    if (!token) {
       setStatus('error')
-      setMessage(`Este enlace no es válido o ya expiró. Token: ${token.slice(0, 8)}...`)
+      setMessage('Token no válido.')
       return
     }
 
-    if (cita.estado === 'confirmed') {
+    async function verify() {
+      const { data: cita, error } = await supabase
+        .from('citas')
+        .select('*')
+        .eq('verification_token', token)
+        .single()
+
+      if (error || !cita) {
+        setStatus('error')
+        setMessage('Este enlace no es válido o ya expiró.')
+        return
+      }
+
+      if (cita.estado === 'confirmed') {
+        setStatus('success')
+        setMessage('Esta cita ya estaba confirmada.')
+        return
+      }
+
+      const { error: updateError } = await supabase
+        .from('citas')
+        .update({ estado: 'confirmed' })
+        .eq('id', cita.id)
+
+      if (updateError) {
+        setStatus('error')
+        setMessage('Error al confirmar la cita. Intenta de nuevo.')
+        return
+      }
+
+      // Notificar al médico
+      const { data: citaData } = await supabase
+        .from('citas')
+        .select('medico_id, paciente_nombre, fecha, hora')
+        .eq('id', cita.id)
+        .single()
+
+      if (citaData) {
+        const { data: medicoData } = await supabase
+          .from('doctors')
+          .select('email, full_name')
+          .eq('id', citaData.medico_id)
+          .single()
+
+        if (medicoData?.email) {
+          const d = new Date(citaData.fecha + 'T00:00:00')
+          const fechaFormateada = d.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })
+
+          fetch('/api/notify-doctor', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: medicoData.email,
+              doctorName: medicoData.full_name,
+              patientName: citaData.paciente_nombre,
+              fecha: fechaFormateada,
+              hora: citaData.hora?.slice(0, 5),
+            }),
+          }).catch(console.error)
+        }
+      }
+
       setStatus('success')
-      setMessage('Esta cita ya estaba confirmada.')
-      return
+      setMessage('¡Cita confirmada con éxito!')
     }
 
-    const { error: updateError } = await supabase
-      .from('citas')
-      .update({ estado: 'confirmed' })
-      .eq('id', cita.id)
-
-    console.log('📦 Update error:', updateError)
-
-    if (updateError) {
-      setStatus('error')
-      setMessage('Error al confirmar la cita. Intenta de nuevo.')
-      return
-    }
-
-    setStatus('success')
-    setMessage('¡Cita confirmada con éxito!')
-  }
-
-  verify()
-}, [token])
+    verify()
+  }, [token])
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif", background: '#F9FAFB', padding: 20 }}>

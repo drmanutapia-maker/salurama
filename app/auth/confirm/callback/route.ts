@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
 
   // ── Flujo 1: token_hash (email de recuperación con {{ .TokenHash }}) ────────
   if (tokenHash && type) {
-    const { error } = await supabase.auth.verifyOtp({
+    const { data, error } = await supabase.auth.verifyOtp({
       token_hash: tokenHash,
       type: type as 'recovery' | 'signup' | 'email',
     })
@@ -37,6 +37,11 @@ export async function GET(request: NextRequest) {
     if (error) {
       console.error('[auth/callback] verifyOtp error:', error.message)
       return NextResponse.redirect(`${origin}/login?error=invalid_link`)
+    }
+
+    // Si verifyOtp devolvió una sesión, forzar el refresh de cookies
+    if (data?.session) {
+      await supabase.auth.setSession(data.session)
     }
 
     // Recuperación de contraseña → ir a reset-password
@@ -50,11 +55,15 @@ export async function GET(request: NextRequest) {
 
   // ── Flujo 2: code (PKCE — OAuth, magic links) ─────────────────────────────
   if (code) {
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
     if (error) {
       console.error('[auth/callback] exchangeCodeForSession error:', error.message)
       return NextResponse.redirect(`${origin}/login?error=auth_callback_failed`)
+    }
+
+    if (data?.session) {
+      await supabase.auth.setSession(data.session)
     }
 
     if (type === 'recovery') {

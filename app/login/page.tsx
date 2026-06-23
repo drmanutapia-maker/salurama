@@ -301,14 +301,36 @@ function LoginContent() {
               <label htmlFor="password" style={{ fontSize: 14, fontWeight: 600, color: '#374151' }}>
                 Contraseña
               </label>
-              <Link
-                href="/reset-password"
-                style={{ fontSize: 13, color: '#1E3A5F', fontWeight: 500, textDecoration: 'none' }}
-                onMouseEnter={(e) => (e.currentTarget.style.textDecoration = 'underline')}
-                onMouseLeave={(e) => (e.currentTarget.style.textDecoration = 'none')}
-              >
-                ¿Olvidaste tu contraseña?
-              </Link>
+              
+<button
+  type="button"
+  onClick={async () => {
+    if (!email.trim()) {
+      setFeedback({ message: 'Ingresa tu email para recuperar tu contraseña' })
+      return
+    }
+    setLoading(true)
+    const { error } = await supabase.auth.resetPasswordForEmail(email.toLowerCase().trim(), {
+      redirectTo: `${window.location.origin}/auth/confirm/callback`,
+    })
+    setLoading(false)
+    if (error) {
+      setFeedback({ message: error.message })
+    } else {
+      setFeedback({ message: 'Te enviamos un link de recuperación. Revisa tu email.', isSuccess: true })
+    }
+  }}
+  style={{
+    fontSize: 13, color: '#1E3A5F', fontWeight: 500,
+    background: 'none', border: 'none', cursor: 'pointer',
+    fontFamily: "'DM Sans', sans-serif", padding: 0
+  }}
+  onMouseEnter={(e) => (e.currentTarget.style.textDecoration = 'underline')}
+  onMouseLeave={(e) => (e.currentTarget.style.textDecoration = 'none')}
+>
+  ¿Olvidaste tu contraseña?
+</button>
+
             </div>
             <div style={{ position: 'relative' }}>
               <Lock size={16} color="#9CA3AF" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />

@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: data.email,
       password: data.password,
-      email_confirm: false,
+      email_confirm: true,
       user_metadata: { full_name: data.full_name, role: 'doctor' }
     })
     if (authError) throw authError
@@ -118,10 +118,10 @@ export async function POST(request: NextRequest) {
         specialty_council: data.specialty_council || null,
         license_not_current: data.license_not_current || false,
         cp: data.cp,
-        location_state: data.estado,
-        location_city: data.ciudad,
-        location_neighborhood: data.colonia,
-        address: data.direccion || null,
+        estado: data.estado,
+        ciudad: data.ciudad,
+        colonia: data.colonia,
+        street: data.direccion || null,
         clinic_address: fullAddress,
         clinic_lat: lat,
         clinic_lng: lng,

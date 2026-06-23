@@ -480,6 +480,7 @@ export default function DoctorProfilePage() {
         const { data, error } = await supabase.from('doctors').select('*').eq('id', id as string).single()
         if (error || !data) { setError(true); return }
         setMedico(data)
+        supabase.from('doctors').update({ profile_views: (data.profile_views || 0) + 1 }).eq('id', data.id).then()
         const { data: { user } } = await supabase.auth.getUser()
         if (user?.email === data.email) {
           setIsOwner(true)
@@ -497,7 +498,7 @@ export default function DoctorProfilePage() {
         setConditions(condRes.data || [])
         setReviews((revRes.data || []).map((r: any) => ({
           id: r.id,
-          user_name: r.user_name || 'Paciente',
+          user_name: 'Paciente verificado',
           rating: r.rating,
           comment: r.comment,
           created_at: r.created_at
@@ -633,13 +634,11 @@ export default function DoctorProfilePage() {
             )}
           </div>
           <div>
-            {/* Nombre + especialidad (sin competir con botones) */}
             <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: isMobile ? 28 : 40, fontWeight: 900, color: '#1E3A5F', marginBottom: 4, lineHeight: 1.1 }}>
               {titlePrefix}{displayName}
             </h1>
             <p style={{ fontSize: 15, color: '#6B7280', marginBottom: 12 }}>{medico.specialty}{medico.sub_specialty && ` · ${medico.sub_specialty}`}</p>
 
-            {/* Redes sociales + Compartir (iconos circulares unificados) */}
             {(tieneRedes || true) && (
               <div style={{ display: 'flex', gap: 10, marginBottom: 16, alignItems: 'center' }}>
                 {medico.facebook_url && (
@@ -909,7 +908,7 @@ export default function DoctorProfilePage() {
                             <div style="width:40px;height:40px;background:#33CCFF;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700">W</div>
                             <div><div style="font-weight:600">Waze</div><div style="font-size:12px;color:#6B7280">Tráfico en tiempo real</div></div>
                           </a>
-                          <a href="http://maps.apple.com/?daddr=${latNum},${lngNum}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:12px;padding:14px;background:#F9FAFB;border-radius:12px;text-decoration:none;color:#111" onclick="setTimeout(()=>this.closest('div[style*=fixed]').remove(),300)">
+                          <a href="http://maps.apple.com/?daddr=${latNum},${lngNum}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:12px;padding:14px;background:#F9FAFB;border-radius:12px;textDecoration:none;color:#111" onclick="setTimeout(()=>this.closest('div[style*=fixed]').remove(),300)">
                             <div style="width:40px;height:40px;background:#000;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700"></div>
                             <div><div style="font-weight:600">Apple Maps</div><div style="font-size:12px;color:#6B7280">Para iPhone</div></div>
                           </a>
@@ -985,29 +984,59 @@ export default function DoctorProfilePage() {
               </div>
             )}
 
-            {/* WhatsApp */}
-            {medico.whatsapp_available && medico.whatsapp_phone && (
+            {/* Contacto */}
+            {(medico.whatsapp_available || medico.clinic_phone) && (
               <div className="fade-up" style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #E5E7EB' }}>
                 <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1E3A5F', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <MessageCircle size={16} /> Contacto directo
+                  <Phone size={16} /> Contacto
                 </h3>
-                <a
-                  href={`https://wa.me/52${medico.whatsapp_phone.replace(/\D/g, '')}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: '#25D366', color: '#fff', borderRadius: 10, textDecoration: 'none', fontWeight: 600, fontSize: 13, justifyContent: 'center' }}
-                >
-                  <MessageCircle size={16} /> WhatsApp
-                </a>
+                {medico.whatsapp_available && medico.whatsapp_phone && (
+                  <a
+                    href={`https://wa.me/52${medico.whatsapp_phone.replace(/\D/g, '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: '#25D366', color: '#fff', borderRadius: 10, textDecoration: 'none', fontWeight: 600, fontSize: 13, justifyContent: 'center', marginBottom: medico.clinic_phone ? 8 : 0 }}
+                  >
+                    <MessageCircle size={16} /> WhatsApp
+                  </a>
+                )}
                 {medico.clinic_phone && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10, fontSize: 13, color: '#6B7280', justifyContent: 'center' }}>
-                    <Phone size={14} /> {medico.clinic_phone}
-                  </div>
+                  <a
+                    href={`tel:${medico.clinic_phone}`}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: '#1E3A5F', color: '#fff', borderRadius: 10, textDecoration: 'none', fontWeight: 600, fontSize: 13, justifyContent: 'center' }}
+                  >
+                    <Phone size={16} /> {medico.clinic_phone}
+                  </a>
                 )}
               </div>
             )}
           </div>
         </div>
+      {reviews.length > 0 && (
+  <section className="fade-up" style={{ maxWidth: 1200, margin: '40px auto 0', padding: '0 20px' }}>
+    <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 900, color: '#1E3A5F', marginBottom: 16 }}>
+      Reseñas de pacientes ({reviews.length})
+    </h2>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {reviews.map((r: any) => (
+        <div key={r.id} style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #E5E7EB' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>Paciente verificado</span>
+            <div style={{ display: 'flex', gap: 2 }}>
+              {[1, 2, 3, 4, 5].map(i => (
+                <Star key={i} size={16} color="#F59E0B" fill={i <= r.rating ? '#F59E0B' : 'none'} />
+              ))}
+            </div>
+          </div>
+          {r.comment && <p style={{ fontSize: 14, color: '#4A5568', lineHeight: 1.6 }}>{r.comment}</p>}
+          <p style={{ fontSize: 11, color: '#9CA3AF', marginTop: 8 }}>
+            {new Date(r.created_at).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}
+          </p>
+        </div>
+      ))}
+    </div>
+  </section>
+)}  
       </main>
 
       {/* Toast: Link copiado */}

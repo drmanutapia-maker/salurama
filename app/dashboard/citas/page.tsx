@@ -18,9 +18,11 @@ interface Cita {
   motivo: string | null
   estado: 'pending_verification' | 'confirmed' | 'completed' | 'cancelled'
   created_at: string
+  review_token?: string | null
 }
 
 interface MedicoData {
+  id: string
   full_name: string
   specialty: string
   clinic_lat: number | null
@@ -75,6 +77,15 @@ export default function CitasPage() {
   }, [router, cargarCitas])
 
   const cambiarEstado = async (citaId: string, nuevoEstado: Cita['estado']) => {
+    // Validar: no permitir completar citas futuras
+    if (nuevoEstado === 'completed') {
+      const cita = citas.find(c => c.id === citaId)
+      if (cita && new Date(cita.fecha + 'T00:00') > new Date()) {
+        showToast('No puedes completar una cita futura', 'error')
+        return
+      }
+    }
+
     setProcesando(citaId + nuevoEstado)
     const { error } = await supabase
       .from('citas')
@@ -93,52 +104,22 @@ export default function CitasPage() {
       completed: 'Marcada como completada',
     }
     showToast(labels[nuevoEstado] || 'Cita actualizada', 'success')
-
-// Si se marcó como completada, enviar email de reseña
-if (nuevoEstado === 'completed') {
-  const cita = citas.find(c => c.id === citaId)
-  if (cita?.paciente_email) {
-    const reviewToken = crypto.randomUUID()
-    
-    await supabase.from('citas').update({ 
-      review_token: reviewToken, 
-      review_sent_at: new Date().toISOString() 
-    }).eq('id', citaId)
-    
-    const { data: { session } } = await supabase.auth.getSession()
-    
-    if (session?.access_token) {
-      fetch('/api/send-review-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          email: cita.paciente_email,
-          token: reviewToken,
-          doctorName: medico?.full_name || 'tu médico',
-        }),
-      }).catch(console.error)
-    }
-  }
-}
-
     setProcesando(null)
 
-    // Si se marcó como completada, enviar email de reseña
+    // Si se marcó como completada, enviar email de reseña (solo si no tiene token previo)
     if (nuevoEstado === 'completed') {
       const cita = citas.find(c => c.id === citaId)
-      if (cita?.paciente_email) {
+      if (cita?.paciente_email && !cita.review_token) {
         const reviewToken = crypto.randomUUID()
         
-        // Guardar token en la cita
         await supabase.from('citas').update({ 
           review_token: reviewToken, 
           review_sent_at: new Date().toISOString() 
         }).eq('id', citaId)
         
-        // Obtener el token JWT de la sesión actual
+        // Actualizar el estado local para que no se envíe dos veces
+        setCitas(prev => prev.map(c => c.id === citaId ? { ...c, review_token: reviewToken } : c))
+        
         const { data: { session } } = await supabase.auth.getSession()
         
         if (session?.access_token) {
@@ -213,7 +194,7 @@ if (nuevoEstado === 'completed') {
       msg += `%0A📍 Cómo llegar: https://maps.google.com/?q=${medico.clinic_lat},${medico.clinic_lng}`
     }
     
-    msg += `%0A¿Tienes alguna duda?`
+    msg += `%0A¿Tienes alguna duda? Confírmame por favor.`
     
     return `https://wa.me/52${clean}?text=${msg}`
   }

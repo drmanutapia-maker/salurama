@@ -29,7 +29,6 @@ function VerifyReviewContent() {
     let cancelled = false
 
     async function load() {
-      // Buscar cita por review_token
       const { data: citaData, error } = await supabase
         .from('citas')
         .select('id, medico_id, paciente_nombre, paciente_email, fecha, review_token')
@@ -44,7 +43,6 @@ function VerifyReviewContent() {
         return
       }
 
-      // Ver si ya existe reseña para esta cita
       const { data: existingReview } = await supabase
         .from('reviews')
         .select('id')
@@ -57,7 +55,6 @@ function VerifyReviewContent() {
         return
       }
 
-      // Obtener nombre del médico
       const { data: medicoData } = await supabase
         .from('doctors')
         .select('full_name')
@@ -83,12 +80,28 @@ function VerifyReviewContent() {
     try {
       await supabase.from('reviews').insert({
         doctor_id: appointment.medico_id,
-        user_name: appointment.paciente_nombre,
         rating,
         comment: comment.trim() || null,
         is_visible: true,
         cita_id: appointment.id
       })
+
+      // Actualizar rating del médico
+      const { data: ratingData } = await supabase
+        .from('reviews')
+        .select('rating')
+        .eq('doctor_id', appointment.medico_id)
+
+      if (ratingData && ratingData.length > 0) {
+        const avg = ratingData.reduce((sum: number, r: any) => sum + r.rating, 0) / ratingData.length
+        await supabase
+          .from('doctors')
+          .update({ 
+            rating_avg: Math.round(avg * 10) / 10, 
+            rating_count: ratingData.length 
+          })
+          .eq('id', appointment.medico_id)
+      }
 
       setStatus('submitted')
       setTimeout(() => router.replace(`/doctor/${appointment.medico_id}?review=thanks`), 2000)

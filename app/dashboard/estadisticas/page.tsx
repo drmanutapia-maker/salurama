@@ -16,7 +16,6 @@ interface Review {
   id: string
   rating: number
   comment: string
-  user_name: string
   created_at: string
 }
 
@@ -51,7 +50,7 @@ export default function EstadisticasPage() {
 
       const [citasRes, reviewsRes, eduRes, expRes, condRes] = await Promise.all([
         supabase.from('citas').select('id, estado, fecha').eq('medico_id', doc.id).order('fecha'),
-        supabase.from('reviews').select('id, rating, comment, user_name, created_at').eq('doctor_id', doc.id).eq('is_visible', true).order('created_at', { ascending: false }),
+        supabase.from('reviews').select('id, rating, comment, created_at').eq('doctor_id', doc.id).eq('is_visible', true).order('created_at', { ascending: false }),
         supabase.from('doctor_education').select('id').eq('doctor_id', doc.id),
         supabase.from('doctor_experience').select('id').eq('doctor_id', doc.id),
         supabase.from('doctor_conditions').select('id').eq('doctor_id', doc.id),
@@ -259,7 +258,7 @@ export default function EstadisticasPage() {
               {reviews.slice(0, 3).map(r => (
                 <div key={r.id} style={{ background: '#F9FAFB', borderRadius: 10, padding: '14px 16px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{r.user_name || 'Paciente'}</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>Paciente verificado</span>
                     <div style={{ display: 'flex', gap: 2 }}>
                       {Array.from({ length: 5 }).map((_, i) => (
                         <Star key={i} size={12} color="#F59E0B" fill={i < r.rating ? '#F59E0B' : 'none'} />
