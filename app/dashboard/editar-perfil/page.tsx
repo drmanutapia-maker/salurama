@@ -127,6 +127,7 @@ interface Medico {
   location_city: string
   location_state: string | null
   location_neighborhood: string | null
+  cp: string | null
   postal_code: string | null
   location_municipality: string | null
   about_me: string | null
@@ -147,8 +148,6 @@ interface Medico {
   years_experience: number | null
   languages: string[]
   horario: Record<string, unknown> | null
-  cp: string | null
-  postal_code: string | null
 }
 
 interface SpecialtyWithLicense {
