@@ -127,6 +127,8 @@ interface Medico {
   location_city: string
   location_state: string | null
   location_neighborhood: string | null
+  ciudad: string | null
+  estado: string | null
   cp: string | null
   postal_code: string | null
   location_municipality: string | null
@@ -673,7 +675,7 @@ export default function EditarPerfilPage() {
         <div style={{ flex: 1 }}>
           <p style={{ fontSize: 14, fontWeight: 700, color: '#92400E', marginBottom: 4 }}>Completa tu dirección exacta</p>
           <p style={{ fontSize: 13, color: '#78350F', lineHeight: 1.4, marginBottom: 8 }}>
-            Tienes registrado: <strong>CP {medico.cp || medico.postal_code}</strong> · {medico.ciudad || medico.location_city}
+            Tienes registrado: <strong>CP {medico.cp || medico.postal_code}</strong> · {medico.ciudad || medico.location_city || ''}
             <br />Falta: calle, número y colonia específica
           </p>
           <p style={{ fontSize: 12, color: '#92400E' }}>Sin esto, no apareces en búsquedas "cerca de mí"</p>
