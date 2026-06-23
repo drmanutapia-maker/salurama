@@ -1,10 +1,10 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { Suspense, useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react'
 
-export default function VerificarCitaPage() {
+function VerificarCitaContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const token = searchParams.get('token')
@@ -124,5 +124,18 @@ export default function VerificarCitaPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function VerificarCitaPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F9FAFB' }}>
+        <Loader2 size={32} color="#8B5CF6" style={{ animation: 'spin 0.8s linear infinite' }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    }>
+      <VerificarCitaContent />
+    </Suspense>
   )
 }
