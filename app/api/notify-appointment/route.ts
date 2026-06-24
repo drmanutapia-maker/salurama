@@ -2,7 +2,10 @@ import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { z } from 'zod'
 
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
+function getResend() {
+  if (!process.env.RESEND_API_KEY) return null
+  return new Resend(process.env.RESEND_API_KEY)
+}
 
 const notifySchema = z.object({
   patientEmail: z.string().email(),
@@ -23,12 +26,12 @@ function sanitizeHtml(str: string): string {
 
 export async function POST(request: Request) {
   try {
-    // Auth con secret interno (llamada servidor-a-servidor)
     const auth = request.headers.get('authorization')
     if (auth !== `Bearer ${process.env.INTERNAL_API_SECRET}`) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const resend = getResend()
     if (!resend) {
       return NextResponse.json({ error: 'Email service not configured' }, { status: 503 })
     }
@@ -55,7 +58,6 @@ export async function POST(request: Request) {
     const bodyStyle = `padding:40px 32px;`
     const footerStyle = `background:#F3F4F6;padding:24px;text-align:center;`
 
-    // Email al paciente
     const patientHtml = `
       <!DOCTYPE html><html><body style="${baseStyle}">
         <table width="100%" cellpadding="0" cellspacing="0" style="${baseStyle}padding:40px 20px;">
@@ -85,7 +87,6 @@ export async function POST(request: Request) {
       </body></html>
     `
 
-    // Email al médico
     const doctorHtml = `
       <!DOCTYPE html><html><body style="${baseStyle}">
         <table width="100%" cellpadding="0" cellspacing="0" style="${baseStyle}padding:40px 20px;">

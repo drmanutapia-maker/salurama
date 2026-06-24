@@ -1,6 +1,12 @@
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+let _resend: Resend | null = null
+function getResend() {
+  if (!_resend) {
+    _resend = new Resend(process.env.RESEND_API_KEY)
+  }
+  return _resend
+}
 
 export async function sendVerificationEmail(
   to: string,
@@ -8,6 +14,7 @@ export async function sendVerificationEmail(
   medicoNombre: string,
   citaFecha: string
 ) {
+  const resend = getResend()
   const verificationUrl = `${process.env.NEXT_PUBLIC_URL || 'https://salurama.com'}/verificar-cita?token=${token}`
 
   try {

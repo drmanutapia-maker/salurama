@@ -3,7 +3,10 @@ import { createClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
 import { z } from 'zod'
 
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
+function getResend() {
+  if (!process.env.RESEND_API_KEY) return null
+  return new Resend(process.env.RESEND_API_KEY)
+}
 
 const schema = z.object({
   email: z.string().email(),
@@ -13,7 +16,6 @@ const schema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    // Verify Supabase JWT — the doctor must be authenticated (dashboard call)
     const authHeader = request.headers.get('authorization')
     if (!authHeader?.startsWith('Bearer ')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -33,6 +35,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const resend = getResend()
     if (!resend) {
       return NextResponse.json({ error: 'Email not configured' }, { status: 503 })
     }
