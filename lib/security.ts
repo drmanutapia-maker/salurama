@@ -1,14 +1,20 @@
 import { Ratelimit } from "@upstash/ratelimit"
 import { Redis } from "@upstash/redis"
 
-const redis = Redis.fromEnv()
+let _ratelimit: Ratelimit | null = null
 
-export const ratelimit = new Ratelimit({
-  redis,
-  limiter: Ratelimit.slidingWindow(5, "1 h"),
-  analytics: true,
-  prefix: "salurama_ratelimit",
-})
+export function getRatelimit() {
+  if (!_ratelimit) {
+    const redis = Redis.fromEnv()
+    _ratelimit = new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(5, "1 h"),
+      analytics: true,
+      prefix: "salurama_ratelimit",
+    })
+  }
+  return _ratelimit
+}
 
 export const validateEmail = (email: string) => {
   const disposableDomains = [
