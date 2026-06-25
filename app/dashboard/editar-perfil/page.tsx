@@ -7,6 +7,7 @@ import {
   DollarSign, Shield, Camera, Eye, CheckCircle, MapPin
 } from 'lucide-react'
 import BackButton from '@/components/BackButton'
+import LocationPicker from '@/components/LocationPicker'
 import { useCP } from '@/hooks/useCP'
 
 const UNIVERSIDADES_MEXICO = [
@@ -832,6 +833,7 @@ function LocationForm({ medico, onSave, saving }: any) {
   })
 
   const [editandoCP, setEditandoCP] = useState(!form.cp)
+  const [pinCoords, setPinCoords] = useState<{ lat: number; lng: number } | null>(null)
 
   useEffect(() => {
     if (cpData) {
@@ -841,6 +843,9 @@ function LocationForm({ medico, onSave, saving }: any) {
         ciudad: cpData.municipio,
         colonia: cpData.colonias.length === 1? cpData.colonias[0].nombre : ''
       }))
+      if (cpData.lat && cpData.lng) {
+        setPinCoords({ lat: cpData.lat, lng: cpData.lng })
+      }
     }
   }, [cpData])
 
@@ -873,43 +878,8 @@ function LocationForm({ medico, onSave, saving }: any) {
       return
     }
 
-    let lat = medico.clinic_lat, lng = medico.clinic_lng
-    const cpChanged = form.cp !== (medico.cp ?? '')
-
-    // 1. Si el CP cambió, obtener coords del nuevo CP desde sepomex como base
-    if (cpChanged && form.cp.length === 5) {
-      try {
-        const sepRes = await fetch(`/api/sepomex?cp=${form.cp}`)
-        if (sepRes.ok) {
-          const rows = await sepRes.json()
-          if (Array.isArray(rows) && rows.length > 0 && rows[0].lat && rows[0].lng) {
-            lat = rows[0].lat
-            lng = rows[0].lng
-          }
-        }
-      } catch (err) {
-        console.error('Error obteniendo coords de sepomex:', err)
-      }
-    }
-
-    // 2. Intentar geocoding preciso por dirección completa (mejora sobre coords de CP)
-    try {
-      const fullAddress = `${form.street} ${form.ext_number}, ${form.colonia}, ${form.ciudad}, ${form.estado}, ${form.cp}, México`
-      const geoRes = await fetch('/api/geocode', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address: fullAddress })
-      })
-      if (geoRes.ok) {
-        const geoData = await geoRes.json()
-        if (geoData.lat && geoData.lng) {
-          lat = parseFloat(geoData.lat)
-          lng = parseFloat(geoData.lng)
-        }
-      }
-    } catch (err) {
-      console.error('Error geocoding:', err)
-    }
+    const lat = pinCoords?.lat ?? medico.clinic_lat ?? null
+    const lng = pinCoords?.lng ?? medico.clinic_lng ?? null
 
     const intLabel = isHospital? 'Consultorio' : 'Int.'
     const streetPart = isHospital
@@ -1031,6 +1001,19 @@ function LocationForm({ medico, onSave, saving }: any) {
           />
         </div>
       </div>
+
+      {(pinCoords || (medico?.clinic_lat && medico?.clinic_lng)) && (
+        <div style={{ marginTop: 4 }}>
+          <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: '#374151' }}>
+            Arrastra el pin a la ubicación exacta de tu consultorio
+          </p>
+          <LocationPicker
+            initialLat={pinCoords?.lat || medico?.clinic_lat || 19.4326}
+            initialLng={pinCoords?.lng || medico?.clinic_lng || -99.1332}
+            onLocationChange={(lat, lng) => setPinCoords({ lat, lng })}
+          />
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
         <button type="submit" disabled={saving} style={{...btnPrimary, flex: 1, opacity: saving?0.6:1}}><Save size={15}/> {saving?'Guardando...':'Guardar ubicación'}</button>

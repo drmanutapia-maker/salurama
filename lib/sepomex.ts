@@ -7,6 +7,8 @@ export interface CPResult {
   municipio: string
   ciudad: string
   colonias: Array<{ nombre: string }>
+  lat: number | null
+  lng: number | null
 }
 
 const SepomexRow = z.object({
@@ -15,6 +17,8 @@ const SepomexRow = z.object({
   municipio: z.string(),
   ciudad: z.string().nullable(),
   colonia: z.string(),
+  lat: z.number().nullable().optional(),
+  lng: z.number().nullable().optional(),
 })
 
 /**
@@ -42,6 +46,8 @@ export async function searchCP(cp: string): Promise<CPResult | null> {
     municipio: first.municipio,
     ciudad: first.ciudad || first.municipio,
     colonias,
+    lat: first.lat ?? null,
+    lng: first.lng ?? null,
   }
 }
 
