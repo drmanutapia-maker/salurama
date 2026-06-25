@@ -1,5 +1,9 @@
 User-agent: *
-Disallow: /
+Allow: /
+Disallow: /hema/
+Disallow: /admin/
+Disallow: /dashboard/
+Disallow: /api/
+Disallow: /test-cp/
 
-# Bloquear todo hasta lanzamiento oficial
-# Salurama - Sitio en construcción
+Sitemap: https://salurama.com/sitemap.xml
