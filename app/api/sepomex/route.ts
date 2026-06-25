@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
   if (cp) {
     const { data, error } = await supabaseAdmin
       .from('sepomex')
-      .select('cp, estado, municipio, ciudad, colonia')
+      .select('cp, estado, municipio, ciudad, colonia, lat, lng')
       .eq('cp', cp)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json(data, { headers: HEADERS })

@@ -874,17 +874,32 @@ function LocationForm({ medico, onSave, saving }: any) {
     }
 
     let lat = medico.clinic_lat, lng = medico.clinic_lng
+    const cpChanged = form.cp !== (medico.cp ?? '')
 
-    // GEOCODING CON TU API LOCAL
+    // 1. Si el CP cambió, obtener coords del nuevo CP desde sepomex como base
+    if (cpChanged && form.cp.length === 5) {
+      try {
+        const sepRes = await fetch(`/api/sepomex?cp=${form.cp}`)
+        if (sepRes.ok) {
+          const rows = await sepRes.json()
+          if (Array.isArray(rows) && rows.length > 0 && rows[0].lat && rows[0].lng) {
+            lat = rows[0].lat
+            lng = rows[0].lng
+          }
+        }
+      } catch (err) {
+        console.error('Error obteniendo coords de sepomex:', err)
+      }
+    }
+
+    // 2. Intentar geocoding preciso por dirección completa (mejora sobre coords de CP)
     try {
       const fullAddress = `${form.street} ${form.ext_number}, ${form.colonia}, ${form.ciudad}, ${form.estado}, ${form.cp}, México`
-
       const geoRes = await fetch('/api/geocode', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ address: fullAddress })
       })
-
       if (geoRes.ok) {
         const geoData = await geoRes.json()
         if (geoData.lat && geoData.lng) {
@@ -897,7 +912,10 @@ function LocationForm({ medico, onSave, saving }: any) {
     }
 
     const intLabel = isHospital? 'Consultorio' : 'Int.'
-    const direccionCompleta = `${form.street} ${form.ext_number}, ${form.colonia}, ${form.cp}, ${form.ciudad}, ${form.estado}${currentFloor? `, Piso ${currentFloor}` : ''}${currentInt? `, ${intLabel} ${currentInt}` : ''}`
+    const streetPart = isHospital
+      ? `${form.street} ${form.ext_number}${currentFloor? `, Piso ${currentFloor}` : ''}${currentInt? `, ${intLabel} ${currentInt}` : ''}`
+      : `${form.street} ${form.ext_number}${currentInt? ` ${intLabel} ${currentInt}` : ''}`
+    const direccionCompleta = `${streetPart}, ${form.colonia}, ${form.cp}, ${form.ciudad}, ${form.estado}`
 
     await onSave({
       clinic_type: form.clinic_type,
