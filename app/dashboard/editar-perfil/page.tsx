@@ -814,7 +814,7 @@ function BasicInfoForm({ medico, onSave, saving }: any) {
 }
 
 function LocationForm({ medico, onSave, saving }: any) {
-  const { loading: loadingCP, cpData, search } = useCP()
+  const { loading: loadingCP, error: cpError, cpData, search } = useCP()
 
   const [form, setForm] = useState({
     clinic_type: medico.clinic_type || 'consultorio',
@@ -839,7 +839,7 @@ function LocationForm({ medico, onSave, saving }: any) {
       ...f,
         estado: cpData.estado,
         ciudad: cpData.municipio,
-        colonia: cpData.colonias.length === 1? cpData.colonias[0].nombre : f.colonia
+        colonia: cpData.colonias.length === 1? cpData.colonias[0].nombre : ''
       }))
     }
   }, [cpData])
@@ -979,8 +979,9 @@ function LocationForm({ medico, onSave, saving }: any) {
         </div>
         {editandoCP? (
           <div>
-            <input type="text" value={form.cp} onChange={e => { const cp=e.target.value.replace(/\D/g,'').slice(0,5); setForm({...form, cp}); if(cp.length===5) search(cp) }} maxLength={5} placeholder="Código postal" style={{ width: '100px', padding: '6px 8px', border: '1px solid #D1D5DB', borderRadius: 6, fontSize: 13, marginBottom: 6 }} autoFocus />
+            <input type="text" value={form.cp} onChange={e => { const cp=e.target.value.replace(/\D/g,'').slice(0,5); setForm({...form, cp, estado: '', ciudad: '', colonia: ''}); if(cp.length===5) search(cp) }} maxLength={5} placeholder="Código postal" style={{ width: '100px', padding: '6px 8px', border: '1px solid #D1D5DB', borderRadius: 6, fontSize: 13, marginBottom: 6 }} autoFocus />
             {loadingCP && <span style={{ fontSize: 11, marginLeft: 8 }}>Buscando...</span>}
+            {!loadingCP && cpError && <span style={{ fontSize: 11, marginLeft: 8, color: '#DC2626' }}>{cpError}</span>}
             {form.estado && <p style={{ fontSize: 12, color: '#374151', marginTop: 4 }}>{form.ciudad}, {form.estado}</p>}
           </div>
         ) : (
