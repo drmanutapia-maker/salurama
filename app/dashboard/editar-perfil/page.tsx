@@ -7,7 +7,8 @@ import {
   DollarSign, Shield, Camera, Eye, CheckCircle, MapPin
 } from 'lucide-react'
 import BackButton from '@/components/BackButton'
-import LocationPicker from '@/components/LocationPicker'
+import dynamic from 'next/dynamic'
+const LocationPicker = dynamic(() => import('@/components/LocationPicker'), { ssr: false })
 import { useCP } from '@/hooks/useCP'
 
 const UNIVERSIDADES_MEXICO = [
