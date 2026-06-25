@@ -14,8 +14,9 @@ function getClient() {
 }
 
 const HEADERS = {
-  'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate',
+  'Cache-Control': 'public, max-age=300',
   'X-Content-Type-Options': 'nosniff',
+  'Vary': 'x-full-url',
 }
 
 export async function GET(req: NextRequest) {
