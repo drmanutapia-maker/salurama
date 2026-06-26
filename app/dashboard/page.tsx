@@ -1,12 +1,12 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   X, ZoomIn, Calendar, Edit2, Eye, Share2,
   TrendingUp, Star, Users, MoreVertical, Lightbulb,
-  CheckCircle, ArrowRight, MessageCircle, Copy,
+  CheckCircle, ArrowRight,
   PartyPopper, Sparkles
 } from 'lucide-react'
 
@@ -66,8 +66,7 @@ export default function DashboardMedico() {
   const [medico, setMedico] = useState<Medico | null>(null)
   const [loading, setLoading] = useState(true)
   const [showPhotoModal, setShowPhotoModal] = useState(false)
-  const [showShareMenu, setShowShareMenu] = useState(false)
-  const [shareMenuPos, setShareMenuPos] = useState<{ top: number; left: number } | null>(null)
+
   const [copied, setCopied] = useState(false)
   const [citasHoy, setCitasHoy] = useState<Cita[]>([])
   const [stats, setStats] = useState<StatsResumen | null>(null)
@@ -75,25 +74,12 @@ export default function DashboardMedico() {
   const [profileCompletion, setProfileCompletion] = useState(0)
   const [isMobile, setIsMobile] = useState(false)
   const [photoTs] = useState(() => Date.now())
-  const shareRef = useRef<HTMLDivElement>(null)
-
   // Detectar mobile
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 640)
     checkMobile()
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
-  }, [])
-
-  // Cerrar menú de compartir al hacer click fuera
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (shareRef.current && !shareRef.current.contains(e.target as Node)) {
-        setShowShareMenu(false)
-      }
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
   }, [])
 
   // Carga principal de datos
@@ -369,25 +355,27 @@ export default function DashboardMedico() {
     return p.length === 1 ? p[0] : `${p[0]} ${p[p.length - 2] || p[1]}`
   }
 
-  const handleShare = (method: 'whatsapp' | 'copy') => {
+  const handleShare = async () => {
     const profileUrl = `${window.location.origin}/doctor/${medico?.id}`
-    const message = `Te recomiendo al Dr. ${medico?.full_name} - ${medico?.specialty} en Salurama. Verifica sus credenciales y agenda aquí: ${profileUrl}`
-
-    if (method === 'whatsapp') {
-      window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank')
-    } else if (method === 'copy') {
-      navigator.clipboard.writeText(profileUrl)
+    const shareText = `Te recomiendo al Dr. ${medico?.full_name} - ${medico?.specialty} en Salurama. Verifica sus credenciales y agenda aquí:`
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: `Dr. ${medico?.full_name} en Salurama`, text: shareText, url: profileUrl })
+      } catch { /* user cancelled */ }
+    } else {
+      try {
+        await navigator.clipboard.writeText(`${shareText} ${profileUrl}`)
+      } catch {
+        const ta = document.createElement('textarea')
+        ta.value = `${shareText} ${profileUrl}`
+        document.body.appendChild(ta)
+        ta.select()
+        document.execCommand('copy')
+        document.body.removeChild(ta)
+      }
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     }
-    setShowShareMenu(false)
-  }
-
-  const handleShareClick = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    setShareMenuPos({ top: rect.bottom + 8, left: rect.right - 200 })
-    setShowShareMenu(!showShareMenu)
   }
 
   if (loading) {
@@ -470,62 +458,13 @@ export default function DashboardMedico() {
               >
                 <Eye size={16} /> Ver perfil
               </button>
-              <div style={{ position: 'relative' }} ref={shareRef}>
-                <button
-                  onClick={handleShareClick}
-                  className="btn-hover"
-                  style={{ background: '#fff', color: '#1E3A5F', border: '1.5px solid #E5E7EB', padding: isMobile ? '14px 20px' : '10px 20px', borderRadius: 12, fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', minHeight: 48, width: '100%' }}
-                >
-                  <Share2 size={16} /> Compartir
-                </button>
-                
-                {/* Dropdown de compartir */}
-                {showShareMenu && (
-                  <div className="fade-in" style={{
-                    position: isMobile ? 'absolute' : 'fixed',
-                    top: isMobile ? 'auto' : shareMenuPos?.top,
-                    left: isMobile ? 0 : shareMenuPos?.left,
-                    right: isMobile ? 0 : 'auto',
-                    bottom: isMobile ? 0 : 'auto',
-                    background: '#fff',
-                    borderRadius: 12,
-                    border: '1px solid #E5E7EB',
-                    boxShadow: '0 12px 36px rgba(0,0,0,0.15)',
-                    zIndex: 1000,
-                    overflow: 'hidden',
-                    minWidth: 200,
-                  }}>
-                    <button
-                      onClick={() => handleShare('whatsapp')}
-                      style={{ width: '100%', padding: '14px 16px', background: 'none', border: 'none', borderBottom: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', fontSize: 14, color: '#1E3A5F', fontFamily: "'DM Sans', sans-serif" }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = '#F9FAFB'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
-                    >
-                      <div style={{ width: 36, height: 36, borderRadius: 8, background: '#25D366', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <MessageCircle size={18} color="#fff" />
-                      </div>
-                      <div style={{ textAlign: 'left', flex: 1 }}>
-                        <div style={{ fontWeight: 600 }}>WhatsApp</div>
-                        <div style={{ fontSize: 12, color: '#6B7280' }}>Compartir con contacto</div>
-                      </div>
-                    </button>
-                    <button
-                      onClick={() => handleShare('copy')}
-                      style={{ width: '100%', padding: '14px 16px', background: 'none', border: 'none', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', fontSize: 14, color: '#1E3A5F', fontFamily: "'DM Sans', sans-serif" }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = '#F9FAFB'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
-                    >
-                      <div style={{ width: 36, height: 36, borderRadius: 8, background: '#1E3A5F', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Copy size={18} color="#fff" />
-                      </div>
-                      <div style={{ textAlign: 'left', flex: 1 }}>
-                        <div style={{ fontWeight: 600 }}>{copied ? '¡Copiado!' : 'Copiar link'}</div>
-                        <div style={{ fontSize: 12, color: '#6B7280' }}>{copied ? 'Listo para pegar' : 'Copiar al portapapeles'}</div>
-                      </div>
-                    </button>
-                  </div>
-                )}
-              </div>
+              <button
+                onClick={handleShare}
+                className="btn-hover"
+                style={{ background: '#fff', color: '#1E3A5F', border: '1.5px solid #E5E7EB', padding: isMobile ? '14px 20px' : '10px 20px', borderRadius: 12, fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', minHeight: 48, width: '100%' }}
+              >
+                {copied ? '¡Link copiado!' : <><Share2 size={16} /> Compartir</>}
+              </button>
             </div>
           </div>
         </div>
@@ -662,7 +601,7 @@ export default function DashboardMedico() {
             )}
             {esPerfilCompleto && (
               <button
-                onClick={handleShareClick}
+                onClick={handleShare}
                 className="btn-hover"
                 style={{
                   background: '#2A9D8F',

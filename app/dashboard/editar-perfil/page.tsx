@@ -835,6 +835,7 @@ function LocationForm({ medico, onSave, saving }: any) {
 
   const [editandoCP, setEditandoCP] = useState(!form.cp)
   const [pinCoords, setPinCoords] = useState<{ lat: number; lng: number } | null>(null)
+  const [geocoding, setGeocoding] = useState(false)
 
   useEffect(() => {
     if (cpData) {
@@ -849,6 +850,30 @@ function LocationForm({ medico, onSave, saving }: any) {
       }
     }
   }, [cpData])
+
+  const geocodeAddress = async () => {
+    const { street, ext_number, colonia, cp, ciudad } = form
+    if (!street || !colonia || !cp) return
+    setGeocoding(true)
+    try {
+      const q = `${street} ${ext_number}, ${colonia}, ${cp}, ${ciudad || 'México'}, México`
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1&countrycodes=mx`,
+        { headers: { 'User-Agent': 'Salurama/1.0 (salurama.com)' } }
+      )
+      const data = await res.json()
+      if (data[0]) setPinCoords({ lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) })
+    } catch { /* silently ignore — user can drag pin */ }
+    finally { setGeocoding(false) }
+  }
+
+  const useMyLocation = () => {
+    if (!navigator.geolocation) return
+    navigator.geolocation.getCurrentPosition(
+      pos => setPinCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => {}
+    )
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -976,11 +1001,11 @@ function LocationForm({ medico, onSave, saving }: any) {
       <div style={{ display: 'grid', gridTemplateColumns: form.clinic_type==='hospital'?'2fr 1fr 1fr 1fr':'2fr 1fr 1fr', gap: 10 }}>
         <div>
           <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5, color: '#374151' }}>Calle</label>
-          <input type="text" value={form.street} onChange={e => setForm({...form, street: e.target.value})} style={{ width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: 8, fontSize: 14 }} placeholder="Av. Reforma" />
+          <input type="text" value={form.street} onChange={e => setForm({...form, street: e.target.value})} onBlur={geocodeAddress} style={{ width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: 8, fontSize: 14 }} placeholder="Av. Reforma" />
         </div>
         <div>
           <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5, color: '#374151' }}>No. Ext</label>
-          <input type="text" value={form.ext_number} onChange={e => setForm({...form, ext_number: e.target.value})} style={{ width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: 8, fontSize: 14 }} placeholder="222" />
+          <input type="text" value={form.ext_number} onChange={e => setForm({...form, ext_number: e.target.value})} onBlur={geocodeAddress} style={{ width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: 8, fontSize: 14 }} placeholder="222" />
         </div>
         {form.clinic_type==='hospital' && (
           <div>
@@ -1003,10 +1028,18 @@ function LocationForm({ medico, onSave, saving }: any) {
         </div>
       </div>
 
+      <button
+        type="button"
+        onClick={useMyLocation}
+        style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: '#1E3A5F', background: '#EEF2FF', border: '1px solid #C7D2FE', borderRadius: 8, padding: '8px 12px', cursor: 'pointer' }}
+      >
+        📍 Usar mi ubicación
+      </button>
+
       {(pinCoords || (medico?.clinic_lat && medico?.clinic_lng)) && (
         <div style={{ marginTop: 4 }}>
           <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: '#374151' }}>
-            Arrastra el pin a la ubicación exacta de tu consultorio
+            {geocoding ? '🔍 Buscando dirección…' : 'Arrastra el pin a la ubicación exacta de tu consultorio'}
           </p>
           <LocationPicker
             initialLat={pinCoords?.lat || medico?.clinic_lat || 19.4326}

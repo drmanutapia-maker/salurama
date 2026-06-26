@@ -159,7 +159,7 @@ function AppointmentModal({
   const [formLoadTime] = useState(Date.now())
   const [error, setError] = useState('')
   const [formData, setFormData] = useState({
-    requested_date: new Date().toISOString().split('T')[0],
+    requested_date: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' }),
     requested_time: '',
     patient_name: '',
     patient_email: '',
@@ -181,6 +181,9 @@ function AppointmentModal({
     })
     return normalizado
   })()
+
+  const fmtDateMX = (d: string) =>
+    new Date(d + 'T00:00:00').toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' })
 
   const getTimeSlotsForDate = (dateStr: string) => {
     if (!horarioParsed) return []
@@ -225,7 +228,7 @@ function AppointmentModal({
     }
 
     const hoy = new Date()
-    const hoyStr = hoy.toISOString().split('T')[0]
+    const hoyStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' })
     if (dateStr === hoyStr) {
       const ahoraMinutos = hoy.getHours() * 60 + hoy.getMinutes()
       const bufferMinutos = 30
@@ -243,7 +246,7 @@ function AppointmentModal({
   const selectedDate = new Date(formData.requested_date + 'T00:00:00')
   const dayName = DIAS_LABELS[selectedDate.getDay()]
   const isDayClosed = timeSlots.length === 0
-  const hoyStr = new Date().toISOString().split('T')[0]
+  const hoyStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' })
   const esHoy = formData.requested_date === hoyStr
 
   if (submitted) {
@@ -262,7 +265,7 @@ function AppointmentModal({
           <div style={{ background: '#F9FAFB', borderRadius: 12, padding: 16, marginBottom: 24, textAlign: 'left' }}>
             <p style={{ fontSize: 13, fontWeight: 600, color: '#1E3A5F', marginBottom: 8 }}>{medico.display_name || medico.full_name}</p>
             <p style={{ fontSize: 13, color: '#6B7280' }}>{medico.specialty}</p>
-            <p style={{ fontSize: 13, color: '#6B7280', marginTop: 8 }}>{formData.requested_date} - {formData.requested_time}</p>
+            <p style={{ fontSize: 13, color: '#6B7280', marginTop: 8 }}>{fmtDateMX(formData.requested_date)} - {formData.requested_time}</p>
             {(medico.consultation_price_first_time || medico.consultation_price_general) && (
               <p style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>
                 Costo: ${medico.consultation_price_first_time || medico.consultation_price_general} MXN
@@ -338,7 +341,7 @@ function AppointmentModal({
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 8, color: '#1E3A5F' }}>Fecha</label>
-              <input type="date" value={formData.requested_date} onChange={e => setFormData({ ...formData, requested_date: e.target.value, requested_time: '' })} min={new Date().toISOString().split('T')[0]} style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: 12, fontSize: 14 }} />
+              <input type="date" value={formData.requested_date} onChange={e => setFormData({ ...formData, requested_date: e.target.value, requested_time: '' })} min={new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' })} style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: 12, fontSize: 14 }} />
             </div>
             <div>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 8, color: '#1E3A5F' }}>
@@ -412,7 +415,7 @@ function AppointmentModal({
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ fontSize: 13, color: '#6B7280' }}>Fecha</span>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: '#1E3A5F' }}>{formData.requested_date}</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#1E3A5F' }}>{fmtDateMX(formData.requested_date)}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ fontSize: 13, color: '#6B7280' }}>Hora</span>

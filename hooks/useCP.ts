@@ -28,7 +28,7 @@ export function useCP() {
       const result = await searchCP(formatted)
       
       if (!result) {
-        setError('CP no encontrado. Verifica o ingresa manualmente.')
+        setError('CP no encontrado. Verifica el número e intenta de nuevo.')
         setCpData(null)
         return null
       }

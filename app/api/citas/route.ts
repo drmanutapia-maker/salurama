@@ -209,7 +209,7 @@ export async function POST(request: NextRequest) {
         pacienteEmail,
         verificationToken,
         medico.full_name,
-        `${fecha} a las ${hora}`
+        `${new Date(fecha + 'T00:00:00-06:00').toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' })} a las ${hora}`
       )
     } catch (emailError) {
       console.error(`[${requestId}] Email failed:`, emailError)

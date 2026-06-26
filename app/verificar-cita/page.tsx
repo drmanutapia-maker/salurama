@@ -1,7 +1,6 @@
 'use client'
 import { Suspense, useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { supabase } from '@/lib/supabaseClient'
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react'
 
 function VerificarCitaContent() {
@@ -19,69 +18,26 @@ function VerificarCitaContent() {
     }
 
     async function verify() {
-      const { data: cita, error } = await supabase
-        .from('citas')
-        .select('*')
-        .eq('verification_token', token)
-        .single()
+      try {
+        const res = await fetch('/api/verificar-cita', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token }),
+        })
+        const data = await res.json()
 
-      if (error || !cita) {
-        setStatus('error')
-        setMessage('Este enlace no es válido o ya expiró.')
-        return
-      }
-
-      if (cita.estado === 'confirmed') {
-        setStatus('success')
-        setMessage('Esta cita ya estaba confirmada.')
-        return
-      }
-
-      const { error: updateError } = await supabase
-        .from('citas')
-        .update({ estado: 'confirmed' })
-        .eq('id', cita.id)
-
-      if (updateError) {
-        setStatus('error')
-        setMessage('Error al confirmar la cita. Intenta de nuevo.')
-        return
-      }
-
-      // Notificar al médico
-      const { data: citaData } = await supabase
-        .from('citas')
-        .select('medico_id, paciente_nombre, fecha, hora')
-        .eq('id', cita.id)
-        .single()
-
-      if (citaData) {
-        const { data: medicoData } = await supabase
-          .from('doctors')
-          .select('email, full_name')
-          .eq('id', citaData.medico_id)
-          .single()
-
-        if (medicoData?.email) {
-          const d = new Date(citaData.fecha + 'T00:00:00')
-          const fechaFormateada = d.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })
-
-          fetch('/api/notify-doctor', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              email: medicoData.email,
-              doctorName: medicoData.full_name,
-              patientName: citaData.paciente_nombre,
-              fecha: fechaFormateada,
-              hora: citaData.hora?.slice(0, 5),
-            }),
-          }).catch(console.error)
+        if (!res.ok) {
+          setStatus('error')
+          setMessage(data.error || 'Error al confirmar la cita.')
+          return
         }
-      }
 
-      setStatus('success')
-      setMessage('¡Cita confirmada con éxito!')
+        setStatus('success')
+        setMessage(data.alreadyConfirmed ? 'Esta cita ya estaba confirmada.' : '¡Cita confirmada con éxito!')
+      } catch {
+        setStatus('error')
+        setMessage('Error de red. Intenta de nuevo.')
+      }
     }
 
     verify()
