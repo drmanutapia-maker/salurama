@@ -30,9 +30,9 @@ export default function Footer() {
           <div>
             <h4 style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 700, color: '#fff', marginBottom: 20, marginTop: 0 }}>Plataforma</h4>
             <nav style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <Link href="/" style={{ fontSize: 14, color: '#C5D0E0', textDecoration: 'none' }}>Buscar médico</Link>
+              <Link href="/buscar" style={{ fontSize: 14, color: '#C5D0E0', textDecoration: 'none' }}>Buscar médico</Link>
               <Link href="/como-elegir-medico" style={{ fontSize: 14, color: '#C5D0E0', textDecoration: 'none' }}>¿Cómo elegir médico?</Link>
-              <Link href="/soy-medico" style={{ fontSize: 14, color: '#C5D0E0', textDecoration: 'none' }}>Soy Médico</Link>
+              <Link href="/registro" style={{ fontSize: 14, color: '#C5D0E0', textDecoration: 'none' }}>Soy Médico</Link>
             </nav>
           </div>
 

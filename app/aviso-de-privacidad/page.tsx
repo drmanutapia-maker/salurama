@@ -56,6 +56,7 @@ export default function AvisoDePrivacidad() {
           .mob-btn { display: flex !important; }
           .sidebar-col { display: none !important; }
           .data-table { font-size: 12px; }
+          .legal-grid { grid-template-columns: 1fr !important; gap: 0 !important; padding: 24px 16px 60px !important; }
         }
         @media (min-width: 769px) {
           .mob-btn { display: none !important; }
@@ -75,7 +76,7 @@ export default function AvisoDePrivacidad() {
           </p></div></section>
 
       {/* CONTENIDO */}
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '40px 20px 80px', display: 'grid', gridTemplateColumns: '220px 1fr', gap: 48, alignItems: 'start' }}>
+      <div className="legal-grid" style={{ maxWidth: 1100, margin: '0 auto', padding: '40px 20px 80px', display: 'grid', gridTemplateColumns: '220px 1fr', gap: 48, alignItems: 'start' }}>
 
         {/* SIDEBAR */}
         <aside className="sidebar-col" style={{ position: 'sticky', top: 80 }}><p style={{ fontSize: 11, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
