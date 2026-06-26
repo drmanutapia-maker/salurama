@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { useState } from 'react'
 import { Menu, X } from 'lucide-react'
 
@@ -55,7 +54,7 @@ export default function PoliticaDeCookies() {
                 ['cookie-consent','Registro de preferencias de cookies','12 meses'],
               ].map(([n,f,d]) =><tr key={n}><td><code>{n}</code></td><td>{f}</td><td>{d}</td></tr>)}</tbody></table></div><div className="section-block"><h2 className="legal-h2">3. Cookies de terceros</h2><table className="cookie-table"><thead><tr><th>Proveedor</th><th>Servicio</th><th>Tipo</th><th>Política</th></tr></thead><tbody>{[
                 ['Supabase Inc.','Base de datos y autenticación','Necesaria','supabase.com/privacy'],
-                ['Vercel Inc.','Hosting y analytics','Necesaria / Análisis','vercel.com/legal/privacy-policy'],
+                ['Netlify Inc.','Hosting','Necesaria','netlify.com/privacy/'],
                 ['Resend Inc.','Correos transaccionales','Necesaria','resend.com/privacy'],
               ].map(([p,s,t,url]) => (
                 <tr key={p}><td><strong>{p}</strong></td><td>{s}</td><td>{t}</td><td><a href={`https://${url}`} target="_blank" rel="noopener noreferrer" style={{ color: '#1E3A5F', fontSize: 12 }}>ver política</a></td></tr>
@@ -70,10 +69,6 @@ export default function PoliticaDeCookies() {
           </p><h2 className="legal-h2" style={{ marginTop: 32 }}>7. Contacto</h2><p className="legal-p">
             Para consultas sobre el uso de cookies: <a href="mailto:privacidad@salurama.com" style={{ color: '#1E3A5F' }}>privacidad@salurama.com</a></p><p className="legal-p" style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid #F3F4F6', fontSize: 12, color: '#9CA3AF' }}>
             © 2026 SALURAMA S.A.S. · Todos los derechos reservados · salurama.com
-          </p></div></div><footer style={{ background: '#0D1829', padding: 'clamp(32px,5vw,40px) 20px', textAlign: 'center' }}><div style={{ maxWidth: 860, margin: '0 auto' }}><div style={{ marginBottom: 10 }}><span style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 900, color: '#fff' }}>Salu</span><span style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 600, color: '#2A9D8F' }}>rama</span></div><div style={{ display: 'flex', justifyContent: 'center', gap: 20, flexWrap: 'wrap', marginBottom: 14 }}>
-            {[['Términos y Condiciones','/terminos-y-condiciones'],['Aviso de Privacidad','/aviso-de-privacidad'],
-              ['Términos Profesionales','/terminos-profesionales'],['Inicio','/']]
-              .map(([l,h]) =><Link key={h} href={h} style={{ fontSize: 13, color: '#9FB0C9', textDecoration: 'none' }}>{l}</Link>)}
-          </div><p style={{ fontSize: 12, color: '#6B7280' }}>© 2026 SALURAMA S.A.S. · salurama.com · Hecho en México 🇲🇽</p></div></footer></div>
+          </p></div></div></div>
   )
 }

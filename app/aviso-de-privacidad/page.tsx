@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { useState } from 'react'
 import { Menu, X } from 'lucide-react'
 
@@ -162,11 +161,6 @@ export default function AvisoDePrivacidad() {
               © 2026 SALURAMA S.A.S. · Todos los derechos reservados · salurama.com
             </p></div></main></div>
 
-      {/* FOOTER */}
-      <footer style={{ background: '#0D1829', padding: 'clamp(32px,5vw,40px) 20px', textAlign: 'center' }}><div style={{ maxWidth: 860, margin: '0 auto' }}><div style={{ marginBottom: 10 }}><span style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 900, color: '#fff' }}>Salu</span><span style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 600, color: '#2A9D8F' }}>rama</span></div><div style={{ display: 'flex', justifyContent: 'center', gap: 20, flexWrap: 'wrap', marginBottom: 14 }}>
-            {[['Términos y Condiciones','/terminos-y-condiciones'],['Política de Cookies','/politica-de-cookies'],
-              ['Términos Profesionales','/terminos-profesionales'],['Inicio','/']]
-              .map(([l,h]) =><Link key={h} href={h!} style={{ fontSize: 13, color: '#9FB0C9', textDecoration: 'none' }}>{l}</Link>)}
-          </div><p style={{ fontSize: 12, color: '#6B7280' }}>© 2026 SALURAMA S.A.S. · salurama.com · Hecho en México 🇲🇽</p></div></footer></div>
+</div>
   )
 }

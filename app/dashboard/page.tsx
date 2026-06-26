@@ -461,9 +461,16 @@ export default function DashboardMedico() {
               <button
                 onClick={handleShare}
                 className="btn-hover"
-                style={{ background: '#fff', color: '#1E3A5F', border: '1.5px solid #E5E7EB', padding: isMobile ? '14px 20px' : '10px 20px', borderRadius: 12, fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', minHeight: 48 }}
+                style={isMobile
+                  ? { background: '#fff', color: '#1E3A5F', border: '1.5px solid #E5E7EB', padding: '14px 20px', borderRadius: 12, fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', minHeight: 48 }
+                  : { width: 36, height: 36, borderRadius: '50%', background: '#F5F3FF', border: '1.5px solid #DDD6FE', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#7C3AED', flexShrink: 0 }
+                }
+                title={copied ? '¡Link copiado!' : 'Compartir perfil'}
               >
-                {copied ? '¡Link copiado!' : <><Share2 size={16} /> Compartir</>}
+                {isMobile
+                  ? <>{copied ? '¡Link copiado!' : <><Share2 size={16} /> Compartir</>}</>
+                  : <Share2 size={15} />
+                }
               </button>
             </div>
           </div>

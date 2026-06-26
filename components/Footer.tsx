@@ -60,7 +60,7 @@ export default function Footer() {
         {/* Copyright */}
         <div style={{ paddingBottom: 24, textAlign: 'center' }}>
           <p style={{ fontSize: 13, color: '#94A3B8', margin: 0 }}>
-            © 2026 Salurama. Todos los derechos reservados.
+            © 2026 Salurama 🇲🇽 Todos los derechos reservados.
           </p>
         </div>
       </div>
