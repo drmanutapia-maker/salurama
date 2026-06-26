@@ -110,7 +110,7 @@ export default function AvisoDePrivacidad() {
               Sus datos podrán ser compartidos con los siguientes terceros, conforme al artículo 37 de la Ley:
             </p><table className="data-table"><thead><tr><th>Destinatario</th><th>Finalidad</th><th>País</th></tr></thead><tbody>{[
                   ['Supabase Inc.', 'Base de datos y autenticación', 'EE.UU.'],
-                  ['Vercel Inc.', 'Hospedaje de la plataforma', 'EE.UU.'],
+                  ['Netlify Inc.', 'Hospedaje de la plataforma', 'EE.UU.'],
                   ['Resend Inc.', 'Envío de correos electrónicos', 'EE.UU.'],
                   ['Autoridades competentes', 'Por orden judicial o mandato legal fundado', 'México'],
                   ['Profesionales registrados', 'Para facilitar contacto solicitado por el usuario', 'México'],
