@@ -557,7 +557,7 @@ export default function DoctorProfilePage() {
   const direccionCompleta = [
     medico?.street,
     medico?.ext_number ? `#${medico.ext_number}` : '',
-    medico?.int_number ? `Int. ${medico.int_number}` : '',
+    medico?.int_number ? `${medico.clinic_type === 'hospital' ? 'Consultorio' : 'Int.'} ${medico.int_number}` : '',
   ].filter(Boolean).join(' ') || ''
 
   const direccionExtendida = [

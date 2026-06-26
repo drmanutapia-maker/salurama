@@ -4,18 +4,17 @@ import Link from 'next/link'
 
 export default function Footer() {
   return (
-    <footer 
-      className="hidden md:block"
+    <footer
+      className=""
       style={{ background: '#1E3A5F', color: '#FFFFFF' }}
       role="contentinfo"
     >
+      <style>{`
+        .footer-grid { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; gap: 48px; padding-bottom: 40px; }
+        @media (max-width: 767px) { .footer-grid { grid-template-columns: 1fr; gap: 28px; } }
+      `}</style>
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '56px 24px 0' }}>
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: '1.5fr 1fr 1fr 1fr', 
-          gap: 48,
-          paddingBottom: 40,
-        }}>
+        <div className="footer-grid">
           {/* Brand */}
           <div>
             <div style={{ marginBottom: 16 }}>
