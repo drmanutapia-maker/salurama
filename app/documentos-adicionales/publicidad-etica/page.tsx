@@ -84,20 +84,11 @@ export default function PublicidadEtica() {
         <div className="section-block">
           <h2 className="legal-h2">4. Cláusula de no-interferencia (resumen para el público)</h2>
           <p className="legal-p">Todos los contratos B2B de Salurama incluyen de forma explícita la siguiente restricción: <em>"El patrocinador reconoce y acepta que el presente acuerdo no otorga, directa ni indirectamente, ningún derecho sobre el posicionamiento, orden de aparición, visibilidad o cualquier otro aspecto del algoritmo de búsqueda de la plataforma Salurama respecto de ningún profesional de la salud."</em></p>
-          <p className="legal-p">Si en algún momento crees que esta política está siendo vulnerada, puedes reportarlo a: <a href="mailto:etica@salurama.com" style={{ color:'#3730A3' }}>etica@salurama.com</a></p>
+          <p className="legal-p">Si en algún momento crees que esta política está siendo vulnerada, puedes reportarlo a: <a href="mailto:hola@salurama.com" style={{ color:'#3730A3' }}>hola@salurama.com</a></p>
           <p className="legal-p" style={{ marginTop:24, paddingTop:20, borderTop:'1px solid #F3F4F6', fontSize:12, color:'#9CA3AF' }}>© 2026 SALURAMA S.A.S. · salurama.com</p>
         </div>
       </div>
 
-      <footer style={{ background:'#1E1B4B', padding:'clamp(32px,5vw,40px) 20px', textAlign:'center' }}>
-        <div style={{ maxWidth:860, margin:'0 auto' }}>
-          <div style={{ marginBottom:10 }}>
-            <span style={{ fontFamily:"'Fraunces',serif", fontSize:20, fontWeight:900, color:'#fff' }}>Salu</span>
-            <span style={{ fontFamily:"'Fraunces',serif", fontSize:20, fontWeight:600, color:'#F4623A' }}>rama</span>
-          </div>
-          <p style={{ fontSize:12, color:'#6B7280' }}>© 2026 SALURAMA S.A.S. · salurama.com · Hecho en México 🇲🇽</p>
-        </div>
-      </footer>
     </div>
   )
 }

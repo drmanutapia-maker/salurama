@@ -68,6 +68,7 @@ export default function HemaDashboard() {
   const [doctorName, setDoctorName] = useState('')
   const [tenantId, setTenantId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [idOrdenPorFirmar, setIdOrdenPorFirmar] = useState<string | null>(null)
 
   useEffect(() => {
     let mounted = true
@@ -152,13 +153,15 @@ export default function HemaDashboard() {
         .eq('tenant_id', tenantId!)
         .is('reviewed_by', null)
 
-      // Indicaciones por firmar
-      const { count: porFirmar } = await supabase
+      // Indicaciones por firmar (.limit(2): solo necesitamos saber si hay 0, 1 o 2+)
+      const { data: ordenesPorFirmar } = await supabase
         .schema('hema')
         .from('orders')
-        .select('id', { count: 'exact', head: true })
+        .select('id')
         .eq('tenant_id', tenantId!)
         .eq('status', 'validated')
+        .limit(2)
+      const porFirmar = ordenesPorFirmar?.length ?? 0
 
       if (!mounted) return
 
@@ -166,8 +169,9 @@ export default function HemaDashboard() {
         ordenes_hoy: ordenes?.length ?? 0,
         pacientes_activos: pacientes ?? 0,
         labs_pendientes: labs ?? 0,
-        indicaciones_por_firmar: porFirmar ?? 0,
+        indicaciones_por_firmar: porFirmar,
       })
+      setIdOrdenPorFirmar(porFirmar === 1 ? (ordenesPorFirmar![0].id as string) : null)
 
       // Mapear órdenes para mostrar
       const mapped: OrdenHoy[] = (ordenes ?? []).map((o: any) => ({
@@ -313,7 +317,7 @@ export default function HemaDashboard() {
             label: 'Indicaciones hoy',
             color: '#1E3A5F',
             bg: '#EFF4FB',
-            href: '/hema/ordenes',
+            href: '/hema/ordenes/nueva',
           },
           {
             icon: Users,
@@ -337,7 +341,7 @@ export default function HemaDashboard() {
             label: 'Por firmar',
             color: summary?.indicaciones_por_firmar ? '#DC2626' : '#6B7280',
             bg: summary?.indicaciones_por_firmar ? '#FEF2F2' : '#F9FAFB',
-            href: '/hema/ordenes',
+            href: idOrdenPorFirmar ? `/hema/ordenes/${idOrdenPorFirmar}` : '/hema/ordenes/nueva',
           },
         ].map(({ icon: Icon, value, label, color, bg, href }) => (
           <Link
@@ -419,7 +423,7 @@ export default function HemaDashboard() {
             </p>
             {(summary?.indicaciones_por_firmar ?? 0) > 0 && (
               <Link
-                href="/hema/ordenes"
+                href={idOrdenPorFirmar ? `/hema/ordenes/${idOrdenPorFirmar}` : '/hema/ordenes/nueva'}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -492,7 +496,7 @@ export default function HemaDashboard() {
             Indicaciones de Hoy
           </h2>
           <Link
-            href="/hema/ordenes"
+            href="/hema/ordenes/nueva"
             style={{
               fontSize: 13,
               color: '#1E3A5F',

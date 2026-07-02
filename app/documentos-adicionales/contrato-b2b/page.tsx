@@ -97,22 +97,13 @@ export default function ContratoB2B() {
         <div className="section-block">
           <h2 className="legal-h2">6. Inicio de colaboración</h2>
           <div className="info-box">
-            <p>Para iniciar una colaboración o solicitar información comercial, escríbenos a <strong>b2b@salurama.com</strong>. Respondemos en 48 horas hábiles.</p>
+            <p>Para iniciar una colaboración o solicitar información comercial, escríbenos a <strong>hola@salurama.com</strong>. Respondemos en 48 horas hábiles.</p>
           </div>
           <p className="legal-p">Las condiciones específicas (tarifa, duración, entregables) se acordarán en el Convenio Particular correspondiente. Este documento marco no es un contrato vinculante por sí solo.</p>
           <p className="legal-p" style={{ marginTop:24, paddingTop:20, borderTop:'1px solid #F3F4F6', fontSize:12, color:'#9CA3AF' }}>© 2026 SALURAMA S.A.S. · Todos los derechos reservados · salurama.com</p>
         </div>
       </div>
 
-      <footer style={{ background:'#1E1B4B', padding:'clamp(32px,5vw,40px) 20px', textAlign:'center' }}>
-        <div style={{ maxWidth:860, margin:'0 auto' }}>
-          <div style={{ marginBottom:10 }}>
-            <span style={{ fontFamily:"'Fraunces',serif", fontSize:20, fontWeight:900, color:'#fff' }}>Salu</span>
-            <span style={{ fontFamily:"'Fraunces',serif", fontSize:20, fontWeight:600, color:'#F4623A' }}>rama</span>
-          </div>
-          <p style={{ fontSize:12, color:'#6B7280' }}>© 2026 SALURAMA S.A.S. · salurama.com · Hecho en México 🇲🇽</p>
-        </div>
-      </footer>
     </div>
   )
 }

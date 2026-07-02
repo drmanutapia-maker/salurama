@@ -1,11 +1,7 @@
-'use client'
-
 import Link from 'next/link'
-import { useState } from 'react'
-import { Menu, X, ShieldCheck, GraduationCap, ExternalLink } from 'lucide-react'
+import { ShieldCheck, GraduationCap, ExternalLink } from 'lucide-react'
 
 export default function DeslindeResponsabilidad() {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   return (
     <div style={{ fontFamily: "'DM Sans', sans-serif", background: '#fff', minHeight: '100vh', color: '#111827' }}>
@@ -146,7 +142,7 @@ export default function DeslindeResponsabilidad() {
             Si encuentras un perfil con información que consideras falsa o que no coincide con las fuentes oficiales, puedes reportarlo a:
           </p>
           <p className="legal-p">
-            <a href="mailto:reportes@salurama.com" style={{ color: '#1E3A5F', fontWeight: 600 }}>reportes@salurama.com</a>
+            <a href="mailto:hola@salurama.com" style={{ color: '#1E3A5F', fontWeight: 600 }}>hola@salurama.com</a>
           </p>
           <p className="legal-p">
             Salurama investigará el reporte y, en caso de encontrar inconsistencias documentadas, procederá conforme a los Términos para Profesionales. La seguridad y la veracidad de la información son prioritarias para nosotros.
@@ -175,20 +171,6 @@ export default function DeslindeResponsabilidad() {
         </Link>
       </section>
 
-      <footer style={{ background: '#0D1829', padding: 'clamp(32px,5vw,40px) 20px', textAlign: 'center' }}>
-        <div style={{ maxWidth: 860, margin: '0 auto' }}>
-          <div style={{ marginBottom: 10 }}>
-            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 900, color: '#fff' }}>Salu</span>
-            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 600, color: '#2A9D8F' }}>rama</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 20, flexWrap: 'wrap', marginBottom: 14 }}>
-            {[['Términos y Condiciones','/terminos-y-condiciones'],['Aviso de Privacidad','/aviso-de-privacidad'],
-              ['Términos Profesionales','/terminos-profesionales'],['Inicio','/']]
-              .map(([l,h]) => <Link key={h} href={h} style={{ fontSize: 13, color: '#9FB0C9', textDecoration: 'none' }}>{l}</Link>)}
-          </div>
-          <p style={{ fontSize: 12, color: '#6B7280' }}>© 2026 SALURAMA S.A.S. · salurama.com · Hecho en México 🇲🇽</p>
-        </div>
-      </footer>
     </div>
   )
 }

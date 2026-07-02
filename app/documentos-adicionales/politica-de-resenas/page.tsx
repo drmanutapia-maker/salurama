@@ -105,7 +105,7 @@ export default function PoliticaResenas() {
         <div className="section-block">
           <h2 className="legal-h2">5. Proceso de moderación y disputas</h2>
           <h3 className="legal-h3">Reporte de reseñas</h3>
-          <p className="legal-p">Cualquier usuario o profesional puede reportar una reseña que considere que viola esta Política enviando un correo a <a href="mailto:contenido@salurama.com" style={{ color:'#3730A3' }}>contenido@salurama.com</a> indicando: URL del perfil, texto de la reseña reportada y motivo del reporte.</p>
+          <p className="legal-p">Cualquier usuario o profesional puede reportar una reseña que considere que viola esta Política enviando un correo a <a href="mailto:hola@salurama.com" style={{ color:'#3730A3' }}>hola@salurama.com</a> indicando: URL del perfil, texto de la reseña reportada y motivo del reporte.</p>
           <h3 className="legal-h3">Resolución</h3>
           <p className="legal-p">Salurama evaluará el reporte en un plazo de 10 días hábiles y notificará la resolución. Las decisiones de moderación son definitivas pero pueden ser apeladas una vez con nueva evidencia.</p>
           <h3 className="legal-h3">Respuesta del profesional</h3>
@@ -114,20 +114,11 @@ export default function PoliticaResenas() {
 
         <div className="section-block">
           <h2 className="legal-h2">6. Contacto</h2>
-          <p className="legal-p">Para asuntos relacionados con reseñas y contenido: <a href="mailto:contenido@salurama.com" style={{ color:'#3730A3' }}>contenido@salurama.com</a></p>
+          <p className="legal-p">Para asuntos relacionados con reseñas y contenido: <a href="mailto:hola@salurama.com" style={{ color:'#3730A3' }}>hola@salurama.com</a></p>
           <p className="legal-p" style={{ marginTop:24, paddingTop:20, borderTop:'1px solid #F3F4F6', fontSize:12, color:'#9CA3AF' }}>© 2026 SALURAMA S.A.S. · salurama.com</p>
         </div>
       </div>
 
-      <footer style={{ background:'#1E1B4B', padding:'clamp(32px,5vw,40px) 20px', textAlign:'center' }}>
-        <div style={{ maxWidth:860, margin:'0 auto' }}>
-          <div style={{ marginBottom:10 }}>
-            <span style={{ fontFamily:"'Fraunces',serif", fontSize:20, fontWeight:900, color:'#fff' }}>Salu</span>
-            <span style={{ fontFamily:"'Fraunces',serif", fontSize:20, fontWeight:600, color:'#F4623A' }}>rama</span>
-          </div>
-          <p style={{ fontSize:12, color:'#6B7280' }}>© 2026 SALURAMA S.A.S. · salurama.com · Hecho en México 🇲🇽</p>
-        </div>
-      </footer>
     </div>
   )
 }
