@@ -37,6 +37,7 @@ const INITIAL_STATE: WizardState = {
   protocol: null,
   cycleNumber: 1,
   scheduledFor: todayIso(),
+  nextCycleDate: '',
   clinicalInputs: DEFAULT_CLINICAL_INPUTS,
   doseAdjustments: [],
   overrides: [],
@@ -340,6 +341,8 @@ function NuevaIndicacionContent() {
           overrides={state.overrides}
           onCycleNumberChange={(n) => setState((s) => ({ ...s, cycleNumber: n }))}
           onScheduledForChange={(d) => setState((s) => ({ ...s, scheduledFor: d }))}
+          nextCycleDate={state.nextCycleDate}
+          onNextCycleDateChange={(d) => setState((s) => ({ ...s, nextCycleDate: d }))}
           onSubmitted={handleSubmitted}
         />
       )}

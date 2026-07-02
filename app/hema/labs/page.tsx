@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabaseClient'
+import LabsSummaryCard, { type LabValueRow } from '@/components/hema/LabsSummaryCard'
 import { FlaskConical, Plus, ChevronRight, AlertCircle, CheckCircle2, Clock } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -16,6 +17,7 @@ interface LabPanelListRow {
   source: string
   reviewed_by: string | null
   value_count: number
+  lab_values: LabValueRow[]
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -43,48 +45,93 @@ function SkeletonRow() {
 // ─── Panel Card ──────────────────────────────────────────────────────────────
 
 function PanelCard({ p }: { p: LabPanelListRow }) {
+  const [expanded, setExpanded] = useState(false)
   const reviewed = p.reviewed_by !== null
+
   return (
-    <Link
-      href={`/hema/pacientes/${p.patient_id}`}
+    <div
       style={{
-        background: '#fff', border: '1px solid #E5E7EB', borderRadius: 14, padding: 16,
-        display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none', minHeight: 76,
+        background: '#fff',
+        border: `1px solid ${expanded ? '#C4B5FD' : '#E5E7EB'}`,
+        borderRadius: 14,
+        overflow: 'hidden',
+        transition: 'border-color 0.15s',
       }}
     >
-      <div
+      <button
+        onClick={() => setExpanded(e => !e)}
         style={{
-          width: 40, height: 40, borderRadius: 10, background: 'rgba(124,58,237,0.1)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+          width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+          padding: 16, background: 'none', border: 'none', cursor: 'pointer',
+          textAlign: 'left', minHeight: 76,
         }}
       >
-        <FlaskConical size={18} color="#7C3AED" />
-      </div>
-
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ fontSize: 15, fontWeight: 700, color: '#111827', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {p.patient_name || '—'}
-        </p>
-        <p style={{ fontSize: 12, color: '#6B7280' }}>
-          {formatDate(p.collected_at)} · {p.value_count} valor{p.value_count !== 1 ? 'es' : ''} · {SOURCE_LABEL[p.source] ?? p.source}
-        </p>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
-          {reviewed ? (
-            <>
-              <CheckCircle2 size={12} color="#16A34A" />
-              <span style={{ fontSize: 11, fontWeight: 700, color: '#16A34A' }}>Revisado</span>
-            </>
-          ) : (
-            <>
-              <Clock size={12} color="#D97706" />
-              <span style={{ fontSize: 11, fontWeight: 700, color: '#D97706' }}>Pendiente de revisión</span>
-            </>
-          )}
+        <div
+          style={{
+            width: 40, height: 40, borderRadius: 10,
+            background: expanded ? 'rgba(124,58,237,0.15)' : 'rgba(124,58,237,0.1)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            transition: 'background 0.15s',
+          }}
+        >
+          <FlaskConical size={18} color="#7C3AED" />
         </div>
-      </div>
 
-      <ChevronRight size={16} color="#D1D5DB" style={{ flexShrink: 0 }} />
-    </Link>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ fontSize: 15, fontWeight: 700, color: '#111827', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {p.patient_name || '—'}
+          </p>
+          <p style={{ fontSize: 12, color: '#6B7280' }}>
+            {formatDate(p.collected_at)} · {p.value_count} valor{p.value_count !== 1 ? 'es' : ''} · {SOURCE_LABEL[p.source] ?? p.source}
+          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
+            {reviewed ? (
+              <>
+                <CheckCircle2 size={12} color="#16A34A" />
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#16A34A' }}>Revisado</span>
+              </>
+            ) : (
+              <>
+                <Clock size={12} color="#D97706" />
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#D97706' }}>Pendiente de revisión</span>
+              </>
+            )}
+          </div>
+        </div>
+
+        <ChevronRight
+          size={16}
+          color={expanded ? '#7C3AED' : '#D1D5DB'}
+          style={{
+            flexShrink: 0,
+            transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)',
+            transition: 'transform 0.2s, color 0.15s',
+          }}
+        />
+      </button>
+
+      {expanded && (
+        <div style={{ borderTop: '1px solid #F3F4F6', padding: '0 16px 16px' }}>
+          {p.lab_values.length > 0 ? (
+            <LabsSummaryCard collectedAt={p.collected_at} values={p.lab_values} />
+          ) : (
+            <p style={{ fontSize: 13, color: '#9CA3AF', padding: '16px 0 8px' }}>
+              Sin valores en este panel
+            </p>
+          )}
+          <Link
+            href={`/hema/pacientes/${p.patient_id}`}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+              fontSize: 12, fontWeight: 700, color: '#1E3A5F',
+              textDecoration: 'none', marginTop: 8,
+            }}
+          >
+            Ver perfil del paciente <ChevronRight size={12} />
+          </Link>
+        </div>
+      )}
+    </div>
   )
 }
 

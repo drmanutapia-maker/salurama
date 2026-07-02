@@ -1,10 +1,10 @@
-════════════════════════════════════════════════════════════════════════════
+import Link from 'next/link'
+
+// ════════════════════════════════════════════════════════════════════════════
 // POLÍTICA DE PUBLICIDAD ÉTICA
 // ════════════════════════════════════════════════════════════════════════════
 
-export function PublicidadEtica() {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-
+export default function PublicidadEtica() {
   return (
     <div style={{ fontFamily:"'DM Sans',sans-serif", background:'#fff', minHeight:'100vh', color:'#1A1A2E' }}>
       <style>{`

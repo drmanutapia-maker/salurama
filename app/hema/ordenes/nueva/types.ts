@@ -112,6 +112,7 @@ export interface WizardState {
   protocol: WizardProtocol | null
   cycleNumber: number
   scheduledFor: string // YYYY-MM-DD
+  nextCycleDate: string // YYYY-MM-DD o '' si no se ingresó
   clinicalInputs: ClinicalInputs
   doseAdjustments: DrugDoseAdjustment[]
   overrides: Override[]

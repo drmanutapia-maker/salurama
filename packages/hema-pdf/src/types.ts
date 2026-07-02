@@ -1,15 +1,19 @@
 export interface OrderPdfInstitution {
   name: string
-  clues: string | null
+  /** 'independiente' = consultorio/médico privado; 'clinica' = hospital/grupo */
+  tenantType: 'independiente' | 'clinica'
   cofeprisLicense: string | null
 }
 
 export interface OrderPdfPatient {
   displayName: string
-  curp: string
+  /** Expediente formateado: 'TENANT_CODE-000001' o solo el número si tenant_code es null */
+  expediente: string
   birthDate: string // ISO date (YYYY-MM-DD)
   sex: 'M' | 'F'
   allergies: string | null
+  weightKg: number | null
+  heightCm: number | null
 }
 
 export interface OrderPdfProtocol {
@@ -17,6 +21,7 @@ export interface OrderPdfProtocol {
   name: string
   cycleLengthDays: number
   totalCycles: number | null
+  nextCycleDate?: string | null // ISO date; null/undefined = omite la línea en el PDF
 }
 
 export interface OrderPdfPrescriber {

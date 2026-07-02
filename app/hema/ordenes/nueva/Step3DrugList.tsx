@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { FlaskConical, Sparkles } from 'lucide-react'
 import { ResultItem } from '@/components/hema/ResultItem'
+import { formatRoute } from '@salurama/hema-shared'
 import { round2 } from './calc'
 import type { DrugDoseAdjustment, Override, ValidationResult, WizardPatient, WizardProtocol, WizardProtocolDrug } from './types'
 
@@ -108,7 +109,7 @@ function DrugCard({
         <div>
           <p style={{ fontSize: 15, fontWeight: 700, color: '#111827', margin: 0 }}>{drug.inn}</p>
           <p style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>
-            {drug.route} · Día{drug.days_of_cycle.length !== 1 ? 's' : ''} {drug.days_of_cycle.join(', ')}
+            {formatRoute(drug.route)} · Día{drug.days_of_cycle.length !== 1 ? 's' : ''} {drug.days_of_cycle.join(', ')}
             {drug.infusion_minutes ? ` · ${drug.infusion_minutes} min` : ''}
           </p>
           {drug.vehicle && <p style={{ fontSize: 11, color: '#9CA3AF', marginTop: 1 }}>Vehículo: {drug.vehicle}</p>}

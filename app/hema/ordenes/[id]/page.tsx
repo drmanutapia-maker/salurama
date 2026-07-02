@@ -8,6 +8,7 @@ import {
   ArrowLeft, AlertCircle, AlertTriangle, CheckCircle2, Download,
   FileText, Loader2, ShieldAlert, ShieldCheck,
 } from 'lucide-react'
+import { formatRoute } from '@salurama/hema-shared'
 import { generateOrderPdf, signOrder } from './actions'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -37,6 +38,7 @@ interface OrderDetail {
   cycle_number: number
   day_of_cycle: number
   scheduled_for: string
+  next_cycle_date: string | null
   bsa_used: number
   bsa_formula: 'mosteller' | 'dubois'
   ecog: number | null
@@ -45,12 +47,16 @@ interface OrderDetail {
   pdf_path: string | null
   pdf_sha256: string | null
   tenant_name: string
+  tenant_code: string | null
   patient_id: string
   patient_curp: string
   patient_display_name: string
   patient_birth_date: string
   patient_sex: 'M' | 'F'
   patient_allergies: string | null
+  patient_expediente_sequential: number | null
+  patient_weight_kg: number | null
+  patient_height_cm: number | null
   diagnosis_code: string
   diagnosis_desc: string | null
   protocol_code: string
@@ -79,9 +85,10 @@ function calcAge(birthDate: string): number {
   if (m < 0 || (m === 0 && today.getDate() < born.getDate())) age--
   return age
 }
-function maskCurp(curp: string): string {
-  if (curp.length !== 18) return curp
-  return `${curp.slice(0, 4)}••••••••••${curp.slice(14)}`
+function formatExpediente(tenantCode: string | null, sequential: number | null): string {
+  if (sequential == null) return 'Sin expediente'
+  const num = String(sequential).padStart(6, '0')
+  return tenantCode ? `${tenantCode}-${num}` : num
 }
 
 const STATUS_COLOR: Record<string, string> = {
@@ -231,6 +238,20 @@ export default function OrderDetailPage() {
         Folio {order.id.slice(0, 8).toUpperCase()} · {order.tenant_name}
       </p>
 
+      {/* Banner: indicación sin firmar más de 7 días desde scheduled_for */}
+      {['draft', 'validated'].includes(order.status) && (() => {
+        const days = Math.floor((Date.now() - new Date(order.scheduled_for).getTime()) / 86400000)
+        if (days <= 7) return null
+        return (
+          <div style={{ marginBottom: 16, padding: '12px 16px', background: '#FFFBEB', border: '1.5px solid #FDE68A', borderRadius: 14, display: 'flex', gap: 10 }}>
+            <AlertTriangle size={16} color="#D97706" style={{ flexShrink: 0, marginTop: 1 }} />
+            <p style={{ fontSize: 13, color: '#92400E', fontWeight: 600, margin: 0 }}>
+              Esta indicación lleva {days} día{days !== 1 ? 's' : ''} sin firmar — verifica que los datos clínicos sigan vigentes.
+            </p>
+          </div>
+        )
+      })()}
+
       {/* ── Paciente ── */}
       <div style={{ background: 'linear-gradient(135deg, #1E3A5F 0%, #152D4A 100%)', borderRadius: 16, padding: '18px 20px', marginBottom: 16, color: '#fff' }}>
         <p style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.65)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
@@ -240,17 +261,27 @@ export default function OrderDetailPage() {
           {order.patient_display_name}
         </h3>
         <p style={{ fontSize: 12, color: '#A0BBCC', fontFamily: 'monospace', marginBottom: 4 }}>
-          {maskCurp(order.patient_curp)}
+          Exp. {formatExpediente(order.tenant_code, order.patient_expediente_sequential)}
         </p>
         <p style={{ fontSize: 13, color: '#A0BBCC' }}>
           {calcAge(order.patient_birth_date)} años · {order.patient_sex === 'F' ? 'Femenino' : 'Masculino'} · {order.diagnosis_code} · {order.diagnosis_desc}
         </p>
         <p style={{ fontSize: 13, color: '#7EA8C9', marginTop: 8 }}>
+          {order.patient_weight_kg != null && order.patient_height_cm != null
+            ? `Peso ${order.patient_weight_kg} kg · Talla ${order.patient_height_cm} cm · `
+            : ''}
           BSA {order.bsa_used.toFixed(2)} m² ({order.bsa_formula === 'mosteller' ? 'Mosteller' : 'DuBois'})
-          {order.ecog !== null ? ` · ECOG ${order.ecog}` : ''} · Día {order.day_of_cycle} de {order.protocol_cycle_length_days} · {formatDate(order.scheduled_for)}
+          {order.ecog !== null ? ` · ECOG ${order.ecog}` : ''} · Ciclo {order.cycle_number} · {formatDate(order.scheduled_for)}
         </p>
-        {order.patient_allergies && (
+        {order.next_cycle_date && (
+          <p style={{ fontSize: 12, color: '#7EA8C9', marginTop: 4 }}>
+            Próximo ciclo: {formatDate(order.next_cycle_date)}
+          </p>
+        )}
+        {order.patient_allergies ? (
           <p style={{ fontSize: 12, color: '#FEF9C3', marginTop: 8 }}>⚠ Alergias: {order.patient_allergies}</p>
+        ) : (
+          <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', marginTop: 8 }}>ALERGIAS: Ninguna conocida</p>
         )}
       </div>
 
@@ -266,7 +297,7 @@ export default function OrderDetailPage() {
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
                 <div>
                   <p style={{ fontSize: 14, fontWeight: 600, color: '#111827', margin: 0 }}>{drug.inn}</p>
-                  <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>{drug.route} · Día {drug.given_on_day}</p>
+                  <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>{formatRoute(drug.route)} · Día {drug.given_on_day}</p>
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <p style={{ fontSize: 14, fontWeight: 700, color: wasReduced ? '#D97706' : '#1E3A5F', margin: 0 }}>

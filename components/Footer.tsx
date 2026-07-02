@@ -43,6 +43,8 @@ export default function Footer() {
               <Link href="/terminos-y-condiciones" style={{ fontSize: 14, color: '#C5D0E0', textDecoration: 'none' }}>Términos y condiciones</Link>
               <Link href="/politica-de-cookies" style={{ fontSize: 14, color: '#C5D0E0', textDecoration: 'none' }}>Política de cookies</Link>
               <Link href="/aviso-de-privacidad" style={{ fontSize: 14, color: '#C5D0E0', textDecoration: 'none' }}>Aviso de privacidad</Link>
+              <Link href="/deslinde-responsabilidad" style={{ fontSize: 14, color: '#C5D0E0', textDecoration: 'none' }}>Deslinde de responsabilidad</Link>
+              <Link href="/documentos-adicionales/politica-de-resenas" style={{ fontSize: 14, color: '#C5D0E0', textDecoration: 'none' }}>Política de reseñas</Link>
             </nav>
           </div>
 

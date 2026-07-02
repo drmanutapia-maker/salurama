@@ -12,6 +12,8 @@ function decodeJwtPayload(token: string): Record<string, unknown> {
   }
 }
 
+const ADMIN_ROLES = ['admin', 'director_medico']
+
 export default async function HemaLayout({
   children,
 }: {
@@ -28,7 +30,6 @@ export default async function HemaLayout({
           return cookieStore.getAll()
         },
         setAll(cookiesToSet) {
-          // En Server Components solo podemos leer cookies
           try {
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, options)
@@ -39,7 +40,6 @@ export default async function HemaLayout({
     }
   )
 
-  // Segunda capa de seguridad (el middleware es la primera)
   const {
     data: { session },
   } = await supabase.auth.getSession()
@@ -55,13 +55,16 @@ export default async function HemaLayout({
     redirect('/dashboard?upgrade=hema')
   }
 
-  // Leer perfil del médico desde public.doctors
-  const { data: doctor } = await supabase
-    .from('doctors')
-    .select('full_name, specialty, professional_license, photo_url')
-    .eq('user_id', session.user.id)
-    .maybeSingle()
+  const [{ data: doctor }, { data: roleData }] = await Promise.all([
+    supabase
+      .from('doctors')
+      .select('full_name, specialty, professional_license, photo_url')
+      .eq('user_id', session.user.id)
+      .maybeSingle(),
+    supabase.rpc('hema_get_my_role'),
+  ])
 
+  const isAdmin = ADMIN_ROLES.includes((roleData as string) ?? '')
   const doctorName = doctor?.full_name ?? session.user.email ?? ''
   const specialty = doctor?.specialty ?? ''
 
@@ -71,8 +74,7 @@ export default async function HemaLayout({
         @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@700;900&family=DM+Sans:wght@400;500;600;700&display=swap');
       `}</style>
 
-      {/* Sub-navegación del módulo HEMA */}
-      <HemaNav />
+      <HemaNav isAdmin={isAdmin} />
 
       {/* Contenido del módulo */}
       <div

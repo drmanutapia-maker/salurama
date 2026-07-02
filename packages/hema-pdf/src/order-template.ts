@@ -1,5 +1,6 @@
 import { PDFDocument, StandardFonts } from 'pdf-lib'
 import { generateQrPngBytes } from './qr'
+import { formatRoute } from '@salurama/hema-shared'
 import type { OrderPdfDrug, OrderPdfInput, OrderPdfResult } from './types'
 import {
   COLOR_ALERT,
@@ -37,9 +38,18 @@ function calcAge(birthDateIso: string): number {
   return age
 }
 
-function maskCurp(curp: string): string {
-  if (curp.length !== 18) return curp
-  return `${curp.slice(0, 4)}••••••••••${curp.slice(14)}`
+function formatInfusionTime(minutes: number | null): string {
+  if (minutes == null) return '--'
+  if (minutes < 60) return `${minutes} min`
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  return m === 0 ? `${h} h` : `${h} h ${m} min`
+}
+
+function isNoAllergyText(s: string | null): boolean {
+  if (s == null) return true
+  const t = s.trim()
+  return t === '' || /^ninguna/i.test(t) || /^negad/i.test(t)
 }
 
 // ─── Builder principal ───────────────────────────────────────────────────────
@@ -59,18 +69,24 @@ export async function buildOrderPdf(input: OrderPdfInput): Promise<OrderPdfResul
   const cursor = makeCursor(newPage(), newPage)
 
   // ── Encabezado institucional ──
+  // independiente: nombre del médico/consultorio + cédula profesional en header
+  // clinica: nombre de la clínica; el médico individual queda solo en el bloque de firma
   cursor.page.drawText(input.institution.name, { x: MARGIN, y: cursor.y, size: 14, font: fontBold, color: COLOR_BRAND })
   cursor.y -= 18
 
-  const instLine = [input.institution.clues ? `CLUES ${input.institution.clues}` : null, input.institution.cofeprisLicense ? `COFEPRIS ${input.institution.cofeprisLicense}` : null]
-    .filter(Boolean)
-    .join('  ·  ')
-  if (instLine) {
-    cursor.page.drawText(instLine, { x: MARGIN, y: cursor.y, size: 9, font, color: COLOR_MUTED })
+  const instSublines: string[] = []
+  if (input.institution.tenantType === 'independiente' && input.prescriber.professionalLicense) {
+    instSublines.push(`Cedula ${input.prescriber.professionalLicense}`)
+  }
+  if (input.institution.cofeprisLicense) {
+    instSublines.push(`COFEPRIS ${input.institution.cofeprisLicense}`)
+  }
+  if (instSublines.length > 0) {
+    cursor.page.drawText(instSublines.join('  ·  '), { x: MARGIN, y: cursor.y, size: 9, font, color: COLOR_MUTED })
     cursor.y -= 14
   }
 
-  cursor.page.drawText('INDICACIÓN DE QUIMIOTERAPIA', { x: MARGIN, y: cursor.y, size: 16, font: fontBold, color: COLOR_INK })
+  cursor.page.drawText('INDICACION DE QUIMIOTERAPIA', { x: MARGIN, y: cursor.y, size: 16, font: fontBold, color: COLOR_INK })
   const folioLabel = `Folio ${input.orderId.slice(0, 8).toUpperCase()}`
   cursor.page.drawText(folioLabel, {
     x: PAGE_WIDTH - MARGIN - font.widthOfTextAtSize(folioLabel, 9),
@@ -83,40 +99,52 @@ export async function buildOrderPdf(input: OrderPdfInput): Promise<OrderPdfResul
 
   // ── Paciente ──
   drawSectionTitle(cursor, 'Paciente', fontBold)
-  drawWrapped(cursor, `${input.patient.displayName}  ·  ${maskCurp(input.patient.curp)}`, {
+  drawWrapped(cursor, `${input.patient.displayName}  ·  Exp. ${input.patient.expediente}`, {
     x: MARGIN, maxWidth: contentWidth, font: fontBold, size: 11, color: COLOR_INK,
   })
   drawWrapped(
     cursor,
-    `${calcAge(input.patient.birthDate)} años · ${input.patient.sex === 'F' ? 'Femenino' : 'Masculino'} · Nacimiento ${formatDate(input.patient.birthDate)}`,
+    `${calcAge(input.patient.birthDate)} anos · ${input.patient.sex === 'F' ? 'Femenino' : 'Masculino'} · Nacimiento ${formatDate(input.patient.birthDate)}`,
     { x: MARGIN, maxWidth: contentWidth, font, size: 10, color: COLOR_MUTED },
   )
-  if (input.patient.allergies) {
+  if (input.patient.allergies && !isNoAllergyText(input.patient.allergies)) {
     drawWrapped(cursor, `ALERGIAS: ${input.patient.allergies}`, {
       x: MARGIN, maxWidth: contentWidth, font: fontBold, size: 10, color: COLOR_ALERT,
+    })
+  } else {
+    drawWrapped(cursor, 'ALERGIAS: Ninguna conocida', {
+      x: MARGIN, maxWidth: contentWidth, font, size: 10, color: COLOR_MUTED,
     })
   }
   cursor.y -= 8
 
   // ── Diagnóstico / Protocolo ──
-  drawSectionTitle(cursor, 'Diagnóstico y protocolo', fontBold)
-  drawWrapped(cursor, `${input.diagnosisCode} — ${input.diagnosisDesc ?? 'Sin descripción'}`, {
+  drawSectionTitle(cursor, 'Diagnostico y protocolo', fontBold)
+  drawWrapped(cursor, `${input.diagnosisCode} -- ${input.diagnosisDesc ?? 'Sin descripcion'}`, {
     x: MARGIN, maxWidth: contentWidth, font, size: 10, color: COLOR_INK,
   })
+
+  const nextCycleSuffix = input.protocol.nextCycleDate
+    ? ` · Proximo ciclo: ${formatDate(input.protocol.nextCycleDate)}`
+    : ''
   drawWrapped(
     cursor,
-    `Protocolo ${input.protocol.code} — ${input.protocol.name} · Ciclo ${input.cycleNumber}${input.protocol.totalCycles ? `/${input.protocol.totalCycles}` : ''} · Día ${input.dayOfCycle} de ${input.protocol.cycleLengthDays}`,
+    `Protocolo ${input.protocol.code} -- ${input.protocol.name} · Ciclo ${input.cycleNumber}${nextCycleSuffix}`,
     { x: MARGIN, maxWidth: contentWidth, font, size: 10, color: COLOR_INK },
   )
-  drawWrapped(
-    cursor,
-    `BSA ${input.bsaUsed.toFixed(2)} m² (${input.bsaFormula === 'mosteller' ? 'Mosteller' : 'DuBois'})${input.ecog !== null ? ` · ECOG ${input.ecog}` : ''} · Programada ${formatDate(input.scheduledFor)}`,
-    { x: MARGIN, maxWidth: contentWidth, font, size: 10, color: COLOR_MUTED },
-  )
+
+  const bsaLine = [
+    input.patient.weightKg != null && input.patient.heightCm != null
+      ? `Peso ${input.patient.weightKg} kg · Talla ${input.patient.heightCm} cm · BSA ${input.bsaUsed.toFixed(2)} m2 (${input.bsaFormula === 'mosteller' ? 'Mosteller' : 'DuBois'})`
+      : `BSA ${input.bsaUsed.toFixed(2)} m2 (${input.bsaFormula === 'mosteller' ? 'Mosteller' : 'DuBois'})`,
+    input.ecog !== null ? `ECOG ${input.ecog}` : null,
+    `Programada ${formatDate(input.scheduledFor)}`,
+  ].filter(Boolean).join('  ·  ')
+  drawWrapped(cursor, bsaLine, { x: MARGIN, maxWidth: contentWidth, font, size: 10, color: COLOR_MUTED })
   cursor.y -= 8
 
   // ── Tabla de fármacos ──
-  drawSectionTitle(cursor, 'Fármacos indicados', fontBold)
+  drawSectionTitle(cursor, 'Farmacos indicados', fontBold)
   drawDrugTable(cursor, input.drugs, font, fontBold, contentWidth)
   cursor.y -= 8
 
@@ -131,13 +159,13 @@ export async function buildOrderPdf(input: OrderPdfInput): Promise<OrderPdfResul
   cursor.y -= 12
 
   // ── Firmas ──
-  drawSectionTitle(cursor, 'Firma electrónica', fontBold)
+  drawSectionTitle(cursor, 'Firma electronica', fontBold)
   if (input.signatures.length === 0) {
     drawWrapped(cursor, 'Pendiente de firma.', { x: MARGIN, maxWidth: contentWidth, font, size: 10, color: COLOR_MUTED })
   } else {
     for (const sig of input.signatures) {
-      const provLabel = sig.pscProvider === 'dev' ? 'FIRMA DE PRUEBA — NO VÁLIDA ANTE NOM-151' : sig.pscProvider.toUpperCase()
-      drawWrapped(cursor, `${sig.signerName ?? 'Médico'} · ${formatDateTime(sig.signedAt)}`, {
+      const provLabel = sig.pscProvider === 'dev' ? 'FIRMA DE PRUEBA -- NO VALIDA ANTE NOM-151' : sig.pscProvider.toUpperCase()
+      drawWrapped(cursor, `${sig.signerName ?? 'Medico'} · ${formatDateTime(sig.signedAt)}`, {
         x: MARGIN, maxWidth: contentWidth, font: fontBold, size: 10, color: COLOR_INK,
       })
       drawWrapped(cursor, provLabel, {
@@ -150,7 +178,7 @@ export async function buildOrderPdf(input: OrderPdfInput): Promise<OrderPdfResul
     cursor.y -= 4
     drawWrapped(
       cursor,
-      `Médico tratante: ${input.prescriber.fullName}${input.prescriber.professionalLicense ? ` · Cédula ${input.prescriber.professionalLicense}` : ''}`,
+      `Medico tratante: ${input.prescriber.fullName}${input.prescriber.professionalLicense ? ` · Cedula ${input.prescriber.professionalLicense}` : ''}`,
       { x: MARGIN, maxWidth: contentWidth, font, size: 9, color: COLOR_MUTED },
     )
   }
@@ -189,11 +217,11 @@ function drawDrugTable(
   const cols = { inn: MARGIN, route: MARGIN + 150, day: MARGIN + 210, dose: MARGIN + 250, infusion: MARGIN + 340 }
 
   ensureSpace(cursor, 16)
-  cursor.page.drawText('Fármaco', { x: cols.inn, y: cursor.y, size: 8, font: fontBold, color: COLOR_MUTED })
-  cursor.page.drawText('Vía', { x: cols.route, y: cursor.y, size: 8, font: fontBold, color: COLOR_MUTED })
-  cursor.page.drawText('Día', { x: cols.day, y: cursor.y, size: 8, font: fontBold, color: COLOR_MUTED })
+  cursor.page.drawText('Farmaco', { x: cols.inn, y: cursor.y, size: 8, font: fontBold, color: COLOR_MUTED })
+  cursor.page.drawText('Via', { x: cols.route, y: cursor.y, size: 8, font: fontBold, color: COLOR_MUTED })
+  cursor.page.drawText('Dia', { x: cols.day, y: cursor.y, size: 8, font: fontBold, color: COLOR_MUTED })
   cursor.page.drawText('Dosis', { x: cols.dose, y: cursor.y, size: 8, font: fontBold, color: COLOR_MUTED })
-  cursor.page.drawText('Infusión', { x: cols.infusion, y: cursor.y, size: 8, font: fontBold, color: COLOR_MUTED })
+  cursor.page.drawText('Infusion', { x: cols.infusion, y: cursor.y, size: 8, font: fontBold, color: COLOR_MUTED })
   cursor.y -= 12
   cursor.page.drawLine({ start: { x: MARGIN, y: cursor.y }, end: { x: MARGIN + contentWidth, y: cursor.y }, thickness: 0.5, color: COLOR_BORDER })
   cursor.y -= 10
@@ -202,19 +230,19 @@ function drawDrugTable(
     ensureSpace(cursor, 14)
     const wasReduced = drug.computedDoseMg !== drug.baseDoseMg
     cursor.page.drawText(drug.inn, { x: cols.inn, y: cursor.y, size: 9, font: fontBold, color: COLOR_INK })
-    cursor.page.drawText(drug.route, { x: cols.route, y: cursor.y, size: 9, font, color: COLOR_INK })
+    cursor.page.drawText(formatRoute(drug.route), { x: cols.route, y: cursor.y, size: 9, font, color: COLOR_INK })
     cursor.page.drawText(String(drug.givenOnDay), { x: cols.day, y: cursor.y, size: 9, font, color: COLOR_INK })
     cursor.page.drawText(`${drug.computedDoseMg} mg`, { x: cols.dose, y: cursor.y, size: 9, font, color: wasReduced ? COLOR_WARN : COLOR_INK })
-    cursor.page.drawText(drug.infusionMinutes ? `${drug.infusionMinutes} min` : '—', { x: cols.infusion, y: cursor.y, size: 9, font, color: COLOR_MUTED })
+    cursor.page.drawText(formatInfusionTime(drug.infusionMinutes), { x: cols.infusion, y: cursor.y, size: 9, font, color: COLOR_MUTED })
     cursor.y -= 13
 
     if (wasReduced && drug.reductionReason) {
-      drawWrapped(cursor, `Reducción ${drug.reductionPct}%: ${drug.reductionReason}`, {
+      drawWrapped(cursor, `Reduccion ${drug.reductionPct}%: ${drug.reductionReason}`, {
         x: cols.inn + 8, maxWidth: contentWidth - 8, font, size: 8, color: COLOR_WARN, lineGap: 2,
       })
     }
     if (drug.overrideReason) {
-      drawWrapped(cursor, `Justificación de alerta: ${drug.overrideReason}`, {
+      drawWrapped(cursor, `Justificacion de alerta: ${drug.overrideReason}`, {
         x: cols.inn + 8, maxWidth: contentWidth - 8, font, size: 8, color: COLOR_ALERT, lineGap: 2,
       })
     }

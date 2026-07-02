@@ -35,6 +35,7 @@ interface OrderDetailRow {
   cycle_number: number
   day_of_cycle: number
   scheduled_for: string
+  next_cycle_date: string | null
   bsa_used: number
   bsa_formula: 'mosteller' | 'dubois'
   ecog: number | null
@@ -43,11 +44,16 @@ interface OrderDetailRow {
   tenant_name: string
   tenant_clues: string | null
   tenant_cofepris_license: string | null
+  tenant_type: 'independiente' | 'clinica'
+  tenant_code: string | null
   patient_curp: string
   patient_display_name: string
   patient_birth_date: string
   patient_sex: 'M' | 'F'
   patient_allergies: string | null
+  patient_expediente_sequential: number | null
+  patient_weight_kg: number | null
+  patient_height_cm: number | null
   diagnosis_code: string
   diagnosis_desc: string | null
   protocol_code: string
@@ -122,19 +128,30 @@ export async function generateOrderPdf(orderId: string): Promise<GenerateOrderPd
     disclaimer: row.disclaimer,
     diagnosisCode: row.diagnosis_code,
     diagnosisDesc: row.diagnosis_desc,
-    institution: { name: row.tenant_name, clues: row.tenant_clues, cofeprisLicense: row.tenant_cofepris_license },
+    institution: {
+      name: row.tenant_name,
+      tenantType: row.tenant_type ?? 'independiente',
+      cofeprisLicense: row.tenant_cofepris_license,
+    },
     patient: {
       displayName: row.patient_display_name,
-      curp: row.patient_curp,
+      expediente: row.tenant_code && row.patient_expediente_sequential != null
+        ? `${row.tenant_code}-${String(row.patient_expediente_sequential).padStart(6, '0')}`
+        : row.patient_expediente_sequential != null
+          ? String(row.patient_expediente_sequential).padStart(6, '0')
+          : 'SIN-EXP',
       birthDate: row.patient_birth_date,
       sex: row.patient_sex,
       allergies: row.patient_allergies,
+      weightKg: row.patient_weight_kg,
+      heightCm: row.patient_height_cm,
     },
     protocol: {
       code: row.protocol_code,
       name: row.protocol_name,
       cycleLengthDays: row.protocol_cycle_length_days,
       totalCycles: row.protocol_total_cycles,
+      nextCycleDate: row.next_cycle_date,
     },
     prescriber: { fullName: row.created_by_name, professionalLicense: row.created_by_license },
     drugs: row.drugs.map((d) => ({

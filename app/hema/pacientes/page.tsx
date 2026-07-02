@@ -99,7 +99,7 @@ function SkeletonCard() {
 
 // ─── Patient Card (mobile) ────────────────────────────────────────────────────
 
-function PatientCard({ p }: { p: PatientRow }) {
+function PatientCard({ p, labsMode }: { p: PatientRow; labsMode?: boolean }) {
   const age = calcAge(p.birth_date)
   const initials = (p.display_name || '?')
     .split(' ')
@@ -111,7 +111,7 @@ function PatientCard({ p }: { p: PatientRow }) {
 
   return (
     <Link
-      href={`/hema/pacientes/${p.id}`}
+      href={labsMode ? `/hema/labs/nuevo?patient=${p.id}` : `/hema/pacientes/${p.id}`}
       style={{
         background: '#fff',
         border: '1px solid #E5E7EB',
@@ -202,12 +202,12 @@ function PatientCard({ p }: { p: PatientRow }) {
 
 // ─── Desktop row ──────────────────────────────────────────────────────────────
 
-function PatientRow({ p }: { p: PatientRow }) {
+function PatientRow({ p, labsMode }: { p: PatientRow; labsMode?: boolean }) {
   const age = calcAge(p.birth_date)
 
   return (
     <Link
-      href={`/hema/pacientes/${p.id}`}
+      href={labsMode ? `/hema/labs/nuevo?patient=${p.id}` : `/hema/pacientes/${p.id}`}
       style={{
         display: 'grid',
         gridTemplateColumns: '2fr 1.2fr 1fr 1.4fr',
@@ -504,7 +504,7 @@ function PacientesContent() {
             className="hema-cards-mobile"
           >
             {filtered.map((p) => (
-              <PatientCard key={p.id} p={p} />
+              <PatientCard key={p.id} p={p} labsMode={showLabsBanner} />
             ))}
           </div>
 
@@ -535,7 +535,7 @@ function PacientesContent() {
                 </p>
               ))}
             </div>
-            {filtered.map((p) => <PatientRow key={p.id} p={p} />)}
+            {filtered.map((p) => <PatientRow key={p.id} p={p} labsMode={showLabsBanner} />)}
           </div>
         </>
       )}

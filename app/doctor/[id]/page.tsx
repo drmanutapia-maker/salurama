@@ -613,8 +613,55 @@ export default function DoctorProfilePage() {
     </div>
   )
 
+  // Schema.org para Google (estrellas en resultados de búsqueda)
+  const doctorSchema = medico ? {
+    '@context': 'https://schema.org',
+    '@type': 'Physician',
+    name: displayName,
+    description: medico.about_me?.substring(0, 200) || `Especialista en ${medico.specialty}`,
+    image: medico.photo_url || undefined,
+    medicalSpecialty: medico.specialty,
+    address: {
+      '@type': 'PostalAddress',
+      streetAddress: direccionCompleta || undefined,
+      addressLocality: medico.ciudad || undefined,
+      addressRegion: medico.estado || undefined,
+      postalCode: medico.cp || undefined,
+      addressCountry: 'MX',
+    },
+    aggregateRating: reviews.length > 0 ? {
+      '@type': 'AggregateRating',
+      ratingValue: (medico.rating_avg || 0).toFixed(1),
+      reviewCount: reviews.length,
+      bestRating: '5',
+      worstRating: '1',
+    } : undefined,
+    review: reviews.slice(0, 3).map((r: any) => ({
+      '@type': 'Review',
+      author: { '@type': 'Person', name: r.user_name || 'Paciente verificado' },
+      reviewBody: r.comment || '',
+      reviewRating: {
+        '@type': 'Rating',
+        ratingValue: r.rating,
+        bestRating: '5',
+        worstRating: '1',
+      },
+      datePublished: r.created_at,
+    })),
+    telephone: medico.clinic_phone || medico.whatsapp_phone || undefined,
+    url: profileUrl,
+  } : null
+
   return (
     <div style={{ minHeight: '100vh', background: '#F9FAFB', fontFamily: "'DM Sans', sans-serif", color: '#111827', paddingBottom: 100 }}>
+
+            {doctorSchema && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(doctorSchema) }}
+        />
+      )}
+      
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@600;900&family=DM+Sans:wght@300;400;500;700&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { AlertCircle, AlertTriangle, CheckCircle2, Loader2, ShieldCheck } from 'lucide-react'
+import { formatRoute } from '@salurama/hema-shared'
 import { createOrder } from './actions'
 import type {
   ClinicalInputs,
@@ -24,15 +25,12 @@ interface Step4ReviewProps {
   overrides: Override[]
   onCycleNumberChange: (n: number) => void
   onScheduledForChange: (s: string) => void
+  nextCycleDate: string
+  onNextCycleDateChange: (d: string) => void
   onSubmitted: (orderId: string) => void
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function maskCurp(curp: string): string {
-  if (curp.length !== 18) return curp
-  return `${curp.slice(0, 4)}••••••••••${curp.slice(14)}`
-}
 
 function calcAge(birthDate: string): number {
   const today = new Date()
@@ -48,7 +46,7 @@ function calcAge(birthDate: string): number {
 export default function Step4Review({
   patient, protocol, cycleNumber, scheduledFor, ecog,
   doseAdjustments, validation, validating, overrides,
-  onCycleNumberChange, onScheduledForChange, onSubmitted,
+  onCycleNumberChange, onScheduledForChange, nextCycleDate, onNextCycleDateChange, onSubmitted,
 }: Step4ReviewProps) {
   const [dayOfCycle, setDayOfCycle] = useState(1)
   const [confirmed, setConfirmed] = useState(false)
@@ -94,6 +92,7 @@ export default function Step4Review({
         bsa_formula: 'mosteller',
         scheduled_for: scheduledFor,
         ecog: ecog ?? null,
+        next_cycle_date: nextCycleDate || null,
         drugs,
       })
 
@@ -122,9 +121,6 @@ export default function Step4Review({
         <h3 style={{ fontFamily: 'Fraunces, serif', fontSize: 19, fontWeight: 900, marginBottom: 4 }}>
           {patient.display_name}
         </h3>
-        <p style={{ fontSize: 12, color: '#A0BBCC', fontFamily: 'monospace', marginBottom: 4 }}>
-          {maskCurp(patient.curp)}
-        </p>
         <p style={{ fontSize: 13, color: '#A0BBCC' }}>
           {calcAge(patient.birth_date)} años · {patient.sex === 'F' ? 'Femenino' : 'Masculino'} ·{' '}
           {patient.primary_dx_code} · {patient.primary_dx_desc}
@@ -186,6 +182,19 @@ export default function Step4Review({
         </div>
       </div>
 
+      {/* ── Próximo ciclo (opcional) ── */}
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#6B7280', marginBottom: 4 }}>
+          Próximo ciclo <span style={{ fontWeight: 400, color: '#9CA3AF' }}>(opcional)</span>
+        </label>
+        <input
+          type="date"
+          value={nextCycleDate}
+          onChange={(e) => onNextCycleDateChange(e.target.value)}
+          style={{ width: '100%', padding: '10px 12px', fontSize: 14, borderRadius: 10, border: '1.5px solid #E5E7EB', boxSizing: 'border-box', minHeight: 44 }}
+        />
+      </div>
+
       {/* ── Fármacos ── */}
       <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 16, overflow: 'hidden', marginBottom: 16 }}>
         <div style={{ padding: '14px 16px', borderBottom: '1px solid #F3F4F6' }}>
@@ -197,7 +206,7 @@ export default function Step4Review({
             <div key={adj.protocol_drug_id} style={{ padding: '12px 16px', borderBottom: i < doseAdjustments.length - 1 ? '1px solid #F3F4F6' : 'none', display: 'flex', justifyContent: 'space-between', gap: 8 }}>
               <div>
                 <p style={{ fontSize: 14, fontWeight: 600, color: '#111827', margin: 0 }}>{adj.inn}</p>
-                <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>{adj.route} · Día {adj.given_on_day}</p>
+                <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>{formatRoute(adj.route)} · Día {adj.given_on_day}</p>
               </div>
               <div style={{ textAlign: 'right' }}>
                 <p style={{ fontSize: 14, fontWeight: 700, color: wasReduced ? '#D97706' : '#1E3A5F', margin: 0 }}>

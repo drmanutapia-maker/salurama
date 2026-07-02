@@ -1,3 +1,5 @@
+import Link from 'next/link'
+
 // ════════════════════════════════════════════════════════════════════════════
 // CONTRATO MARCO B2B (versión pública / resumen)
 // El contrato completo y firmado se entrega de forma privada a cada socio.

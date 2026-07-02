@@ -32,6 +32,7 @@ const CreateOrderSchema = z.object({
   bsa_formula: z.enum(['mosteller', 'dubois']),
   scheduled_for: z.string().date(),
   ecog: z.number().int().min(0).max(4).nullable().optional(),
+  next_cycle_date: z.string().date().nullable().optional(),
   drugs: z.array(OrderDrugInputSchema).min(1, 'La orden debe tener al menos un fármaco'),
 })
 
@@ -108,6 +109,7 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
     p_created_by: session.user.id,
     p_drugs: d.drugs,
     p_ecog: d.ecog ?? null,
+    p_next_cycle_date: d.next_cycle_date ?? null,
   })
 
   if (error) {

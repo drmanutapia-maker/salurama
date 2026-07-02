@@ -1,8 +1,14 @@
- ════════════════════════════════════════════════════════════════════════════
+'use client'
+
+import { useState } from 'react'
+import Link from 'next/link'
+import { X, Menu } from 'lucide-react'
+
+// ════════════════════════════════════════════════════════════════════════════
 // POLÍTICA DE CONTENIDO Y RESEÑAS
 // ════════════════════════════════════════════════════════════════════════════
 
-export function PoliticaResenas() {
+export default function PoliticaResenas() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   return (
