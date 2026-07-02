@@ -195,11 +195,6 @@ export default function HemaDashboard() {
     return h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches'
   }
 
-  const nombreCorto = (nombre: string) => {
-    const p = nombre.trim().split(/\s+/)
-    return p.length <= 1 ? p[0] : `${p[0]} ${p[p.length - 1]}`
-  }
-
   if (loading) {
     return (
       <div
@@ -265,7 +260,7 @@ export default function HemaDashboard() {
             lineHeight: 1.2,
           }}
         >
-          {doctorName ? `Dr. ${nombreCorto(doctorName)}` : 'HEMA Clínico'}
+          {doctorName ? `Dr. ${doctorName}` : 'HEMA Clínico'}
         </h1>
         <p
           style={{
