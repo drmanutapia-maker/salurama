@@ -1,8 +1,5 @@
 'use client'
 
-import { useState } from 'react'
-import { Menu, X } from 'lucide-react'
-
 const SECTIONS = [
   { id: 'responsable',     title: '1. Responsable y marco legal' },
   { id: 'datos',           title: '2. Datos que recabamos' },
@@ -16,8 +13,6 @@ const SECTIONS = [
 ]
 
 export default function AvisoDePrivacidad() {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-
   return (
     <div style={{ fontFamily: "'DM Sans', sans-serif", background: '#fff', minHeight: '100vh', color: '#111827' }}><style>{`
         @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;0,900;1,600&family=DM+Sans:wght@300;400;500;700&display=swap');

@@ -2,12 +2,10 @@
 import Link from 'next/link'
 import { Heart, Search } from 'lucide-react'
 import BottomNav from '@/components/BottomNav'
-import Navbar from '@/components/Navbar'
 
 export default function FavoritosPage() {
   return (
     <div style={{ minHeight: '100vh', background: '#F9FAFB', fontFamily: "'DM Sans', sans-serif" }}>
-      <Navbar />
       <main style={{ paddingTop: 100, paddingBottom: 100, maxWidth: 600, margin: '0 auto', padding: '100px 20px 100px', textAlign: 'center' }}>
         <div style={{ background: '#fff', borderRadius: 24, padding: 48, boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
           <div style={{ width: 80, height: 80, background: '#F5F3FF', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>

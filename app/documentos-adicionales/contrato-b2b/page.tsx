@@ -7,47 +7,27 @@ import Link from 'next/link'
 
 export default function ContratoB2B() {
   return (
-    <div style={{ fontFamily:"'DM Sans',sans-serif", background:'#fff', minHeight:'100vh', color:'#1A1A2E' }}>
+    <div style={{ fontFamily:"'DM Sans',sans-serif", background:'#fff', minHeight:'100vh', color:'#111827' }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;0,900;1,600&family=DM+Sans:wght@300;400;500;700&display=swap');
         *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
-        .nav-link { color:#1A1A2E; text-decoration:none; font-size:15px; font-weight:400; padding:6px 2px; border-bottom:2px solid transparent; transition:color .15s,border-color .15s; }
-        .nav-link:hover { color:#3730A3; border-color:#3730A3; }
-        .btn-medico { background:#3730A3; color:#fff; text-decoration:none; padding:10px 20px; border-radius:50px; font-size:14px; font-weight:600; font-family:'DM Sans',sans-serif; display:inline-flex; align-items:center; gap:7px; transition:background .18s; }
-        .btn-medico:hover { background:#4F46E5; }
-        .legal-h2 { font-family:'Fraunces',serif; font-size:clamp(18px,3.5vw,22px); font-weight:900; color:#1E1B4B; margin:0 0 14px; padding-bottom:10px; border-bottom:2px solid #EEF2FF; }
-        .legal-h3 { font-size:15px; font-weight:600; color:#3730A3; margin:20px 0 8px; }
-        .legal-p { font-size:14px; color:#4B5563; line-height:1.85; margin-bottom:12px; }
+        .legal-h2 { font-family:'Fraunces',serif; font-size:clamp(18px,3.5vw,22px); font-weight:900; color:#0D1829; margin:0 0 14px; padding-bottom:10px; border-bottom:2px solid #E8ECF3; }
+        .legal-h3 { font-size:15px; font-weight:600; color:#1E3A5F; margin:20px 0 8px; }
+        .legal-p { font-size:14px; color:#4A5568; line-height:1.85; margin-bottom:12px; }
         .legal-ul { padding-left:20px; margin-bottom:14px; }
-        .legal-li { font-size:14px; color:#4B5563; line-height:1.8; margin-bottom:5px; }
-        .legal-strong { color:#1A1A2E; font-weight:600; }
+        .legal-li { font-size:14px; color:#4A5568; line-height:1.8; margin-bottom:5px; }
+        .legal-strong { color:#111827; font-weight:600; }
         .clause-box { background:#F9FAFB; border:1px solid #E5E7EB; border-radius:10px; padding:16px 20px; margin:14px 0; font-style:italic; }
-        .clause-box p { margin:0; font-size:13px; color:#4B5563; line-height:1.75; }
-        .info-box { background:#EEF2FF; border:1.5px solid #C7D2FE; border-radius:10px; padding:14px 18px; margin:16px 0; }
-        .info-box p { margin:0; color:#3730A3; font-size:13px; font-weight:500; line-height:1.6; }
+        .clause-box p { margin:0; font-size:13px; color:#4A5568; line-height:1.75; }
+        .info-box { background:#E8ECF3; border:1.5px solid #C5D0E0; border-radius:10px; padding:14px 18px; margin:16px 0; }
+        .info-box p { margin:0; color:#1E3A5F; font-size:13px; font-weight:500; line-height:1.6; }
         .section-block { margin-bottom:44px; }
-        @media (max-width:768px) { .dsk{display:none!important} .mob-btn{display:flex!important} }
-        @media (min-width:769px) { .mob-btn{display:none!important} .mob-menu{display:none!important} }
       `}</style>
 
-      <nav style={{ position:'sticky', top:0, zIndex:100, background:'rgba(255,255,255,0.97)', backdropFilter:'blur(14px)', borderBottom:'1px solid #F3F4F6', padding:'0 20px' }}>
-        <div style={{ maxWidth:1100, margin:'0 auto', height:58, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-          <Link href="/" style={{ textDecoration:'none' }}>
-            <span style={{ fontFamily:"'Fraunces',serif", fontSize:22, fontWeight:900, color:'#3730A3' }}>Salu</span>
-            <span style={{ fontFamily:"'Fraunces',serif", fontSize:22, fontWeight:600, color:'#F4623A' }}>rama</span>
-          </Link>
-          <div className="dsk" style={{ display:'flex', alignItems:'center', gap:28 }}>
-            <Link href="/buscar" className="nav-link">Especialidades</Link>
-            <Link href="/nosotros" className="nav-link">Nosotros</Link>
-            <Link href="/registro" className="btn-medico">👨‍⚕️ Soy Médico</Link>
-          </div>
-        </div>
-      </nav>
-
-      <section style={{ background:'linear-gradient(160deg,#EEF2FF 0%,#fff 60%)', padding:'clamp(40px,6vw,60px) 20px 32px' }}>
+      <section style={{ background:'linear-gradient(160deg,#E8ECF3 0%,#fff 60%)', padding:'clamp(40px,6vw,60px) 20px 32px' }}>
         <div style={{ maxWidth:820, margin:'0 auto' }}>
-          <p style={{ fontSize:11, fontWeight:600, color:'#4F46E5', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:10 }}>Para empresas del sector salud</p>
-          <h1 style={{ fontFamily:"'Fraunces',serif", fontSize:'clamp(26px,5vw,38px)', fontWeight:900, color:'#1E1B4B', marginBottom:12 }}>Condiciones de Colaboración B2B</h1>
+          <p style={{ fontSize:11, fontWeight:600, color:'#2A9D8F', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:10 }}>Para empresas del sector salud</p>
+          <h1 style={{ fontFamily:"'Fraunces',serif", fontSize:'clamp(26px,5vw,38px)', fontWeight:900, color:'#0D1829', marginBottom:12 }}>Condiciones de Colaboración B2B</h1>
           <p style={{ fontSize:14, color:'#6B7280' }}>Última actualización: 31 de marzo de 2026 · SALURAMA S.A.S.</p>
         </div>
       </section>

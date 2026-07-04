@@ -6,7 +6,7 @@ import { z } from 'zod'
 const schema = z.object({
   email: z.string().email().toLowerCase(),
   password: z.string().min(8).max(72),
-  full_name: z.string().trim().min(3).max(100).regex(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/),
+  full_name: z.string().trim().min(3).max(100).regex(/^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s.\-']+$/),
   specialty: z.string().min(2).max(100),
   professional_license: z.string().regex(/^\d{7,8}$/),
   specialty_council: z.string().max(100).optional(),
@@ -75,10 +75,18 @@ export async function POST(request: NextRequest) {
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: data.email,
       password: data.password,
-      email_confirm: true,
+      email_confirm: false,
       user_metadata: { full_name: data.full_name, role: 'doctor' }
     })
-    if (authError) throw authError
+    if (authError) {
+      if (authError.status === 422) {
+        return NextResponse.json(
+          { error: 'Este email ya tiene una cuenta registrada. Intenta iniciar sesión.' },
+          { status: 400 }
+        )
+      }
+      throw authError
+    }
 
     // === GEOCODIFICACIÓN CON SEPOMEX (2026) ===
     let lat = null
@@ -125,7 +133,7 @@ export async function POST(request: NextRequest) {
         clinic_address: fullAddress,
         clinic_lat: lat,
         clinic_lng: lng,
-        is_active: false,
+        is_active: true,
         review_status: 'pendiente',
       })
       .select('id')
@@ -149,7 +157,11 @@ export async function POST(request: NextRequest) {
 
   } catch (error: any) {
     console.error('Registro error:', error)
-    const msg = error.name === 'ZodError' ? 'Datos inválidos' : 'Error en registro'
-    return NextResponse.json({ error: msg }, { status: 400 })
+    if (error.name === 'ZodError') {
+      const first = error.errors?.[0]
+      const field = first?.path?.[0] ?? 'campo'
+      return NextResponse.json({ error: `Datos inválidos (${field})` }, { status: 400 })
+    }
+    return NextResponse.json({ error: error.message || 'Error en registro' }, { status: 400 })
   }
 }
