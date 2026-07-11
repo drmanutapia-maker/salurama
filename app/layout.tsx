@@ -39,7 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="es">
       <body className="antialiased bg-white text-[#111827]" style={{ margin: 0, padding: 0, overflowX: 'hidden' }}>
         <Navbar />
-        <main style={{ paddingTop: '68px', minHeight: '100vh' }}>
+        <main style={{ paddingTop: '68px', minHeight: '100svh' }}>
           {children}
         </main>
         <Footer />

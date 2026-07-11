@@ -7,6 +7,7 @@ import {
   FileText,
   FlaskConical,
   ShieldCheck,
+  MessageCircleQuestion,
 } from 'lucide-react'
 
 const CLINICAL_LINKS = [
@@ -14,6 +15,7 @@ const CLINICAL_LINKS = [
   { href: '/hema/pacientes', label: 'Pacientes', icon: Users },
   { href: '/hema/ordenes/nueva', label: 'Indicaciones', icon: FileText },
   { href: '/hema/labs', label: 'Labs', icon: FlaskConical },
+  { href: '/hema/educacion', label: 'MSL Virtual', icon: MessageCircleQuestion },
 ]
 
 export default function HemaNav({ isAdmin }: { isAdmin: boolean }) {

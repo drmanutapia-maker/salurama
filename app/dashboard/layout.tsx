@@ -34,13 +34,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { href: '/dashboard/horario', label: 'Horarios' },
     { href: '/dashboard/citas', label: 'Citas', badge: pendientes },
     { href: '/dashboard/estadisticas', label: 'Estadísticas' },
+    { href: '/dashboard/msl-virtual', label: 'MSL Virtual' },
   ]
 
   const isActive = (href: string, exact?: boolean) =>
     exact ? pathname === href : pathname.startsWith(href)
 
+  // El chat MSL Virtual ocupa el viewport completo con scroll interno propio;
+  // este nav (sticky, ocupa espacio en el flujo del documento) no aplica a esas
+  // rutas y añadiría altura que empujaría el documento más allá del viewport.
+  const isMslVirtual = pathname?.startsWith('/dashboard/msl-virtual')
+
   return (
     <>
+      {!isMslVirtual && (
       <nav className="hidden md:block sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-neutral-200">
         <div className="max-w-6xl mx-auto px-4 flex gap-7">
           {links.map((link) => (
@@ -64,6 +71,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           ))}
         </div>
       </nav>
+      )}
       {children}
     </>
   )

@@ -1,8 +1,18 @@
 'use client'
 
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 
 export default function Footer() {
+  const pathname = usePathname()
+
+  // El chat MSL Virtual ocupa el viewport completo con scroll interno propio;
+  // el Footer haría que el documento exceda el viewport y el navegador
+  // arranque con scroll de window desplazado hacia abajo. En /hema/educacion
+  // el disclaimer NOM-004 de HemaLayout sí se mantiene (es de cumplimiento,
+  // no de marketing) — solo este Footer se oculta.
+  if (pathname?.startsWith('/dashboard/msl-virtual') || pathname?.startsWith('/hema/educacion')) return null
+
   return (
     <footer
       className=""
@@ -41,6 +51,7 @@ export default function Footer() {
             <h4 style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 700, color: '#fff', marginBottom: 20, marginTop: 0 }}>Legal</h4>
             <nav style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <Link href="/terminos-y-condiciones" style={{ fontSize: 14, color: '#C5D0E0', textDecoration: 'none' }}>Términos y condiciones</Link>
+              <Link href="/terminos-profesionales" style={{ fontSize: 14, color: '#C5D0E0', textDecoration: 'none' }}>Términos para profesionales</Link>
               <Link href="/politica-de-cookies" style={{ fontSize: 14, color: '#C5D0E0', textDecoration: 'none' }}>Política de cookies</Link>
               <Link href="/aviso-de-privacidad" style={{ fontSize: 14, color: '#C5D0E0', textDecoration: 'none' }}>Aviso de privacidad</Link>
               <Link href="/deslinde-responsabilidad" style={{ fontSize: 14, color: '#C5D0E0', textDecoration: 'none' }}>Deslinde de responsabilidad</Link>

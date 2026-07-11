@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { useState } from 'react'
 import { Menu, X, ShieldCheck, GraduationCap, SlidersHorizontal, Heart } from 'lucide-react'
 
@@ -32,6 +31,9 @@ export default function Nosotros() {
           .mob-btn { display: flex !important; }
           .valores-grid { grid-template-columns: 1fr !important; }
           .pillares-grid { grid-template-columns: 1fr !important; }
+          .origen-grid { grid-template-columns: 1fr !important; }
+          .mision-grid { grid-template-columns: 1fr !important; }
+          .modelo-grid { grid-template-columns: 1fr !important; }
         }
         @media (min-width: 769px) {
           .mob-btn { display: none !important; }
@@ -58,7 +60,7 @@ export default function Nosotros() {
       {/* EL ORIGEN */}
       <section style={{ padding: 'clamp(44px,6vw,64px) 20px', background: '#fff' }}>
         <div style={{ maxWidth: 820, margin: '0 auto' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 48, alignItems: 'center' }}>
+          <div className="origen-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 48, alignItems: 'center' }}>
             <div>
               <p style={{ fontSize: 11, fontWeight: 600, color: '#2A9D8F', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 12 }}>El origen</p>
               <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(22px,4vw,30px)', fontWeight: 900, color: '#0D1829', marginBottom: 16, lineHeight: 1.25 }}>
@@ -98,7 +100,7 @@ export default function Nosotros() {
       {/* MISIÓN Y VISIÓN */}
       <section style={{ padding: 'clamp(44px,6vw,60px) 20px', background: '#F9FAFB' }}>
         <div style={{ maxWidth: 820, margin: '0 auto' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+          <div className="mision-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
             <div style={{ background: '#fff', borderRadius: 16, padding: '28px 24px', border: '1.5px solid #E5E7EB' }}>
               <p style={{ fontSize: 11, fontWeight: 600, color: '#2A9D8F', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Misión</p>
               <p style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 900, color: '#0D1829', marginBottom: 12, lineHeight: 1.3 }}>
@@ -168,7 +170,7 @@ export default function Nosotros() {
             publicar contenido informativo y educativo.
           </p>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+          <div className="modelo-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
             <div style={{ background: '#fff', borderRadius: 14, padding: '22px 20px', border: '1.5px solid #E5E7EB' }}>
               <p style={{ fontSize: 14, fontWeight: 600, color: '#111827', marginBottom: 10 }}>Lo que nunca haremos</p>
               {['Cobrar a médicos por visibilidad básica', 'Alterar el orden de resultados por dinero', 'Vender datos personales de pacientes', 'Publicar contenido patrocinado sin identificarlo'].map(i => (
@@ -226,23 +228,6 @@ export default function Nosotros() {
           </a>
         </div>
       </section>
-
-      {/* FOOTER */}
-      <footer style={{ background: '#0D1829', padding: 'clamp(32px,5vw,40px) 20px', textAlign: 'center' }}>
-        <div style={{ maxWidth: 860, margin: '0 auto' }}>
-          <div style={{ marginBottom: 10 }}>
-            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 900, color: '#fff' }}>Salu</span>
-            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 600, color: '#2A9D8F' }}>rama</span>
-          </div>
-          <p style={{ fontSize: 13, color: '#9FB0C9', fontStyle: 'italic', marginBottom: 16 }}>"Más que opiniones, evidencia"</p>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 20, flexWrap: 'wrap', marginBottom: 14 }}>
-            {[['Especialidades','/buscar'],['¿Cómo elegir médico?','/como-elegir-medico'],['Registro médico','/registro'],
-              ['Términos y Condiciones','/terminos-y-condiciones'],['Aviso de Privacidad','/aviso-de-privacidad']]
-              .map(([l,h]) => <Link key={h} href={h} style={{ fontSize: 13, color: '#9FB0C9', textDecoration: 'none' }}>{l}</Link>)}
-          </div>
-          <p style={{ fontSize: 12, color: '#6B7280' }}>© 2026 SALURAMA S.A.S. · salurama.com · Hecho en México 🇲🇽</p>
-        </div>
-      </footer>
     </div>
   )
 }

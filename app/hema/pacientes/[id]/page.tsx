@@ -20,6 +20,7 @@ import {
   X,
   Search,
   Loader2,
+  MessageCircleQuestion,
 } from 'lucide-react'
 import { searchDiagnosis, CIE10_CATALOG } from '@salurama/hema-shared'
 import type { Diagnosis, DiagnosisCategory } from '@salurama/hema-shared'
@@ -714,6 +715,7 @@ export default function PatientProfilePage() {
           { label: 'Nueva medición',   href: `/hema/pacientes/${patientId}/medicion`, icon: Ruler,       color: '#1E3A5F' },
           { label: 'Nueva indicación', href: `/hema/ordenes/nueva?patient=${patientId}`, icon: FileText, color: '#16A34A' },
           { label: 'Subir labs',       href: `/hema/labs/nuevo?patient=${patientId}`,    icon: FlaskConical, color: '#7C3AED' },
+          { label: 'Consultar MSL Virtual', href: `/hema/educacion?pacienteId=${patientId}`, icon: MessageCircleQuestion, color: '#DB2777' },
         ].map(({ label, href, icon: Icon, color }) => (
           <Link
             key={href}

@@ -417,33 +417,6 @@ export default function ComoElegirMedico() {
           </Link>
         </div>
       </section>
-
-      {/* ── FOOTER ── */}
-      <footer style={{ background: '#0D1829', padding: 'clamp(32px, 5vw, 40px) 20px', textAlign: 'center' }}>
-        <div style={{ maxWidth: 860, margin: '0 auto' }}>
-          <div style={{ marginBottom: 10 }}>
-            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 900, color: '#fff' }}>Salu</span>
-            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 600, color: '#2A9D8F' }}>rama</span>
-          </div>
-          <p style={{ fontSize: 13, color: '#9FB0C9', fontStyle: 'italic', marginBottom: 16 }}>"Más que opiniones, evidencia"</p>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 20, flexWrap: 'wrap', marginBottom: 16 }}>
-            {[
-              { label: 'Inicio',                  href: '/'                         },
-              { label: 'Especialidades',           href: '/buscar'                   },
-              { label: '¿Cómo elegir médico?',     href: '/como-elegir-medico'       },
-              { label: 'Registro médico',          href: '/registro'                 },
-              { label: 'Nosotros',                 href: '/nosotros'                 },
-              { label: 'Términos y Condiciones',   href: '/terminos-y-condiciones'   },
-              { label: 'Aviso de Privacidad',      href: '/aviso-de-privacidad'      },
-            ].map(l => (
-              <Link key={l.label} href={l.href} style={{ fontSize: 13, color: '#9FB0C9', textDecoration: 'none' }}>
-                {l.label}
-              </Link>
-            ))}
-          </div>
-          <p style={{ fontSize: 12, color: '#6B7280' }}>© 2026 Salurama S.A.S. · salurama.com · Hecho en México 🇲🇽</p>
-        </div>
-      </footer>
     </div>
   )
 }

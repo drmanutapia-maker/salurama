@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import {
   Search, Heart, Calendar, User,
-  Home, Clock, BarChart3
+  Home, Clock, BarChart3, MessageCircleQuestion
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -62,6 +62,7 @@ export default function BottomNav() {
     { href: '/dashboard/horario', label: 'Horarios', icon: Clock },
     { href: '/dashboard/citas', label: 'Citas', icon: Calendar },
     { href: '/dashboard/estadisticas', label: 'Stats', icon: BarChart3 },
+    { href: '/dashboard/msl-virtual', label: 'MSL', icon: MessageCircleQuestion },
   ]
 
   const patientNav: NavItem[] = [

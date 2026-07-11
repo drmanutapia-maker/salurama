@@ -79,7 +79,7 @@ export default async function HemaLayout({
       {/* Contenido del módulo */}
       <div
         style={{
-          minHeight: 'calc(100vh - 72px - 49px - 56px)',
+          minHeight: 'calc(100svh - 72px - 49px - 56px)',
           background: '#F8F9FA',
           fontFamily: "'DM Sans', sans-serif",
         }}

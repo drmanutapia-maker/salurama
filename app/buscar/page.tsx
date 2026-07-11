@@ -10,7 +10,6 @@ import {
 } from 'lucide-react'
 import { STATES } from '@/lib/locations'
 import BottomNav from '@/components/BottomNav'
-import Navbar from '@/components/Navbar'
 
 export const dynamic = 'force-dynamic'
 
@@ -537,7 +536,6 @@ function BuscarContent() {
   return (
     <div style={{ minHeight: '100vh', background: '#F9FAFB', fontFamily: "'DM Sans', sans-serif", color: '#111827' }}>
       <style>{PAGE_STYLES}</style>
-      <Navbar />
 
       <main style={{ paddingTop: 120, paddingBottom: 100 }}>
         <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 20px' }}>

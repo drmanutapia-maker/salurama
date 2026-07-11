@@ -26,7 +26,6 @@ export default function ConfirmPage() {
         .update({
             is_active: true,
             review_status: 'aprobado',
-            email_verified_at: new Date().toISOString()
           })
         .eq('user_id', userId)
 

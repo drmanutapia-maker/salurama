@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { Redis } from '@upstash/redis'
 import { z } from 'zod'
+import { sendAccountConfirmationEmail } from '@/lib/email'
 
 const schema = z.object({
   email: z.string().email().toLowerCase(),
@@ -152,6 +153,28 @@ export async function POST(request: NextRequest) {
       estado_solicitud: 'pendiente_descarga',
       ip_registro: ip,
     })
+
+    // === EMAIL DE CONFIRMACIÓN DE CUENTA ===
+    // No debe tumbar el registro si falla — la cuenta ya existe (sin confirmar)
+    // y el usuario puede reenviar el correo desde /login.
+    try {
+      const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+        type: 'signup',
+        email: data.email,
+        password: data.password,
+      })
+      if (linkError) throw linkError
+
+      const hashedToken = linkData.properties?.hashed_token
+      if (!hashedToken) throw new Error('generateLink no devolvió hashed_token')
+
+      const origin = process.env.NEXT_PUBLIC_URL || 'https://salurama.com'
+      const confirmUrl = `${origin}/auth/confirm/callback?token_hash=${hashedToken}&type=signup&redirect=${encodeURIComponent('/auth/confirm')}`
+
+      await sendAccountConfirmationEmail(data.email, confirmUrl, data.full_name)
+    } catch (emailError) {
+      console.error('Error enviando email de confirmación de cuenta:', emailError)
+    }
 
     return NextResponse.json({ success: true, doctorId: doctor.id })
 

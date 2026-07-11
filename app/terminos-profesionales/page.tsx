@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { useState } from 'react'
 import { Menu, X } from 'lucide-react'
 
@@ -54,6 +53,7 @@ export default function TerminosProfesionales() {
           .dsk { display: none !important; }
           .mob-btn { display: flex !important; }
           .sidebar-col { display: none !important; }
+          .contenido-grid { grid-template-columns: 1fr !important; }
         }
         @media (min-width: 769px) {
           .mob-btn { display: none !important; }
@@ -73,7 +73,7 @@ export default function TerminosProfesionales() {
           </p></div></section>
 
       {/* CONTENIDO */}
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '40px 20px 80px', display: 'grid', gridTemplateColumns: '220px 1fr', gap: 48, alignItems: 'start' }}><aside className="sidebar-col" style={{ position: 'sticky', top: 80 }}><p style={{ fontSize: 11, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Contenido</p><nav style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <div className="contenido-grid" style={{ maxWidth: 1100, margin: '0 auto', padding: '40px 20px 80px', display: 'grid', gridTemplateColumns: '220px 1fr', gap: 48, alignItems: 'start' }}><aside className="sidebar-col" style={{ position: 'sticky', top: 80 }}><p style={{ fontSize: 11, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Contenido</p><nav style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {SECTIONS.map(s =><a key={s.id} href={`#${s.id}`} className="toc-link">{s.title}</a>)}
           </nav></aside><main>
 
@@ -134,10 +134,6 @@ export default function TerminosProfesionales() {
               Estos Términos entran en vigor el 31 de marzo de 2026. Salurama se reserva el derecho de modificarlos con notificación previa de 15 días naturales.
             </p><p className="legal-p" style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid #F3F4F6', fontSize: 12, color: '#9CA3AF' }}>
               © 2026 SALURAMA S.A.S. · Todos los derechos reservados · salurama.com
-            </p></div></main></div><footer style={{ background: '#0D1829', padding: 'clamp(32px,5vw,40px) 20px', textAlign: 'center' }}><div style={{ maxWidth: 860, margin: '0 auto' }}><div style={{ marginBottom: 10 }}><span style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 900, color: '#fff' }}>Salu</span><span style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 600, color: '#2A9D8F' }}>rama</span></div><div style={{ display: 'flex', justifyContent: 'center', gap: 20, flexWrap: 'wrap', marginBottom: 14 }}>
-            {[['Términos y Condiciones','/terminos-y-condiciones'],['Aviso de Privacidad','/aviso-de-privacidad'],
-              ['Política de Cookies','/politica-de-cookies'],['Inicio','/']]
-              .map(([l,h]) =><Link key={h} href={h} style={{ fontSize: 13, color: '#9FB0C9', textDecoration: 'none' }}>{l}</Link>)}
-          </div><p style={{ fontSize: 12, color: '#6B7280' }}>© 2026 SALURAMA S.A.S. · salurama.com · Hecho en México 🇲🇽</p></div></footer></div>
+            </p></div></main></div></div>
   )
 }

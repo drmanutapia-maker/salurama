@@ -19,7 +19,11 @@ export function useSessionTimeout() {
 
   const logout = useCallback(async () => {
     localStorage.removeItem('salurama_remember')
-    await supabase.auth.signOut()
+    try {
+      await supabase.auth.signOut()
+    } catch (err) {
+      console.error('Error al cerrar sesión (fetch falló, se continúa con limpieza local):', err)
+    }
     router.push('/login?reason=timeout')
   }, [router])
 

@@ -10,6 +10,7 @@ import {
   Shield,
   Star,
   MessageCircle,
+  Building2,
 } from 'lucide-react'
 import { STATES } from '@/lib/locations'
 import BottomNav from '@/components/BottomNav'
@@ -386,6 +387,26 @@ export default function HomePage() {
                 <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1E3A5F', marginBottom: 12 }}>Contacto directo</h3>
                 <p style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.6 }}>Sin intermediarios, sin costos adicionales. Habla directo con el consultorio</p>
               </div>
+            </div>
+          </section>
+
+          <section className="fade-up" style={{ maxWidth: 1200, margin: '0 auto', padding: '40px 20px', borderTop: '1px solid #E5E7EB' }}>
+            <div style={{ background: '#1E3A5F', borderRadius: 20, padding: 'clamp(32px,5vw,48px) 24px', textAlign: 'center' }}>
+              <div style={{ width: 56, height: 56, background: 'rgba(255,255,255,0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 18px' }}>
+                <Building2 size={26} color="#fff" />
+              </div>
+              <h2 style={{ fontSize: 'clamp(20px,4vw,28px)', fontWeight: 900, color: '#fff', marginBottom: 10 }}>
+                ¿Eres una empresa del sector salud?
+              </h2>
+              <p style={{ fontSize: 15, color: '#C5D0E0', lineHeight: 1.7, maxWidth: 480, margin: '0 auto 24px' }}>
+                Lleva información científica balanceada a los médicos que ya están trabajando en Salurama con MSL Virtual.
+              </p>
+              <Link
+                href="/para-empresas"
+                style={{ display: 'inline-block', background: '#2A9D8F', color: '#fff', fontWeight: 700, textDecoration: 'none', padding: '13px 28px', borderRadius: 50, fontSize: 15 }}
+              >
+                Para Empresas →
+              </Link>
             </div>
           </section>
         </div>
