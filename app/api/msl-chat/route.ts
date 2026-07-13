@@ -326,7 +326,23 @@ export async function POST(request: NextRequest) {
         503, { 'Retry-After': '60' }
       )
     }
-    return err('Error al procesar la pregunta. Intenta de nuevo.', 502)
+    // DIAGNÓSTICO TEMPORAL (2026-07-13) — quitar el campo debug en cuanto se
+    // identifique la causa real del 502 en producción. No debe quedar así.
+    const err_ = e as { message?: string; code?: string; type?: string; name?: string; cause?: unknown }
+    return NextResponse.json(
+      {
+        error: 'Error al procesar la pregunta. Intenta de nuevo.',
+        debug: {
+          name: err_?.name,
+          message: err_?.message,
+          code: err_?.code,
+          type: err_?.type,
+          status,
+          cause: err_?.cause ? String(err_.cause) : undefined,
+        },
+      },
+      { status: 502, headers: JSON_HEADERS }
+    )
   }
 
   // 5. Búsqueda semántica
