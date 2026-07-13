@@ -17,6 +17,7 @@ type Source = {
   year:     number | null
   doi:      string | null
   verified: boolean
+  sponsor:  string | null
 }
 
 type Message = {
@@ -64,6 +65,11 @@ function SourceCard({ source }: { source: Source }) {
       </div>
       {meta && (
         <p className="font-body text-xs text-neutral-500 mt-1">{meta}</p>
+      )}
+      {source.sponsor && (
+        <p className="font-body text-xs font-medium text-amber-600 mt-1">
+          Patrocinado por {source.sponsor}
+        </p>
       )}
     </div>
   )
@@ -186,6 +192,7 @@ export default function MSLChat({ backHref, backLabel = 'Volver', patientContext
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [input, setInput]                 = useState('')
   const [loading, setLoading]             = useState(false)
+  const [planBlocked, setPlanBlocked]     = useState<string | null>(null)
   const bottomRef                         = useRef<HTMLDivElement>(null)
   const textareaRef                       = useRef<HTMLTextAreaElement>(null)
   const scrollRef                         = useRef<HTMLDivElement>(null)
@@ -225,6 +232,11 @@ export default function MSLChat({ backHref, backLabel = 'Volver', patientContext
           content: 'Tu sesión expiró. Recarga la página para continuar.',
           isError: true,
         }])
+        return
+      }
+
+      if (res.status === 403) {
+        setPlanBlocked(data.error ?? 'MSL Virtual no está incluido en tu plan actual.')
         return
       }
 
@@ -338,31 +350,42 @@ export default function MSLChat({ backHref, backLabel = 'Volver', patientContext
           <div ref={bottomRef} />
         </div>
 
-        {/* ── Input area ──
+        {/* ── Input area / bloqueo de plan ──
             pb-20 on mobile (≈80px) clears the BottomNav (~60px + safe-area).
             pb-4 on md+ since BottomNav is md:hidden.                          */}
-        <div className="shrink-0 border-t border-neutral-200 bg-white px-4 pt-3 pb-20 md:pb-4">
-          <div className="flex items-end gap-2">
-            <textarea
-              ref={textareaRef}
-              value={input}
-              onChange={e => { setInput(e.target.value); adjustTextarea() }}
-              onKeyDown={handleKeyDown}
-              disabled={loading}
-              placeholder="Pregunta sobre mieloma múltiple..."
-              rows={1}
-              className="flex-1 resize-none rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-2.5 font-body text-sm text-neutral-800 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary-300 disabled:opacity-50 transition-colors"
-              style={{ minHeight: '40px', maxHeight: '120px' }}
-            />
-            <button
-              onClick={send}
-              disabled={loading || !input.trim()}
-              className="shrink-0 flex items-center justify-center w-10 h-10 rounded-xl bg-primary-500 text-white disabled:opacity-40 hover:bg-primary-600 active:bg-primary-700 transition-colors"
-            >
-              <Send size={16} strokeWidth={2.5} />
-            </button>
+        {planBlocked ? (
+          <div className="shrink-0 border-t border-neutral-200 bg-amber-50 px-4 py-4 pb-20 md:pb-4">
+            <p className="font-body text-sm font-semibold text-amber-800 mb-1">
+              Función no disponible en tu plan
+            </p>
+            <p className="font-body text-xs text-amber-700 leading-relaxed">
+              {planBlocked}
+            </p>
           </div>
-        </div>
+        ) : (
+          <div className="shrink-0 border-t border-neutral-200 bg-white px-4 pt-3 pb-20 md:pb-4">
+            <div className="flex items-end gap-2">
+              <textarea
+                ref={textareaRef}
+                value={input}
+                onChange={e => { setInput(e.target.value); adjustTextarea() }}
+                onKeyDown={handleKeyDown}
+                disabled={loading}
+                placeholder="Pregunta sobre mieloma múltiple..."
+                rows={1}
+                className="flex-1 resize-none rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-2.5 font-body text-sm text-neutral-800 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary-300 disabled:opacity-50 transition-colors"
+                style={{ minHeight: '40px', maxHeight: '120px' }}
+              />
+              <button
+                onClick={send}
+                disabled={loading || !input.trim()}
+                className="shrink-0 flex items-center justify-center w-10 h-10 rounded-xl bg-primary-500 text-white disabled:opacity-40 hover:bg-primary-600 active:bg-primary-700 transition-colors"
+              >
+                <Send size={16} strokeWidth={2.5} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </>
   )

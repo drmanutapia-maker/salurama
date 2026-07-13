@@ -1,5 +1,13 @@
 // lib/locations.ts
 // Mapeo de estados de México con sus ciudades más pobladas (5-10 por estado)
+//
+// STATES usa la nomenclatura EXACTA de sepomex.estado (fuente real de
+// doctors.estado, ver app/api/registro-medico/route.ts). No un catálogo
+// "bonito" aparte — eso fue lo que causó que filtrar por estado devolviera
+// 0 resultados para México/Coahuila/Michoacán/Veracruz. Si el nombre oficial
+// es ambiguo en la UI (México vs Ciudad de México), el texto visible se
+// resuelve en STATE_LABELS/getStateLabel — el value que viaja en la URL de
+// búsqueda sigue siendo siempre el nombre oficial SEPOMEX.
 
 export const STATES = [
   'Aguascalientes',
@@ -9,15 +17,15 @@ export const STATES = [
   'Chiapas',
   'Chihuahua',
   'Ciudad de México',
-  'Coahuila',
+  'Coahuila de Zaragoza',
   'Colima',
   'Durango',
-  'Estado de México',
   'Guanajuato',
   'Guerrero',
   'Hidalgo',
   'Jalisco',
-  'Michoacán',
+  'México',
+  'Michoacán de Ocampo',
   'Morelos',
   'Nayarit',
   'Nuevo León',
@@ -31,12 +39,23 @@ export const STATES = [
   'Tabasco',
   'Tamaulipas',
   'Tlaxcala',
-  'Veracruz',
+  'Veracruz de Ignacio de la Llave',
   'Yucatán',
   'Zacatecas'
 ] as const
 
 export type State = typeof STATES[number]
+
+// Texto a mostrar en dropdowns cuando el nombre oficial SEPOMEX es ambiguo o
+// poco natural para un selector — el value real (el que se manda a /buscar)
+// nunca cambia, solo la etiqueta visible.
+const STATE_LABELS: Partial<Record<State, string>> = {
+  'México': 'México (Estado)',
+}
+
+export function getStateLabel(state: string): string {
+  return STATE_LABELS[state as State] ?? state
+}
 
 export const CITIES_BY_STATE: Record<State, string[]> = {
   'Aguascalientes': [
@@ -96,7 +115,7 @@ export const CITIES_BY_STATE: Record<State, string[]> = {
     'Benito Juárez',
     'Cuauhtémoc'
   ],
-  'Coahuila': [
+  'Coahuila de Zaragoza': [
     'Saltillo',
     'Torreón',
     'Monclova',
@@ -118,7 +137,7 @@ export const CITIES_BY_STATE: Record<State, string[]> = {
     'Santiago Papasquiaro',
     'Guadalupe Victoria'
   ],
-  'Estado de México': [
+  'México': [
     'Tlalnepantla',
     'Toluca',
     'Naucalpan',
@@ -167,7 +186,7 @@ export const CITIES_BY_STATE: Record<State, string[]> = {
     'Puerto Vallarta',
     'Ocotlán'
   ],
-  'Michoacán': [
+  'Michoacán de Ocampo': [
     'Morelia',
     'Uruapan',
     'Zamora',
@@ -283,7 +302,7 @@ export const CITIES_BY_STATE: Record<State, string[]> = {
     'Chiautempan',
     'Papalotla'
   ],
-  'Veracruz': [
+  'Veracruz de Ignacio de la Llave': [
     'Veracruz',
     'Xalapa',
     'Coatzacoalcos',

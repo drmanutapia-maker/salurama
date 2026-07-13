@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { STATES } from '@/lib/locations'
+import { STATES, getStateLabel } from '@/lib/locations'
 import { MapPin, X, ChevronDown, Loader2 } from 'lucide-react'
 import { createPortal } from 'react-dom'
 
@@ -152,7 +152,7 @@ export default function StateCitySelector({
           >
             <option value="">Todo México</option>
             {STATES.map(s => (
-              <option key={s} value={s}>{s}</option>
+              <option key={s} value={s}>{getStateLabel(s)}</option>
             ))}
           </select>
           <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />

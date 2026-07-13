@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import Link from 'next/link'
-import { useParams, useRouter } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { Turnstile } from '@marsidev/react-turnstile'
 import {
   MapPin, Star, ShieldCheck, Shield, ExternalLink, Copy, CheckCircle, X,
@@ -434,7 +434,7 @@ function AppointmentModal({
             </div>
             <p style={{ fontSize: 11, color: '#6B7280', lineHeight: 1.6 }}>
               <Info size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} />
-              Recibirás un email para confirmar. Te enviaremos un recordatorio 24hrs antes.
+              Recibirás un email para confirmar tu cita.
             </p>
             <div style={{ display: 'flex', gap: 12 }}>
               <button onClick={() => setStep(2)} style={{ flex: 1, background: '#F3F4F6', color: '#6B7280', border: 'none', borderRadius: 12, padding: 14, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
@@ -451,8 +451,8 @@ function AppointmentModal({
   )
 }
 
-export default function DoctorProfilePage() {
-  const { id } = useParams()
+export default function DoctorProfileClient({ doctorId }: { doctorId: string }) {
+  const id = doctorId
   const router = useRouter()
   const [medico, setMedico] = useState<Medico | null>(null)
   const [licenses, setLicenses] = useState<License[]>([])

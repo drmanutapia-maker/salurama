@@ -14,7 +14,20 @@ const MATCH_THRESHOLD    = 0.5
 const MATCH_COUNT        = 15
 const MAX_CHUNKS_PER_DOC = 2
 const FINAL_CHUNK_COUNT  = 5
-const DAILY_MESSAGE_LIMIT = 20
+
+// Límites por nivel de pricing (doctors.pricing_tier), confirmados 2026-07-11.
+// Gratis = 0: MSL Virtual no está incluido en ese nivel (no es un rate limit,
+// es exclusión de la herramienta — ver manejo especial más abajo).
+const MESSAGE_LIMIT_BY_TIER: Record<string, number> = {
+  gratis: 0,
+  '349':  20,
+  '799':  50,
+  '1999': 200,
+}
+const DEFAULT_MESSAGE_LIMIT = MESSAGE_LIMIT_BY_TIER.gratis
+
+const UPGRADE_REQUIRED_MESSAGE =
+  'MSL Virtual no está incluido en tu plan actual. Actualiza a Profesional ($349/mes) o superior para acceder a esta herramienta.'
 
 type ChunkMatch = {
   id:          string
@@ -31,6 +44,7 @@ type DocMeta = {
   year:     number | null
   doi:      string | null
   verified: boolean
+  sponsor:  string | null
 }
 
 type Source = Omit<DocMeta, 'id'>
@@ -199,16 +213,30 @@ export async function POST(request: NextRequest) {
 
   const db = getServiceSupabase()
 
-  // 2b. Límite diario de preguntas por médico
+  // 2b. Límite diario de preguntas por médico, según su nivel de pricing
+  const { data: doctorRow } = await db
+    .from('doctors')
+    .select('pricing_tier')
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  const dailyLimit = MESSAGE_LIMIT_BY_TIER[doctorRow?.pricing_tier ?? 'gratis'] ?? DEFAULT_MESSAGE_LIMIT
+
+  // Nivel Gratis: MSL Virtual no es un rate limit, es una herramienta no incluida
+  // en el plan — 403 (no autorizado a este recurso), no 429 (límite de uso).
+  if (dailyLimit === 0) {
+    return err(UPGRADE_REQUIRED_MESSAGE, 403)
+  }
+
   const { data: msgCountToday, error: countErr } = await db.rpc('count_msl_user_messages_today', {
     p_user_id: user.id,
   })
 
   if (countErr) {
     console.error(`[msl-chat:${requestId}] Error contando mensajes del día:`, countErr)
-  } else if ((msgCountToday ?? 0) >= DAILY_MESSAGE_LIMIT) {
+  } else if ((msgCountToday ?? 0) >= dailyLimit) {
     return err(
-      `Alcanzaste el límite de ${DAILY_MESSAGE_LIMIT} preguntas por día. El límite se reinicia a medianoche.`,
+      `Alcanzaste el límite de ${dailyLimit} preguntas por día. El límite se reinicia a medianoche.`,
       429
     )
   }
@@ -327,7 +355,7 @@ export async function POST(request: NextRequest) {
 
   const { data: rawDocs, error: docsErr } = await db
     .from('msl_documents')
-    .select('id, title, authors, journal, year, doi, verified')
+    .select('id, title, authors, journal, year, doi, verified, sponsor')
     .in('id', uniqueDocIds)
 
   if (docsErr) {
@@ -392,7 +420,7 @@ export async function POST(request: NextRequest) {
   const sources: Source[] = uniqueDocIds
     .map(id => docMap.get(id))
     .filter((d): d is DocMeta => d !== undefined)
-    .map(({ title, authors, journal, year, doi, verified }) => ({ title, authors, journal, year, doi, verified }))
+    .map(({ title, authors, journal, year, doi, verified, sponsor }) => ({ title, authors, journal, year, doi, verified, sponsor }))
 
   const { error: assistantMsgErr } = await db.from('msl_messages').insert(
     { conversation_id: convId, role: 'assistant', content: assistantContent, sources }

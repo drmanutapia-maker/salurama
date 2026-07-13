@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   X, ZoomIn, Calendar, Edit2, Eye, Share2,
-  TrendingUp, Star, Users, MoreVertical, Lightbulb,
+  Star, Users, MoreVertical, Lightbulb,
   CheckCircle, ArrowRight,
   PartyPopper, Sparkles
 } from 'lucide-react'
@@ -42,7 +42,6 @@ interface Cita {
 
 interface StatsResumen {
   visitas_mes: number
-  visitas_crecimiento: number
   citas_solicitadas_totales: number
   citas_solicitadas_mes: number
   citas_pendientes: number
@@ -178,13 +177,13 @@ export default function DashboardMedico() {
         } catch {}
 
         // Profile views (usando el contador de la tabla doctors)
+        // TODO: no hay tracking real de visitas con fecha (profile_views/profile_metrics
+        // existen en la BD pero tienen 0 filas, nada escribe en ellas). Hasta que se
+        // implemente ese tracking, no se muestra "% crecimiento este mes".
         const visitasMes = doctor.profile_views || 0
-        // Simulación de crecimiento (en producción sería tabla de visitas con fecha)
-        const visitasCrecimiento = Math.floor(Math.random() * 30) + 5
 
         setStats({
           visitas_mes: visitasMes,
-          visitas_crecimiento: visitasCrecimiento,
           citas_solicitadas_totales: totalesRes.count || 0,
           citas_solicitadas_mes: mesRes.count || 0,
           citas_pendientes: pendientesRes.count || 0,
@@ -654,11 +653,6 @@ export default function DashboardMedico() {
             <p style={{ fontSize: 32, fontFamily: 'Fraunces', fontWeight: 900, color: '#1E3A5F', margin: '8px 0', lineHeight: 1 }}>
               {stats?.visitas_mes || 0}
             </p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#059669', fontSize: 12, marginTop: 8 }}>
-              <TrendingUp size={14} />
-              <span style={{ fontWeight: 600 }}>+{stats?.visitas_crecimiento || 0}%</span>
-              <span style={{ color: '#9CA3AF', marginLeft: 4 }}>este mes</span>
-            </div>
             <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', gap: 4, color: '#8B5CF6', fontSize: 13, fontWeight: 600 }}>
               Ver detalles <ArrowRight size={14} />
             </div>

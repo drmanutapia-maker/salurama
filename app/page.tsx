@@ -12,7 +12,7 @@ import {
   MessageCircle,
   Building2,
 } from 'lucide-react'
-import { STATES } from '@/lib/locations'
+import { STATES, getStateLabel } from '@/lib/locations'
 import BottomNav from '@/components/BottomNav'
 
 // ─── Constantes ────────────────────────────────────────────────────────────────
@@ -139,6 +139,7 @@ const PAGE_STYLES = `
 
 interface Medico {
   id: string
+  slug: string | null
   full_name: string
   specialty: string
   photo_url: string | null
@@ -198,7 +199,7 @@ export default function HomePage() {
       try {
         const { data, error } = await supabase
         .from('doctors')
-        .select(`id, full_name, specialty, photo_url, ciudad, estado, clinic_name, consultation_price_general, whatsapp_available`)
+        .select(`id, slug, full_name, specialty, photo_url, ciudad, estado, clinic_name, consultation_price_general, whatsapp_available`)
         .eq('is_active', true)
         .order('created_at', { ascending: false })
         .limit(50)
@@ -310,7 +311,7 @@ export default function HomePage() {
 
                 <select value={selectedState} onChange={(e) => setSelectedState(e.target.value)} style={{ height: 56, width: '100%', maxWidth: 200, padding: '0 36px 0 16px', borderRadius: 16, border: '1.5px solid #2A9D8F', fontSize: 15, fontFamily: "'DM Sans', sans-serif", background: '#fff', cursor: 'pointer', outline: 'none', appearance: 'none', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '16px', boxShadow: '0 2px 8px rgba(42,157,143,.08)', flexShrink: 0 }}>
                   <option value="">Todos los estados</option>
-                  {STATES.map((state) => (<option key={state} value={state}>{state}</option>))}
+                  {STATES.map((state) => (<option key={state} value={state}>{getStateLabel(state)}</option>))}
                 </select>
 
                 <button onClick={handleSearch} style={{ height: 56, padding: '0 28px', background: '#8B5CF6', border: 'none', borderRadius: 16, color: 'white', fontWeight: 700, fontSize: 15, fontFamily: "'DM Sans', sans-serif", cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, transition: 'all 0.15s', boxShadow: '0 2px 8px rgba(139,92,246,.3)', flexShrink: 0, whiteSpace: 'nowrap' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#7C3AED'; e.currentTarget.style.transform = 'translateY(-1px)' }} onMouseLeave={(e) => { e.currentTarget.style.background = '#8B5CF6'; e.currentTarget.style.transform = 'translateY(0)' }}>
@@ -344,7 +345,7 @@ export default function HomePage() {
             ) : medicos.length > 0? (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24 }}>
                 {medicos.map((medico) => (
-                  <Link key={medico.id} href={`/doctor/${medico.id}`} className="card-medico" style={{ background: '#fff', borderRadius: 16, padding: 20, textDecoration: 'none', display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <Link key={medico.id} href={`/doctor/${medico.slug ?? medico.id}`} className="card-medico" style={{ background: '#fff', borderRadius: 16, padding: 20, textDecoration: 'none', display: 'flex', flexDirection: 'column', gap: 16 }}>
                     <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
                       {medico.photo_url? (<img src={medico.photo_url} alt={medico.full_name} style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover' }} />) : (<div aria-hidden="true" style={{ width: 64, height: 64, borderRadius: '50%', background: 'linear-gradient(135deg, #1E3A5F, #2A9D8F)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 24, color: '#fff', flexShrink: 0 }}>{(medico.full_name || '?')[0].toUpperCase()}</div>)}
                       <div style={{ flex: 1, minWidth: 0 }}>

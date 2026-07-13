@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { Redis } from '@upstash/redis'
 import { z } from 'zod'
 import { sendAccountConfirmationEmail } from '@/lib/email'
+import { generateUniqueDoctorSlug } from '@/lib/slug'
 
 const schema = z.object({
   email: z.string().email().toLowerCase(),
@@ -116,6 +117,8 @@ export async function POST(request: NextRequest) {
       console.error('SEPOMEX lookup failed:', e)
     }
 
+    const slug = await generateUniqueDoctorSlug(supabaseAdmin, data.full_name, data.specialty)
+
     const { data: doctor, error: doctorError } = await supabaseAdmin
       .from('doctors')
       .insert({
@@ -123,6 +126,7 @@ export async function POST(request: NextRequest) {
         email: data.email,
         full_name: data.full_name,
         specialty: data.specialty,
+        slug,
         professional_license: data.professional_license,
         specialty_council: data.specialty_council || null,
         license_not_current: data.license_not_current || false,

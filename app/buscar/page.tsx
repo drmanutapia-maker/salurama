@@ -8,7 +8,7 @@ import {
   Search, Clock, DollarSign, Star, Baby, Calendar, MapPin, Shield,
   X, Navigation, GraduationCap, Globe, Loader2, Filter,
 } from 'lucide-react'
-import { STATES } from '@/lib/locations'
+import { STATES, getStateLabel } from '@/lib/locations'
 import BottomNav from '@/components/BottomNav'
 
 export const dynamic = 'force-dynamic'
@@ -43,6 +43,7 @@ type FiltroId = typeof CHIPS_CONFIG[number]['id']
 
 interface Medico {
   id: string
+  slug: string | null
   full_name: string
   specialty: string
   photo_url: string | null
@@ -364,7 +365,7 @@ function BuscarContent() {
     setLoading(true)
     supabase
       .from('doctors')
-      .select(`id, full_name, specialty, photo_url, ciudad, estado,
+      .select(`id, slug, full_name, specialty, photo_url, ciudad, estado,
              consultation_price_general, years_experience, min_patient_age, max_patient_age,
              clinic_lat, clinic_lng, hospital_affiliation, languages, insurance_accepted, professional_license`)
       .eq('is_active', true)
@@ -516,14 +517,14 @@ function BuscarContent() {
   const hayFiltros = filtros.length > 0 || busqueda || selectedState
 
   // Función para navegar al perfil preservando búsqueda
-  const navigateToDoctor = useCallback((doctorId: string) => {
+  const navigateToDoctor = useCallback((doctorSlugOrId: string) => {
     const params = new URLSearchParams()
     if (busqueda) params.set('from', 'buscar')
     if (busqueda) params.set('q', busqueda)
     if (selectedState) params.set('estado', selectedState)
 
     const queryString = params.toString()
-    router.push(`/doctor/${doctorId}${queryString ? `?${queryString}` : ''}`)
+    router.push(`/doctor/${doctorSlugOrId}${queryString ? `?${queryString}` : ''}`)
   }, [busqueda, selectedState, router])
 
   const handleSearch = useCallback(() => {
@@ -626,7 +627,7 @@ function BuscarContent() {
                 <option value="">Todos los estados</option>
                 {STATES.map(state => (
                   <option key={state} value={state}>
-                    {state}
+                    {getStateLabel(state)}
                   </option>
                 ))}
               </select>
@@ -803,7 +804,7 @@ function BuscarContent() {
                   <article
                     key={medico.id}
                     className="card-medico"
-                    onClick={() => navigateToDoctor(medico.id)}
+                    onClick={() => navigateToDoctor(medico.slug ?? medico.id)}
                   >
                     <div style={{ display: 'flex', gap: 16 }}>
 
@@ -942,7 +943,7 @@ function BuscarContent() {
                           <MapPin size={15} /> Mapa
                         </button>
                         <Link
-                          href={`/doctor/${medico.id}`}
+                          href={`/doctor/${medico.slug ?? medico.id}`}
                           className="btn-ver-perfil"
                           onClick={(e) => e.stopPropagation()}
                         >
