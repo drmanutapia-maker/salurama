@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import OpenAI from 'openai'
 import Anthropic from '@anthropic-ai/sdk'
+import { PLAN_TO_TIER_CODE, PLAN_NAME, PLAN_MONTHLY_PRICE_MXN } from '@/lib/pricingTiers'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,14 +21,14 @@ const FINAL_CHUNK_COUNT  = 5
 // es exclusión de la herramienta — ver manejo especial más abajo).
 const MESSAGE_LIMIT_BY_TIER: Record<string, number> = {
   gratis: 0,
-  '349':  20,
-  '799':  50,
-  '1999': 200,
+  [PLAN_TO_TIER_CODE.profesional]: 20,
+  [PLAN_TO_TIER_CODE.premium]:     50,
+  [PLAN_TO_TIER_CODE.clinica]:     200,
 }
 const DEFAULT_MESSAGE_LIMIT = MESSAGE_LIMIT_BY_TIER.gratis
 
 const UPGRADE_REQUIRED_MESSAGE =
-  'MSL Virtual no está incluido en tu plan actual. Actualiza a Profesional ($349/mes) o superior para acceder a esta herramienta.'
+  `MSL Virtual no está incluido en tu plan actual. Actualiza a ${PLAN_NAME.profesional} ($${PLAN_MONTHLY_PRICE_MXN.profesional}/mes) o superior para acceder a esta herramienta.`
 
 type ChunkMatch = {
   id:          string

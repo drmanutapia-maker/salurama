@@ -35,6 +35,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { href: '/dashboard/citas', label: 'Citas', badge: pendientes },
     { href: '/dashboard/estadisticas', label: 'Estadísticas' },
     { href: '/dashboard/msl-virtual', label: 'MSL Virtual' },
+    { href: '/dashboard/plan', label: 'Mi plan' },
   ]
 
   const isActive = (href: string, exact?: boolean) =>

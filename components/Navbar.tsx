@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
-import { Menu, X, LogOut, User, UserPlus, LayoutDashboard, ArrowLeft } from 'lucide-react'
+import { Menu, X, LogOut, User, UserPlus, LayoutDashboard, ArrowLeft, CreditCard } from 'lucide-react'
 
 export default function Navbar() {
   const router = useRouter()
@@ -126,6 +126,7 @@ export default function Navbar() {
             {user ? (
               <>
                 <Link href="/dashboard" onClick={() => setMobileOpen(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px', background: 'white', border: '1px solid #E5E7EB', borderRadius: 12, color: '#1A1A2E', textDecoration: 'none', fontWeight: 500 }}><LayoutDashboard size={18}/> Mi perfil</Link>
+                <Link href="/dashboard/plan" onClick={() => setMobileOpen(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px', background: 'white', border: '1px solid #E5E7EB', borderRadius: 12, color: '#1A1A2E', textDecoration: 'none', fontWeight: 500 }}><CreditCard size={18}/> Mi plan</Link>
                 <button onClick={handleLogout} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px', background: 'white', border: '1px solid #FECACA', borderRadius: 12, color: '#DC2626', fontWeight: 500, width: '100%' }}><LogOut size={18}/> Cerrar sesión</button>
               </>
             ) : (
