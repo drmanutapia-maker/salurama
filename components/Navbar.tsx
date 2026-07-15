@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
-import { Menu, X, LogOut, User, UserPlus, LayoutDashboard, ArrowLeft, CreditCard } from 'lucide-react'
+import { Menu, X, LogOut, User, UserPlus, LayoutDashboard, CreditCard } from 'lucide-react'
 
 export default function Navbar() {
   const router = useRouter()
@@ -12,7 +12,6 @@ export default function Navbar() {
   const [showDropdown, setShowDropdown] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
-  const isDoctorPage = pathname?.startsWith('/doctor/')
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user))
@@ -32,35 +31,6 @@ export default function Navbar() {
     setShowDropdown(false); setMobileOpen(false); router.push('/')
   }
 
-  const handleBack = () => {
-    const p = new URLSearchParams(window.location.search)
-    const from = p.get('from')
-    
-    if (from === 'buscar') {
-      const q = p.get('q'); const estado = p.get('estado')
-      const np = new URLSearchParams(); if (q) np.set('especialidad', q); if (estado) np.set('estado', estado)
-      router.push(`/buscar?${np.toString()}`)
-      return
-    }
-    
-    if (window.history.length > 2) {
-      router.back()
-      return
-    }
-    
-    if (user && isDoctorPage) {
-      router.push('/dashboard')
-      return
-    }
-    
-    if (document.referrer.includes('/buscar')) {
-      router.back()
-      return
-    }
-    
-    router.push('/buscar')
-  }
-
   const navLinks = [
     { href: '/buscar', label: 'Especialidades' },
     { href: '/como-elegir-medico', label: '¿Cómo elegir médico?' },
@@ -70,16 +40,10 @@ export default function Navbar() {
   return (
     <nav data-version="v5-unificado" style={{ position: 'fixed', top: 0, left: 0, right: 0, background: '#fff', borderBottom: '1px solid #E5E7EB', zIndex: 1000, height: 72 }}>
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 20px', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        {isDoctorPage ? (
-          <button onClick={handleBack} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', cursor: 'pointer', color: '#1E3A5F', fontSize: 14, fontWeight: 600 }}>
-            <ArrowLeft size={20} /><span className="desktop-only">Volver</span>
-          </button>
-        ) : (
-          <Link href="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
-            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 900, color: '#1E3A5F' }}>Salu</span>
-            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 600, color: '#2A9D8F' }}>rama</span>
-          </Link>
-        )}
+        <Link href="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
+          <span style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 900, color: '#1E3A5F' }}>Salu</span>
+          <span style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 600, color: '#2A9D8F' }}>rama</span>
+        </Link>
 
         <div className="desktop-only" style={{ display: 'flex', alignItems: 'center', gap: 32 }}>
           {navLinks.map(l => (

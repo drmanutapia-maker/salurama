@@ -478,30 +478,35 @@ export default function DashboardMedico() {
 
       {/* ═══════════════════════════════════════════════════════════
           BARRA DE PROGRESO
+          Oculta cuando el perfil ya está al 100% — a esa altura el
+          banner verde de abajo ("¡Perfil completo!") ya lo comunica,
+          mostrar ambos era redundante.
       ═══════════════════════════════════════════════════════════ */}
-      <div style={{ maxWidth: 1100, margin: '0 auto 20px', padding: '0 16px' }}>
-        <div style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #E5E7EB' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <h3 style={{ fontFamily: 'Fraunces', fontSize: 16, fontWeight: 900, color: '#1E3A5F', margin: 0 }}>
-              Perfil completo
-            </h3>
-            <span style={{ fontSize: 14, fontWeight: 700, color: profileCompletion >= 80 ? '#2A9D8F' : profileCompletion >= 50 ? '#D97706' : '#1E3A5F' }}>
-              {profileCompletion}%
-            </span>
-          </div>
-          <div style={{ height: 8, background: '#F3F4F6', borderRadius: 99, overflow: 'hidden' }}>
-            <div
-              style={{
-                height: '100%',
-                width: `${profileCompletion}%`,
-                background: profileCompletion >= 80 ? 'linear-gradient(90deg, #2A9D8F, #059669)' : profileCompletion >= 50 ? 'linear-gradient(90deg, #D97706, #F59E0B)' : 'linear-gradient(90deg, #1E3A5F, #3B82F6)',
-                borderRadius: 99,
-                transition: 'width 0.6s ease-out'
-              }}
-            />
+      {!esPerfilCompleto && (
+        <div style={{ maxWidth: 1100, margin: '0 auto 20px', padding: '0 16px' }}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #E5E7EB' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h3 style={{ fontFamily: 'Fraunces', fontSize: 16, fontWeight: 900, color: '#1E3A5F', margin: 0 }}>
+                Perfil completo
+              </h3>
+              <span style={{ fontSize: 14, fontWeight: 700, color: profileCompletion >= 80 ? '#2A9D8F' : profileCompletion >= 50 ? '#D97706' : '#1E3A5F' }}>
+                {profileCompletion}%
+              </span>
+            </div>
+            <div style={{ height: 8, background: '#F3F4F6', borderRadius: 99, overflow: 'hidden' }}>
+              <div
+                style={{
+                  height: '100%',
+                  width: `${profileCompletion}%`,
+                  background: profileCompletion >= 80 ? 'linear-gradient(90deg, #2A9D8F, #059669)' : profileCompletion >= 50 ? 'linear-gradient(90deg, #D97706, #F59E0B)' : 'linear-gradient(90deg, #1E3A5F, #3B82F6)',
+                  borderRadius: 99,
+                  transition: 'width 0.6s ease-out'
+                }}
+              />
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* ═══════════════════════════════════════════════════════════
           TARJETA INTELIGENTE (consejo o festejo)

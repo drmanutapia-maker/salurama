@@ -9,6 +9,7 @@ import {
   ChevronDown, Briefcase, GraduationCap, Heart, Calendar, DollarSign, Info,
   Clock, Navigation, Phone, MessageCircle, Globe, Share2
 } from 'lucide-react'
+import BackButton from '@/components/BackButton'
 
 interface Medico {
   id: string
@@ -674,6 +675,10 @@ export default function DoctorProfileClient({ doctorId }: { doctorId: string }) 
         @media (min-width: 768px) {.mobile-only { display: none!important; } }
       `}</style>
       <main style={{ paddingTop: 88, maxWidth: 1200, margin: '0 auto', padding: '88px 20px 120px' }}>
+
+        <div style={{ marginBottom: 16 }}>
+          <BackButton />
+        </div>
 
         {/* ─── HEADER ─── */}
         <section className="fade-up" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '320px 1fr', gap: 40, alignItems: 'start', marginBottom: 48 }}>

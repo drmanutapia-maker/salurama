@@ -38,13 +38,10 @@ export default function Header() {
         justifyContent: 'space-between',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-          {showBack ? (
-            <BackButton />
-          ) : (
-            <Link href="/" style={{ display: 'flex', alignItems: 'center' }}>
-              <Logo />
-            </Link>
-          )}
+          {showBack && <BackButton />}
+          <Link href="/" style={{ display: 'flex', alignItems: 'center' }}>
+            <Logo />
+          </Link>
         </div>
 
         <nav className="desktop-only" style={{ display: 'flex', alignItems: 'center', gap: 32 }}>

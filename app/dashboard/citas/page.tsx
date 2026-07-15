@@ -6,7 +6,6 @@ import {
   ArrowLeft, MessageCircle, Calendar, Phone, Mail, MapPin,
   FileText, Send, CheckCircle, XCircle, Check
 } from 'lucide-react'
-import BackButton from '@/components/BackButton'
 
 interface Cita {
   id: string
@@ -253,9 +252,6 @@ export default function CitasPage() {
 
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '24px 16px 80px' }}>
         <div className="fade-up" style={{ marginBottom: 24 }}>
-          <div style={{ marginBottom: 16 }}>
-            <BackButton fallback="/dashboard" />
-          </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 12 }}>
             <div>
               <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 28, fontWeight: 900, color: '#111827', marginBottom: 4 }}>Mis Citas</h1>

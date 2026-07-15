@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { toast } from 'sonner'
-import BackButton from '@/components/BackButton'
 
 type DiaSemana = 'lunes' | 'martes' | 'miercoles' | 'jueves' | 'viernes' | 'sabado' | 'domingo'
 
@@ -141,10 +140,6 @@ export default function HorarioDoctor() {
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', padding: '24px 16px 80px', fontFamily: "'DM Sans', sans-serif", color: '#111827' }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@600;900&family=DM+Sans:wght@400;500;600;700&display=swap');`}</style>
-      
-      <div style={{ marginBottom: 16 }}>
-        <BackButton fallback="/dashboard" />
-      </div>
       
       <div style={{ marginBottom: 32 }}>
         <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 28, fontWeight: 900, color: '#111827', marginBottom: 4 }}>Horario de atención</h1>

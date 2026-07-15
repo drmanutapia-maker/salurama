@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { Star, Calendar, TrendingUp, CheckCircle, BarChart2, Eye, FileText, FileSpreadsheet, Lock } from 'lucide-react'
-import BackButton from '@/components/BackButton'
 import { calculateProfileCompletion } from '@/hooks/useProfileCompletion'
 import { PLAN_TO_TIER_CODE } from '@/lib/pricingTiers'
 
@@ -145,9 +144,6 @@ export default function EstadisticasPage() {
       `}</style>
 
       <div style={{ maxWidth: 960, margin: '0 auto', padding: '24px 16px 80px' }}>
-        <div style={{ marginBottom: 16 }}>
-          <BackButton fallback="/dashboard" />
-        </div>
         <div className="fade-up" style={{ marginBottom: 28 }}>
           <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 28, fontWeight: 900, color: '#111827', marginBottom: 4 }}>Estadísticas</h1>
           <p style={{ fontSize: 14, color: '#6B7280' }}>Resumen de tu actividad en Salurama</p>
