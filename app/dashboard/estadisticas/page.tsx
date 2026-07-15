@@ -2,9 +2,10 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
-import { Star, Calendar, TrendingUp, CheckCircle, BarChart2, Eye } from 'lucide-react'
+import { Star, Calendar, TrendingUp, CheckCircle, BarChart2, Eye, FileText, FileSpreadsheet, Lock } from 'lucide-react'
 import BackButton from '@/components/BackButton'
 import { calculateProfileCompletion } from '@/hooks/useProfileCompletion'
+import { PLAN_TO_TIER_CODE } from '@/lib/pricingTiers'
 
 interface Cita {
   id: string
@@ -41,7 +42,7 @@ export default function EstadisticasPage() {
 
       const { data: doc } = await supabase
         .from('doctors')
-        .select('id, full_name, photo_url, specialty, about_me, clinic_lat, clinic_lng, horario, consultation_price_first_time, consultation_price_general, phone, clinic_phone, whatsapp_phone, languages, profile_views')
+        .select('id, full_name, photo_url, specialty, about_me, clinic_lat, clinic_lng, horario, consultation_price_first_time, consultation_price_general, phone, clinic_phone, whatsapp_phone, languages, profile_views, pricing_tier')
         .eq('user_id', user.id)
         .single()
       if (!doc) { router.push('/dashboard'); return }
@@ -117,6 +118,7 @@ export default function EstadisticasPage() {
 
   const { checks, percentage: completionPct } = completionData
   const colorProgreso = completionPct >= 80 ? '#2A9D8F' : completionPct >= 50 ? '#F59E0B' : '#EF4444'
+  const isPremium = medico?.pricing_tier === PLAN_TO_TIER_CODE.premium || medico?.pricing_tier === PLAN_TO_TIER_CODE.clinica
 
   if (loading) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif" }}>
@@ -149,6 +151,33 @@ export default function EstadisticasPage() {
         <div className="fade-up" style={{ marginBottom: 28 }}>
           <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 28, fontWeight: 900, color: '#111827', marginBottom: 4 }}>Estadísticas</h1>
           <p style={{ fontSize: 14, color: '#6B7280' }}>Resumen de tu actividad en Salurama</p>
+        </div>
+
+        {/* Reportes descargables (Premium) */}
+        <div className="card fade-up" style={{ marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <div>
+            <p style={{ fontSize: 14, fontWeight: 700, color: '#111827', marginBottom: 2 }}>Reportes descargables</p>
+            <p style={{ fontSize: 12, color: '#6B7280' }}>
+              {isPremium ? 'Exporta este resumen en PDF o Excel.' : 'Disponible en el plan Premium.'}
+            </p>
+          </div>
+          {isPremium ? (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <a href="/api/estadisticas/pdf" style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#1E3A5F', color: '#fff', textDecoration: 'none', borderRadius: 50, padding: '10px 18px', fontSize: 13, fontWeight: 600 }}>
+                <FileText size={14} /> PDF
+              </a>
+              <a href="/api/estadisticas/excel" style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#2A9D8F', color: '#fff', textDecoration: 'none', borderRadius: 50, padding: '10px 18px', fontSize: 13, fontWeight: 600 }}>
+                <FileSpreadsheet size={14} /> Excel
+              </a>
+            </div>
+          ) : (
+            <button
+              onClick={() => router.push('/dashboard/plan')}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#F3F4F6', color: '#6B7280', border: 'none', borderRadius: 50, padding: '10px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+            >
+              <Lock size={14} /> Mejorar a Premium
+            </button>
+          )}
         </div>
 
         {/* KPIs */}
