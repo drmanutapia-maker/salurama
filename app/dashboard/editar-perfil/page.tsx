@@ -6,7 +6,6 @@ import {
   X, Edit2, Save, Plus, Trash2, Phone, MessageCircle,
   DollarSign, Shield, Camera, Eye, CheckCircle, MapPin
 } from 'lucide-react'
-import BackButton from '@/components/BackButton'
 import dynamic from 'next/dynamic'
 const LocationPicker = dynamic(() => import('@/components/LocationPicker'), { ssr: false })
 import { useCP } from '@/hooks/useCP'
@@ -525,9 +524,6 @@ export default function EditarPerfilPage() {
       `}</style>
 
       <div className="fade-up" style={{ maxWidth: 900, margin: '0 auto', padding: '24px 16px 24px' }}>
-        <div style={{ marginBottom: 16 }}>
-          <BackButton fallback="/dashboard" />
-        </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, gap: 16 }}>
           <div style={{ flex: 1 }}>
             <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 30, fontWeight: 900, color: '#111827', marginBottom: 6 }}>Editar perfil</h1>

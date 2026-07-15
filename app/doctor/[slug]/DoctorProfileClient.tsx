@@ -674,9 +674,15 @@ export default function DoctorProfileClient({ doctorId }: { doctorId: string }) 
         @media (max-width: 767px) {.desktop-only { display: none!important; } }
         @media (min-width: 768px) {.mobile-only { display: none!important; } }
       `}</style>
-      <main style={{ paddingTop: 88, maxWidth: 1200, margin: '0 auto', padding: '88px 20px 120px' }}>
+      {/* El layout raíz (app/layout.tsx) ya envuelve todo en su propio <main>
+          con paddingTop: 68px para librar el Navbar fijo (72px) — este <main>
+          NO debe repetir esa compensación, o el offset se duplica (~150px en
+          vez de ~70-90px). Horario/Citas/Estadísticas no tienen este problema
+          porque no agregan padding-top propio, solo su tab bar sticky (que
+          reserva su propio espacio en el flujo, a diferencia de uno fixed). */}
+      <main style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '16px 20px 120px' : '20px 20px 120px' }}>
 
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: 8 }}>
           <BackButton />
         </div>
 
