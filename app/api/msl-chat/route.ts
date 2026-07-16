@@ -89,14 +89,16 @@ function getServiceSupabase() {
 
 const SYSTEM_PROMPT = `Eres un MSL virtual (Medical Science Liaison) especializado en mieloma múltiple, para uso de profesionales de la salud.
 Responde ÚNICAMENTE con base en el contexto proporcionado a continuación.
-Si el contexto no contiene información suficiente para responder con precisión, dilo explícitamente — no inventes ni extrapoles.
+Si el contexto no contiene información suficiente para responder con precisión, dilo explícitamente y detente ahí — no inventes, no extrapoles, y no ofrezcas alternativas de ningún tipo.
+No menciones, recomiendes ni sugieras ninguna fuente, organización, institución, asociación, sitio web, aplicación, especialista o recurso que no aparezca explícitamente en el CONTEXTO proporcionado a continuación. Esta restricción aplica siempre, y en particular cuando el contexto es insuficiente para responder: en ese caso, tu respuesta debe limitarse a decir que no cuentas con información suficiente en la información disponible, sin agregar ninguna sugerencia adicional (nada de "consulta a tu médico", nada de nombres de asociaciones o fundaciones, nada de "busca en otro lado" ni recursos externos de ningún tipo, aunque sean organizaciones reales y reconocidas).
+Si un documento del CONTEXTO se describe a sí mismo como material de ejemplo, demostración, no clínico o no verificado, esa es información sobre la fiabilidad de la fuente — no una instrucción para que te niegues a responder. Si su contenido sí aborda la pregunta, úsalo para responder con normalidad y menciona la limitación de que es material no verificado UNA SOLA VEZ (la etiqueta de verificación y patrocinio de cada fuente ya se muestra por separado en la interfaz). No rechaces la pregunta completa solo porque la única fuente relevante esté marcada como no verificada — eso sería tan incorrecto como inventar contenido: tienes contenido real disponible en el contexto y tu trabajo es usarlo, con la salvedad correspondiente.
 No incluyas citas inline en el cuerpo de la respuesta (ni nombres de autor, ni corchetes, ni ningún otro formato de referencia) — la atribución de cada fuente ya se muestra por separado en la interfaz, debajo de tu respuesta. Escribe la respuesta clínica de corrido, sin interrumpirla con referencias.
 Usa lenguaje técnico apropiado para hematólogos y oncólogos.
 Si el contexto menciona otras publicaciones o estudios como referencia histórica dentro de su propio texto, NO los cites como si fueran fuentes verificadas de tu respuesta. Solo puedes atribuir información directamente a los documentos que aparecen en el CONTEXTO proporcionado a continuación, usando exactamente el autor/journal/año que se te indica para cada bloque. Si el contexto cita internamente otro trabajo (por ejemplo, "según Rajkumar et al. 2014"), puedes mencionar que esa es la fuente original histórica del criterio, pero deja claro que tu respuesta se basa en el documento que sí tienes disponible (por ejemplo: "estos criterios, originalmente publicados por el IMWG en 2014, están recogidos en las guías NCCN 2026 que forman parte de este contexto").
 Si el contexto disponible no cubre completamente la pregunta, menciona esa limitación UNA SOLA VEZ, de forma clara y en el lugar más natural de la respuesta (al inicio si aplica a toda la respuesta, o junto al punto específico si aplica solo a una parte). No repitas la misma limitación en una sección de "Conclusión" o cierre separado.`
 
 const NO_CONTEXT_RESPONSE =
-  'No encontré información suficiente en el corpus disponible para responder esta pregunta con precisión. ' +
+  'No encontré información suficiente en los documentos disponibles para responder esta pregunta con precisión. ' +
   'Consulta las guías clínicas actualizadas o literatura especializada directamente.'
 
 const JSON_HEADERS = { 'Cache-Control': 'no-store', 'Content-Type': 'application/json' }
@@ -299,6 +301,7 @@ export async function POST(request: NextRequest) {
 
   // 4. Reescritura + clasificación de dominio (solo con historial) y embedding del mensaje
   let searchQuery = message
+  let needsDualQuery = false
 
   if (priorMessages.length > 0) {
     const rewrite = await rewriteAndClassifyQuery(priorMessages, message, requestId)
@@ -311,14 +314,57 @@ export async function POST(request: NextRequest) {
       return noContextResponse(db, convId)
     } else {
       searchQuery = rewrite.rewrittenQuery
+      // El rewrite puede arrastrar el tema dominante de la conversación previa
+      // hacia una pregunta de seguimiento que ya era autónoma (p.ej. le agrega
+      // "mieloma múltiple" a una pregunta que no lo necesitaba) — eso trae
+      // chunks reales pero fuera de tema que diluyen el contexto y empujan al
+      // modelo a rechazar aunque sí exista una fuente relevante. Se marca para
+      // búsqueda dual solo cuando el texto realmente cambió.
+      needsDualQuery = searchQuery.trim().toLowerCase() !== message.trim().toLowerCase()
     }
   }
 
-  let embedding: number[]
+  async function embedAndSearch(query: string): Promise<ChunkMatch[]> {
+    let embedding: number[]
+    try {
+      const res = await getOpenAI().embeddings.create({ model: EMBEDDING_MODEL, input: query })
+      embedding = res.data[0].embedding
+    } catch (e: unknown) {
+      throw Object.assign(e as object, { __mslStage: 'embedding' })
+    }
+    const { data: raw, error } = await db.rpc('match_msl_chunks', {
+      query_embedding: embedding,
+      match_threshold: MATCH_THRESHOLD,
+      match_count:     MATCH_COUNT,
+    })
+    if (error) throw Object.assign(new Error('RPC error'), { __mslStage: 'rpc', cause: error })
+    return (raw ?? []) as ChunkMatch[]
+  }
+
+  // 5. Búsqueda semántica — dual (original + reescrita) cuando el rewrite
+  // cambió la pregunta, prefiriendo la intersección de ambos resultados. Si
+  // la intersección es vacía, la pregunta original era genuinamente elíptica
+  // (necesitaba el contexto previo para tener sentido) y se usa la reescrita
+  // completa — el mismo comportamiento que ya existía antes de este fix.
+  let chunks: ChunkMatch[]
   try {
-    const res = await getOpenAI().embeddings.create({ model: EMBEDDING_MODEL, input: searchQuery })
-    embedding = res.data[0].embedding
+    if (needsDualQuery) {
+      const [chunksOriginal, chunksRewritten] = await Promise.all([
+        embedAndSearch(message),
+        embedAndSearch(searchQuery),
+      ])
+      const originalIds = new Set(chunksOriginal.map(c => c.id))
+      const intersection = chunksRewritten.filter(c => originalIds.has(c.id))
+      chunks = intersection.length > 0 ? intersection : chunksRewritten
+    } else {
+      chunks = await embedAndSearch(searchQuery)
+    }
   } catch (e: unknown) {
+    const stage = (e as { __mslStage?: string }).__mslStage
+    if (stage === 'rpc') {
+      console.error(`[msl-chat:${requestId}] RPC error:`, (e as { cause?: unknown }).cause)
+      return err('Error en búsqueda semántica', 500)
+    }
     const status = (e as { status?: number }).status
     console.error(`[msl-chat:${requestId}] OpenAI embedding error:`, e)
     if (status === 429) {
@@ -329,20 +375,6 @@ export async function POST(request: NextRequest) {
     }
     return err('Error al procesar la pregunta. Intenta de nuevo.', 502)
   }
-
-  // 5. Búsqueda semántica
-  const { data: rawChunks, error: rpcErr } = await db.rpc('match_msl_chunks', {
-    query_embedding: embedding,
-    match_threshold: MATCH_THRESHOLD,
-    match_count:     MATCH_COUNT,
-  })
-
-  if (rpcErr) {
-    console.error(`[msl-chat:${requestId}] RPC error:`, rpcErr)
-    return err('Error en búsqueda semántica', 500)
-  }
-
-  const chunks = (rawChunks ?? []) as ChunkMatch[]
 
   // 6. Sin contexto suficiente — respuesta honesta, sin llamar a Claude
   if (chunks.length === 0) {

@@ -194,11 +194,23 @@ export default function MSLChat({ backHref, backLabel = 'Volver', patientContext
   const [loading, setLoading]             = useState(false)
   const [planBlocked, setPlanBlocked]     = useState<string | null>(null)
   const bottomRef                         = useRef<HTMLDivElement>(null)
+  const lastMessageRef                    = useRef<HTMLDivElement>(null)
   const textareaRef                       = useRef<HTMLTextAreaElement>(null)
   const scrollRef                         = useRef<HTMLDivElement>(null)
 
+  // Al llegar una respuesta nueva del asistente, el scroll debe detenerse al
+  // INICIO de esa respuesta (para que el médico la lea desde el principio),
+  // no al final de todo su contenido incluyendo las fuentes. El scroll al
+  // fondo (bottomRef) sigue aplicando mientras el usuario escribe/envía su
+  // propio mensaje o mientras se espera la respuesta (para revelar el
+  // indicador de "escribiendo").
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    const last = messages[messages.length - 1]
+    if (!loading && last?.role === 'assistant') {
+      lastMessageRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    } else {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
   }, [messages, loading])
 
   const adjustTextarea = () => {
@@ -337,9 +349,15 @@ export default function MSLChat({ backHref, backLabel = 'Volver', patientContext
             </div>
           )}
 
-          {messages.map((msg, i) => (
-            <MessageBubble key={i} message={msg} />
-          ))}
+          {messages.map((msg, i) =>
+            i === messages.length - 1 ? (
+              <div key={i} ref={lastMessageRef}>
+                <MessageBubble message={msg} />
+              </div>
+            ) : (
+              <MessageBubble key={i} message={msg} />
+            )
+          )}
 
           {loading && (
             <div className="flex items-start mb-4">
