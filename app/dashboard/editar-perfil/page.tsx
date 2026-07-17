@@ -9,6 +9,7 @@ import {
 import dynamic from 'next/dynamic'
 const LocationPicker = dynamic(() => import('@/components/LocationPicker'), { ssr: false })
 import { useCP } from '@/hooks/useCP'
+import TitleSelect from '@/components/TitleSelect'
 
 const UNIVERSIDADES_MEXICO = [
   'Benemérita Universidad Autónoma de Puebla (BUAP)',
@@ -748,7 +749,7 @@ function Modal({ children, onClose, title }: { children: React.ReactNode; onClos
 function BasicInfoForm({ medico, onSave, saving }: any) {
   const [form, setForm] = useState({
     display_name: medico.display_name || medico.full_name,
-    professional_title: medico.professional_title || 'Dr.',
+    professional_title: medico.professional_title || '',
     years_experience: medico.years_experience?.toString() || '',
     facebook_url: medico.facebook_url || '',
     instagram_url: medico.instagram_url || '',
@@ -774,13 +775,8 @@ function BasicInfoForm({ medico, onSave, saving }: any) {
         <input type="text" value={form.display_name} onChange={e => setForm({...form, display_name: e.target.value})} style={{ width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: 8, fontSize: 14 }} placeholder="Dr. Juan Pérez" required />
       </div>
       <div>
-        <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5, color: '#374151' }}>Título</label>
-        <select value={form.professional_title} onChange={e => setForm({...form, professional_title: e.target.value})} style={{ width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: 8, fontSize: 14, background: '#fff' }}>
-          <option value="Dr.">Dr.</option>
-          <option value="Dra.">Dra.</option>
-          <option value="Mtro.">Mtro.</option>
-          <option value="Mtra.">Mtra.</option>
-        </select>
+        <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5, color: '#374151' }}>Título *</label>
+        <TitleSelect value={form.professional_title} onChange={(v) => setForm({...form, professional_title: v})} required />
       </div>
       <div>
         <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5, color: '#374151' }}>Años de experiencia</label>

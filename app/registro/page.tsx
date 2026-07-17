@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import Link from 'next/link'
 import { Mail, MapPin, Stethoscope, CheckCircle, AlertCircle, Eye, EyeOff, ShieldCheck, Info, Loader2, ArrowRight, ArrowLeft } from 'lucide-react'
 import { useCP } from '@/hooks/useCP'
+import TitleSelect from '@/components/TitleSelect'
 
 const ESPECIALIDADES = [
   'Alergología e Inmunología Clínica',
@@ -232,6 +233,7 @@ type FormData = {
   password: string
   confirmPassword: string
   fullName: string
+  professionalTitle: string
   specialty: string
   license: string
   council: string
@@ -258,7 +260,7 @@ export default function RegistroMedico() {
 
   const [form, setForm] = useState<FormData>({
     email: '', password: '', confirmPassword: '',
-    fullName: '', specialty: '', license: '', council: '', licenseNotCurrent: false,
+    fullName: '', professionalTitle: '', specialty: '', license: '', council: '', licenseNotCurrent: false,
     cp: '', estado: '', ciudad: '', colonia: '', direccion: '', terms: false,
   })
 
@@ -312,6 +314,7 @@ export default function RegistroMedico() {
     }
     if (s === 2) {
       if (form.fullName.trim().length < 3) return 'Ingresa tu nombre completo'
+      if (!form.professionalTitle) return 'Selecciona tu título (Dr., Dra., Mtro. o Mtra.)'
       if (!form.specialty) return 'Selecciona tu especialidad'
       if (!/^\d{7,8}$/.test(form.license.replace(/\s/g, ''))) return 'La cédula debe tener 7 u 8 dígitos'
     }
@@ -346,6 +349,7 @@ export default function RegistroMedico() {
           email: form.email.toLowerCase().trim(),
           password: form.password,
           full_name: form.fullName.trim(),
+          professional_title: form.professionalTitle,
           specialty: form.specialty,
           professional_license: form.license.replace(/\s/g, ''),
           specialty_council: form.council.trim(),
@@ -569,15 +573,25 @@ export default function RegistroMedico() {
                 <h2 className="text-xl font-bold text-[#111827]">Tu perfil profesional</h2>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-[#374151] mb-1.5">Nombre completo</label>
-                <input
-                  type="text"
-                  value={form.fullName}
-                  onChange={e => updateField('fullName', e.target.value)}
-                  placeholder="Dr. Juan Pérez García"
-                  className="w-full h-12 px-4 border border-[#D1D5DB] rounded-xl focus:ring-2 focus:ring-[#1E3A5F]/20 focus:border-[#1E3A5F] outline-none transition-all"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-[140px_1fr] gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-[#374151] mb-1.5">Título</label>
+                  <TitleSelect
+                    value={form.professionalTitle}
+                    onChange={v => updateField('professionalTitle', v)}
+                    className="w-full h-12 px-4 border border-[#D1D5DB] rounded-xl focus:ring-2 focus:ring-[#1E3A5F]/20 focus:border-[#1E3A5F] outline-none transition-all bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[#374151] mb-1.5">Nombre completo</label>
+                  <input
+                    type="text"
+                    value={form.fullName}
+                    onChange={e => updateField('fullName', e.target.value)}
+                    placeholder="Juan Pérez García"
+                    className="w-full h-12 px-4 border border-[#D1D5DB] rounded-xl focus:ring-2 focus:ring-[#1E3A5F]/20 focus:border-[#1E3A5F] outline-none transition-all"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
