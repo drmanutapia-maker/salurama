@@ -15,6 +15,7 @@ type DoctorLookup = {
   photo_url: string | null
   ciudad: string | null
   estado: string | null
+  is_active: boolean
 }
 
 function getSupabase() {
@@ -24,11 +25,14 @@ function getSupabase() {
   )
 }
 
+// No filtra is_active en la query — un perfil inactivo (ej. correo aún sin
+// confirmar) debe tratarse como no encontrado, no simplemente omitirse de
+// listados, así que el chequeo se hace explícito donde se usa este lookup.
 async function resolveDoctor(slugParam: string): Promise<DoctorLookup | null> {
   const column = isUuid(slugParam) ? 'id' : 'slug'
   const { data } = await getSupabase()
     .from('doctors')
-    .select('id, slug, full_name, display_name, professional_title, specialty, about_me, photo_url, ciudad, estado')
+    .select('id, slug, full_name, display_name, professional_title, specialty, about_me, photo_url, ciudad, estado, is_active')
     .eq(column, slugParam)
     .maybeSingle()
   return data
@@ -38,7 +42,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params
   const doctor = await resolveDoctor(slug)
 
-  if (!doctor) {
+  if (!doctor || !doctor.is_active) {
     return { title: 'Perfil no encontrado' }
   }
 
@@ -75,7 +79,7 @@ export default async function DoctorPage({
   const { slug } = await params
   const doctor = await resolveDoctor(slug)
 
-  if (!doctor) {
+  if (!doctor || !doctor.is_active) {
     notFound()
   }
 

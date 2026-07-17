@@ -138,7 +138,9 @@ export async function POST(request: NextRequest) {
         clinic_address: fullAddress,
         clinic_lat: lat,
         clinic_lng: lng,
-        is_active: true,
+        // No público hasta confirmar el correo — app/auth/confirm/page.tsx
+        // lo activa (is_active: true) cuando el médico confirma vía el link.
+        is_active: false,
         review_status: 'pendiente',
       })
       .select('id')
