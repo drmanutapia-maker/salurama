@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
+import { getUserSafe } from '@/lib/getUserSafe'
 import {
   ArrowLeft, MessageCircle, Calendar, Phone, Mail, MapPin,
   FileText, Send, CheckCircle, XCircle, Check
@@ -36,6 +37,7 @@ export default function CitasPage() {
   const [citas, setCitas] = useState<Cita[]>([])
   const [medico, setMedico] = useState<MedicoData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [tab, setTab] = useState<Tab>('todas')
   const [procesando, setProcesando] = useState<string | null>(null)
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
@@ -57,7 +59,8 @@ export default function CitasPage() {
 
   useEffect(() => {
     async function load() {
-      const { data: { user } } = await supabase.auth.getUser()
+      const { user, networkError } = await getUserSafe(supabase)
+      if (networkError) { setLoadError(true); setLoading(false); return }
       if (!user) { await supabase.auth.signOut(); router.push('/login'); return }
       
       const { data: medicoData } = await supabase
@@ -218,6 +221,21 @@ export default function CitasPage() {
 
   const citasFiltradas = tab === 'todas' ? citas : citas.filter(c => c.estado === tab)
   const countPorEstado = (s: string) => citas.filter(c => c.estado === s).length
+
+  if (loadError) return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif" }}>
+      <div style={{ textAlign: 'center', maxWidth: 320 }}>
+        <p style={{ color: '#111827', fontSize: 15, fontWeight: 600, marginBottom: 6 }}>No se pudo conectar</p>
+        <p style={{ color: '#9CA3AF', fontSize: 13, marginBottom: 16 }}>Revisa tu conexión a internet e inténtalo de nuevo.</p>
+        <button
+          onClick={() => window.location.reload()}
+          style={{ background: '#1E3A5F', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 20px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+        >
+          Reintentar
+        </button>
+      </div>
+    </div>
+  )
 
   if (loading) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif" }}>

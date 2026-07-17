@@ -369,7 +369,7 @@ function LoginContent() {
               onChange={(e) => setRemember(e.target.checked)}
               style={{ width: 16, height: 16, cursor: 'pointer', accentColor: '#1E3A5F' }}
             />
-            <span style={{ fontSize: 14, color: '#4B5563' }}>Recordar este dispositivo (30 días)</span>
+            <span style={{ fontSize: 14, color: '#4B5563' }}>Recordar este dispositivo (7 días)</span>
           </label>
 
           {/* Botón ingresar */}

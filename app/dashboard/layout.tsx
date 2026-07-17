@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
+import { getUserSafe } from '@/lib/getUserSafe'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -10,7 +11,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     async function load() {
-      const { data: { user } } = await supabase.auth.getUser()
+      const { user, networkError } = await getUserSafe(supabase)
+      // Fallo de red: no hay forma de saber si hay sesión o no. Se deja el
+      // badge como estaba — el intervalo de 60s de abajo reintentará solo.
+      if (networkError) return
       if (!user) return
       const { data: medico } = await supabase.from('doctors').select('id').eq('user_id', user.id).single()
       if (!medico) return

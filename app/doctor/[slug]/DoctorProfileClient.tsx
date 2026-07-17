@@ -484,7 +484,11 @@ export default function DoctorProfileClient({ doctorId }: { doctorId: string }) 
         const { data, error } = await supabase.from('doctors').select('*').eq('id', id as string).single()
         if (error || !data) { setError(true); return }
         setMedico(data)
-        supabase.from('doctors').update({ profile_views: (data.profile_views || 0) + 1 }).eq('id', data.id).then()
+        fetch('/api/track-visit', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ doctorId: data.id }),
+        }).catch(() => {})
         const { data: { user } } = await supabase.auth.getUser()
         if (user?.email === data.email) {
           setIsOwner(true)

@@ -9,6 +9,7 @@ import {
   CheckCircle, ArrowRight,
   PartyPopper, Sparkles
 } from 'lucide-react'
+import { PLAN_TO_TIER_CODE } from '@/lib/pricingTiers'
 
 interface Medico {
   id: string
@@ -29,6 +30,7 @@ interface Medico {
   clinic_address: string | null
   ciudad: string | null
   estado: string | null
+  pricing_tier: string | null
   user_id?: string
 }
 
@@ -54,8 +56,8 @@ interface Consejo {
   titulo: string
   descripcion: string
   impacto: string
-  cta: string
-  link: string
+  cta?: string
+  link?: string
   color: string
   completo?: boolean
 }
@@ -84,13 +86,22 @@ export default function DashboardMedico() {
   // Carga principal de datos
   useEffect(() => {
     let mounted = true
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+    // El evento INITIAL_SESSION puede llegar con session=null mientras el
+    // cliente todavía está leyendo la cookie (justo después de un
+    // window.location.href), antes de que getUser() confirme la sesión real
+    // más abajo — eso causaba un rebote falso a /login. Se ignora ese evento
+    // y no se reacciona a ningún evento hasta que la carga inicial resuelva.
+    let initialCheckDone = false
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'INITIAL_SESSION') return
+      if (!initialCheckDone) return
       if (!session && mounted) router.replace('/login')
     })
 
     async function load() {
       try {
         const { data: { user } } = await supabase.auth.getUser()
+        initialCheckDone = true
         if (!user) { router.replace('/login'); return }
 
         let { data: doctor } = await supabase
@@ -129,13 +140,15 @@ export default function DashboardMedico() {
         inicioMesAnterior.setMonth(inicioMesAnterior.getMonth() - 1)
         const inicioMesAnteriorStr = inicioMesAnterior.toISOString().split('T')[0]
 
-        const [citasHoyRes, totalesRes, mesRes, mesAnteriorRes, pendientesRes, eduRes, expRes, condRes] = await Promise.all([
+        const [citasHoyRes, totalesRes, mesRes, mesAnteriorRes, pendientesRes, eduRes, expRes, condRes, visitasRes] = await Promise.all([
           supabase.from('citas')
             .select('id, paciente_nombre, fecha, hora, estado')
             .eq('medico_id', doctor.id)
-            .eq('fecha', hoy)
+            .gte('fecha', hoy)
             .in('estado', ['pending_verification', 'confirmed'])
-            .order('hora'),
+            .order('fecha', { ascending: true })
+            .order('hora', { ascending: true })
+            .limit(1),
           supabase.from('citas')
             .select('*', { count: 'exact', head: true })
             .eq('medico_id', doctor.id)
@@ -159,6 +172,7 @@ export default function DashboardMedico() {
           supabase.from('doctor_education').select('id').eq('doctor_id', doctor.id),
           supabase.from('doctor_experience').select('id').eq('doctor_id', doctor.id),
           supabase.from('doctor_conditions').select('id').eq('doctor_id', doctor.id),
+          fetch('/api/track-visit').then(r => r.ok ? r.json() : { count: 0 }).catch(() => ({ count: 0 })),
         ])
 
         setCitasHoy((citasHoyRes.data || []).map((c: any) => ({
@@ -176,11 +190,13 @@ export default function DashboardMedico() {
           ratingData = r.data?.[0] || ratingData
         } catch {}
 
-        // Profile views (usando el contador de la tabla doctors)
-        // TODO: no hay tracking real de visitas con fecha (profile_views/profile_metrics
-        // existen en la BD pero tienen 0 filas, nada escribe en ellas). Hasta que se
-        // implemente ese tracking, no se muestra "% crecimiento este mes".
-        const visitasMes = doctor.profile_views || 0
+        // Visitas — cuenta real desde profile_views (tabla), no el viejo
+        // contador doctors.profile_views (columna): ese solo se incrementaba
+        // cuando el propio médico veía su perfil, por RLS (auth.uid()=user_id
+        // / auth.email()=email en las políticas de UPDATE de doctors) — un
+        // visitante real nunca pudo escribirlo. profile_views (tabla) sí
+        // excluye auto-visitas correctamente vía app/api/track-visit.
+        const visitasMes = visitasRes.count || 0
 
         setStats({
           visitas_mes: visitasMes,
@@ -326,8 +342,6 @@ export default function DashboardMedico() {
             titulo: '¡Perfil completo!',
             descripcion: 'Tienes máxima visibilidad en búsquedas. Los pacientes te encuentran más fácil.',
             impacto: '',
-            cta: 'Compartir perfil',
-            link: '/dashboard',
             completo: true,
             color: '#2A9D8F'
           })
@@ -389,6 +403,18 @@ export default function DashboardMedico() {
 
   const esPerfilCompleto = consejo?.id === 'completo'
   const profileUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/doctor/${medico.id}`
+  const esProfesionalOMas = medico.pricing_tier === PLAN_TO_TIER_CODE.profesional
+    || medico.pricing_tier === PLAN_TO_TIER_CODE.premium
+    || medico.pricing_tier === PLAN_TO_TIER_CODE.clinica
+  const fechaHoyLegible = new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })
+
+  const formatProximaFecha = (fechaStr: string) => {
+    const hoy = new Date().toISOString().split('T')[0]
+    const manana = new Date(Date.now() + 86400000).toISOString().split('T')[0]
+    if (fechaStr === hoy) return 'Hoy'
+    if (fechaStr === manana) return 'Mañana'
+    return new Date(fechaStr + 'T00:00:00').toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })
+  }
 
   return (
     <div style={{ minHeight: '100vh', background: '#F9FAFB', fontFamily: "'DM Sans', sans-serif", paddingBottom: isMobile ? 80 : 0 }}>
@@ -397,12 +423,10 @@ export default function DashboardMedico() {
         
         @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes confetti { 0% { transform: translateY(0) rotate(0); opacity: 1; } 100% { transform: translateY(-20px) rotate(360deg); opacity: 0; } }
-        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
-        
+
         .fade-in { animation: fadeIn 0.4s ease-out; }
         .confetti-anim { animation: confetti 1s ease-out; }
-        .pulse-anim { animation: pulse 2s ease-in-out infinite; }
-        
+
         .btn-hover { transition: all 0.2s ease; }
         .btn-hover:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         .btn-hover:active { transform: translateY(0); }
@@ -457,26 +481,20 @@ export default function DashboardMedico() {
               >
                 <Eye size={16} /> Ver perfil
               </button>
-              {/* Se oculta cuando el perfil ya está al 100% — la tarjeta de
-                  celebración de abajo ya trae su propio botón "Compartir perfil",
-                  mostrar ambos duplicaba la acción (mismo patrón que la barra
-                  de progreso). */}
-              {!esPerfilCompleto && (
-                <button
-                  onClick={handleShare}
-                  className="btn-hover"
-                  style={isMobile
-                    ? { background: '#fff', color: '#1E3A5F', border: '1.5px solid #E5E7EB', padding: '14px 20px', borderRadius: 12, fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', minHeight: 48 }
-                    : { width: 36, height: 36, borderRadius: '50%', background: '#F5F3FF', border: '1.5px solid #DDD6FE', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#7C3AED', flexShrink: 0 }
-                  }
-                  title={copied ? '¡Link copiado!' : 'Compartir perfil'}
-                >
-                  {isMobile
-                    ? <>{copied ? '¡Link copiado!' : <><Share2 size={16} /> Compartir</>}</>
-                    : <Share2 size={15} />
-                  }
-                </button>
-              )}
+              <button
+                onClick={handleShare}
+                className="btn-hover"
+                style={isMobile
+                  ? { background: '#fff', color: '#1E3A5F', border: '1.5px solid #E5E7EB', padding: '14px 20px', borderRadius: 12, fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', minHeight: 48 }
+                  : { width: 36, height: 36, borderRadius: '50%', background: '#F5F3FF', border: '1.5px solid #DDD6FE', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#7C3AED', flexShrink: 0 }
+                }
+                title={copied ? '¡Link copiado!' : 'Compartir perfil'}
+              >
+                {isMobile
+                  ? <>{copied ? '¡Link copiado!' : <><Share2 size={16} /> Compartir</>}</>
+                  : <Share2 size={15} />
+                }
+              </button>
             </div>
           </div>
         </div>
@@ -519,7 +537,7 @@ export default function DashboardMedico() {
       ═══════════════════════════════════════════════════════════ */}
       {consejo && (
         <div style={{ maxWidth: 1100, margin: '0 auto 20px', padding: '0 16px' }}>
-          <div className={`fade-in ${esPerfilCompleto ? 'pulse-anim' : ''}`} style={{
+          <div className="fade-in" style={{
             background: esPerfilCompleto
               ? 'linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%)'
               : 'linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 100%)',
@@ -592,7 +610,7 @@ export default function DashboardMedico() {
             </div>
             {!esPerfilCompleto && (
               <Link
-                href={consejo.link}
+                href={consejo.link || '/dashboard'}
                 prefetch={true}
                 className="btn-hover"
                 style={{
@@ -615,31 +633,6 @@ export default function DashboardMedico() {
                 {consejo.cta}
                 <ArrowRight size={16} />
               </Link>
-            )}
-            {esPerfilCompleto && (
-              <button
-                onClick={handleShare}
-                className="btn-hover"
-                style={{
-                  background: '#2A9D8F',
-                  color: '#fff',
-                  padding: '12px 20px',
-                  borderRadius: 12,
-                  fontSize: 14,
-                  fontWeight: 600,
-                  border: 'none',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  whiteSpace: 'nowrap',
-                  width: isMobile ? '100%' : 'auto',
-                  justifyContent: 'center',
-                  minHeight: 48
-                }}
-              >
-                <Share2 size={16} /> Compartir perfil
-              </button>
             )}
           </div>
         </div>
@@ -664,6 +657,11 @@ export default function DashboardMedico() {
             <p style={{ fontSize: 32, fontFamily: 'Fraunces', fontWeight: 900, color: '#1E3A5F', margin: '8px 0', lineHeight: 1 }}>
               {stats?.visitas_mes || 0}
             </p>
+            {esProfesionalOMas && (
+              <p style={{ fontSize: 11, color: '#9CA3AF', lineHeight: 1.4, margin: 0 }}>
+                Acumulando datos desde el {fechaHoyLegible} — la tendencia estará disponible próximamente
+              </p>
+            )}
             <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', gap: 4, color: '#8B5CF6', fontSize: 13, fontWeight: 600 }}>
               Ver detalles <ArrowRight size={14} />
             </div>
@@ -754,7 +752,7 @@ export default function DashboardMedico() {
 
           {citasHoy.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {citasHoy.slice(0, 3).map(c => (
+              {citasHoy.map(c => (
                 <div key={c.id} style={{ background: '#F9FAFB', padding: 16, borderRadius: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderLeft: `4px solid ${c.status === 'confirmada' ? '#059669' : '#F59E0B'}` }}>
                   <div style={{ display: 'flex', gap: 12, alignItems: 'center', flex: 1, minWidth: 0 }}>
                     <div style={{ width: 44, height: 44, borderRadius: '50%', background: c.status === 'confirmada' ? '#059669' : '#F59E0B', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, flexShrink: 0 }}>
@@ -763,7 +761,7 @@ export default function DashboardMedico() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ fontWeight: 600, fontSize: 14, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.patient_name}</p>
                       <p style={{ fontSize: 13, color: '#6B7280', margin: '2px 0 0' }}>
-                        {c.requested_time} • {c.status === 'confirmada' ? 'Confirmada' : 'Por confirmar'}
+                        {formatProximaFecha(c.requested_date)} · {c.requested_time} • {c.status === 'confirmada' ? 'Confirmada' : 'Por confirmar'}
                       </p>
                     </div>
                   </div>
@@ -774,7 +772,7 @@ export default function DashboardMedico() {
           ) : (
             <div style={{ textAlign: 'center', padding: 40, background: '#F9FAFB', borderRadius: 12 }}>
               <Calendar size={40} color="#9CA3AF" style={{ margin: '0 auto 12px', display: 'block' }} />
-              <p style={{ color: '#6B7280', fontSize: 14, margin: 0 }}>Sin citas para hoy</p>
+              <p style={{ color: '#6B7280', fontSize: 14, margin: 0 }}>Sin próximas citas</p>
               <p style={{ color: '#9CA3AF', fontSize: 13, margin: '4px 0 0' }}>Las solicitudes aparecerán aquí</p>
             </div>
           )}

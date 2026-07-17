@@ -6,7 +6,11 @@ import { supabase } from '@/lib/supabaseClient'
 
 const IDLE_TIMEOUT = 120 * 60 * 1000 // 120 min
 const WARNING_TIME = 115 * 60 * 1000 // 115 min
-const REMEMBER_TIMEOUT = 30 * 24 * 60 * 60 * 1000 // 30 días
+// setTimeout usa un entero de 32 bits con signo para el delay — el máximo
+// válido es 2,147,483,647 ms (~24.8 días). 30 días (2,592,000,000 ms) excede
+// ese límite y hace que el timeout se dispare casi de inmediato en vez de en
+// 30 días, cerrando la sesión al instante. 7 días queda muy por debajo.
+const REMEMBER_TIMEOUT = 7 * 24 * 60 * 60 * 1000 // 7 días
 const WARNING_DURATION = 5000
 
 export function useSessionTimeout() {
