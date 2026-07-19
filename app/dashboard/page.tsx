@@ -7,7 +7,7 @@ import {
   X, ZoomIn, Calendar, Edit2, Eye, Share2,
   Star, Users, MoreVertical, Lightbulb,
   CheckCircle, ArrowRight,
-  PartyPopper, Sparkles
+  PartyPopper, Sparkles, Megaphone
 } from 'lucide-react'
 import { PLAN_TO_TIER_CODE } from '@/lib/pricingTiers'
 
@@ -32,6 +32,7 @@ interface Medico {
   estado: string | null
   pricing_tier: string | null
   user_id?: string
+  cofepris_aviso_numero: string | null
 }
 
 interface Cita {
@@ -634,6 +635,54 @@ export default function DashboardMedico() {
                 <ArrowRight size={16} />
               </Link>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════
+          INVITACIÓN COFEPRIS — servicio opcional, independiente del
+          "consejo" de arriba a propósito: no debe impedir que se
+          muestre "¡Perfil completo!" ni contarse en profileCompletion,
+          ya que no es parte de la completitud del perfil público.
+      ═══════════════════════════════════════════════════════════ */}
+      {medico && !medico.cofepris_aviso_numero && (
+        <div style={{ maxWidth: 1100, margin: '0 auto 20px', padding: '0 16px' }}>
+          <div className="fade-in" style={{
+            background: 'linear-gradient(135deg, #E8F7F5 0%, #D1FAE5 100%)',
+            border: '1.5px solid #9FD8CD',
+            borderRadius: 16,
+            padding: 20,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexDirection: isMobile ? 'column' : 'row',
+            gap: 16,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, flex: 1, width: '100%' }}>
+              <div style={{ width: 44, height: 44, borderRadius: 12, background: '#2A9D8F', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Megaphone size={22} color="#fff" />
+              </div>
+              <div style={{ flex: 1, textAlign: isMobile ? 'center' : 'left' }}>
+                <p style={{ fontFamily: 'Fraunces', fontWeight: 900, fontSize: 16, color: '#1D6F65', margin: '0 0 6px' }}>
+                  Formaliza tu Aviso de Publicidad ante COFEPRIS
+                </p>
+                <p style={{ fontSize: 14, color: '#4A5568', margin: 0, lineHeight: 1.5 }}>
+                  Te ayudamos a preparar la documentación — es un servicio opcional, no afecta tu perfil ni tu visibilidad.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/dashboard/cofepris"
+              prefetch={true}
+              className="btn-hover"
+              style={{
+                background: '#2A9D8F', color: '#fff', padding: '12px 20px', borderRadius: 12, fontSize: 14, fontWeight: 600,
+                textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap',
+                width: isMobile ? '100%' : 'auto', justifyContent: 'center', minHeight: 48,
+              }}
+            >
+              Empezar <ArrowRight size={16} />
+            </Link>
           </div>
         </div>
       )}
