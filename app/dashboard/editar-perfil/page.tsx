@@ -250,6 +250,11 @@ export default function EditarPerfilPage() {
   const [activeStep, setActiveStep] = useState(1)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  const [editingLicense, setEditingLicense] = useState(false)
+  const [licenseInput, setLicenseInput] = useState('')
+  const [licenseSaving, setLicenseSaving] = useState(false)
+  const [licenseError, setLicenseError] = useState('')
+
   useEffect(() => { window.scrollTo(0, 0) }, [])
 
   const loadData = useCallback(async () => {
@@ -381,6 +386,41 @@ export default function EditarPerfilPage() {
     setSaving(false)
   }
 }
+
+  const handleStartEditLicense = () => {
+    setLicenseInput(medico?.professional_license || '')
+    setLicenseError('')
+    setEditingLicense(true)
+  }
+
+  const handleSaveLicense = async () => {
+    if (!medico) return
+    const clean = licenseInput.trim()
+    if (!/^\d{7,8}$/.test(clean)) {
+      setLicenseError('La cédula debe tener 7 u 8 dígitos')
+      return
+    }
+    setLicenseSaving(true)
+    setLicenseError('')
+    try {
+      const res = await fetch('/api/dashboard/actualizar-cedula', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ professional_license: clean }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Error al guardar la cédula')
+      setMedico(prev => prev ? { ...prev, professional_license: clean } : prev)
+      setEditingLicense(false)
+      if (data.changed) {
+        alert('Cédula actualizada. Volverá a pasar por revisión antes de mostrarse como verificada.')
+      }
+    } catch (err: any) {
+      setLicenseError(err.message || 'Error al guardar la cédula')
+    } finally {
+      setLicenseSaving(false)
+    }
+  }
 
   const handleAddSpecialty = async (data: Omit<SpecialtyWithLicense, 'id'>) => {
     if (!medico) return
@@ -596,7 +636,45 @@ export default function EditarPerfilPage() {
               <div style={{ padding: '10px 12px', background: '#E8F7F5', borderRadius: 8, border: '1px solid #9FD8CD', marginBottom: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}><CheckCircle size={14} color="#2A9D8F" /><span style={{ fontSize: 11, fontWeight: 700, color: '#1D6F65', textTransform: 'uppercase' }}>Principal</span></div>
                 <p style={{ fontSize: 14, fontWeight: 700, color: '#1E3A5F' }}>{medico.specialty}</p>
-                {medico.professional_license && <p style={{ fontSize: 13, color: '#6B7280', marginTop: 2 }}>Cédula: <strong style={{ color: '#111827' }}>{medico.professional_license}</strong></p>}
+
+                {editingLicense ? (
+                  <div style={{ marginTop: 6 }}>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={licenseInput}
+                        onChange={e => setLicenseInput(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                        placeholder="Número de cédula"
+                        style={{ flex: 1, padding: '6px 10px', border: '1px solid #9FD8CD', borderRadius: 6, fontSize: 13, fontFamily: 'monospace' }}
+                        disabled={licenseSaving}
+                      />
+                      <button onClick={handleSaveLicense} disabled={licenseSaving}
+                        style={{ background: '#2A9D8F', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: licenseSaving ? 0.6 : 1 }}>
+                        {licenseSaving ? 'Guardando...' : 'Guardar'}
+                      </button>
+                      <button onClick={() => { setEditingLicense(false); setLicenseError('') }} disabled={licenseSaving}
+                        style={{ background: 'none', border: '1px solid #D1D5DB', borderRadius: 6, padding: '6px 12px', fontSize: 12, fontWeight: 600, color: '#6B7280', cursor: 'pointer' }}>
+                        Cancelar
+                      </button>
+                    </div>
+                    {licenseError && <p style={{ fontSize: 12, color: '#DC2626', marginTop: 4 }}>{licenseError}</p>}
+                    <p style={{ fontSize: 11, color: '#6B7280', marginTop: 4 }}>
+                      Cambiar la cédula la vuelve a poner en revisión — dejará de mostrarse como verificada hasta que se confirme de nuevo.
+                    </p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
+                    {medico.professional_license
+                      ? <p style={{ fontSize: 13, color: '#6B7280' }}>Cédula: <strong style={{ color: '#111827' }}>{medico.professional_license}</strong></p>
+                      : <p style={{ fontSize: 13, color: '#9CA3AF' }}>Sin cédula registrada</p>}
+                    <button onClick={handleStartEditLicense}
+                      style={{ background: 'none', border: 'none', color: '#1E3A5F', cursor: 'pointer', padding: 2, display: 'inline-flex' }}
+                      title="Editar cédula">
+                      <Edit2 size={13} />
+                    </button>
+                  </div>
+                )}
               </div>
               {specialties.length > 0? specialties.map(spec => (
                 <div key={spec.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 12px', background: '#F9FAFB', borderRadius: 8, border: '1px solid #E5E7EB', marginBottom: 8 }}>

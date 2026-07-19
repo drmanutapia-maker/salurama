@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import Link from 'next/link'
 import { Mail, MapPin, Stethoscope, CheckCircle, AlertCircle, Eye, EyeOff, ShieldCheck, Info, Loader2, ArrowRight, ArrowLeft } from 'lucide-react'
+import { Turnstile } from '@marsidev/react-turnstile'
 import { useCP } from '@/hooks/useCP'
 import TitleSelect from '@/components/TitleSelect'
 
@@ -254,6 +255,7 @@ export default function RegistroMedico() {
   const [showPass, setShowPass] = useState(false)
   const [showPass2, setShowPass2] = useState(false)
   const [touched, setTouched] = useState<Record<string, boolean>>({})
+  const [turnstileToken, setTurnstileToken] = useState('')
 
   const { loading: loadingCP, error: errorCP, cpData, search, formatCP } = useCP()
   const cpInputRef = useRef<HTMLInputElement>(null)
@@ -359,6 +361,7 @@ export default function RegistroMedico() {
           ciudad: form.ciudad,
           colonia: form.colonia,
           direccion: form.direccion.trim(),
+          turnstileToken,
         })
       })
 
@@ -724,11 +727,15 @@ export default function RegistroMedico() {
                 </span>
               </label>
 
+              <div className="flex justify-center">
+                <Turnstile siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!} onSuccess={setTurnstileToken} options={{ theme: 'light' }} />
+              </div>
+
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setStep(2)} disabled={loading} className="h-12 px-6 border-[#D1D5DB] rounded-full font-medium text-[#4B5563] hover:bg-[#F9FAFB] transition-colors flex items-center gap-1.5 disabled:opacity-50">
                   <ArrowLeft size={16} /> Atrás
                 </button>
-                <button onClick={handleSubmit} disabled={loading} className="flex-1 h-12 bg-[#1E3A5F] text-white rounded-full font-semibold hover:bg-[#2A4A70] transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
+                <button onClick={handleSubmit} disabled={loading || !turnstileToken} className="flex-1 h-12 bg-[#1E3A5F] text-white rounded-full font-semibold hover:bg-[#2A4A70] transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
                   {loading? <><Loader2 size={18} className="animate-spin" /> Creando cuenta...</> : <>Crear cuenta <CheckCircle size={18} /></>}
                 </button>
               </div>

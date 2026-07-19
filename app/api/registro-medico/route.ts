@@ -4,6 +4,7 @@ import { Redis } from '@upstash/redis'
 import { z } from 'zod'
 import { sendAccountConfirmationEmail } from '@/lib/email'
 import { generateUniqueDoctorSlug } from '@/lib/slug'
+import { verifyTurnstile } from '@/lib/security'
 
 const schema = z.object({
   email: z.string().email().toLowerCase(),
@@ -19,7 +20,7 @@ const schema = z.object({
   ciudad: z.string().min(2).max(50),
   colonia: z.string().min(2).max(100),
   direccion: z.string().max(200).optional(),
-  turnstileToken: z.string().optional(),
+  turnstileToken: z.string().min(1),
 })
 
 function getIp(req: NextRequest) {
@@ -52,18 +53,8 @@ export async function POST(request: NextRequest) {
 
     const data = schema.parse(body)
 
-    if (data.turnstileToken) {
-      const turnstile = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-        method: 'POST',
-        body: new URLSearchParams({
-          secret: process.env.TURNSTILE_SECRET_KEY!,
-          response: data.turnstileToken,
-          remoteip: ip,
-        }),
-      })
-      if (!(await turnstile.json()).success) {
-        return NextResponse.json({ error: 'Verificación fallida' }, { status: 400 })
-      }
+    if (!(await verifyTurnstile(data.turnstileToken, ip))) {
+      return NextResponse.json({ error: 'Verificación fallida' }, { status: 400 })
     }
 
     const [emailCheck, cedulaCheck] = await Promise.all([
