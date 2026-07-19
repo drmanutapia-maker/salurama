@@ -119,12 +119,15 @@ export default function CofeprisPage() {
     if (!medico) return
     setSavingNumero(true)
     try {
-      const { error } = await supabase
-        .from('doctors')
-        .update({ cofepris_aviso_numero: avisoNumero.trim(), cofepris_aviso_fecha: new Date().toISOString().slice(0, 10) })
-        .eq('id', medico.id)
-      if (error) throw error
-      setMedico(prev => prev ? { ...prev, cofepris_aviso_numero: avisoNumero.trim(), cofepris_aviso_fecha: new Date().toISOString().slice(0, 10) } : prev)
+      const res = await fetch('/api/dashboard/cofepris/guardar-numero', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ aviso_numero: avisoNumero.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Error al guardar')
+      const fecha = new Date().toISOString().slice(0, 10)
+      setMedico(prev => prev ? { ...prev, cofepris_aviso_numero: avisoNumero.trim(), cofepris_aviso_fecha: fecha } : prev)
     } catch {
       alert('Error al guardar el número de aviso.')
     } finally {

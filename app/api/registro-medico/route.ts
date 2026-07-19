@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
       throw doctorError
     }
 
-    await supabaseAdmin.from('admin_verificaciones_sep').insert({
+    await supabaseAdmin.from('doctor_license_audit_log').insert({
       doctor_id: doctor.id,
       professional_license: data.professional_license,
       full_name: data.full_name,

@@ -36,9 +36,12 @@ interface Medico {
 
 export default function AdminPanel() {
   const [autenticado, setAutenticado]   = useState(false)
-  const [passInput, setPassInput]       = useState('')
+  const [checkingAuth, setCheckingAuth] = useState(true)
+  const [loginEmail, setLoginEmail]     = useState('')
+  const [loginPassword, setLoginPassword] = useState('')
   const [showPass, setShowPass]         = useState(false)
-  const [passError, setPassError]       = useState(false)
+  const [loginError, setLoginError]     = useState('')
+  const [loggingIn, setLoggingIn]       = useState(false)
   const [medicos, setMedicos]           = useState<Medico[]>([])
   const [loading, setLoading]           = useState(false)
   const [vista, setVista]               = useState<'pendientes' | 'todos'>('pendientes')
@@ -50,14 +53,20 @@ export default function AdminPanel() {
     pendientes: 0, revisados: 0, rechazados: 0, total: 0
   })
 
-  // Cargar sesión al montar
+  // Cargar sesión real de Supabase al montar
   useEffect(() => {
-    const ok    = sessionStorage.getItem('salurama_admin')
-    const email = sessionStorage.getItem('salurama_admin_email')
-    if (ok === 'true') {
-      setAutenticado(true)
-      if (email) setAdminEmail(email)
+    async function checkSession() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: adminRow } = await supabase.from('admins').select('id').eq('user_id', user.id).maybeSingle()
+        if (adminRow) {
+          setAutenticado(true)
+          setAdminEmail(user.email || '')
+        }
+      }
+      setCheckingAuth(false)
     }
+    checkSession()
   }, [])
 
   // Cargar médicos cuando cambia vista o autenticación
@@ -101,34 +110,33 @@ export default function AdminPanel() {
   }
 
   async function login() {
+    setLoggingIn(true)
+    setLoginError('')
     try {
-      const res = await fetch('/api/admin-login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: passInput }),
-      })
-      if (res.ok) {
-        sessionStorage.setItem('salurama_admin', 'true')
-        sessionStorage.setItem('salurama_admin_email', 'admin@salurama.com')
-        setAutenticado(true)
-        setPassError(false)
-        setAdminEmail('admin@salurama.com')
-        setToast({ msg: '¡Bienvenido al panel de administración!', type: 'success' })
-      } else {
-        setPassError(true)
-        setPassInput('')
-        setToast({ msg: 'Contraseña incorrecta', type: 'error' })
+      const { data, error } = await supabase.auth.signInWithPassword({ email: loginEmail, password: loginPassword })
+      if (error || !data.user) {
+        setLoginError('Correo o contraseña incorrectos')
+        return
       }
+      const { data: adminRow } = await supabase.from('admins').select('id').eq('user_id', data.user.id).maybeSingle()
+      if (!adminRow) {
+        await supabase.auth.signOut()
+        setLoginError('Esta cuenta no tiene permisos de administrador')
+        return
+      }
+      setAutenticado(true)
+      setAdminEmail(data.user.email || '')
+      setToast({ msg: '¡Bienvenido al panel de administración!', type: 'success' })
     } catch {
-      setToast({ msg: 'Error de conexión. Intenta de nuevo.', type: 'error' })
+      setLoginError('Error de conexión')
+    } finally {
+      setLoggingIn(false)
     }
   }
 
-  function logout() {
-    sessionStorage.removeItem('salurama_admin')
-    sessionStorage.removeItem('salurama_admin_email')
+  async function logout() {
+    await supabase.auth.signOut()
     setAutenticado(false)
-    setPassInput('')
     setAdminEmail('')
     setToast({ msg: 'Sesión cerrada', type: 'success' })
   }
@@ -215,6 +223,12 @@ export default function AdminPanel() {
   }
 
   // ── LOGIN ──────────────────────────────────────────────────────────────────
+  if (checkingAuth) return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ width: 36, height: 36, border: '3px solid #E5E7EB', borderTopColor: '#3730A3', borderRadius: '50%' }} />
+    </div>
+  )
+
   if (!autenticado) return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #EEF2FF 0%, #FAFAFA 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, fontFamily: "'DM Sans', sans-serif" }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@900&family=DM+Sans:wght@400;500;700&display=swap'); *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }`}</style>
@@ -228,24 +242,32 @@ export default function AdminPanel() {
           <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>Acceso restringido</p>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <input
+            type="email"
+            placeholder="Correo de administrador"
+            value={loginEmail}
+            onChange={e => { setLoginEmail(e.target.value); setLoginError('') }}
+            onKeyDown={e => e.key === 'Enter' && login()}
+            style={{ width: '100%', padding: '13px 16px', border: `1.5px solid ${loginError ? '#DC2626' : '#E5E7EB'}`, borderRadius: 10, fontSize: 15, fontFamily: "'DM Sans', sans-serif", color: '#1A1A2E', outline: 'none' }}
+          />
           <div style={{ position: 'relative' }}>
             <input
               type={showPass ? 'text' : 'password'}
-              placeholder="Contraseña de administrador"
-              value={passInput}
-              onChange={e => { setPassInput(e.target.value); setPassError(false) }}
+              placeholder="Contraseña"
+              value={loginPassword}
+              onChange={e => { setLoginPassword(e.target.value); setLoginError('') }}
               onKeyDown={e => e.key === 'Enter' && login()}
-              style={{ width: '100%', padding: '13px 44px 13px 16px', border: `1.5px solid ${passError ? '#DC2626' : '#E5E7EB'}`, borderRadius: 10, fontSize: 15, fontFamily: "'DM Sans', sans-serif", color: '#1A1A2E', outline: 'none' }}
+              style={{ width: '100%', padding: '13px 44px 13px 16px', border: `1.5px solid ${loginError ? '#DC2626' : '#E5E7EB'}`, borderRadius: 10, fontSize: 15, fontFamily: "'DM Sans', sans-serif", color: '#1A1A2E', outline: 'none' }}
             />
             <button type="button" onClick={() => setShowPass(p => !p)} style={{ position: 'absolute', right: 13, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF' }}>
               {showPass ? <EyeOff size={17} /> : <Eye size={17} />}
             </button>
           </div>
-          {passError && <p style={{ fontSize: 13, color: '#DC2626', textAlign: 'center' }}>Contraseña incorrecta</p>}
-          <button onClick={login} style={{ width: '100%', background: '#3730A3', color: '#fff', border: 'none', borderRadius: 50, padding: '13px', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", transition: 'background 0.18s' }}
+          {loginError && <p style={{ fontSize: 13, color: '#DC2626', textAlign: 'center' }}>{loginError}</p>}
+          <button onClick={login} disabled={loggingIn} style={{ width: '100%', background: '#3730A3', color: '#fff', border: 'none', borderRadius: 50, padding: '13px', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", opacity: loggingIn ? 0.6 : 1, transition: 'background 0.18s' }}
             onMouseEnter={e => e.currentTarget.style.background = '#4F46E5'}
             onMouseLeave={e => e.currentTarget.style.background = '#3730A3'}>
-            Entrar al panel
+            {loggingIn ? 'Entrando...' : 'Entrar al panel'}
           </button>
           <Link href="/" style={{ textAlign: 'center', fontSize: 13, color: '#9CA3AF', textDecoration: 'none' }}>← Volver al inicio</Link>
         </div>
@@ -340,12 +362,16 @@ export default function AdminPanel() {
           <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(18px, 4vw, 24px)', fontWeight: 900, color: '#1A1A2E' }}>
             {vista === 'pendientes' ? 'Pendientes de revisión' : 'Todos los médicos'}
           </h1>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button className={`tab-btn ${vista === 'pendientes' ? 'on' : 'off'}`} onClick={() => setVista('pendientes')}>
               Pendientes {stats.pendientes > 0 && `(${stats.pendientes})`}
             </button>
             <button className={`tab-btn ${vista === 'todos' ? 'on' : 'off'}`} onClick={() => setVista('todos')}>
               Todos
+            </button>
+            <button onClick={logout}
+              style={{ padding:'9px 20px', background:'#FEF2F2', color:'#DC2626', border:'none', borderRadius:50, fontSize:13, fontWeight:600, cursor:'pointer' }}>
+              Cerrar sesión
             </button>
           </div>
         </div>

@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabaseClient'
 import Link from 'next/link'
 import {
   CheckCircle, XCircle, ToggleLeft, ToggleRight,
-  Eye, EyeOff, AlertCircle, ChevronDown,
+  Eye, EyeOff, AlertCircle, ChevronDown, ExternalLink, ArrowUp, ArrowDown,
 } from 'lucide-react'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -19,9 +19,12 @@ interface Medico {
   created_at: string
   review_status: 'pendiente' | 'revisado' | 'rechazado'
   is_active: boolean
+  verification_status: 'pendiente' | 'verificado' | 'revision_manual'
+  license_verified: boolean
 }
 
 type ReviewFilter = 'todos' | 'pendiente' | 'revisado' | 'rechazado'
+type VerificationFilter = 'todos' | 'pendiente' | 'verificado' | 'revision_manual'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -37,24 +40,43 @@ function statusBadge(s: string) {
   return                        { bg:'#FFFBEB', color:'#D97706', border:'#FEF3C7', label:'Pendiente' }
 }
 
+function verificacionBadge(s: string) {
+  if (s === 'verificado')      return { bg:'#ECFDF5', color:'#059669', border:'#D1FAE5', label:'Verificada' }
+  if (s === 'revision_manual') return { bg:'#FEF2F2', color:'#DC2626', border:'#FEE2E2', label:'No coincide' }
+  return                              { bg:'#FFFBEB', color:'#D97706', border:'#FEF3C7', label:'Pendiente' }
+}
+
 // ── Componente principal ────────────────────────────────────────────────────────
 
 export default function AdminMedicos() {
-  const [autenticado, setAutenticado] = useState(false)
-  const [passInput, setPassInput]     = useState('')
-  const [showPass, setShowPass]       = useState(false)
-  const [passError, setPassError]     = useState(false)
+  const [autenticado, setAutenticado]   = useState(false)
+  const [checkingAuth, setCheckingAuth] = useState(true)
+  const [loginEmail, setLoginEmail]     = useState('')
+  const [loginPassword, setLoginPassword] = useState('')
+  const [showPass, setShowPass]         = useState(false)
+  const [loginError, setLoginError]     = useState('')
+  const [loggingIn, setLoggingIn]       = useState(false)
 
   const [medicos, setMedicos]       = useState<Medico[]>([])
   const [loading, setLoading]       = useState(false)
   const [procesando, setProcesando] = useState<string | null>(null)
   const [toast, setToast]           = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
 
+  const [fechaSortAsc, setFechaSortAsc] = useState(false)
   const [reviewFilter, setReviewFilter] = useState<ReviewFilter>('todos')
+  const [verifFilter, setVerifFilter]   = useState<VerificationFilter>('todos')
   const [espFilter, setEspFilter]       = useState('todas')
 
   useEffect(() => {
-    if (sessionStorage.getItem('salurama_admin') === 'true') setAutenticado(true)
+    async function checkSession() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: adminRow } = await supabase.from('admins').select('id').eq('user_id', user.id).maybeSingle()
+        if (adminRow) setAutenticado(true)
+      }
+      setCheckingAuth(false)
+    }
+    checkSession()
   }, [])
 
   useEffect(() => { if (autenticado) cargarMedicos() }, [autenticado])
@@ -72,7 +94,7 @@ export default function AdminMedicos() {
     try {
       const { data, error } = await supabase
         .from('doctors')
-        .select('id, full_name, email, specialty, professional_license, created_at, review_status, is_active')
+        .select('id, full_name, email, specialty, professional_license, created_at, review_status, is_active, verification_status, license_verified')
         .order('created_at', { ascending: false })
       if (error) throw error
       setMedicos(data || [])
@@ -88,12 +110,18 @@ export default function AdminMedicos() {
   }, [medicos])
 
   const medicosVisibles = useMemo(() => {
-    return medicos.filter(m => {
-      if (reviewFilter !== 'todos' && m.review_status !== reviewFilter) return false
-      if (espFilter !== 'todas' && m.specialty !== espFilter) return false
-      return true
-    })
-  }, [medicos, reviewFilter, espFilter])
+    return medicos
+      .filter(m => {
+        if (reviewFilter !== 'todos' && m.review_status !== reviewFilter) return false
+        if (verifFilter !== 'todos' && m.verification_status !== verifFilter) return false
+        if (espFilter !== 'todas' && m.specialty !== espFilter) return false
+        return true
+      })
+      .sort((a, b) => {
+        const diff = new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        return fechaSortAsc ? diff : -diff
+      })
+  }, [medicos, reviewFilter, verifFilter, espFilter, fechaSortAsc])
 
   // ── Acciones ────────────────────────────────────────────────────────────────
 
@@ -107,6 +135,30 @@ export default function AdminMedicos() {
       if (error) throw error
       setMedicos(prev => prev.map(x => x.id === m.id ? { ...x, review_status: status } : x))
       setToast({ msg: `${m.full_name} — ${status === 'revisado' ? 'cédula aprobada ✓' : 'rechazado'}`, type: 'success' })
+    } catch {
+      setToast({ msg: 'Error al actualizar. Revisa permisos RLS.', type: 'error' })
+    } finally {
+      setProcesando(null)
+    }
+  }
+
+  async function setVerificationStatus(m: Medico, status: 'verificado' | 'revision_manual') {
+    const label = status === 'verificado'
+      ? `marcar la cédula de ${m.full_name} como verificada contra la SEP`
+      : `marcar la cédula de ${m.full_name} como no coincidente`
+    if (!confirm(`¿Confirmas ${label}?`)) return
+    setProcesando(m.id + '_verif')
+    try {
+      const licenseVerified = status === 'verificado'
+      const { error } = await supabase
+        .from('doctors')
+        .update({ verification_status: status, license_verified: licenseVerified })
+        .eq('id', m.id)
+      if (error) throw error
+      setMedicos(prev => prev.map(x => x.id === m.id
+        ? { ...x, verification_status: status, license_verified: licenseVerified }
+        : x))
+      setToast({ msg: `${m.full_name} — ${status === 'verificado' ? 'cédula verificada ✓' : 'marcada como no coincidente'}`, type: 'success' })
     } catch {
       setToast({ msg: 'Error al actualizar. Revisa permisos RLS.', type: 'error' })
     } finally {
@@ -129,29 +181,43 @@ export default function AdminMedicos() {
     }
   }
 
-  // ── Login ────────────────────────────────────────────────────────────────────
+  // ── Login (cuenta real de Supabase + verificación de admins) ────────────────
 
   async function login() {
+    setLoggingIn(true)
+    setLoginError('')
     try {
-      const res = await fetch('/api/admin-login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: passInput }),
-      })
-      if (res.ok) {
-        sessionStorage.setItem('salurama_admin', 'true')
-        setAutenticado(true)
-        setPassError(false)
-      } else {
-        setPassError(true)
-        setPassInput('')
+      const { data, error } = await supabase.auth.signInWithPassword({ email: loginEmail, password: loginPassword })
+      if (error || !data.user) {
+        setLoginError('Correo o contraseña incorrectos')
+        return
       }
+      const { data: adminRow } = await supabase.from('admins').select('id').eq('user_id', data.user.id).maybeSingle()
+      if (!adminRow) {
+        await supabase.auth.signOut()
+        setLoginError('Esta cuenta no tiene permisos de administrador')
+        return
+      }
+      setAutenticado(true)
     } catch {
-      setToast({ msg: 'Error de conexión', type: 'error' })
+      setLoginError('Error de conexión')
+    } finally {
+      setLoggingIn(false)
     }
   }
 
+  async function logout() {
+    await supabase.auth.signOut()
+    setAutenticado(false)
+  }
+
   // ── Render: gate de login ────────────────────────────────────────────────────
+
+  if (checkingAuth) return (
+    <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center' }}>
+      <div style={{ width:36, height:36, border:'3px solid #E5E7EB', borderTopColor:'#1E3A5F', borderRadius:'50%' }} />
+    </div>
+  )
 
   if (!autenticado) return (
     <div style={{ minHeight:'100vh', background:'linear-gradient(135deg,#E8ECF3 0%,#F9FAFB 100%)', display:'flex', alignItems:'center', justifyContent:'center', padding:20, fontFamily:"'DM Sans',sans-serif" }}>
@@ -165,24 +231,32 @@ export default function AdminMedicos() {
           <p style={{ fontSize:13, color:'#6B7280' }}>Administración · Médicos</p>
         </div>
         <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+          <input
+            type="email"
+            placeholder="Correo de administrador"
+            value={loginEmail}
+            onChange={e => { setLoginEmail(e.target.value); setLoginError('') }}
+            onKeyDown={e => e.key === 'Enter' && login()}
+            style={{ width:'100%', padding:'13px 16px', border:`1.5px solid ${loginError ? '#DC2626' : '#E5E7EB'}`, borderRadius:10, fontSize:15, fontFamily:"'DM Sans',sans-serif", outline:'none', color:'#111827' }}
+          />
           <div style={{ position:'relative' }}>
             <input
               type={showPass ? 'text' : 'password'}
-              placeholder="Contraseña de administrador"
-              value={passInput}
-              onChange={e => { setPassInput(e.target.value); setPassError(false) }}
+              placeholder="Contraseña"
+              value={loginPassword}
+              onChange={e => { setLoginPassword(e.target.value); setLoginError('') }}
               onKeyDown={e => e.key === 'Enter' && login()}
-              style={{ width:'100%', padding:'13px 44px 13px 16px', border:`1.5px solid ${passError ? '#DC2626' : '#E5E7EB'}`, borderRadius:10, fontSize:15, fontFamily:"'DM Sans',sans-serif", outline:'none', color:'#111827' }}
+              style={{ width:'100%', padding:'13px 44px 13px 16px', border:`1.5px solid ${loginError ? '#DC2626' : '#E5E7EB'}`, borderRadius:10, fontSize:15, fontFamily:"'DM Sans',sans-serif", outline:'none', color:'#111827' }}
             />
             <button type="button" onClick={() => setShowPass(p => !p)}
               style={{ position:'absolute', right:13, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', cursor:'pointer', color:'#9CA3AF' }}>
               {showPass ? <EyeOff size={17} /> : <Eye size={17} />}
             </button>
           </div>
-          {passError && <p style={{ fontSize:13, color:'#DC2626', textAlign:'center' }}>Contraseña incorrecta</p>}
-          <button onClick={login}
-            style={{ width:'100%', background:'#1E3A5F', color:'#fff', border:'none', borderRadius:50, padding:'13px', fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:"'DM Sans',sans-serif" }}>
-            Entrar
+          {loginError && <p style={{ fontSize:13, color:'#DC2626', textAlign:'center' }}>{loginError}</p>}
+          <button onClick={login} disabled={loggingIn}
+            style={{ width:'100%', background:'#1E3A5F', color:'#fff', border:'none', borderRadius:50, padding:'13px', fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:"'DM Sans',sans-serif", opacity: loggingIn ? 0.6 : 1 }}>
+            {loggingIn ? 'Entrando...' : 'Entrar'}
           </button>
           <Link href="/admin" style={{ textAlign:'center', fontSize:13, color:'#9CA3AF', textDecoration:'none' }}>← Admin principal</Link>
         </div>
@@ -197,6 +271,12 @@ export default function AdminMedicos() {
     pendiente: medicos.filter(m => m.review_status === 'pendiente').length,
     revisado:  medicos.filter(m => m.review_status === 'revisado').length,
     rechazado: medicos.filter(m => m.review_status === 'rechazado').length,
+  }
+
+  const verifCounts = {
+    pendiente:       medicos.filter(m => m.verification_status === 'pendiente').length,
+    verificado:      medicos.filter(m => m.verification_status === 'verificado').length,
+    revision_manual: medicos.filter(m => m.verification_status === 'revision_manual').length,
   }
 
   return (
@@ -249,6 +329,10 @@ export default function AdminMedicos() {
                 style={{ padding:'9px 18px', background:'#1E3A5F', color:'#fff', borderRadius:50, fontSize:13, fontWeight:600, textDecoration:'none', display:'inline-flex', alignItems:'center' }}>
                 ← Admin principal
               </Link>
+              <button onClick={logout}
+                style={{ padding:'9px 18px', background:'#FEF2F2', color:'#DC2626', border:'1px solid #FEE2E2', borderRadius:50, fontSize:13, fontWeight:600, cursor:'pointer' }}>
+                Cerrar sesión
+              </button>
             </div>
           </div>
 
@@ -295,6 +379,28 @@ export default function AdminMedicos() {
             </div>
           </div>
 
+          {/* Filtros de Verificación SEP (manual, desde que se retiró el scraper automático) */}
+          <div style={{ display:'flex', gap:10, marginBottom:20, flexWrap:'wrap', alignItems:'center' }}>
+            <span style={{ fontSize:12, fontWeight:700, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.06em' }}>
+              Verificación SEP:
+            </span>
+            {(['todos','pendiente','verificado','revision_manual'] as const).map(f => {
+              const active = verifFilter === f
+              const map = {
+                todos:           { label:'Todas',                                          onBg:'#1E3A5F', offBg:'#F9FAFB', offColor:'#1E3A5F', border:'#C5D0E0' },
+                pendiente:       { label:`Pendientes (${verifCounts.pendiente})`,           onBg:'#D97706', offBg:'#FFFBEB', offColor:'#D97706', border:'#FEF3C7' },
+                verificado:      { label:`Verificadas (${verifCounts.verificado})`,         onBg:'#059669', offBg:'#ECFDF5', offColor:'#059669', border:'#D1FAE5' },
+                revision_manual: { label:`No coinciden (${verifCounts.revision_manual})`,   onBg:'#DC2626', offBg:'#FEF2F2', offColor:'#DC2626', border:'#FEE2E2' },
+              }[f]
+              return (
+                <button key={f} className="fpill" onClick={() => setVerifFilter(f)}
+                  style={{ background: active ? map.onBg : map.offBg, color: active ? '#fff' : map.offColor, borderColor: map.border }}>
+                  {map.label}
+                </button>
+              )
+            })}
+          </div>
+
           {/* Tabla */}
           {loading ? (
             <div style={{ textAlign:'center', padding:64 }}>
@@ -310,9 +416,17 @@ export default function AdminMedicos() {
               <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
                 <thead>
                   <tr style={{ background:'#F9FAFB', borderBottom:'2px solid #E8ECF3' }}>
-                    {['Médico / Email','Especialidad','Cédula','Registro','Estado','Activo','Acciones'].map(h => (
+                    {['Médico / Email','Especialidad','Cédula','Registro','Estado','Verificación SEP','Activo','Acciones'].map(h => (
                       <th key={h} style={{ padding:'11px 16px', textAlign:'left', fontSize:11, fontWeight:700, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.06em', whiteSpace:'nowrap' }}>
-                        {h}
+                        {h === 'Registro' ? (
+                          <button
+                            onClick={() => setFechaSortAsc(v => !v)}
+                            style={{ display:'inline-flex', alignItems:'center', gap:4, background:'none', border:'none', padding:0, cursor:'pointer', font:'inherit', color:'inherit', textTransform:'inherit', letterSpacing:'inherit' }}
+                            title="Ordenar por fecha de registro"
+                          >
+                            {h} {fechaSortAsc ? <ArrowUp size={11} /> : <ArrowDown size={11} />}
+                          </button>
+                        ) : h}
                       </th>
                     ))}
                   </tr>
@@ -320,7 +434,9 @@ export default function AdminMedicos() {
                 <tbody>
                   {medicosVisibles.map((m, i) => {
                     const badge      = statusBadge(m.review_status)
+                    const verifBadge = verificacionBadge(m.verification_status)
                     const procReview = procesando === m.id + '_review'
+                    const procVerif  = procesando === m.id + '_verif'
                     const procActivo = procesando === m.id + '_activo'
                     const isLast     = i === medicosVisibles.length - 1
                     return (
@@ -340,9 +456,22 @@ export default function AdminMedicos() {
 
                         {/* Cédula */}
                         <td style={{ padding:'13px 16px' }}>
-                          <code style={{ fontSize:13, background:'#F9FAFB', border:'1px solid #E5E7EB', borderRadius:6, padding:'3px 8px', color:'#111827' }}>
-                            {m.professional_license || '—'}
-                          </code>
+                          <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                            <code style={{ fontSize:13, background:'#F9FAFB', border:'1px solid #E5E7EB', borderRadius:6, padding:'3px 8px', color:'#111827' }}>
+                              {m.professional_license || '—'}
+                            </code>
+                            {m.professional_license && (
+                              <a
+                                href="https://cedulaprofesional.sep.gob.mx/"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title="Abrir portal de la SEP para verificar esta cédula"
+                                style={{ display:'inline-flex', color:'#1E3A5F' }}
+                              >
+                                <ExternalLink size={13} />
+                              </a>
+                            )}
+                          </div>
                         </td>
 
                         {/* Fecha */}
@@ -354,6 +483,13 @@ export default function AdminMedicos() {
                         <td style={{ padding:'13px 16px' }}>
                           <span style={{ background:badge.bg, color:badge.color, border:`1px solid ${badge.border}`, borderRadius:20, padding:'3px 10px', fontSize:11, fontWeight:700, display:'inline-block' }}>
                             {badge.label}
+                          </span>
+                        </td>
+
+                        {/* verification_status */}
+                        <td style={{ padding:'13px 16px' }}>
+                          <span style={{ background:verifBadge.bg, color:verifBadge.color, border:`1px solid ${verifBadge.border}`, borderRadius:20, padding:'3px 10px', fontSize:11, fontWeight:700, display:'inline-block' }}>
+                            {verifBadge.label}
                           </span>
                         </td>
 
@@ -372,6 +508,26 @@ export default function AdminMedicos() {
                         {/* Acciones */}
                         <td style={{ padding:'13px 16px' }}>
                           <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                            {m.verification_status !== 'verificado' && (
+                              <button className="act-btn" disabled={procVerif}
+                                onClick={() => setVerificationStatus(m, 'verificado')}
+                                style={{ background:'#ECFDF5', color:'#059669', borderColor:'#D1FAE5' }}>
+                                {procVerif
+                                  ? <span className="spin" style={{ width:12, height:12, border:'2px solid #05966940', borderTopColor:'#059669', borderRadius:'50%' }} />
+                                  : <CheckCircle size={13} />}
+                                Marcar verificada
+                              </button>
+                            )}
+                            {m.verification_status !== 'revision_manual' && (
+                              <button className="act-btn" disabled={procVerif}
+                                onClick={() => setVerificationStatus(m, 'revision_manual')}
+                                style={{ background:'#FEF2F2', color:'#DC2626', borderColor:'#FEE2E2' }}>
+                                {procVerif
+                                  ? <span className="spin" style={{ width:12, height:12, border:'2px solid #DC262640', borderTopColor:'#DC2626', borderRadius:'50%' }} />
+                                  : <XCircle size={13} />}
+                                No coincide
+                              </button>
+                            )}
                             {m.review_status !== 'revisado' && (
                               <button className="act-btn" disabled={procReview}
                                 onClick={() => setReviewStatus(m, 'revisado')}
