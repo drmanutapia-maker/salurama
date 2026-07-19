@@ -6,7 +6,9 @@ import Link from 'next/link'
 import {
   CheckCircle, XCircle, ToggleLeft, ToggleRight,
   Eye, EyeOff, AlertCircle, ChevronDown, ExternalLink, ArrowUp, ArrowDown,
+  Users, UserCheck, UserX, Gauge, Clock3, Megaphone, TrendingUp, CalendarCheck,
 } from 'lucide-react'
+import { PLAN_NAME } from '@/lib/pricingTiers'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -25,6 +27,40 @@ interface Medico {
 
 type ReviewFilter = 'todos' | 'pendiente' | 'revisado' | 'rechazado'
 type VerificationFilter = 'todos' | 'pendiente' | 'verificado' | 'revision_manual'
+
+const TIER_LABEL: Record<string, string> = {
+  gratis: 'Gratis',
+  '349': PLAN_NAME.profesional,
+  '799': PLAN_NAME.premium,
+  '1999': PLAN_NAME.clinica,
+}
+
+interface Estadisticas {
+  salud: {
+    total: number
+    activos: number
+    inactivos: number
+    porPlan: { tier: string; label: string; count: number }[]
+  }
+  calidad: {
+    promedioPct: number
+    al100: number
+    bajoUmbral: number
+  }
+  cola: {
+    pendientesCedula: number
+    antiguedadPromedioCedula: number
+    antiguedadMaxCedula: number
+    pendientesCofepris: number
+  }
+  actividad: {
+    citasTotales: number
+    citasConfirmadas: number
+    tasaConfirmacion: number
+    registrosUltimos30Dias: number
+    registrosUltimos7Dias: number
+  }
+}
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -46,6 +82,17 @@ function verificacionBadge(s: string) {
   return                              { bg:'#FFFBEB', color:'#D97706', border:'#FEF3C7', label:'Pendiente' }
 }
 
+function StatTile({ label, value, color, bg, border, icon }: { label: string; value: string | number; color: string; bg: string; border: string; icon?: React.ReactNode }) {
+  return (
+    <div style={{ background:bg, border:`1px solid ${border}`, borderRadius:12, padding:'12px 14px' }}>
+      <p style={{ fontFamily:"'Fraunces',serif", fontSize:24, fontWeight:900, color, lineHeight:1, display:'flex', alignItems:'center', gap:6 }}>
+        {icon}{value}
+      </p>
+      <p style={{ fontSize:11, color, fontWeight:600, marginTop:4, opacity:0.85 }}>{label}</p>
+    </div>
+  )
+}
+
 // ── Componente principal ────────────────────────────────────────────────────────
 
 export default function AdminMedicos() {
@@ -61,6 +108,10 @@ export default function AdminMedicos() {
   const [loading, setLoading]       = useState(false)
   const [procesando, setProcesando] = useState<string | null>(null)
   const [toast, setToast]           = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
+
+  const [estadisticas, setEstadisticas] = useState<Estadisticas | null>(null)
+  const [loadingStats, setLoadingStats] = useState(false)
+  const [statsAbiertas, setStatsAbiertas] = useState(false)
 
   const [fechaSortAsc, setFechaSortAsc] = useState(false)
   const [reviewFilter, setReviewFilter] = useState<ReviewFilter>('todos')
@@ -79,7 +130,7 @@ export default function AdminMedicos() {
     checkSession()
   }, [])
 
-  useEffect(() => { if (autenticado) cargarMedicos() }, [autenticado])
+  useEffect(() => { if (autenticado) { cargarMedicos(); cargarEstadisticas() } }, [autenticado])
 
   useEffect(() => {
     if (!toast) return
@@ -102,6 +153,91 @@ export default function AdminMedicos() {
       setToast({ msg: 'Error al cargar médicos', type: 'error' })
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function cargarEstadisticas() {
+    setLoadingStats(true)
+    try {
+      const { data: docs, error } = await supabase
+        .from('doctors')
+        .select('id, is_active, pricing_tier, verification_status, has_aviso_funcionamiento, cofepris_aviso_numero, created_at, photo_url, about_me, clinic_lat, clinic_lng, horario, consultation_price_first_time, consultation_price_general, phone, clinic_phone, whatsapp_phone, languages')
+      if (error) throw error
+      const doctors = docs || []
+
+      const [expRes, eduRes, condRes, citasRes] = await Promise.all([
+        supabase.from('doctor_experience').select('doctor_id'),
+        supabase.from('doctor_education').select('doctor_id'),
+        supabase.from('doctor_conditions').select('doctor_id'),
+        supabase.from('citas').select('estado'),
+      ])
+      const expSet = new Set((expRes.data || []).map(r => r.doctor_id))
+      const eduSet = new Set((eduRes.data || []).map(r => r.doctor_id))
+      const condSet = new Set((condRes.data || []).map(r => r.doctor_id))
+
+      // ── Salud del directorio ──
+      const activos = doctors.filter(d => d.is_active).length
+      const porPlanMap: Record<string, number> = {}
+      doctors.forEach(d => {
+        const tier = d.pricing_tier || 'gratis'
+        porPlanMap[tier] = (porPlanMap[tier] || 0) + 1
+      })
+      const porPlan = Object.entries(porPlanMap).map(([tier, count]) => ({
+        tier, label: TIER_LABEL[tier] || tier, count,
+      }))
+
+      // ── Calidad de perfiles — MISMA fórmula de 10 checks que app/dashboard/page.tsx ──
+      const porcentajes = doctors.map(d => {
+        const tieneHorarioActivo = !!(d.horario && Object.values(d.horario).some((h: any) => h?.activo || h?.abierto))
+        const tieneUbicacion = !!(d.clinic_lat && d.clinic_lng)
+        const tieneTelefono = !!(d.phone || d.clinic_phone || d.whatsapp_phone)
+        const checks = [
+          !!d.photo_url,
+          !!(d.about_me && d.about_me.length > 100),
+          tieneUbicacion,
+          tieneHorarioActivo,
+          !!(d.consultation_price_first_time && d.consultation_price_general),
+          tieneTelefono,
+          !!(Array.isArray(d.languages) && d.languages.length >= 1),
+          expSet.has(d.id),
+          eduSet.has(d.id),
+          condSet.has(d.id),
+        ]
+        return Math.round((checks.filter(Boolean).length / checks.length) * 100)
+      })
+      const promedioPct = porcentajes.length ? Math.round(porcentajes.reduce((a, b) => a + b, 0) / porcentajes.length) : 0
+      const al100 = porcentajes.filter(p => p === 100).length
+      const bajoUmbral = porcentajes.filter(p => p < 50).length
+
+      // ── Cola de verificación ──
+      const pendientesCedulaDocs = doctors.filter(d => d.verification_status === 'pendiente')
+      const ahora = Date.now()
+      const antiguedadesDias = pendientesCedulaDocs.map(d => (ahora - new Date(d.created_at).getTime()) / 86400000)
+      const antiguedadPromedioCedula = antiguedadesDias.length ? Math.round(antiguedadesDias.reduce((a, b) => a + b, 0) / antiguedadesDias.length) : 0
+      const antiguedadMaxCedula = antiguedadesDias.length ? Math.round(Math.max(...antiguedadesDias)) : 0
+      // "Pendientes de COFEPRIS" = ya declararon tener Aviso de Funcionamiento
+      // y empezaron el trámite, pero no han terminado (sin número de aviso aún)
+      const pendientesCofepris = doctors.filter(d => d.has_aviso_funcionamiento === true && !d.cofepris_aviso_numero).length
+
+      // ── Actividad ──
+      const citas = citasRes.data || []
+      const citasConfirmadas = citas.filter(c => c.estado === 'confirmed' || c.estado === 'completed').length
+      const tasaConfirmacion = citas.length ? Math.round((citasConfirmadas / citas.length) * 100) : 0
+      const hace30 = ahora - 30 * 86400000
+      const hace7 = ahora - 7 * 86400000
+      const registrosUltimos30Dias = doctors.filter(d => new Date(d.created_at).getTime() >= hace30).length
+      const registrosUltimos7Dias = doctors.filter(d => new Date(d.created_at).getTime() >= hace7).length
+
+      setEstadisticas({
+        salud: { total: doctors.length, activos, inactivos: doctors.length - activos, porPlan },
+        calidad: { promedioPct, al100, bajoUmbral },
+        cola: { pendientesCedula: pendientesCedulaDocs.length, antiguedadPromedioCedula, antiguedadMaxCedula, pendientesCofepris },
+        actividad: { citasTotales: citas.length, citasConfirmadas, tasaConfirmacion, registrosUltimos30Dias, registrosUltimos7Dias },
+      })
+    } catch (e) {
+      console.error('Error cargando estadísticas:', e)
+    } finally {
+      setLoadingStats(false)
     }
   }
 
@@ -334,6 +470,87 @@ export default function AdminMedicos() {
                 Cerrar sesión
               </button>
             </div>
+          </div>
+
+          {/* Estadísticas generales */}
+          <div style={{ background:'#fff', border:'1px solid #E8ECF3', borderRadius:16, marginBottom:24, overflow:'hidden' }}>
+            <button onClick={() => setStatsAbiertas(v => !v)}
+              style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 20px', background:'none', border:'none', cursor:'pointer', fontFamily:"'DM Sans',sans-serif" }}>
+              <span style={{ display:'flex', alignItems:'center', gap:8, fontFamily:"'Fraunces',serif", fontSize:16, fontWeight:900, color:'#1E3A5F' }}>
+                <Gauge size={18} color="#2A9D8F" /> Estadísticas generales
+              </span>
+              <ChevronDown size={16} color="#6B7280" style={{ transform: statsAbiertas ? 'rotate(180deg)' : 'none', transition:'transform 0.15s' }} />
+            </button>
+
+            {statsAbiertas && (
+              <div style={{ padding:'0 20px 20px' }}>
+                {loadingStats || !estadisticas ? (
+                  <p style={{ fontSize:13, color:'#9CA3AF', padding:'12px 0' }}>Cargando estadísticas...</p>
+                ) : (
+                  <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+
+                    {/* Salud del directorio */}
+                    <div>
+                      <p style={{ fontSize:11, fontWeight:700, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:10, display:'flex', alignItems:'center', gap:6 }}>
+                        <Users size={13} /> Salud del directorio
+                      </p>
+                      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(120px,1fr))', gap:10 }}>
+                        <StatTile label="Total médicos" value={estadisticas.salud.total} color="#1E3A5F" bg="#E8ECF3" border="#C5D0E0" />
+                        <StatTile label="Activos" value={estadisticas.salud.activos} color="#059669" bg="#ECFDF5" border="#D1FAE5" />
+                        <StatTile label="Inactivos" value={estadisticas.salud.inactivos} color="#6B7280" bg="#F3F4F6" border="#E5E7EB" />
+                        {estadisticas.salud.porPlan.map(p => (
+                          <StatTile key={p.tier} label={p.label} value={p.count} color="#8B5CF6" bg="#F5F3FF" border="#DDD6FE" />
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Calidad de perfiles */}
+                    <div>
+                      <p style={{ fontSize:11, fontWeight:700, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:10, display:'flex', alignItems:'center', gap:6 }}>
+                        <UserCheck size={13} /> Calidad de perfiles
+                      </p>
+                      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(120px,1fr))', gap:10 }}>
+                        <StatTile label="% completitud promedio" value={`${estadisticas.calidad.promedioPct}%`} color="#1E3A5F" bg="#E8ECF3" border="#C5D0E0" />
+                        <StatTile label="Al 100%" value={estadisticas.calidad.al100} color="#059669" bg="#ECFDF5" border="#D1FAE5" />
+                        <StatTile label="Por debajo de 50%" value={estadisticas.calidad.bajoUmbral} color="#DC2626" bg="#FEF2F2" border="#FEE2E2" />
+                      </div>
+                    </div>
+
+                    {/* Cola de verificación */}
+                    <div>
+                      <p style={{ fontSize:11, fontWeight:700, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:10, display:'flex', alignItems:'center', gap:6 }}>
+                        <Clock3 size={13} /> Cola de verificación
+                      </p>
+                      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(120px,1fr))', gap:10 }}>
+                        <StatTile label="Pendientes cédula SEP" value={estadisticas.cola.pendientesCedula} color="#D97706" bg="#FFFBEB" border="#FEF3C7" />
+                        <StatTile label="Antigüedad prom. (días)" value={estadisticas.cola.antiguedadPromedioCedula} color="#D97706" bg="#FFFBEB" border="#FEF3C7" />
+                        <StatTile label="Antigüedad máx. (días)" value={estadisticas.cola.antiguedadMaxCedula} color="#DC2626" bg="#FEF2F2" border="#FEE2E2" />
+                        <StatTile label="En progreso COFEPRIS" value={estadisticas.cola.pendientesCofepris} color="#8B5CF6" bg="#F5F3FF" border="#DDD6FE" icon={<Megaphone size={12} />} />
+                      </div>
+                      <p style={{ fontSize:11, color:'#9CA3AF', marginTop:8 }}>
+                        "En progreso COFEPRIS" cuenta médicos que ya declararon tener Aviso de Funcionamiento pero aún no capturan su número de aviso.
+                      </p>
+                    </div>
+
+                    {/* Actividad */}
+                    <div>
+                      <p style={{ fontSize:11, fontWeight:700, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:10, display:'flex', alignItems:'center', gap:6 }}>
+                        <TrendingUp size={13} /> Actividad
+                      </p>
+                      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(120px,1fr))', gap:10 }}>
+                        <StatTile label="Citas totales" value={estadisticas.actividad.citasTotales} color="#1E3A5F" bg="#E8ECF3" border="#C5D0E0" icon={<CalendarCheck size={12} />} />
+                        <StatTile label="Tasa de confirmación" value={`${estadisticas.actividad.tasaConfirmacion}%`} color="#059669" bg="#ECFDF5" border="#D1FAE5" />
+                        <StatTile label="Registros (7 días)" value={estadisticas.actividad.registrosUltimos7Dias} color="#2A9D8F" bg="#E8F7F5" border="#9FD8CD" />
+                        <StatTile label="Registros (30 días)" value={estadisticas.actividad.registrosUltimos30Dias} color="#2A9D8F" bg="#E8F7F5" border="#9FD8CD" />
+                      </div>
+                      <p style={{ fontSize:11, color:'#9CA3AF', marginTop:8 }}>
+                        Tasa de confirmación = citas confirmadas o completadas / total de citas ({estadisticas.actividad.citasConfirmadas} de {estadisticas.actividad.citasTotales}).
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Stats */}
