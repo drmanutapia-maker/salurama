@@ -27,6 +27,17 @@ type Message = {
   isError?: boolean
 }
 
+// Eventos NDJSON emitidos por app/api/msl-chat/route.ts (un objeto JSON por
+// línea). 'retry' significa que el intento anterior falló a medias — el
+// texto acumulado hasta ese punto se descarta sin mostrarse, nunca se
+// persiste, y el servidor ya está reintentando desde cero de forma
+// transparente. 'done' solo llega tras una respuesta completa y guardada.
+type MSLStreamEvent =
+  | { type: 'chunk'; text: string }
+  | { type: 'retry' }
+  | { type: 'done'; conversationId: string; sources: Source[] }
+  | { type: 'error'; message: string }
+
 // ── TypingIndicator ───────────────────────────────────────────────────────────
 
 function TypingIndicator() {
@@ -193,25 +204,38 @@ export default function MSLChat({ backHref, backLabel = 'Volver', patientContext
   const [input, setInput]                 = useState('')
   const [loading, setLoading]             = useState(false)
   const [planBlocked, setPlanBlocked]     = useState<string | null>(null)
+  // Texto de la respuesta en curso, mientras se recibe por streaming. null =
+  // no hay streaming activo (se muestra el indicador de "escribiendo" en su
+  // lugar, ya sea porque aún no llega el primer chunk o porque el servidor
+  // acaba de reintentar tras un fallo a medias). Solo se vuelve un Message
+  // real del array `messages` cuando llega el evento 'done'.
+  const [streamingText, setStreamingText] = useState<string | null>(null)
   const bottomRef                         = useRef<HTMLDivElement>(null)
-  const lastMessageRef                    = useRef<HTMLDivElement>(null)
+  const streamingBubbleRef                = useRef<HTMLDivElement>(null)
   const textareaRef                       = useRef<HTMLTextAreaElement>(null)
   const scrollRef                         = useRef<HTMLDivElement>(null)
+  const scrolledForAnswerRef              = useRef(false)
 
-  // Al llegar una respuesta nueva del asistente, el scroll debe detenerse al
-  // INICIO de esa respuesta (para que el médico la lea desde el principio),
-  // no al final de todo su contenido incluyendo las fuentes. El scroll al
-  // fondo (bottomRef) sigue aplicando mientras el usuario escribe/envía su
-  // propio mensaje o mientras se espera la respuesta (para revelar el
-  // indicador de "escribiendo").
+  // El scroll debe detenerse al INICIO de la respuesta nueva (para que el
+  // médico la lea desde el principio) exactamente una vez, en el momento en
+  // que llega el primer chunk — no en cada actualización posterior de texto
+  // mientras sigue transmitiéndose, y no de nuevo si hay un reintento (la
+  // burbuja no cambia de posición en pantalla).
   useEffect(() => {
-    const last = messages[messages.length - 1]
-    if (!loading && last?.role === 'assistant') {
-      lastMessageRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    } else {
+    if (streamingText !== null && !scrolledForAnswerRef.current) {
+      scrolledForAnswerRef.current = true
+      streamingBubbleRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [streamingText])
+
+  // Mientras se espera el primer chunk (envío inicial o justo después de un
+  // reintento invisible, cuando streamingText vuelve a null) el scroll sigue
+  // el fondo para revelar el indicador de "escribiendo".
+  useEffect(() => {
+    if (loading && streamingText === null) {
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
     }
-  }, [messages, loading])
+  }, [loading, streamingText])
 
   const adjustTextarea = () => {
     const ta = textareaRef.current
@@ -228,6 +252,8 @@ export default function MSLChat({ backHref, backLabel = 'Volver', patientContext
     setInput('')
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
     setLoading(true)
+    setStreamingText(null)
+    scrolledForAnswerRef.current = false
 
     try {
       const res = await fetch('/api/msl-chat', {
@@ -236,32 +262,35 @@ export default function MSLChat({ backHref, backLabel = 'Volver', patientContext
         body:    JSON.stringify({ message: text, conversationId }),
       })
 
-      const data = await res.json()
+      // Contrato con el backend: status 200 es SIEMPRE un stream NDJSON;
+      // cualquier otro status sigue siendo el JSON plano de error de antes
+      // (auth/plan/rate-limit/fallas previas al streaming).
+      if (res.status !== 200) {
+        const data = await res.json().catch(() => ({} as { error?: string }))
 
-      if (res.status === 401) {
-        setMessages(prev => [...prev, {
-          role:    'assistant',
-          content: 'Tu sesión expiró. Recarga la página para continuar.',
-          isError: true,
-        }])
-        return
-      }
+        if (res.status === 401) {
+          setMessages(prev => [...prev, {
+            role:    'assistant',
+            content: 'Tu sesión expiró. Recarga la página para continuar.',
+            isError: true,
+          }])
+          return
+        }
 
-      if (res.status === 403) {
-        setPlanBlocked(data.error ?? 'MSL Virtual no está incluido en tu plan actual.')
-        return
-      }
+        if (res.status === 403) {
+          setPlanBlocked(data.error ?? 'MSL Virtual no está incluido en tu plan actual.')
+          return
+        }
 
-      if (res.status === 429) {
-        setMessages(prev => [...prev, {
-          role:    'assistant',
-          content: data.error ?? 'Alcanzaste el límite de preguntas por hoy.',
-          isError: true,
-        }])
-        return
-      }
+        if (res.status === 429) {
+          setMessages(prev => [...prev, {
+            role:    'assistant',
+            content: data.error ?? 'Alcanzaste el límite de preguntas por hoy.',
+            isError: true,
+          }])
+          return
+        }
 
-      if (!res.ok) {
         setMessages(prev => [...prev, {
           role:    'assistant',
           content: data.error ?? 'No se pudo procesar la pregunta. Intenta de nuevo.',
@@ -270,21 +299,62 @@ export default function MSLChat({ backHref, backLabel = 'Volver', patientContext
         return
       }
 
-      if (data.conversationId && !conversationId) {
-        setConversationId(data.conversationId)
-      }
+      if (!res.body) throw new Error('Respuesta sin cuerpo de streaming')
 
-      setMessages(prev => [...prev, {
-        role:    'assistant',
-        content: data.response,
-        sources: data.sources ?? [],
-      }])
+      const reader  = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer     = ''
+      let currentText = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+
+        let newlineIndex: number
+        while ((newlineIndex = buffer.indexOf('\n')) !== -1) {
+          const line = buffer.slice(0, newlineIndex)
+          buffer = buffer.slice(newlineIndex + 1)
+          if (!line.trim()) continue
+
+          const event = JSON.parse(line) as MSLStreamEvent
+
+          if (event.type === 'chunk') {
+            currentText = event.text
+            setStreamingText(currentText)
+          } else if (event.type === 'retry') {
+            // Reintento invisible: se descarta el texto parcial mostrado
+            // hasta ahora sin explicación — el médico solo ve que vuelve el
+            // indicador de "escribiendo".
+            currentText = ''
+            setStreamingText(null)
+          } else if (event.type === 'done') {
+            if (event.conversationId && !conversationId) {
+              setConversationId(event.conversationId)
+            }
+            setMessages(prev => [...prev, {
+              role:    'assistant',
+              content: currentText,
+              sources: event.sources ?? [],
+            }])
+            setStreamingText(null)
+          } else if (event.type === 'error') {
+            setMessages(prev => [...prev, {
+              role:    'assistant',
+              content: event.message,
+              isError: true,
+            }])
+            setStreamingText(null)
+          }
+        }
+      }
     } catch {
       setMessages(prev => [...prev, {
         role:    'assistant',
         content: 'No se pudo procesar la pregunta. Intenta de nuevo.',
         isError: true,
       }])
+      setStreamingText(null)
     } finally {
       setLoading(false)
     }
@@ -349,17 +419,17 @@ export default function MSLChat({ backHref, backLabel = 'Volver', patientContext
             </div>
           )}
 
-          {messages.map((msg, i) =>
-            i === messages.length - 1 ? (
-              <div key={i} ref={lastMessageRef}>
-                <MessageBubble message={msg} />
-              </div>
-            ) : (
-              <MessageBubble key={i} message={msg} />
-            )
+          {messages.map((msg, i) => (
+            <MessageBubble key={i} message={msg} />
+          ))}
+
+          {streamingText !== null && (
+            <div ref={streamingBubbleRef}>
+              <MessageBubble message={{ role: 'assistant', content: streamingText }} />
+            </div>
           )}
 
-          {loading && (
+          {loading && streamingText === null && (
             <div className="flex items-start mb-4">
               <TypingIndicator />
             </div>

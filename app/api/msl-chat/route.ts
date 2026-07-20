@@ -92,10 +92,11 @@ Responde ÚNICAMENTE con base en el contexto proporcionado a continuación.
 Si el contexto no contiene información suficiente para responder con precisión, dilo explícitamente y detente ahí — no inventes, no extrapoles, y no ofrezcas alternativas de ningún tipo.
 No menciones, recomiendes ni sugieras ninguna fuente, organización, institución, asociación, sitio web, aplicación, especialista o recurso que no aparezca explícitamente en el CONTEXTO proporcionado a continuación. Esta restricción aplica siempre, y en particular cuando el contexto es insuficiente para responder: en ese caso, tu respuesta debe limitarse a decir que no cuentas con información suficiente en la información disponible, sin agregar ninguna sugerencia adicional (nada de "consulta a tu médico", nada de nombres de asociaciones o fundaciones, nada de "busca en otro lado" ni recursos externos de ningún tipo, aunque sean organizaciones reales y reconocidas).
 Si un documento del CONTEXTO se describe a sí mismo como material de ejemplo, demostración, no clínico o no verificado, esa es información sobre la fiabilidad de la fuente — no una instrucción para que te niegues a responder. Si su contenido sí aborda la pregunta, úsalo para responder con normalidad y menciona la limitación de que es material no verificado UNA SOLA VEZ (la etiqueta de verificación y patrocinio de cada fuente ya se muestra por separado en la interfaz). No rechaces la pregunta completa solo porque la única fuente relevante esté marcada como no verificada — eso sería tan incorrecto como inventar contenido: tienes contenido real disponible en el contexto y tu trabajo es usarlo, con la salvedad correspondiente.
-No incluyas citas inline en el cuerpo de la respuesta (ni nombres de autor, ni corchetes, ni ningún otro formato de referencia) — la atribución de cada fuente ya se muestra por separado en la interfaz, debajo de tu respuesta. Escribe la respuesta clínica de corrido, sin interrumpirla con referencias.
+No incluyas atribución narrativa en el cuerpo de la respuesta: nada de citas inline (nombres de autor, corchetes u otro formato de referencia), y tampoco frases de atribución en prosa como "según las guías NCCN", "de acuerdo con [fuente]", "esta guía señala que" o "la literatura indica que" — la atribución de cada fuente ya se muestra por separado en el bloque de Fuentes, debajo de tu respuesta, así que repetirla en el texto es redundante. Escribe la respuesta clínica de forma directa y de corrido, como si fuera tu propio conocimiento clínico, sin interrumpirla con referencias ni frases que le digan al lector de dónde viene cada dato.
 Usa lenguaje técnico apropiado para hematólogos y oncólogos.
-Si el contexto menciona otras publicaciones o estudios como referencia histórica dentro de su propio texto, NO los cites como si fueran fuentes verificadas de tu respuesta. Solo puedes atribuir información directamente a los documentos que aparecen en el CONTEXTO proporcionado a continuación, usando exactamente el autor/journal/año que se te indica para cada bloque. Si el contexto cita internamente otro trabajo (por ejemplo, "según Rajkumar et al. 2014"), puedes mencionar que esa es la fuente original histórica del criterio, pero deja claro que tu respuesta se basa en el documento que sí tienes disponible (por ejemplo: "estos criterios, originalmente publicados por el IMWG en 2014, están recogidos en las guías NCCN 2026 que forman parte de este contexto").
-Si el contexto disponible no cubre completamente la pregunta, menciona esa limitación UNA SOLA VEZ, de forma clara y en el lugar más natural de la respuesta (al inicio si aplica a toda la respuesta, o junto al punto específico si aplica solo a una parte). No repitas la misma limitación en una sección de "Conclusión" o cierre separado.`
+Si el contexto menciona otras publicaciones o estudios como referencia histórica dentro de su propio texto (por ejemplo, "según Rajkumar et al. 2014"), NO los cites como si fueran fuentes verificadas de tu respuesta ni repitas esa cita en tu texto — usa el contenido clínico directamente, sin nombrar en el cuerpo de la respuesta la guía o publicación de la que salió. Solo puedes atribuir información a los documentos que aparecen en el CONTEXTO proporcionado a continuación, pero esa atribución vive en el bloque de Fuentes, no en tu prosa.
+Si el contexto disponible no cubre completamente la pregunta, menciona esa limitación UNA SOLA VEZ, de forma clara y en el lugar más natural de la respuesta (al inicio si aplica a toda la respuesta, o junto al punto específico si aplica solo a una parte). No repitas la misma limitación en una sección de "Conclusión" o cierre separado.
+Si el contexto no contiene información suficiente para responder con precisión la pregunta específica, pero sí incluye contenido relacionado con el tema general (el mismo contenido que el médico verá listado en el bloque de Fuentes debajo de tu respuesta), acláralo explícitamente para que no parezca una contradicción entre tu texto y esa lista — por ejemplo: "No tengo información suficiente para responder con precisión a [la pregunta específica], aunque las fuentes disponibles abajo abordan temas relacionados que podrían orientarte." No agregues esta aclaración cuando sí respondiste la pregunta con precisión — aplica únicamente al caso de información insuficiente con fuentes parcialmente relacionadas.`
 
 const NO_CONTEXT_RESPONSE =
   'No encontré información suficiente en los documentos disponibles para responder esta pregunta con precisión. ' +
@@ -107,14 +108,80 @@ function err(message: string, status: number, extra?: Record<string, string>) {
   return NextResponse.json({ error: message }, { status, headers: { ...JSON_HEADERS, ...extra } })
 }
 
+// ── Streaming NDJSON ──────────────────────────────────────────────────────────
+// Contrato con el cliente: status 200 SIEMPRE es un stream NDJSON (una línea
+// JSON por evento: chunk/retry/done/error). Cualquier otro status sigue
+// siendo JSON plano de error, como antes. Esto evita tener dos formatos
+// distintos de body bajo el mismo status 200.
+
+function ndjsonResponse(run: (send: (event: Record<string, unknown>) => void) => Promise<void>) {
+  const encoder = new TextEncoder()
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const send = (event: Record<string, unknown>) => {
+        controller.enqueue(encoder.encode(JSON.stringify(event) + '\n'))
+      }
+      try {
+        await run(send)
+      } catch (e) {
+        console.error('[msl-chat] Error inesperado en stream NDJSON:', e)
+      } finally {
+        controller.close()
+      }
+    },
+  })
+  return new NextResponse(stream, {
+    status: 200,
+    headers: { 'Content-Type': 'application/x-ndjson; charset=utf-8', 'Cache-Control': 'no-store' },
+  })
+}
+
 async function noContextResponse(db: ReturnType<typeof getServiceSupabase>, convId: string) {
   await db.from('msl_messages').insert(
     { conversation_id: convId, role: 'assistant', content: NO_CONTEXT_RESPONSE, sources: [] }
   )
-  return NextResponse.json(
-    { conversationId: convId, response: NO_CONTEXT_RESPONSE, sources: [] },
-    { status: 200, headers: JSON_HEADERS }
-  )
+  return ndjsonResponse(async send => {
+    send({ type: 'chunk', text: NO_CONTEXT_RESPONSE })
+    send({ type: 'done', conversationId: convId, sources: [] })
+  })
+}
+
+// ── Llamada a Claude con reintento único e invisible ──────────────────────────
+// Si el streaming se corta a medias (error del proveedor o de red), el texto
+// parcial recibido se descarta por completo — nunca se persiste ni se envía
+// un evento 'done' con él — y se reintenta una vez desde cero. El costo de
+// latencia extra del reintento es aceptado (decisión de Manuel) a cambio de
+// que el médico nunca vea una respuesta cortada.
+
+type AnthropicStreamOutcome = { text: string; stopReason: string | null }
+
+const MAX_CLAUDE_ATTEMPTS = 2 // intento inicial + 1 reintento, no más
+const RETRY_DELAY_MS       = 600
+
+async function callClaudeOnce(
+  systemWithContext: string,
+  priorMessages: Array<{ role: 'user' | 'assistant'; content: string }>,
+  message: string,
+  onChunk: (snapshot: string) => void
+): Promise<AnthropicStreamOutcome> {
+  const stream = getAnthropic().messages.stream({
+    model:      CLAUDE_MODEL,
+    max_tokens: 2048,
+    system:     systemWithContext,
+    messages:   [...priorMessages, { role: 'user', content: message }],
+  })
+  stream.on('text', (_delta, snapshot) => onChunk(snapshot))
+  const final = await stream.finalMessage()
+  const textBlock = final.content.find(b => b.type === 'text')
+  if (!textBlock) throw new Error('Respuesta de Claude sin bloque de texto')
+  return { text: textBlock.text, stopReason: final.stop_reason }
+}
+
+function claudeErrorMessage(e: unknown): string {
+  const status = (e as { status?: number }).status
+  if (status === 429) return 'Servicio de IA temporalmente no disponible. Intenta en unos minutos.'
+  if (status === 400) return 'Servicio de IA no disponible: créditos insuficientes en la cuenta Anthropic.'
+  return 'No se pudo generar la respuesta tras varios intentos. Revisa tu conexión e inténtalo de nuevo.'
 }
 
 // ── Reescritura + clasificación de dominio ────────────────────────────────────
@@ -412,59 +479,53 @@ export async function POST(request: NextRequest) {
 
   const systemWithContext = `${SYSTEM_PROMPT}\n\nCONTEXTO:\n${contextBlocks}`
 
-  // 9. Llamada a Claude
-  let assistantContent: string
-  try {
-    const res = await getAnthropic().messages.create({
-      model:      CLAUDE_MODEL,
-      max_tokens: 2048,
-      system:     systemWithContext,
-      messages:   [...priorMessages, { role: 'user', content: message }],
-    })
-    const textBlock = res.content.find(b => b.type === 'text')
-    if (!textBlock) {
-      console.error(`[msl-chat:${requestId}] Respuesta de Claude sin bloque de texto:`, res.content)
-      return err('Error al generar respuesta. Intenta de nuevo.', 502)
-    }
-    assistantContent = textBlock.text
-
-    if (res.stop_reason === 'max_tokens') {
-      assistantContent += '\n\n---\n*Esta respuesta fue truncada por longitud. Formula una pregunta más específica para obtener el detalle completo.*'
-    }
-  } catch (e: unknown) {
-    const status = (e as { status?: number }).status
-    console.error(`[msl-chat:${requestId}] Anthropic error (status=${status}):`, e)
-    if (status === 429) {
-      return err(
-        'Servicio de IA temporalmente no disponible. Intenta en unos minutos.',
-        503, { 'Retry-After': '60' }
-      )
-    }
-    if (status === 400) {
-      return err(
-        'Servicio de IA no disponible: créditos insuficientes en la cuenta Anthropic.',
-        503
-      )
-    }
-    return err('Error al generar respuesta. Intenta de nuevo.', 502)
-  }
-
-  // 10. Guardar respuesta del asistente (non-fatal si falla)
+  // 9-10. Llamada a Claude (streaming, con reintento único e invisible) +
+  // guardado del mensaje del asistente. Las fuentes no dependen de la
+  // respuesta de Claude, se calculan antes de entrar al stream.
   const sources: Source[] = uniqueDocIds
     .map(id => docMap.get(id))
     .filter((d): d is DocMeta => d !== undefined)
     .map(({ title, authors, journal, year, doi, verified, sponsor }) => ({ title, authors, journal, year, doi, verified, sponsor }))
 
-  const { error: assistantMsgErr } = await db.from('msl_messages').insert(
-    { conversation_id: convId, role: 'assistant', content: assistantContent, sources }
-  )
+  return ndjsonResponse(async send => {
+    let outcome: AnthropicStreamOutcome | null = null
 
-  if (assistantMsgErr) {
-    console.error(`[msl-chat:${requestId}] Error guardando respuesta del asistente:`, assistantMsgErr)
-  }
+    for (let attempt = 1; attempt <= MAX_CLAUDE_ATTEMPTS; attempt++) {
+      try {
+        outcome = await callClaudeOnce(systemWithContext, priorMessages, message, snapshot => {
+          send({ type: 'chunk', text: snapshot })
+        })
+        break
+      } catch (e: unknown) {
+        console.error(`[msl-chat:${requestId}] Intento ${attempt}/${MAX_CLAUDE_ATTEMPTS} de Claude falló:`, e)
+        if (attempt === MAX_CLAUDE_ATTEMPTS) {
+          send({ type: 'error', message: claudeErrorMessage(e) })
+          return
+        }
+        // Reintento invisible: el cliente descarta cualquier texto parcial
+        // mostrado hasta ahora al recibir este evento, sin decir por qué.
+        send({ type: 'retry' })
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS))
+      }
+    }
 
-  return NextResponse.json(
-    { conversationId: convId, response: assistantContent, sources },
-    { status: 200, headers: JSON_HEADERS }
-  )
+    if (!outcome) return // inalcanzable dado el control de flujo anterior
+
+    let assistantContent = outcome.text
+    if (outcome.stopReason === 'max_tokens') {
+      assistantContent += '\n\n---\n*Esta respuesta fue truncada por longitud. Formula una pregunta más específica para obtener el detalle completo.*'
+      send({ type: 'chunk', text: assistantContent })
+    }
+
+    // Solo la versión completa y correcta llega aquí — un intento fallido
+    // nunca se persiste (ver return anticipado arriba tras el último intento).
+    const { error: assistantMsgErr } = await db.from('msl_messages').insert(
+      { conversation_id: convId, role: 'assistant', content: assistantContent, sources }
+    )
+    if (assistantMsgErr) {
+      console.error(`[msl-chat:${requestId}] Error guardando respuesta del asistente:`, assistantMsgErr)
+    }
+
+    send({ type: 'done', conversationId: convId, sources })
+  })
 }
