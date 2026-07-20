@@ -210,6 +210,14 @@ export default function MSLChat({ backHref, backLabel = 'Volver', patientContext
   // acaba de reintentar tras un fallo a medias). Solo se vuelve un Message
   // real del array `messages` cuando llega el evento 'done'.
   const [streamingText, setStreamingText] = useState<string | null>(null)
+  // true solo mientras se espera el primer chunk de una respuesta (envío
+  // inicial o justo tras un reintento invisible). Se controla explícitamente
+  // en cada evento del stream, en vez de derivarse de `loading` — `loading`
+  // se apaga en el finally del reader, un tick DESPUÉS de que 'done' ya
+  // agregó el mensaje con fuentes, así que un efecto basado en
+  // `loading && streamingText === null` alcanza a dispararse en ese
+  // instante transitorio y hace saltar el scroll al fondo (a las fuentes).
+  const [awaitingFirstChunk, setAwaitingFirstChunk] = useState(false)
   const bottomRef                         = useRef<HTMLDivElement>(null)
   const streamingBubbleRef                = useRef<HTMLDivElement>(null)
   const textareaRef                       = useRef<HTMLTextAreaElement>(null)
@@ -229,13 +237,13 @@ export default function MSLChat({ backHref, backLabel = 'Volver', patientContext
   }, [streamingText])
 
   // Mientras se espera el primer chunk (envío inicial o justo después de un
-  // reintento invisible, cuando streamingText vuelve a null) el scroll sigue
-  // el fondo para revelar el indicador de "escribiendo".
+  // reintento invisible) el scroll sigue el fondo para revelar el indicador
+  // de "escribiendo".
   useEffect(() => {
-    if (loading && streamingText === null) {
+    if (awaitingFirstChunk) {
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
     }
-  }, [loading, streamingText])
+  }, [awaitingFirstChunk])
 
   const adjustTextarea = () => {
     const ta = textareaRef.current
@@ -253,6 +261,7 @@ export default function MSLChat({ backHref, backLabel = 'Volver', patientContext
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
     setLoading(true)
     setStreamingText(null)
+    setAwaitingFirstChunk(true)
     scrolledForAnswerRef.current = false
 
     try {
@@ -322,12 +331,14 @@ export default function MSLChat({ backHref, backLabel = 'Volver', patientContext
           if (event.type === 'chunk') {
             currentText = event.text
             setStreamingText(currentText)
+            setAwaitingFirstChunk(false)
           } else if (event.type === 'retry') {
             // Reintento invisible: se descarta el texto parcial mostrado
             // hasta ahora sin explicación — el médico solo ve que vuelve el
             // indicador de "escribiendo".
             currentText = ''
             setStreamingText(null)
+            setAwaitingFirstChunk(true)
           } else if (event.type === 'done') {
             if (event.conversationId && !conversationId) {
               setConversationId(event.conversationId)
@@ -338,6 +349,7 @@ export default function MSLChat({ backHref, backLabel = 'Volver', patientContext
               sources: event.sources ?? [],
             }])
             setStreamingText(null)
+            setAwaitingFirstChunk(false)
           } else if (event.type === 'error') {
             setMessages(prev => [...prev, {
               role:    'assistant',
@@ -345,6 +357,7 @@ export default function MSLChat({ backHref, backLabel = 'Volver', patientContext
               isError: true,
             }])
             setStreamingText(null)
+            setAwaitingFirstChunk(false)
           }
         }
       }
@@ -355,6 +368,7 @@ export default function MSLChat({ backHref, backLabel = 'Volver', patientContext
         isError: true,
       }])
       setStreamingText(null)
+      setAwaitingFirstChunk(false)
     } finally {
       setLoading(false)
     }
@@ -429,7 +443,7 @@ export default function MSLChat({ backHref, backLabel = 'Volver', patientContext
             </div>
           )}
 
-          {loading && streamingText === null && (
+          {awaitingFirstChunk && (
             <div className="flex items-start mb-4">
               <TypingIndicator />
             </div>
