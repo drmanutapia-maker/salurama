@@ -15,7 +15,9 @@
       "Bash(echo *)",
       "mcp__claude_ai_Supabase__list_tables",
       "mcp__claude_ai_Supabase__execute_sql",
-      "mcp__claude_ai_Supabase__list_projects"
+      "mcp__claude_ai_Supabase__list_projects",
+      "Bash(curl -s --ssl-no-revoke -X POST https://salurama.com/api/registro-medico -H 'Content-Type: application/json' -d '{ *)",
+      "Bash(pnpm add *)"
     ],
     "deny": [
       "Bash(rm *)",

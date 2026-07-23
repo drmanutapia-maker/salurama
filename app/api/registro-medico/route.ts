@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { Redis } from '@upstash/redis'
 import { z } from 'zod'
-import { sendAccountConfirmationEmail } from '@/lib/email'
+import { sendAccountConfirmationEmail, sendNewDoctorRegistrationEmail } from '@/lib/email'
 import { generateUniqueDoctorSlug } from '@/lib/slug'
 import { verifyTurnstile } from '@/lib/security'
 
@@ -13,7 +13,6 @@ const schema = z.object({
   professional_title: z.enum(['Dr.', 'Dra.', 'Mtro.', 'Mtra.']),
   specialty: z.string().min(2).max(100),
   professional_license: z.string().regex(/^\d{7,8}$/),
-  specialty_council: z.string().max(100).optional(),
   license_not_current: z.boolean().optional(),
   cp: z.string().regex(/^\d{5}$/),
   estado: z.string().min(2).max(50),
@@ -121,7 +120,6 @@ export async function POST(request: NextRequest) {
         specialty: data.specialty,
         slug,
         professional_license: data.professional_license,
-        specialty_council: data.specialty_council || null,
         license_not_current: data.license_not_current || false,
         cp: data.cp,
         estado: data.estado,
@@ -152,6 +150,38 @@ export async function POST(request: NextRequest) {
       estado_solicitud: 'pendiente_descarga',
       ip_registro: ip,
     })
+
+    // === FILA PRINCIPAL DE CREDENCIALES POR ESPECIALIDAD ===
+    // Si la especialidad elegida tiene consejo CONACEM (la mayoría), se crea
+    // su fila de credenciales (pendiente de constancia SEP). Si no tiene
+    // consejo (ej. Medicina General, o especialidades dentales) queda fuera
+    // por completo del sistema de credenciales — no se crea fila, no hay nada
+    // que verificar para esa especialidad.
+    let councilName: string | null = null
+    const { data: mapping } = await supabaseAdmin
+      .from('specialty_granular_mapping')
+      .select('id, conacem_council_id, conacem_councils(council_name)')
+      .eq('granular_name', data.specialty)
+      .maybeSingle()
+
+    if (mapping?.conacem_council_id) {
+      councilName = (mapping as any).conacem_councils?.council_name ?? null
+      await supabaseAdmin.from('doctor_specialty_credentials').insert({
+        doctor_id: doctor.id,
+        specialty_mapping_id: mapping.id,
+        is_primary: true,
+        self_declared_not_current: data.license_not_current || false,
+      })
+    }
+
+    // === AVISO INTERNO DE MÉDICO NUEVO ===
+    // No debe tumbar el registro si falla — es solo una notificación para
+    // Manuel, el médico no se entera ni depende de esto.
+    try {
+      await sendNewDoctorRegistrationEmail(data.full_name, data.professional_license, councilName)
+    } catch (notifyError) {
+      console.error('Error enviando email de notificación de registro nuevo:', notifyError)
+    }
 
     // === EMAIL DE CONFIRMACIÓN DE CUENTA ===
     // No debe tumbar el registro si falla — la cuenta ya existe (sin confirmar)

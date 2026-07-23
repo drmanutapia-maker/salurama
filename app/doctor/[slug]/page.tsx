@@ -51,7 +51,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const title = `${titlePrefix}${displayName} — ${doctor.specialty}`
   const description = (doctor.about_me?.slice(0, 157) || null)
     ? `${doctor.about_me!.slice(0, 157)}...`
-    : `${titlePrefix}${displayName}, especialista en ${doctor.specialty}${doctor.ciudad ? ` en ${doctor.ciudad}` : ''}. Cédula verificada, agenda tu cita en Salurama.`
+    : `${titlePrefix}${displayName}, especialista en ${doctor.specialty}${doctor.ciudad ? ` en ${doctor.ciudad}` : ''}. Agenda tu cita en Salurama.`
   const canonicalUrl = `https://salurama.com/doctor/${doctor.slug ?? doctor.id}`
 
   return {

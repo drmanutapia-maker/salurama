@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import {
   X, Edit2, Save, Plus, Trash2, Phone, MessageCircle,
-  DollarSign, Shield, Camera, Eye, CheckCircle, MapPin
+  DollarSign, Shield, Camera, Eye, CheckCircle, MapPin, Star
 } from 'lucide-react'
 import dynamic from 'next/dynamic'
 const LocationPicker = dynamic(() => import('@/components/LocationPicker'), { ssr: false })
@@ -83,20 +83,8 @@ const UNIVERSIDADES_MEXICO = [
   'Universidad del-Valle de Cuernavaca (UNIVAC)',
 ]
 
-const ESPECIALIDADES_MEDICAS = [
-  'Medicina Interna', 'Cardiología', 'Hematología', 'Pediatría',
-  'Ginecología y Obstetricia', 'Cirugía General', 'Anestesiología',
-  'Dermatología', 'Endocrinología', 'Gastroenterología', 'Neumología',
-  'Nefrología', 'Oncología', 'Ortopedia y Traumatología', 'Psiquiatría',
-  'Radiología', 'Urología', 'Neurología', 'Oftalmología',
-  'Otorrinolaringología', 'Medicina Familiar', 'Medicina General',
-  'Reumatología', 'Infectología', 'Alergología e Inmunología',
-  'Angiología y Cirugía Vascular', 'Cirugía Cardiovascular',
-  'Cirugía Plástica y Reconstructiva', 'Coloproctología',
-  'Medicina Crítica y Cuidados Intensivos', 'Medicina de Emergencia',
-  'Medicina Física y Rehabilitación', 'Neonatología', 'Neurocirugía',
-  'Neurología Pediátrica', 'Patología', 'Traumatología Pediátrica',
-]
+// Lista reemplazada por councilMap (specialty_granular_mapping en vivo) —
+// misma fuente única de verdad que usa el registro.
 
 const IDIOMAS_FRECUENTES = [
   'Español', 'Inglés', 'Francés', 'Alemán', 'Italiano',
@@ -148,7 +136,6 @@ interface Medico {
   clinic_lng: number | null
   is_active: boolean
   professional_license: string | null
-  specialty_council: string | null
   years_experience: number | null
   languages: string[]
   horario: Record<string, unknown> | null
@@ -221,6 +208,15 @@ const btnSecondary: React.CSSProperties = {
   color: '#374151',
 }
 
+// Solo para mostrar la vigencia en texto (aaaa-mm-dd -> dd/mm/aaaa). El
+// <input type="date"> de edición no pasa por aquí — su formato es nativo del
+// navegador, no controlable desde código. Parte el string a mano en vez de
+// usar `new Date()` para no arriesgar un corrimiento de día por zona horaria.
+function formatFechaCorta(iso: string): string {
+  const [y, m, d] = iso.split('-')
+  return `${d}/${m}/${y}`
+}
+
 const btnGhost: React.CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
@@ -255,6 +251,41 @@ export default function EditarPerfilPage() {
   const [licenseSaving, setLicenseSaving] = useState(false)
   const [licenseError, setLicenseError] = useState('')
 
+  // Especialidad principal y consejo: ya no se editan a mano (ver
+  // handleSaveVigencia más abajo) — solo se muestran, derivados de
+  // councilMap. Lo único que el médico puede tocar es la vigencia de su
+  // certificación (primaryCredential), nunca su especialidad ni el consejo.
+  const [primaryCredential, setPrimaryCredential] = useState<{ id: string; vigencia_hasta: string | null } | null>(null)
+  const [marcandoPrincipalId, setMarcandoPrincipalId] = useState<string | null>(null)
+  const [editingVigencia, setEditingVigencia] = useState(false)
+  const [vigenciaInput, setVigenciaInput] = useState('')
+  const [vigenciaSaving, setVigenciaSaving] = useState(false)
+  const [vigenciaError, setVigenciaError] = useState('')
+
+  // Mapeo especialidad -> consejo CONACEM (fuente única de verdad, ver
+  // specialty_granular_mapping) — se usa tanto para mostrar/editar la
+  // especialidad principal como para el formulario de especialidad adicional.
+  const [councilMap, setCouncilMap] = useState<Record<string, { councilName: string | null; exclusionReason: string | null }>>({})
+
+  useEffect(() => {
+    async function loadCouncilMapping() {
+      const { data } = await supabase
+        .from('specialty_granular_mapping')
+        .select('granular_name, exclusion_reason, conacem_councils(council_name)')
+      if (data) {
+        const map: Record<string, { councilName: string | null; exclusionReason: string | null }> = {}
+        data.forEach((row: any) => {
+          map[row.granular_name] = {
+            councilName: row.conacem_councils?.council_name ?? null,
+            exclusionReason: row.exclusion_reason,
+          }
+        })
+        setCouncilMap(map)
+      }
+    }
+    loadCouncilMapping()
+  }, [])
+
   useEffect(() => { window.scrollTo(0, 0) }, [])
 
   const loadData = useCallback(async () => {
@@ -283,17 +314,19 @@ export default function EditarPerfilPage() {
       setMedico(medicoData)
 
       const doctorId = medicoData.id
-      const [specRes, eduRes, expRes, condRes] = await Promise.all([
+      const [specRes, eduRes, expRes, condRes, primaryCredRes] = await Promise.all([
         supabase.from('doctor_specialties').select('*').eq('doctor_id', doctorId),
         supabase.from('doctor_education').select('*').eq('doctor_id', doctorId).order('graduation_year', { ascending: false }),
         supabase.from('doctor_experience').select('*').eq('doctor_id', doctorId).order('is_current', { ascending: false }),
         supabase.from('doctor_conditions').select('*').eq('doctor_id', doctorId).order('category'),
+        supabase.from('doctor_specialty_credentials').select('id, vigencia_hasta').eq('doctor_id', doctorId).eq('is_primary', true).maybeSingle(),
       ])
 
       setSpecialties(specRes.data?? [])
       setEducation(eduRes.data?? [])
       setExperience(expRes.data?? [])
       setConditions(condRes.data?? [])
+      setPrimaryCredential(primaryCredRes.data ?? null)
     } catch (err) {
       console.error('Error:', err)
       alert('Error cargando perfil')
@@ -422,12 +455,69 @@ export default function EditarPerfilPage() {
     }
   }
 
-  const handleAddSpecialty = async (data: Omit<SpecialtyWithLicense, 'id'>) => {
+  // La especialidad principal y su consejo ya no se editan desde aquí — los
+  // decide/cambia un admin en /admin/medicos. Lo único que el médico puede
+  // tocar es la vigencia de su certificación (nunca credentials_status ni
+  // numero_certificacion) — endpoint acotado a un solo campo.
+  const handleStartEditVigencia = () => {
+    setVigenciaInput(primaryCredential?.vigencia_hasta || '')
+    setVigenciaError('')
+    setEditingVigencia(true)
+  }
+
+  const handleSaveVigencia = async () => {
+    if (!primaryCredential) return
+    setVigenciaSaving(true)
+    setVigenciaError('')
+    try {
+      const res = await fetch('/api/dashboard/actualizar-vigencia', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vigenciaHasta: vigenciaInput || null }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Error al guardar la vigencia')
+      setPrimaryCredential(prev => prev ? { ...prev, vigencia_hasta: vigenciaInput || null } : prev)
+      setEditingVigencia(false)
+    } catch (err: any) {
+      setVigenciaError(err.message || 'Error al guardar la vigencia')
+    } finally {
+      setVigenciaSaving(false)
+    }
+  }
+
+  // Al agregar una especialidad adicional: busca su consejo CONACEM en
+  // specialty_granular_mapping (fuente única de verdad) y lo guarda en
+  // doctor_specialties.council — antes quedaba siempre vacío porque este
+  // formulario no lo capturaba. Si la especialidad tiene consejo, además crea
+  // su fila en doctor_specialty_credentials (pendiente de constancia SEP),
+  // igual que la especialidad principal al registrarse. Si no tiene consejo
+  // (ej. Medicina General), no se crea fila — queda fuera del sistema de
+  // credenciales, igual que en el registro.
+  const handleAddSpecialty = async (data: Omit<SpecialtyWithLicense, 'id' | 'council'>, selfDeclaredNotCurrent: boolean) => {
     if (!medico) return
     setSaving(true)
     try {
-      const { error } = await supabase.from('doctor_specialties').insert({...data, doctor_id: medico.id })
+      const { data: mapping } = await supabase
+        .from('specialty_granular_mapping')
+        .select('id, conacem_council_id, conacem_councils(council_name)')
+        .eq('granular_name', data.specialty_name)
+        .maybeSingle()
+
+      const councilName = (mapping as any)?.conacem_councils?.council_name ?? ''
+
+      const { error } = await supabase.from('doctor_specialties').insert({ ...data, council: councilName, doctor_id: medico.id })
       if (error) throw error
+
+      if (mapping?.conacem_council_id) {
+        await supabase.from('doctor_specialty_credentials').insert({
+          doctor_id: medico.id,
+          specialty_mapping_id: mapping.id,
+          is_primary: false,
+          self_declared_not_current: selfDeclaredNotCurrent,
+        })
+      }
+
       await loadData()
       setActiveModal(null)
     } catch (err) {
@@ -437,16 +527,59 @@ export default function EditarPerfilPage() {
     }
   }
 
-  const handleDeleteSpecialty = async (id: string) => {
+  // Al borrar una especialidad adicional también hay que borrar su fila de
+  // doctor_specialty_credentials — si no, queda huérfana (el bug real
+  // encontrado 2026-07-22 al investigar el reporte de Manuel: la fila de
+  // Medicina Interna se quedó viva en credentials aunque la especialidad ya
+  // no existía en doctor_specialties).
+  const handleDeleteSpecialty = async (spec: SpecialtyWithLicense) => {
     if (!confirm('¿Eliminar?')) return
     setSaving(true)
     try {
-      await supabase.from('doctor_specialties').delete().eq('id', id)
+      await supabase.from('doctor_specialties').delete().eq('id', spec.id)
+      const { data: mapping } = await supabase
+        .from('specialty_granular_mapping')
+        .select('id')
+        .eq('granular_name', spec.specialty_name)
+        .maybeSingle()
+      if (mapping && medico) {
+        await supabase
+          .from('doctor_specialty_credentials')
+          .delete()
+          .eq('doctor_id', medico.id)
+          .eq('specialty_mapping_id', mapping.id)
+          .eq('is_primary', false)
+      }
       await loadData()
     } catch (err) {
       alert('Error')
     } finally {
       setSaving(false)
+    }
+  }
+
+  // Intercambia la especialidad principal con una adicional — llama a un
+  // endpoint que ejecuta la función de base de datos
+  // marcar_especialidad_principal (todo-o-nada: los 4 movimientos pasan
+  // juntos o ninguno). La saliente nunca pierde sus datos: solo cambia de
+  // is_primary, no se borra ni se re-crea.
+  const handleMarcarPrincipal = async (spec: SpecialtyWithLicense) => {
+    if (!medico) return
+    if (!confirm(`¿Hacer de "${spec.specialty_name}" tu especialidad principal? "${medico.specialty}" pasará a ser una especialidad adicional, sin perder tu certificación.`)) return
+    setMarcandoPrincipalId(spec.id)
+    try {
+      const res = await fetch('/api/dashboard/marcar-especialidad-principal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ specialtyId: spec.id }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Error al cambiar la especialidad principal')
+      await loadData()
+    } catch (err: any) {
+      alert(err.message || 'Error al cambiar la especialidad principal')
+    } finally {
+      setMarcandoPrincipalId(null)
     }
   }
 
@@ -660,7 +793,7 @@ export default function EditarPerfilPage() {
                     </div>
                     {licenseError && <p style={{ fontSize: 12, color: '#DC2626', marginTop: 4 }}>{licenseError}</p>}
                     <p style={{ fontSize: 11, color: '#6B7280', marginTop: 4 }}>
-                      Cambiar la cédula la vuelve a poner en revisión — dejará de mostrarse como verificada hasta que se confirme de nuevo.
+                      Cambiar la cédula la vuelve a poner en revisión — dejará de mostrar el badge de cédula disponible para consulta hasta que se revise de nuevo.
                     </p>
                   </div>
                 ) : (
@@ -675,11 +808,73 @@ export default function EditarPerfilPage() {
                     </button>
                   </div>
                 )}
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                  {councilMap[medico.specialty]?.councilName
+                    ? <p style={{ fontSize: 13, color: '#6B7280' }}>Consejo: <strong style={{ color: '#111827' }}>{councilMap[medico.specialty]?.councilName}</strong></p>
+                    : <p style={{ fontSize: 13, color: '#9CA3AF' }}>Sin consejo certificador para esta especialidad</p>}
+                </div>
+                <p style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4 }}>
+                  Tu especialidad principal y su consejo los administra Salurama. Si necesitas cambiarla, contáctanos.
+                </p>
+
+                {primaryCredential && (
+                  <div style={{ marginTop: 10 }}>
+                    {editingVigencia ? (
+                      <div>
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                          <input
+                            type="date"
+                            value={vigenciaInput}
+                            onChange={e => setVigenciaInput(e.target.value)}
+                            style={{ padding: '6px 10px', border: '1px solid #9FD8CD', borderRadius: 6, fontSize: 13 }}
+                            disabled={vigenciaSaving}
+                          />
+                          <button onClick={handleSaveVigencia} disabled={vigenciaSaving}
+                            style={{ background: '#2A9D8F', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: vigenciaSaving ? 0.6 : 1 }}>
+                            {vigenciaSaving ? 'Guardando...' : 'Guardar'}
+                          </button>
+                          <button onClick={() => { setEditingVigencia(false); setVigenciaError('') }} disabled={vigenciaSaving}
+                            style={{ background: 'none', border: '1px solid #D1D5DB', borderRadius: 6, padding: '6px 12px', fontSize: 12, fontWeight: 600, color: '#6B7280', cursor: 'pointer' }}>
+                            Cancelar
+                          </button>
+                        </div>
+                        {vigenciaError && <p style={{ fontSize: 12, color: '#DC2626', marginTop: 4 }}>{vigenciaError}</p>}
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {primaryCredential.vigencia_hasta
+                          ? <p style={{ fontSize: 13, color: '#6B7280' }}>Vigencia hasta: <strong style={{ color: '#111827' }}>{formatFechaCorta(primaryCredential.vigencia_hasta)}</strong></p>
+                          : <p style={{ fontSize: 13, color: '#9CA3AF' }}>Sin fecha de vigencia registrada</p>}
+                        <button onClick={handleStartEditVigencia}
+                          style={{ background: 'none', border: 'none', color: '#1E3A5F', cursor: 'pointer', padding: 2, display: 'inline-flex' }}
+                          title="Editar vigencia">
+                          <Edit2 size={13} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
               {specialties.length > 0? specialties.map(spec => (
                 <div key={spec.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 12px', background: '#F9FAFB', borderRadius: 8, border: '1px solid #E5E7EB', marginBottom: 8 }}>
-                  <div><p style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{spec.specialty_name}</p><p style={{ fontSize: 13, color: '#6B7280' }}>Cédula: {spec.license_number}</p></div>
-                  <button onClick={() => handleDeleteSpecialty(spec.id)} style={{ background: 'none', border: 'none', color: '#DC2626', cursor: 'pointer', padding: 4 }}><Trash2 size={15} /></button>
+                  <div>
+                    <p style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{spec.specialty_name}</p>
+                    <p style={{ fontSize: 13, color: '#6B7280' }}>Cédula: {spec.license_number}</p>
+                    {spec.council
+                      ? <p style={{ fontSize: 12, color: '#6B7280' }}>Consejo: {spec.council}</p>
+                      : <p style={{ fontSize: 12, color: '#9CA3AF' }}>Sin consejo certificador reconocido</p>}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4 }}>
+                    <button onClick={() => handleMarcarPrincipal(spec)} disabled={marcandoPrincipalId === spec.id}
+                      title="Marcar como principal"
+                      style={{ background: 'none', border: 'none', color: '#D97706', cursor: marcandoPrincipalId === spec.id ? 'not-allowed' : 'pointer', padding: 4, opacity: marcandoPrincipalId === spec.id ? 0.5 : 1, display: 'inline-flex', alignItems: 'center' }}>
+                      {marcandoPrincipalId === spec.id
+                        ? <span style={{ width: 15, height: 15, border: '2px solid #D9770640', borderTopColor: '#D97706', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
+                        : <Star size={15} />}
+                    </button>
+                    <button onClick={() => handleDeleteSpecialty(spec)} style={{ background: 'none', border: 'none', color: '#DC2626', cursor: 'pointer', padding: 4 }}><Trash2 size={15} /></button>
+                  </div>
                 </div>
               )) : <p style={{ fontSize: 13, color: '#9CA3AF' }}>Sin especialidades adicionales.</p>}
             </Card>
@@ -780,7 +975,7 @@ export default function EditarPerfilPage() {
         <Modal onClose={() => setActiveModal(null)} title={{ basic: 'Información básica', intro: 'Biografía', specialties: 'Especialidades', conditions: 'Enfermedades', experience: 'Experiencia', education: 'Formación', languages: 'Idiomas', booking: 'Precios y contacto', location: 'Ubicación del consultorio' }[activeModal] || 'Editar'}>
           {activeModal === 'basic' && <BasicInfoForm medico={medico} onSave={handleSaveBasicInfo} saving={saving} />}
           {activeModal === 'intro' && <IntroForm aboutMe={medico.about_me} onSave={handleSaveBasicInfo} saving={saving} />}
-          {activeModal === 'specialties' && <SpecialtiesForm specialties={specialties} specialty={medico.specialty} council={medico.specialty_council} onAdd={handleAddSpecialty} onDelete={handleDeleteSpecialty} saving={saving} />}
+          {activeModal === 'specialties' && <SpecialtiesForm specialties={specialties} specialty={medico.specialty} councilMap={councilMap} onAdd={handleAddSpecialty} onDelete={handleDeleteSpecialty} saving={saving} />}
           {activeModal === 'conditions' && <ConditionsForm conditions={conditions} onAdd={handleAddCondition} onDelete={handleDeleteCondition} saving={saving} />}
           {activeModal === 'experience' && <ExperienceForm experience={experience} onAdd={handleAddExperience} onDelete={handleDeleteExperience} saving={saving} />}
           {activeModal === 'education' && <EducationForm education={education} onAdd={handleAddEducation} onDelete={handleDeleteEducation} saving={saving} />}
@@ -1138,15 +1333,47 @@ function IntroForm({ aboutMe, onSave, saving }: { aboutMe: string | null; onSave
   )
 }
 
-function SpecialtiesForm({ specialties, specialty, council, onAdd, onDelete, saving }: any) {
+function SpecialtiesForm({ specialties, specialty, councilMap, onAdd, onDelete, saving }: any) {
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ specialty_name: '', license_number: '', council: '', is_current: false, issue_year: '' })
-  const submit = (e: React.FormEvent) => { e.preventDefault(); onAdd({...form, issue_year: form.issue_year? parseInt(form.issue_year) : null }); setShowForm(false); setForm({ specialty_name: '', license_number: '', council: '', is_current: false, issue_year: '' }) }
+  const [form, setForm] = useState({ specialty_name: '', license_number: '', is_current: false, issue_year: '' })
+  const [notCurrent, setNotCurrent] = useState(false)
+  const councilInfo = form.specialty_name ? councilMap[form.specialty_name] : undefined
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault()
+    onAdd({ ...form, issue_year: form.issue_year ? parseInt(form.issue_year) : null }, notCurrent)
+    setShowForm(false)
+    setForm({ specialty_name: '', license_number: '', is_current: false, issue_year: '' })
+    setNotCurrent(false)
+  }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ padding: '10px 14px', background: '#E8F7F5', borderRadius: 8, border: '1px solid #9FD8CD' }}><p style={{ fontSize: 11, fontWeight: 700, color: '#1D6F65', textTransform: 'uppercase', marginBottom: 4 }}>Principal</p><p style={{ fontSize: 14, fontWeight: 600, color: '#1E3A5F' }}>{specialty}</p>{council && <p style={{ fontSize: 12, color: '#6B7280' }}>{council}</p>}</div>
-      {specialties.map((spec: any) => <div key={spec.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 12px', background: '#F9FAFB', borderRadius: 8, border: '1px solid #E5E7EB' }}><div><p style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{spec.specialty_name}</p><p style={{ fontSize: 13, color: '#6B7280' }}>Cédula: {spec.license_number}</p></div><button onClick={() => onDelete(spec.id)} style={{ background: 'none', border: 'none', color: '#DC2626', cursor: 'pointer', padding: 4 }}><Trash2 size={15} /></button></div>)}
-      {showForm? <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '16px', background: '#F9FAFB', borderRadius: 10, border: '1px solid #E5E7EB' }}><input type="text" value={form.specialty_name} onChange={e => setForm(p => ({...p, specialty_name: e.target.value }))} style={inputStyle} list="esp-list" required placeholder="Especialidad" /><datalist id="esp-list">{ESPECIALIDADES_MEDICAS.map((e, i) => <option key={i} value={e} />)}</datalist><input type="text" value={form.license_number} onChange={e => setForm(p => ({...p, license_number: e.target.value }))} style={inputStyle} required placeholder="Cédula" /><div style={{ display: 'flex', gap: 8 }}><button type="submit" disabled={saving} style={{...btnPrimary, flex: 1, opacity: saving? 0.6 : 1 }}>Agregar</button><button type="button" onClick={() => setShowForm(false)} style={{...btnSecondary, flex: 1 }}>Cancelar</button></div></form> : <button onClick={() => setShowForm(true)} style={btnGhost}><Plus size={15} /> Agregar especialidad</button>}
+      <div style={{ padding: '10px 14px', background: '#E8F7F5', borderRadius: 8, border: '1px solid #9FD8CD' }}>
+        <p style={{ fontSize: 11, fontWeight: 700, color: '#1D6F65', textTransform: 'uppercase', marginBottom: 4 }}>Principal</p>
+        <p style={{ fontSize: 14, fontWeight: 600, color: '#1E3A5F' }}>{specialty}</p>
+        {councilMap[specialty]?.councilName && <p style={{ fontSize: 12, color: '#6B7280' }}>{councilMap[specialty].councilName}</p>}
+      </div>
+      {specialties.map((spec: any) => <div key={spec.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 12px', background: '#F9FAFB', borderRadius: 8, border: '1px solid #E5E7EB' }}><div><p style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{spec.specialty_name}</p><p style={{ fontSize: 13, color: '#6B7280' }}>Cédula: {spec.license_number}{spec.council && ` · ${spec.council}`}</p></div><button onClick={() => onDelete(spec)} style={{ background: 'none', border: 'none', color: '#DC2626', cursor: 'pointer', padding: 4 }}><Trash2 size={15} /></button></div>)}
+      {showForm ? (
+        <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '16px', background: '#F9FAFB', borderRadius: 10, border: '1px solid #E5E7EB' }}>
+          <input type="text" value={form.specialty_name} onChange={e => setForm(p => ({ ...p, specialty_name: e.target.value }))} style={inputStyle} list="esp-list" required placeholder="Especialidad" />
+          <datalist id="esp-list">{Object.keys(councilMap).sort().map(name => <option key={name} value={name} />)}</datalist>
+          {form.specialty_name && (
+            councilInfo?.councilName
+              ? <p style={{ fontSize: 12, color: '#6B7280', margin: 0 }}>Consejo: {councilInfo.councilName}</p>
+              : councilInfo
+                ? <p style={{ fontSize: 12, color: '#9CA3AF', margin: 0 }}>Sin consejo certificador reconocido — no participará en el sistema de credenciales.</p>
+                : null
+          )}
+          <input type="text" value={form.license_number} onChange={e => setForm(p => ({ ...p, license_number: e.target.value }))} style={inputStyle} required placeholder="Cédula" />
+          {councilInfo?.councilName && (
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+              <input type="checkbox" checked={notCurrent} onChange={e => setNotCurrent(e.target.checked)} />
+              <span style={{ fontSize: 12, color: '#4B5563' }}>Mi certificación no está vigente</span>
+            </label>
+          )}
+          <div style={{ display: 'flex', gap: 8 }}><button type="submit" disabled={saving} style={{ ...btnPrimary, flex: 1, opacity: saving ? 0.6 : 1 }}>Agregar</button><button type="button" onClick={() => setShowForm(false)} style={{ ...btnSecondary, flex: 1 }}>Cancelar</button></div>
+        </form>
+      ) : <button onClick={() => setShowForm(true)} style={btnGhost}><Plus size={15} /> Agregar especialidad</button>}
     </div>
   )
 }

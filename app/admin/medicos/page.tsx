@@ -3,12 +3,15 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import Link from 'next/link'
+import BackButton from '@/components/BackButton'
 import {
   CheckCircle, XCircle, ToggleLeft, ToggleRight,
   Eye, EyeOff, AlertCircle, ChevronDown, ExternalLink, ArrowUp, ArrowDown,
   Users, UserCheck, UserX, Gauge, Clock3, Megaphone, TrendingUp, CalendarCheck,
+  Upload, FileText, X, Trash2,
 } from 'lucide-react'
 import { PLAN_NAME } from '@/lib/pricingTiers'
+import { resumenCredenciales, type CredResumen } from '@/lib/credenciales'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -25,8 +28,32 @@ interface Medico {
   license_verified: boolean
 }
 
+// Una fila por cada especialidad certificable del médico (principal y
+// adicionales tratadas igual) — reemplaza el credentials_status único que
+// vivía en doctors.
+interface SpecialtyCredentialRow {
+  id: string
+  specialty_mapping_id: string
+  granular_name: string
+  council_name: string | null
+  credentials_status: 'pendiente' | 'verificado' | 'no_coincide'
+  credentials_verified_at: string | null
+  numero_certificacion: string | null
+  vigencia_hasta: string | null
+  self_declared_not_current: boolean
+}
+
+interface ConstanciaLog {
+  id: string
+  folio: string | null
+  pdf_url: string | null
+  pdf_filename: string | null
+  admin_notas: string | null
+  created_at: string
+}
+
 type ReviewFilter = 'todos' | 'pendiente' | 'revisado' | 'rechazado'
-type VerificationFilter = 'todos' | 'pendiente' | 'verificado' | 'revision_manual'
+type CredencialesFilter = 'todos' | 'pendiente' | 'verificado' | 'no_coincide' | 'sin_especialidad'
 
 const TIER_LABEL: Record<string, string> = {
   gratis: 'Gratis',
@@ -71,15 +98,63 @@ function formatFecha(iso: string) {
 }
 
 function statusBadge(s: string) {
-  if (s === 'revisado')  return { bg:'#ECFDF5', color:'#059669', border:'#D1FAE5', label:'Aprobado' }
+  if (s === 'revisado')  return { bg:'#ECFDF5', color:'#059669', border:'#D1FAE5', label:'Cuenta activa' }
   if (s === 'rechazado') return { bg:'#FEF2F2', color:'#DC2626', border:'#FEE2E2', label:'Rechazado' }
   return                        { bg:'#FFFBEB', color:'#D97706', border:'#FEF3C7', label:'Pendiente' }
 }
 
-function verificacionBadge(s: string) {
-  if (s === 'verificado')      return { bg:'#ECFDF5', color:'#059669', border:'#D1FAE5', label:'Verificada' }
-  if (s === 'revision_manual') return { bg:'#FEF2F2', color:'#DC2626', border:'#FEE2E2', label:'No coincide' }
-  return                              { bg:'#FFFBEB', color:'#D97706', border:'#FEF3C7', label:'Pendiente' }
+// Resumen de credentials_status de TODAS las filas de doctor_specialty_credentials
+// del médico (una por especialidad certificable) — decide la visibilidad
+// pública de cédula + cada especialidad. Reemplaza el credentials_status
+// único que antes vivía en doctors.
+function credencialesBadge(resumen: CredResumen, rows?: SpecialtyCredentialRow[]) {
+  if (resumen === 'sin_especialidad') return { bg:'#F3F4F6', color:'#9CA3AF', border:'#E5E7EB', label:'Sin especialidad certificable' }
+  if (resumen === 'verificado')       return { bg:'#ECFDF5', color:'#059669', border:'#D1FAE5', label:'Verificado con constancia SEP' }
+  if (resumen === 'no_coincide')      return { bg:'#FEF2F2', color:'#DC2626', border:'#FEE2E2', label:'No coincide' }
+  const verificadas = rows?.filter(r => r.credentials_status === 'verificado').length ?? 0
+  const total = rows?.length ?? 0
+  return { bg:'#FFFBEB', color:'#D97706', border:'#FEF3C7', label: total > 1 ? `Pendiente (${verificadas}/${total})` : 'Pendiente' }
+}
+
+// estado individual de una credencial (dentro del modal, por tarjeta)
+function estadoCredencialBadge(s: 'pendiente' | 'verificado' | 'no_coincide') {
+  if (s === 'verificado')  return { bg:'#ECFDF5', color:'#059669', border:'#D1FAE5', label:'Verificado' }
+  if (s === 'no_coincide') return { bg:'#FEF2F2', color:'#DC2626', border:'#FEE2E2', label:'No coincide' }
+  return                          { bg:'#FFFBEB', color:'#D97706', border:'#FEF3C7', label:'Pendiente' }
+}
+
+type EstadoConstancia = 'subir' | 'revisar' | 'ver'
+
+const DIAS_AVISO_VIGENCIA = 30
+
+// Decide qué dice/cómo se ve el botón de constancia en la tabla (aprobado
+// por Manuel 2026-07-23):
+// - 'subir'   : nunca se subió ningún documento para este médico, O el
+//               médico no tiene ninguna especialidad con consejo CONACEM
+//               (no hay nada que verificar, aunque haya subido algo).
+// - 'revisar' : ya hay documento y algo necesita atención — una fila sigue
+//               'pendiente' sin revisar, alguna 'no_coincide', o alguna
+//               vigencia ya venció o vence en menos de 30 días.
+// - 'ver'     : ya hay documento y TODO está 'verificado' con vigencia sana.
+function estadoConstancia(tieneDocumentos: boolean, credRows: SpecialtyCredentialRow[] | undefined): EstadoConstancia {
+  const rows = credRows || []
+  if (!tieneDocumentos || rows.length === 0) return 'subir'
+
+  const limite = new Date()
+  limite.setDate(limite.getDate() + DIAS_AVISO_VIGENCIA)
+
+  const necesitaAtencion = rows.some(r =>
+    r.credentials_status === 'pendiente' ||
+    r.credentials_status === 'no_coincide' ||
+    (!!r.vigencia_hasta && new Date(r.vigencia_hasta) <= limite)
+  )
+  return necesitaAtencion ? 'revisar' : 'ver'
+}
+
+function constanciaBotonEstilo(estado: EstadoConstancia) {
+  if (estado === 'ver')      return { label: 'Ver constancia',       bg: '#F3F4F6', color: '#6B7280', border: '#E5E7EB' }
+  if (estado === 'revisar')  return { label: 'Revisar constancia',   bg: '#FFFBEB', color: '#D97706', border: '#FEF3C7' }
+  return                            { label: 'Subir constancia SEP', bg: '#F5F3FF', color: '#8B5CF6', border: '#DDD6FE' }
 }
 
 function StatTile({ label, value, color, bg, border, icon }: { label: string; value: string | number; color: string; bg: string; border: string; icon?: React.ReactNode }) {
@@ -103,6 +178,9 @@ export default function AdminMedicos() {
   const [showPass, setShowPass]         = useState(false)
   const [loginError, setLoginError]     = useState('')
   const [loggingIn, setLoggingIn]       = useState(false)
+  const [resetMessage, setResetMessage] = useState<{ text: string; isSuccess?: boolean } | null>(null)
+  const [sendingReset, setSendingReset] = useState(false)
+  const [adminEmail, setAdminEmail]     = useState('')
 
   const [medicos, setMedicos]       = useState<Medico[]>([])
   const [loading, setLoading]       = useState(false)
@@ -115,15 +193,42 @@ export default function AdminMedicos() {
 
   const [fechaSortAsc, setFechaSortAsc] = useState(false)
   const [reviewFilter, setReviewFilter] = useState<ReviewFilter>('todos')
-  const [verifFilter, setVerifFilter]   = useState<VerificationFilter>('todos')
+  const [credFilter, setCredFilter]     = useState<CredencialesFilter>('todos')
   const [espFilter, setEspFilter]       = useState('todas')
+
+  // Credenciales por especialidad de TODOS los médicos (para el resumen de
+  // la columna "Credenciales" en la tabla) — doctor_id -> sus filas.
+  const [credentialsByDoctor, setCredentialsByDoctor] = useState<Record<string, SpecialtyCredentialRow[]>>({})
+  const [historialCountByDoctor, setHistorialCountByDoctor] = useState<Record<string, number>>({})
+
+  // ── Constancia SEP (multi-especialidad) ─────────────────────────────────────
+  const [constanciaModalDoctor, setConstanciaModalDoctor] = useState<Medico | null>(null)
+  const [modalCredentials, setModalCredentials]           = useState<SpecialtyCredentialRow[]>([])
+  const [cargandoModalCredentials, setCargandoModalCredentials] = useState(false)
+  const [cardInputs, setCardInputs] = useState<Record<string, { numero: string; vigencia: string }>>({})
+  const [constanciaHistorial, setConstanciaHistorial]     = useState<ConstanciaLog[]>([])
+  const [cargandoHistorial, setCargandoHistorial]         = useState(false)
+  const [constanciaFile, setConstanciaFile]               = useState<File | null>(null)
+  const [constanciaFolio, setConstanciaFolio]             = useState('')
+  const [constanciaNotas, setConstanciaNotas]             = useState('')
+  const [currentAuditLogId, setCurrentAuditLogId]         = useState<string | null>(null)
+  const [subiendoDocumento, setSubiendoDocumento]         = useState(false)
+  const [constanciaError, setConstanciaError]             = useState('')
+  const [guardandoCardId, setGuardandoCardId]             = useState<string | null>(null)
+  const [constanciaPdfUrls, setConstanciaPdfUrls]         = useState<Record<string, string>>({})
+  const [extrayendo, setExtrayendo]                       = useState(false)
+  const [extraccionAvisos, setExtraccionAvisos]           = useState<string[]>([])
+  const [eliminandoId, setEliminandoId]                   = useState<string | null>(null)
 
   useEffect(() => {
     async function checkSession() {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         const { data: adminRow } = await supabase.from('admins').select('id').eq('user_id', user.id).maybeSingle()
-        if (adminRow) setAutenticado(true)
+        if (adminRow) {
+          setAutenticado(true)
+          setAdminEmail(user.email || '')
+        }
       }
       setCheckingAuth(false)
     }
@@ -143,12 +248,48 @@ export default function AdminMedicos() {
   async function cargarMedicos() {
     setLoading(true)
     try {
-      const { data, error } = await supabase
-        .from('doctors')
-        .select('id, full_name, email, specialty, professional_license, created_at, review_status, is_active, verification_status, license_verified')
-        .order('created_at', { ascending: false })
+      const [{ data, error }, credRes, historialRes] = await Promise.all([
+        supabase
+          .from('doctors')
+          .select('id, full_name, email, specialty, professional_license, created_at, review_status, is_active, verification_status, license_verified')
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('doctor_specialty_credentials')
+          .select('id, doctor_id, specialty_mapping_id, credentials_status, credentials_verified_at, numero_certificacion, vigencia_hasta, self_declared_not_current, specialty_granular_mapping(granular_name, conacem_councils(council_name))'),
+        supabase
+          .from('doctor_constancia_audit_log')
+          .select('doctor_id'),
+      ])
       if (error) throw error
       setMedicos(data || [])
+
+      const grouped: Record<string, SpecialtyCredentialRow[]> = {}
+      for (const r of (credRes.data || []) as any[]) {
+        const row: SpecialtyCredentialRow = {
+          id: r.id,
+          specialty_mapping_id: r.specialty_mapping_id,
+          granular_name: r.specialty_granular_mapping?.granular_name,
+          council_name: r.specialty_granular_mapping?.conacem_councils?.council_name ?? null,
+          credentials_status: r.credentials_status,
+          credentials_verified_at: r.credentials_verified_at,
+          numero_certificacion: r.numero_certificacion,
+          vigencia_hasta: r.vigencia_hasta,
+          self_declared_not_current: r.self_declared_not_current,
+        }
+        if (!grouped[r.doctor_id]) grouped[r.doctor_id] = []
+        grouped[r.doctor_id].push(row)
+      }
+      setCredentialsByDoctor(grouped)
+
+      // Cuántos documentos de constancia tiene cada médico — solo el conteo,
+      // decide el estado del botón "Subir/Revisar/Ver constancia" en la tabla
+      // (ver estadoConstancia más abajo). El detalle completo de cada
+      // documento sigue viviendo solo en el modal (cargarHistorialConstancias).
+      const historialCount: Record<string, number> = {}
+      for (const r of (historialRes.data || []) as any[]) {
+        historialCount[r.doctor_id] = (historialCount[r.doctor_id] || 0) + 1
+      }
+      setHistorialCountByDoctor(historialCount)
     } catch {
       setToast({ msg: 'Error al cargar médicos', type: 'error' })
     } finally {
@@ -249,7 +390,7 @@ export default function AdminMedicos() {
     return medicos
       .filter(m => {
         if (reviewFilter !== 'todos' && m.review_status !== reviewFilter) return false
-        if (verifFilter !== 'todos' && m.verification_status !== verifFilter) return false
+        if (credFilter !== 'todos' && resumenCredenciales(credentialsByDoctor[m.id]) !== credFilter) return false
         if (espFilter !== 'todas' && m.specialty !== espFilter) return false
         return true
       })
@@ -257,7 +398,7 @@ export default function AdminMedicos() {
         const diff = new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
         return fechaSortAsc ? diff : -diff
       })
-  }, [medicos, reviewFilter, verifFilter, espFilter, fechaSortAsc])
+  }, [medicos, reviewFilter, credFilter, espFilter, fechaSortAsc, credentialsByDoctor])
 
   // ── Acciones ────────────────────────────────────────────────────────────────
 
@@ -267,7 +408,11 @@ export default function AdminMedicos() {
     setProcesando(m.id + '_review')
     try {
       const { error } = await supabase
-        .from('doctors').update({ review_status: status }).eq('id', m.id)
+        .from('doctors').update({
+          review_status: status,
+          last_reviewed_at: new Date().toISOString(),
+          last_reviewed_by: adminEmail || 'admin@salurama.com',
+        }).eq('id', m.id)
       if (error) throw error
       setMedicos(prev => prev.map(x => x.id === m.id ? { ...x, review_status: status } : x))
       setToast({ msg: `${m.full_name} — ${status === 'revisado' ? 'cédula aprobada ✓' : 'rechazado'}`, type: 'success' })
@@ -278,27 +423,287 @@ export default function AdminMedicos() {
     }
   }
 
-  async function setVerificationStatus(m: Medico, status: 'verificado' | 'revision_manual') {
-    const label = status === 'verificado'
-      ? `marcar la cédula de ${m.full_name} como verificada contra la SEP`
-      : `marcar la cédula de ${m.full_name} como no coincidente`
-    if (!confirm(`¿Confirmas ${label}?`)) return
-    setProcesando(m.id + '_verif')
+  // Combina en un solo clic lo que antes eran 2 botones separados
+  // ("Marcar verificada" + "Aprobar cédula") — Manuel confirmó que siempre
+  // quiere ambos pasos juntos, nunca uno sin el otro. Actualiza los 3 campos
+  // explícitamente (no confía solo en el trigger trg_sync_verification_status
+  // de la base de datos) porque cuando un médico ya aprobado cambia su cédula,
+  // review_status se queda en 'revisado' pero verification_status vuelve a
+  // 'pendiente' — en ese caso el trigger no dispara (review_status no cambia
+  // de valor), así que hay que fijar verification_status a mano también.
+  async function verificarYAprobar(m: Medico) {
+    if (!confirm(`¿Confirmas verificar y aprobar la cédula de ${m.full_name}?`)) return
+    setProcesando(m.id + '_review')
     try {
-      const licenseVerified = status === 'verificado'
       const { error } = await supabase
         .from('doctors')
-        .update({ verification_status: status, license_verified: licenseVerified })
+        .update({
+          review_status: 'revisado', verification_status: 'verificado', license_verified: true,
+          last_reviewed_at: new Date().toISOString(),
+          last_reviewed_by: adminEmail || 'admin@salurama.com',
+        })
         .eq('id', m.id)
       if (error) throw error
       setMedicos(prev => prev.map(x => x.id === m.id
-        ? { ...x, verification_status: status, license_verified: licenseVerified }
+        ? { ...x, review_status: 'revisado', verification_status: 'verificado', license_verified: true }
         : x))
-      setToast({ msg: `${m.full_name} — ${status === 'verificado' ? 'cédula verificada ✓' : 'marcada como no coincidente'}`, type: 'success' })
+      setToast({ msg: `${m.full_name} — verificada y cédula aprobada ✓`, type: 'success' })
     } catch {
       setToast({ msg: 'Error al actualizar. Revisa permisos RLS.', type: 'error' })
     } finally {
       setProcesando(null)
+    }
+  }
+
+  // ── Constancia SEP (Parte B) — sube el PDF oficial, guarda folio/vigencias
+  // y decide credentials_status, el único campo que controla la visibilidad
+  // pública de cédula + especialidad (Parte A). ──────────────────────────────
+
+  async function abrirConstanciaModal(m: Medico) {
+    setConstanciaModalDoctor(m)
+    setConstanciaFile(null)
+    setConstanciaFolio('')
+    setConstanciaNotas('')
+    setConstanciaError('')
+    setCurrentAuditLogId(null)
+    setExtraccionAvisos([])
+    cargarHistorialConstancias(m.id)
+    await cargarModalCredentials(m.id)
+  }
+
+  function cerrarConstanciaModal() {
+    setConstanciaModalDoctor(null)
+    setConstanciaHistorial([])
+    setModalCredentials([])
+    setCardInputs({})
+  }
+
+  async function cargarModalCredentials(doctorId: string) {
+    setCargandoModalCredentials(true)
+    try {
+      const { data, error } = await supabase
+        .from('doctor_specialty_credentials')
+        .select('id, specialty_mapping_id, credentials_status, credentials_verified_at, numero_certificacion, vigencia_hasta, self_declared_not_current, specialty_granular_mapping(granular_name, conacem_councils(council_name))')
+        .eq('doctor_id', doctorId)
+      if (error) throw error
+      const rows: SpecialtyCredentialRow[] = (data || []).map((r: any) => ({
+        id: r.id,
+        specialty_mapping_id: r.specialty_mapping_id,
+        granular_name: r.specialty_granular_mapping?.granular_name,
+        council_name: r.specialty_granular_mapping?.conacem_councils?.council_name ?? null,
+        credentials_status: r.credentials_status,
+        credentials_verified_at: r.credentials_verified_at,
+        numero_certificacion: r.numero_certificacion,
+        vigencia_hasta: r.vigencia_hasta,
+        self_declared_not_current: r.self_declared_not_current,
+      }))
+      setModalCredentials(rows)
+      const inputs: Record<string, { numero: string; vigencia: string }> = {}
+      rows.forEach(r => { inputs[r.id] = { numero: r.numero_certificacion || '', vigencia: r.vigencia_hasta || '' } })
+      setCardInputs(inputs)
+    } catch {
+      setToast({ msg: 'Error al cargar las especialidades del médico', type: 'error' })
+    } finally {
+      setCargandoModalCredentials(false)
+    }
+  }
+
+  async function cargarHistorialConstancias(doctorId: string) {
+    setCargandoHistorial(true)
+    try {
+      const { data, error } = await supabase
+        .from('doctor_constancia_audit_log')
+        .select('id, folio, pdf_url, pdf_filename, admin_notas, created_at')
+        .eq('doctor_id', doctorId)
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      setConstanciaHistorial(data || [])
+    } catch {
+      setToast({ msg: 'Error al cargar historial de constancias', type: 'error' })
+    } finally {
+      setCargandoHistorial(false)
+    }
+  }
+
+  async function verPdfConstancia(path: string) {
+    if (constanciaPdfUrls[path]) return
+    const { data } = await supabase.storage.from('admin-documents').createSignedUrl(path, 3600)
+    if (data?.signedUrl) setConstanciaPdfUrls(prev => ({ ...prev, [path]: data.signedUrl }))
+  }
+
+  // Borra una entrada del historial (documento subido por error, duplicado,
+  // etc.) — primero la fila de la base, luego el archivo, nunca al revés: si
+  // esta constancia respalda una especialidad ya verificada
+  // (doctor_specialty_credentials.source_constancia_id), el FOREIGN KEY sin
+  // ON DELETE la protege y el borrado de la fila falla ANTES de tocar el
+  // archivo — así nunca queda un PDF borrado con una fila que ya no existe,
+  // ni una verificación pública sin su documento de respaldo.
+  async function eliminarConstancia(c: ConstanciaLog) {
+    if (!confirm('¿Eliminar este documento de forma permanente? Esta acción no se puede deshacer.')) return
+    setEliminandoId(c.id)
+    try {
+      const { error } = await supabase.from('doctor_constancia_audit_log').delete().eq('id', c.id)
+      if (error) {
+        if (error.code === '23503') {
+          setToast({ msg: 'No se puede borrar: esta constancia respalda una especialidad ya verificada. Cambia esa especialidad a otro estado primero si de verdad quieres borrar el documento.', type: 'error' })
+        } else {
+          throw error
+        }
+        return
+      }
+      if (c.pdf_url) {
+        await supabase.storage.from('admin-documents').remove([c.pdf_url])
+      }
+      setConstanciaHistorial(prev => prev.filter(h => h.id !== c.id))
+      if (currentAuditLogId === c.id) setCurrentAuditLogId(null)
+      setToast({ msg: 'Documento eliminado', type: 'success' })
+    } catch (e) {
+      console.error('[eliminarConstancia]', e)
+      setToast({ msg: 'Error al eliminar el documento', type: 'error' })
+    } finally {
+      setEliminandoId(null)
+    }
+  }
+
+  // Registra el documento (un PDF por médico, puede certificar varias
+  // especialidades) — se hace una sola vez por sesión del modal, antes de
+  // poder aprobar cualquier tarjeta, para que cada credencial quede ligada a
+  // su documento de origen (source_constancia_id).
+  async function guardarDocumento() {
+    if (!constanciaModalDoctor) return
+    if (!constanciaFile) { setConstanciaError('Sube el PDF de la constancia'); return }
+    if (!constanciaFolio.trim()) { setConstanciaError('Captura el folio de la constancia'); return }
+
+    setConstanciaError('')
+    setSubiendoDocumento(true)
+    const doctorId = constanciaModalDoctor.id
+    try {
+      const path = `constancia/${doctorId}/${Date.now()}-${constanciaFile.name}`
+      const { error: uploadError } = await supabase.storage
+        .from('admin-documents')
+        .upload(path, constanciaFile, { contentType: 'application/pdf' })
+      if (uploadError) throw uploadError
+
+      const { data: logRow, error: logError } = await supabase.from('doctor_constancia_audit_log').insert({
+        doctor_id: doctorId,
+        folio: constanciaFolio.trim(),
+        pdf_url: path,
+        pdf_filename: constanciaFile.name,
+        admin_notas: constanciaNotas.trim() || null,
+      }).select('*').single()
+      if (logError) throw logError
+
+      setCurrentAuditLogId(logRow.id)
+      setToast({ msg: 'Documento guardado — ya puedes aprobar cada especialidad', type: 'success' })
+      await cargarHistorialConstancias(doctorId)
+    } catch (e) {
+      console.error('[guardarDocumento]', e)
+      setConstanciaError('Error al subir el documento. Revisa permisos o el tamaño del PDF (máx. 5MB).')
+    } finally {
+      setSubiendoDocumento(false)
+    }
+  }
+
+  // Extracción automática (Parte 2 del sistema de credenciales): lee el
+  // folio y las certificaciones del PDF vía /api/admin/extraer-constancia, y
+  // solo prellena una tarjeta cuando el emparejamiento contra las
+  // especialidades REALES del médico es único — nunca a medias, nunca
+  // adivinando. Se ejecuta automáticamente al elegir el PDF, antes de subirlo.
+  async function extraerYPrellenar(file: File) {
+    if (!constanciaModalDoctor) return
+    setExtrayendo(true)
+    setExtraccionAvisos([])
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('doctorId', constanciaModalDoctor.id)
+      const res = await fetch('/api/admin/extraer-constancia', { method: 'POST', body: formData })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Error al extraer datos del PDF')
+
+      const avisos: string[] = []
+
+      if (data.warning) {
+        avisos.push(data.warning)
+      } else {
+        if (data.documentFolio && !data.folioConsistente) {
+          avisos.push('El folio del encabezado y el pie del documento no coinciden — verifica el folio a mano.')
+        } else if (data.documentFolio) {
+          setConstanciaFolio(prev => prev || data.documentFolio)
+        }
+
+        for (const cert of data.certifications || []) {
+          if (cert.matchStatus === 'exacto' && cert.matchedCredentialId) {
+            setCardInputs(prev => ({
+              ...prev,
+              [cert.matchedCredentialId]: {
+                numero: cert.numeroCertificacion,
+                vigencia: cert.vigenciaFecha || '',
+              },
+            }))
+            if (!cert.vigenciaFecha && cert.vigenciaRaw) {
+              avisos.push(`${cert.matchedGranularName}: vigencia "${cert.vigenciaRaw}" no es una fecha — captúrala a mano si aplica.`)
+            }
+          } else if (cert.matchStatus === 'sin_match') {
+            avisos.push(`No se pudo emparejar la certificación de "${cert.especialidadTexto}" (${cert.organismoCertificador}) con ninguna especialidad de este médico — revisa el PDF.`)
+          } else if (cert.matchStatus === 'ambiguo') {
+            avisos.push(`La certificación de "${cert.especialidadTexto}" coincide con más de una especialidad del médico — captúrala a mano.`)
+          }
+        }
+
+        if ((data.certifications || []).length === 0) {
+          avisos.push('El PDF no tiene ninguna certificación de consejo registrada — captura folio y vigencia a mano si el médico la tiene.')
+        }
+      }
+
+      setExtraccionAvisos(avisos)
+    } catch (e: any) {
+      setExtraccionAvisos([e.message || 'Error al extraer datos del PDF — captura todo a mano.'])
+    } finally {
+      setExtrayendo(false)
+    }
+  }
+
+  // Aprueba/rechaza UNA especialidad (tarjeta) del médico — requiere que ya
+  // se haya guardado el documento en esta sesión del modal.
+  async function guardarCredencial(credentialId: string, estadoFinal: 'verificado' | 'no_coincide') {
+    if (!constanciaModalDoctor || !currentAuditLogId) {
+      setToast({ msg: 'Primero sube y guarda el documento', type: 'error' })
+      return
+    }
+    setGuardandoCardId(credentialId)
+    try {
+      const ahora = new Date().toISOString()
+      const input = cardInputs[credentialId] || { numero: '', vigencia: '' }
+      const { error } = await supabase
+        .from('doctor_specialty_credentials')
+        .update({
+          credentials_status: estadoFinal,
+          credentials_verified_at: estadoFinal === 'verificado' ? ahora : null,
+          numero_certificacion: input.numero.trim() || null,
+          vigencia_hasta: input.vigencia || null,
+          source_constancia_id: currentAuditLogId,
+        })
+        .eq('id', credentialId)
+      if (error) throw error
+
+      setModalCredentials(prev => prev.map(r => r.id === credentialId
+        ? { ...r, credentials_status: estadoFinal, credentials_verified_at: estadoFinal === 'verificado' ? ahora : null, numero_certificacion: input.numero.trim() || null, vigencia_hasta: input.vigencia || null }
+        : r))
+      if (constanciaModalDoctor) {
+        setCredentialsByDoctor(prev => ({
+          ...prev,
+          [constanciaModalDoctor.id]: (prev[constanciaModalDoctor.id] || []).map(r => r.id === credentialId
+            ? { ...r, credentials_status: estadoFinal, credentials_verified_at: estadoFinal === 'verificado' ? ahora : null, numero_certificacion: input.numero.trim() || null, vigencia_hasta: input.vigencia || null }
+            : r),
+        }))
+      }
+      setToast({ msg: `Especialidad ${estadoFinal === 'verificado' ? 'verificada ✓' : 'marcada como no coincidente'}`, type: 'success' })
+    } catch (e) {
+      console.error('[guardarCredencial]', e)
+      setToast({ msg: 'Error al actualizar la especialidad', type: 'error' })
+    } finally {
+      setGuardandoCardId(null)
     }
   }
 
@@ -335,6 +740,7 @@ export default function AdminMedicos() {
         return
       }
       setAutenticado(true)
+      setAdminEmail(data.user.email || '')
     } catch {
       setLoginError('Error de conexión')
     } finally {
@@ -342,9 +748,28 @@ export default function AdminMedicos() {
     }
   }
 
+  async function handleForgotPassword() {
+    if (!loginEmail.trim()) {
+      setResetMessage({ text: 'Ingresa tu correo para recuperar tu contraseña' })
+      return
+    }
+    setSendingReset(true)
+    setResetMessage(null)
+    const { error } = await supabase.auth.resetPasswordForEmail(loginEmail.toLowerCase().trim(), {
+      redirectTo: `${window.location.origin}/auth/confirm/callback`,
+    })
+    setSendingReset(false)
+    if (error) {
+      setResetMessage({ text: error.message })
+    } else {
+      setResetMessage({ text: 'Te enviamos un link de recuperación. Revisa tu correo.', isSuccess: true })
+    }
+  }
+
   async function logout() {
     await supabase.auth.signOut()
     setAutenticado(false)
+    setAdminEmail('')
   }
 
   // ── Render: gate de login ────────────────────────────────────────────────────
@@ -390,6 +815,23 @@ export default function AdminMedicos() {
             </button>
           </div>
           {loginError && <p style={{ fontSize:13, color:'#DC2626', textAlign:'center' }}>{loginError}</p>}
+          <div style={{ textAlign:'right' }}>
+            <button
+              type="button"
+              onClick={handleForgotPassword}
+              disabled={sendingReset}
+              style={{ fontSize:13, color:'#1E3A5F', fontWeight:500, background:'none', border:'none', cursor: sendingReset ? 'not-allowed' : 'pointer', fontFamily:"'DM Sans',sans-serif", padding:0, opacity: sendingReset ? 0.6 : 1 }}
+              onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+              onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+            >
+              {sendingReset ? 'Enviando...' : '¿Olvidaste tu contraseña?'}
+            </button>
+          </div>
+          {resetMessage && (
+            <p style={{ fontSize:13, color: resetMessage.isSuccess ? '#059669' : '#DC2626', textAlign:'center' }}>
+              {resetMessage.text}
+            </p>
+          )}
           <button onClick={login} disabled={loggingIn}
             style={{ width:'100%', background:'#1E3A5F', color:'#fff', border:'none', borderRadius:50, padding:'13px', fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:"'DM Sans',sans-serif", opacity: loggingIn ? 0.6 : 1 }}>
             {loggingIn ? 'Entrando...' : 'Entrar'}
@@ -409,10 +851,11 @@ export default function AdminMedicos() {
     rechazado: medicos.filter(m => m.review_status === 'rechazado').length,
   }
 
-  const verifCounts = {
-    pendiente:       medicos.filter(m => m.verification_status === 'pendiente').length,
-    verificado:      medicos.filter(m => m.verification_status === 'verificado').length,
-    revision_manual: medicos.filter(m => m.verification_status === 'revision_manual').length,
+  const credCounts = {
+    pendiente:        medicos.filter(m => resumenCredenciales(credentialsByDoctor[m.id]) === 'pendiente').length,
+    verificado:       medicos.filter(m => resumenCredenciales(credentialsByDoctor[m.id]) === 'verificado').length,
+    no_coincide:      medicos.filter(m => resumenCredenciales(credentialsByDoctor[m.id]) === 'no_coincide').length,
+    sin_especialidad: medicos.filter(m => resumenCredenciales(credentialsByDoctor[m.id]) === 'sin_especialidad').length,
   }
 
   return (
@@ -446,6 +889,10 @@ export default function AdminMedicos() {
 
         <div style={{ maxWidth:1240, margin:'0 auto', padding:'24px 16px 60px' }}>
 
+          <div style={{ marginBottom: 8 }}>
+            <BackButton fallback="/dashboard" label="Volver" />
+          </div>
+
           {/* Header */}
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:24, flexWrap:'wrap', gap:12 }}>
             <div>
@@ -461,10 +908,6 @@ export default function AdminMedicos() {
                 style={{ padding:'9px 18px', background:'#E8ECF3', color:'#1E3A5F', border:'1px solid #C5D0E0', borderRadius:50, fontSize:13, fontWeight:600, cursor:'pointer' }}>
                 Actualizar
               </button>
-              <Link href="/admin"
-                style={{ padding:'9px 18px', background:'#1E3A5F', color:'#fff', borderRadius:50, fontSize:13, fontWeight:600, textDecoration:'none', display:'inline-flex', alignItems:'center' }}>
-                ← Admin principal
-              </Link>
               <button onClick={logout}
                 style={{ padding:'9px 18px', background:'#FEF2F2', color:'#DC2626', border:'1px solid #FEE2E2', borderRadius:50, fontSize:13, fontWeight:600, cursor:'pointer' }}>
                 Cerrar sesión
@@ -558,7 +1001,7 @@ export default function AdminMedicos() {
             {([
               { label:'Total',      value:counts.total,     color:'#1E3A5F', bg:'#E8ECF3',  border:'#C5D0E0' },
               { label:'Pendientes', value:counts.pendiente, color:'#D97706', bg:'#FFFBEB',  border:'#FEF3C7' },
-              { label:'Aprobados',  value:counts.revisado,  color:'#059669', bg:'#ECFDF5',  border:'#D1FAE5' },
+              { label:'Cuenta activa', value:counts.revisado,  color:'#059669', bg:'#ECFDF5',  border:'#D1FAE5' },
               { label:'Rechazados', value:counts.rechazado, color:'#DC2626', bg:'#FEF2F2',  border:'#FEE2E2' },
             ] as const).map(s => (
               <div key={s.label} style={{ background:s.bg, border:`1px solid ${s.border}`, borderRadius:14, padding:'16px 18px', textAlign:'center' }}>
@@ -575,7 +1018,7 @@ export default function AdminMedicos() {
               const map = {
                 todos:    { label:'Todos',                              onBg:'#1E3A5F', offBg:'#F9FAFB', offColor:'#1E3A5F', border:'#C5D0E0' },
                 pendiente:{ label:`Pendientes (${counts.pendiente})`,  onBg:'#D97706', offBg:'#FFFBEB', offColor:'#D97706', border:'#FEF3C7' },
-                revisado: { label:`Aprobados (${counts.revisado})`,    onBg:'#059669', offBg:'#ECFDF5', offColor:'#059669', border:'#D1FAE5' },
+                revisado: { label:`Cuenta activa (${counts.revisado})`, onBg:'#059669', offBg:'#ECFDF5', offColor:'#059669', border:'#D1FAE5' },
                 rechazado:{ label:`Rechazados (${counts.rechazado})`,  onBg:'#DC2626', offBg:'#FEF2F2', offColor:'#DC2626', border:'#FEE2E2' },
               }[f]
               return (
@@ -596,21 +1039,22 @@ export default function AdminMedicos() {
             </div>
           </div>
 
-          {/* Filtros de Verificación SEP (manual, desde que se retiró el scraper automático) */}
+          {/* Filtros de Credenciales (credentials_status — Parte A/C) */}
           <div style={{ display:'flex', gap:10, marginBottom:20, flexWrap:'wrap', alignItems:'center' }}>
             <span style={{ fontSize:12, fontWeight:700, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.06em' }}>
-              Verificación SEP:
+              Credenciales:
             </span>
-            {(['todos','pendiente','verificado','revision_manual'] as const).map(f => {
-              const active = verifFilter === f
+            {(['todos','pendiente','verificado','no_coincide','sin_especialidad'] as const).map(f => {
+              const active = credFilter === f
               const map = {
-                todos:           { label:'Todas',                                          onBg:'#1E3A5F', offBg:'#F9FAFB', offColor:'#1E3A5F', border:'#C5D0E0' },
-                pendiente:       { label:`Pendientes (${verifCounts.pendiente})`,           onBg:'#D97706', offBg:'#FFFBEB', offColor:'#D97706', border:'#FEF3C7' },
-                verificado:      { label:`Verificadas (${verifCounts.verificado})`,         onBg:'#059669', offBg:'#ECFDF5', offColor:'#059669', border:'#D1FAE5' },
-                revision_manual: { label:`No coinciden (${verifCounts.revision_manual})`,   onBg:'#DC2626', offBg:'#FEF2F2', offColor:'#DC2626', border:'#FEE2E2' },
+                todos:            { label:'Todas',                                              onBg:'#1E3A5F', offBg:'#F9FAFB', offColor:'#1E3A5F', border:'#C5D0E0' },
+                pendiente:        { label:`Pendientes (${credCounts.pendiente})`,                onBg:'#D97706', offBg:'#FFFBEB', offColor:'#D97706', border:'#FEF3C7' },
+                verificado:       { label:`Verificadas (${credCounts.verificado})`,              onBg:'#059669', offBg:'#ECFDF5', offColor:'#059669', border:'#D1FAE5' },
+                no_coincide:      { label:`No coinciden (${credCounts.no_coincide})`,            onBg:'#DC2626', offBg:'#FEF2F2', offColor:'#DC2626', border:'#FEE2E2' },
+                sin_especialidad: { label:`Sin especialidad (${credCounts.sin_especialidad})`,   onBg:'#6B7280', offBg:'#F3F4F6', offColor:'#6B7280', border:'#E5E7EB' },
               }[f]
               return (
-                <button key={f} className="fpill" onClick={() => setVerifFilter(f)}
+                <button key={f} className="fpill" onClick={() => setCredFilter(f)}
                   style={{ background: active ? map.onBg : map.offBg, color: active ? '#fff' : map.offColor, borderColor: map.border }}>
                   {map.label}
                 </button>
@@ -633,7 +1077,7 @@ export default function AdminMedicos() {
               <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
                 <thead>
                   <tr style={{ background:'#F9FAFB', borderBottom:'2px solid #E8ECF3' }}>
-                    {['Médico / Email','Especialidad','Cédula','Registro','Estado','Verificación SEP','Activo','Acciones'].map(h => (
+                    {['Médico / Email','Especialidad','Cédula','Registro','Estado','Credenciales','Acciones'].map(h => (
                       <th key={h} style={{ padding:'11px 16px', textAlign:'left', fontSize:11, fontWeight:700, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.06em', whiteSpace:'nowrap' }}>
                         {h === 'Registro' ? (
                           <button
@@ -650,11 +1094,13 @@ export default function AdminMedicos() {
                 </thead>
                 <tbody>
                   {medicosVisibles.map((m, i) => {
-                    const badge      = statusBadge(m.review_status)
-                    const verifBadge = verificacionBadge(m.verification_status)
-                    const procReview = procesando === m.id + '_review'
-                    const procVerif  = procesando === m.id + '_verif'
-                    const procActivo = procesando === m.id + '_activo'
+                    const badge          = statusBadge(m.review_status)
+                    const credRows       = credentialsByDoctor[m.id]
+                    const credBadge      = credencialesBadge(resumenCredenciales(credRows), credRows)
+                    const constanciaEstado = estadoConstancia((historialCountByDoctor[m.id] || 0) > 0, credRows)
+                    const constanciaBoton  = constanciaBotonEstilo(constanciaEstado)
+                    const procReview     = procesando === m.id + '_review'
+                    const procActivo     = procesando === m.id + '_activo'
                     const isLast     = i === medicosVisibles.length - 1
                     return (
                       <tr key={m.id} className="trow"
@@ -696,63 +1142,41 @@ export default function AdminMedicos() {
                           {formatFecha(m.created_at)}
                         </td>
 
-                        {/* review_status */}
+                        {/* Estado — solo cuenta: review_status + is_active juntos (Parte C) */}
                         <td style={{ padding:'13px 16px' }}>
-                          <span style={{ background:badge.bg, color:badge.color, border:`1px solid ${badge.border}`, borderRadius:20, padding:'3px 10px', fontSize:11, fontWeight:700, display:'inline-block' }}>
-                            {badge.label}
-                          </span>
+                          <div style={{ display:'flex', flexDirection:'column', gap:4, alignItems:'flex-start' }}>
+                            <span style={{ background:badge.bg, color:badge.color, border:`1px solid ${badge.border}`, borderRadius:20, padding:'3px 10px', fontSize:11, fontWeight:700, display:'inline-block' }}>
+                              {badge.label}
+                            </span>
+                            <span style={{
+                              background: m.is_active ? '#ECFDF5' : '#F3F4F6',
+                              color:      m.is_active ? '#059669' : '#9CA3AF',
+                              border:    `1px solid ${m.is_active ? '#D1FAE5' : '#E5E7EB'}`,
+                              borderRadius:20, padding:'3px 10px', fontSize:11, fontWeight:700, display:'inline-block',
+                            }}>
+                              {m.is_active ? 'Activo' : 'Inactivo'}
+                            </span>
+                          </div>
                         </td>
 
-                        {/* verification_status */}
+                        {/* Credenciales — credentials_status (Parte A/C), decide la visibilidad pública */}
                         <td style={{ padding:'13px 16px' }}>
-                          <span style={{ background:verifBadge.bg, color:verifBadge.color, border:`1px solid ${verifBadge.border}`, borderRadius:20, padding:'3px 10px', fontSize:11, fontWeight:700, display:'inline-block' }}>
-                            {verifBadge.label}
-                          </span>
-                        </td>
-
-                        {/* is_active */}
-                        <td style={{ padding:'13px 16px' }}>
-                          <span style={{
-                            background: m.is_active ? '#ECFDF5' : '#F3F4F6',
-                            color:      m.is_active ? '#059669' : '#9CA3AF',
-                            border:    `1px solid ${m.is_active ? '#D1FAE5' : '#E5E7EB'}`,
-                            borderRadius:20, padding:'3px 10px', fontSize:11, fontWeight:700, display:'inline-block',
-                          }}>
-                            {m.is_active ? 'Activo' : 'Inactivo'}
+                          <span style={{ background:credBadge.bg, color:credBadge.color, border:`1px solid ${credBadge.border}`, borderRadius:20, padding:'3px 10px', fontSize:11, fontWeight:700, display:'inline-block' }}>
+                            {credBadge.label}
                           </span>
                         </td>
 
                         {/* Acciones */}
                         <td style={{ padding:'13px 16px' }}>
                           <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-                            {m.verification_status !== 'verificado' && (
-                              <button className="act-btn" disabled={procVerif}
-                                onClick={() => setVerificationStatus(m, 'verificado')}
-                                style={{ background:'#ECFDF5', color:'#059669', borderColor:'#D1FAE5' }}>
-                                {procVerif
-                                  ? <span className="spin" style={{ width:12, height:12, border:'2px solid #05966940', borderTopColor:'#059669', borderRadius:'50%' }} />
-                                  : <CheckCircle size={13} />}
-                                Marcar verificada
-                              </button>
-                            )}
-                            {m.verification_status !== 'revision_manual' && (
-                              <button className="act-btn" disabled={procVerif}
-                                onClick={() => setVerificationStatus(m, 'revision_manual')}
-                                style={{ background:'#FEF2F2', color:'#DC2626', borderColor:'#FEE2E2' }}>
-                                {procVerif
-                                  ? <span className="spin" style={{ width:12, height:12, border:'2px solid #DC262640', borderTopColor:'#DC2626', borderRadius:'50%' }} />
-                                  : <XCircle size={13} />}
-                                No coincide
-                              </button>
-                            )}
-                            {m.review_status !== 'revisado' && (
+                            {!(m.review_status === 'revisado' && m.verification_status === 'verificado') && (
                               <button className="act-btn" disabled={procReview}
-                                onClick={() => setReviewStatus(m, 'revisado')}
+                                onClick={() => verificarYAprobar(m)}
                                 style={{ background:'#ECFDF5', color:'#059669', borderColor:'#D1FAE5' }}>
                                 {procReview
                                   ? <span className="spin" style={{ width:12, height:12, border:'2px solid #05966940', borderTopColor:'#059669', borderRadius:'50%' }} />
                                   : <CheckCircle size={13} />}
-                                Aprobar cédula
+                                Verificar y aprobar
                               </button>
                             )}
                             {m.review_status !== 'rechazado' && (
@@ -765,6 +1189,12 @@ export default function AdminMedicos() {
                                 Rechazar
                               </button>
                             )}
+                            <button className="act-btn"
+                              onClick={() => abrirConstanciaModal(m)}
+                              style={{ background:constanciaBoton.bg, color:constanciaBoton.color, borderColor:constanciaBoton.border }}>
+                              <FileText size={13} />
+                              {constanciaBoton.label}
+                            </button>
                             <button className="act-btn" disabled={procActivo}
                               onClick={() => toggleActivo(m)}
                               style={{ background:'#E8ECF3', color:'#1E3A5F', borderColor:'#C5D0E0' }}>
@@ -773,6 +1203,11 @@ export default function AdminMedicos() {
                                 : m.is_active ? <ToggleRight size={13}/> : <ToggleLeft size={13}/>}
                               {m.is_active ? 'Desactivar' : 'Activar'}
                             </button>
+                            <Link href={`/doctor/${m.id}`} target="_blank" rel="noopener noreferrer"
+                              className="act-btn" style={{ background:'#F9FAFB', color:'#6B7280', borderColor:'#E5E7EB', textDecoration:'none' }}>
+                              <ExternalLink size={13} />
+                              Ver perfil
+                            </Link>
                           </div>
                         </td>
                       </tr>
@@ -784,6 +1219,172 @@ export default function AdminMedicos() {
           )}
         </div>
       </div>
+
+      {/* Modal: subir constancia SEP (Parte B) */}
+      {constanciaModalDoctor && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(13,24,41,0.55)', zIndex:5000, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}
+          onClick={cerrarConstanciaModal}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background:'#fff', borderRadius:16, padding:24, maxWidth:560, width:'100%', maxHeight:'88vh', overflowY:'auto', fontFamily:"'DM Sans',sans-serif" }}>
+            <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:16 }}>
+              <div>
+                <h2 style={{ fontFamily:"'Fraunces',serif", fontSize:19, fontWeight:900, color:'#1E3A5F' }}>Constancia SEP</h2>
+                <p style={{ fontSize:13, color:'#6B7280', marginTop:2 }}>{constanciaModalDoctor.full_name}</p>
+              </div>
+              <button onClick={cerrarConstanciaModal} style={{ background:'none', border:'none', cursor:'pointer', color:'#9CA3AF' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ background:'#F9FAFB', border:'1px solid #E5E7EB', borderRadius:10, padding:14, marginBottom:16 }}>
+              <p style={{ fontSize:11, fontWeight:700, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:10 }}>
+                Documento {currentAuditLogId && <span style={{ color:'#059669' }}>· guardado ✓</span>}
+              </p>
+
+              <label style={{ display:'flex', alignItems:'center', gap:8, justifyContent:'center', border:'1.5px dashed #C5D0E0', borderRadius:8, padding:'14px', cursor:'pointer', marginBottom:10, background:'#fff' }}>
+                <Upload size={15} color="#1E3A5F" />
+                <span style={{ fontSize:13, color:'#1E3A5F', fontWeight:600 }}>
+                  {extrayendo ? 'Leyendo PDF...' : constanciaFile ? constanciaFile.name : 'Elegir PDF de la constancia'}
+                </span>
+                <input type="file" accept="application/pdf" style={{ display:'none' }}
+                  onChange={e => {
+                    const f = e.target.files?.[0] || null
+                    setConstanciaFile(f)
+                    setCurrentAuditLogId(null)
+                    setExtraccionAvisos([])
+                    if (f) extraerYPrellenar(f)
+                  }} />
+              </label>
+
+              {extraccionAvisos.length > 0 && (
+                <div style={{ background:'#FFFBEB', border:'1px solid #FEF3C7', borderRadius:8, padding:10, marginBottom:10 }}>
+                  {extraccionAvisos.map((a, i) => (
+                    <p key={i} style={{ fontSize:11, color:'#92400E', margin: i > 0 ? '4px 0 0' : 0 }}>⚠ {a}</p>
+                  ))}
+                </div>
+              )}
+
+              <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:8 }}>
+                <input type="text" placeholder="Folio de la constancia (documento)" value={constanciaFolio}
+                  onChange={e => { setConstanciaFolio(e.target.value); setCurrentAuditLogId(null) }}
+                  style={{ width:'100%', padding:'9px 12px', border:'1px solid #E5E7EB', borderRadius:8, fontSize:13, fontFamily:"'DM Sans',sans-serif" }} />
+                <textarea placeholder="Notas (opcional)" value={constanciaNotas} rows={2}
+                  onChange={e => setConstanciaNotas(e.target.value)}
+                  style={{ width:'100%', padding:'9px 12px', border:'1px solid #E5E7EB', borderRadius:8, fontSize:13, fontFamily:"'DM Sans',sans-serif", resize:'vertical' }} />
+              </div>
+
+              {constanciaError && <p style={{ fontSize:12, color:'#DC2626', marginBottom:8 }}>{constanciaError}</p>}
+
+              <button
+                disabled={subiendoDocumento || !!currentAuditLogId}
+                onClick={guardarDocumento}
+                style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:6, background: currentAuditLogId ? '#ECFDF5' : '#1E3A5F', color: currentAuditLogId ? '#059669' : '#fff', border:'none', borderRadius:8, padding:'10px', fontSize:13, fontWeight:700, cursor: currentAuditLogId ? 'default' : 'pointer', opacity: subiendoDocumento ? 0.6 : 1 }}>
+                {subiendoDocumento
+                  ? <span className="spin" style={{ width:13, height:13, border:'2px solid #ffffff60', borderTopColor:'#fff', borderRadius:'50%' }} />
+                  : currentAuditLogId ? <CheckCircle size={14} /> : <Upload size={14} />}
+                {currentAuditLogId ? 'Documento guardado' : 'Guardar documento'}
+              </button>
+            </div>
+
+            <p style={{ fontSize:11, fontWeight:700, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8 }}>
+              Especialidades certificables
+            </p>
+            {cargandoModalCredentials ? (
+              <p style={{ fontSize:13, color:'#9CA3AF', marginBottom:16 }}>Cargando...</p>
+            ) : modalCredentials.length === 0 ? (
+              <p style={{ fontSize:13, color:'#9CA3AF', marginBottom:16 }}>Este médico no tiene especialidades certificables (ej. su especialidad es Medicina General).</p>
+            ) : (
+              <div style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:16 }}>
+                {modalCredentials.map(cred => {
+                  const eb = estadoCredencialBadge(cred.credentials_status)
+                  const input = cardInputs[cred.id] || { numero: '', vigencia: '' }
+                  const guardandoEsta = guardandoCardId === cred.id
+                  return (
+                    <div key={cred.id} style={{ border:'1px solid #E5E7EB', borderRadius:8, padding:12 }}>
+                      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                        <div>
+                          <p style={{ fontSize:13, fontWeight:700, color:'#1E3A5F', margin:0 }}>{cred.granular_name}</p>
+                          <p style={{ fontSize:11, color:'#6B7280', margin:0 }}>{cred.council_name}</p>
+                        </div>
+                        <span style={{ background:eb.bg, color:eb.color, border:`1px solid ${eb.border}`, borderRadius:20, padding:'2px 8px', fontSize:10, fontWeight:700, whiteSpace:'nowrap' }}>{eb.label}</span>
+                      </div>
+                      {cred.self_declared_not_current && (
+                        <p style={{ fontSize:11, color:'#D97706', marginBottom:8 }}>⚠ El médico declaró que no está vigente</p>
+                      )}
+                      <div style={{ display:'flex', gap:8, marginBottom:8 }}>
+                        <input type="text" placeholder="No. de certificación" value={input.numero}
+                          onChange={e => setCardInputs(prev => ({ ...prev, [cred.id]: { ...prev[cred.id], numero: e.target.value, vigencia: prev[cred.id]?.vigencia || '' } }))}
+                          style={{ flex:1, padding:'7px 10px', border:'1px solid #E5E7EB', borderRadius:6, fontSize:12 }} />
+                        <input type="date" value={input.vigencia}
+                          onChange={e => setCardInputs(prev => ({ ...prev, [cred.id]: { numero: prev[cred.id]?.numero || '', vigencia: e.target.value } }))}
+                          style={{ flex:1, padding:'7px 10px', border:'1px solid #E5E7EB', borderRadius:6, fontSize:12 }} />
+                      </div>
+                      <div style={{ display:'flex', gap:8 }}>
+                        <button
+                          disabled={guardandoCardId !== null || !currentAuditLogId}
+                          onClick={() => guardarCredencial(cred.id, 'verificado')}
+                          style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:6, background:'#059669', color:'#fff', border:'none', borderRadius:6, padding:'8px', fontSize:12, fontWeight:700, cursor:'pointer', opacity: (guardandoCardId !== null || !currentAuditLogId) ? 0.5 : 1 }}>
+                          {guardandoEsta ? <span className="spin" style={{ width:11, height:11, border:'2px solid #ffffff60', borderTopColor:'#fff', borderRadius:'50%' }} /> : <CheckCircle size={12} />}
+                          Verificar y aprobar
+                        </button>
+                        <button
+                          disabled={guardandoCardId !== null || !currentAuditLogId}
+                          onClick={() => guardarCredencial(cred.id, 'no_coincide')}
+                          style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:6, background:'#FEF2F2', color:'#DC2626', border:'1px solid #FEE2E2', borderRadius:6, padding:'8px', fontSize:12, fontWeight:700, cursor:'pointer', opacity: (guardandoCardId !== null || !currentAuditLogId) ? 0.5 : 1 }}>
+                          {guardandoEsta ? <span className="spin" style={{ width:11, height:11, border:'2px solid #DC262640', borderTopColor:'#DC2626', borderRadius:'50%' }} /> : <XCircle size={12} />}
+                          No coincide
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+                {!currentAuditLogId && (
+                  <p style={{ fontSize:11, color:'#9CA3AF' }}>Sube y guarda el documento arriba para poder aprobar las especialidades.</p>
+                )}
+              </div>
+            )}
+
+            <p style={{ fontSize:11, fontWeight:700, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8 }}>Historial de documentos</p>
+            {cargandoHistorial ? (
+              <p style={{ fontSize:13, color:'#9CA3AF' }}>Cargando...</p>
+            ) : constanciaHistorial.length === 0 ? (
+              <p style={{ fontSize:13, color:'#9CA3AF' }}>Aún no se ha subido ninguna constancia.</p>
+            ) : (
+              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                {constanciaHistorial.map(c => (
+                  <div key={c.id} style={{ border:'1px solid #E5E7EB', borderRadius:8, padding:10 }}>
+                    <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:8 }}>
+                      <span style={{ fontSize:12, fontWeight:700, color:'#1E3A5F' }}>Folio: {c.folio || '—'}</span>
+                      <button
+                        onClick={() => eliminarConstancia(c)}
+                        disabled={eliminandoId === c.id}
+                        title="Eliminar este documento"
+                        style={{ background:'none', border:'none', cursor: eliminandoId === c.id ? 'not-allowed' : 'pointer', color:'#DC2626', padding:2, opacity: eliminandoId === c.id ? 0.5 : 1, flexShrink:0 }}>
+                        {eliminandoId === c.id
+                          ? <span className="spin" style={{ width:13, height:13, border:'2px solid #DC262640', borderTopColor:'#DC2626', borderRadius:'50%', display:'inline-block' }} />
+                          : <Trash2 size={14} />}
+                      </button>
+                    </div>
+                    <p style={{ fontSize:11, color:'#6B7280', margin:'2px 0' }}>Subido: {formatFecha(c.created_at)}</p>
+                    {c.admin_notas && <p style={{ fontSize:11, color:'#6B7280', marginBottom:4, fontStyle:'italic' }}>{c.admin_notas}</p>}
+                    {c.pdf_url && (
+                      constanciaPdfUrls[c.pdf_url] ? (
+                        <a href={constanciaPdfUrls[c.pdf_url]} target="_blank" rel="noopener noreferrer" style={{ fontSize:12, color:'#1E3A5F', fontWeight:600 }}>
+                          Abrir PDF ↗
+                        </a>
+                      ) : (
+                        <button onClick={() => verPdfConstancia(c.pdf_url!)} style={{ background:'none', border:'none', color:'#1E3A5F', fontSize:12, fontWeight:600, cursor:'pointer', padding:0 }}>
+                          Ver PDF
+                        </button>
+                      )
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </>
   )
 }

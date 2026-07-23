@@ -7,7 +7,7 @@ import {
   X, ZoomIn, Calendar, Edit2, Eye, Share2,
   Star, Users, MoreVertical, Lightbulb,
   CheckCircle, ArrowRight,
-  PartyPopper, Sparkles, Megaphone
+  PartyPopper, Sparkles, Megaphone, Shield, AlertCircle
 } from 'lucide-react'
 import { PLAN_TO_TIER_CODE } from '@/lib/pricingTiers'
 
@@ -68,6 +68,7 @@ export default function DashboardMedico() {
   const [medico, setMedico] = useState<Medico | null>(null)
   const [loading, setLoading] = useState(true)
   const [showPhotoModal, setShowPhotoModal] = useState(false)
+  const [specialtyWarnings, setSpecialtyWarnings] = useState<string[]>([])
 
   const [copied, setCopied] = useState(false)
   const [citasHoy, setCitasHoy] = useState<Cita[]>([])
@@ -76,6 +77,8 @@ export default function DashboardMedico() {
   const [profileCompletion, setProfileCompletion] = useState(0)
   const [isMobile, setIsMobile] = useState(false)
   const [photoTs] = useState(() => Date.now())
+  // Se verifica por consulta a la tabla `admins` — nunca por correo hardcodeado.
+  const [isAdmin, setIsAdmin] = useState(false)
   // Detectar mobile
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 640)
@@ -132,6 +135,9 @@ export default function DashboardMedico() {
         if (!mounted) return
         setMedico(doctor)
 
+        const { data: adminRow } = await supabase.from('admins').select('id').eq('user_id', user.id).maybeSingle()
+        if (mounted) setIsAdmin(!!adminRow)
+
         const hoy = new Date().toISOString().split('T')[0]
         const inicioMes = new Date()
         inicioMes.setDate(1)
@@ -141,7 +147,7 @@ export default function DashboardMedico() {
         inicioMesAnterior.setMonth(inicioMesAnterior.getMonth() - 1)
         const inicioMesAnteriorStr = inicioMesAnterior.toISOString().split('T')[0]
 
-        const [citasHoyRes, totalesRes, mesRes, mesAnteriorRes, pendientesRes, eduRes, expRes, condRes, visitasRes] = await Promise.all([
+        const [citasHoyRes, totalesRes, mesRes, mesAnteriorRes, pendientesRes, eduRes, expRes, condRes, visitasRes, specialtyCredRes] = await Promise.all([
           supabase.from('citas')
             .select('id, paciente_nombre, fecha, hora, estado')
             .eq('medico_id', doctor.id)
@@ -174,7 +180,18 @@ export default function DashboardMedico() {
           supabase.from('doctor_experience').select('id').eq('doctor_id', doctor.id),
           supabase.from('doctor_conditions').select('id').eq('doctor_id', doctor.id),
           fetch('/api/track-visit').then(r => r.ok ? r.json() : { count: 0 }).catch(() => ({ count: 0 })),
+          supabase.from('doctor_specialty_credentials')
+            .select('credentials_status, self_declared_not_current, specialty_granular_mapping(granular_name)')
+            .eq('doctor_id', doctor.id),
         ])
+
+        // Especialidades con el aviso de "certificación pendiente" — el médico
+        // se auto-declaró "no vigente" al capturarla, o un admin la marcó
+        // 'no_coincide' en /admin/medicos. Por especialidad, no por médico.
+        setSpecialtyWarnings((specialtyCredRes.data || [])
+          .filter((r: any) => r.self_declared_not_current || r.credentials_status === 'no_coincide')
+          .map((r: any) => r.specialty_granular_mapping?.granular_name)
+          .filter(Boolean))
 
         setCitasHoy((citasHoyRes.data || []).map((c: any) => ({
           id: c.id,
@@ -496,6 +513,15 @@ export default function DashboardMedico() {
                   : <Share2 size={15} />
                 }
               </button>
+              {isAdmin && (
+                <Link
+                  href="/admin"
+                  className="btn-hover"
+                  style={{ background: '#fff', color: '#1E3A5F', border: '1.5px solid #E5E7EB', padding: isMobile ? '14px 20px' : '10px 20px', borderRadius: 12, fontSize: 14, fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 48 }}
+                >
+                  <Shield size={16} /> Panel de administración
+                </Link>
+              )}
             </div>
           </div>
         </div>
@@ -528,6 +554,41 @@ export default function DashboardMedico() {
                   transition: 'width 0.6s ease-out'
                 }}
               />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════
+          AVISO DE CERTIFICACIÓN DE ESPECIALIDAD — privado, solo lo ve el
+          propio médico. Fijo (no rota como los "consejos" de abajo). Ahora
+          es por especialidad (doctor_specialty_credentials), no un solo
+          campo por médico — se activa por cada especialidad donde el médico
+          se auto-declaró "no vigente" al capturarla, o un admin la marcó
+          'no_coincide' en /admin/medicos. Esas especialidades ya están
+          ocultas del perfil público (ver DoctorProfileClient.tsx).
+      ═══════════════════════════════════════════════════════════ */}
+      {specialtyWarnings.length > 0 && (
+        <div style={{ maxWidth: 1100, margin: '0 auto 20px', padding: '0 16px' }}>
+          <div style={{
+            background: '#FFFBEB',
+            border: '1.5px solid #FEF3C7',
+            borderRadius: 16,
+            padding: 20,
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 14,
+          }}>
+            <div style={{ width: 40, height: 40, borderRadius: 10, background: '#FEF3C7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <AlertCircle size={20} color="#D97706" />
+            </div>
+            <div>
+              <p style={{ fontFamily: 'Fraunces', fontWeight: 900, fontSize: 15, color: '#92400E', margin: '0 0 4px' }}>
+                Certificación de especialidad pendiente
+              </p>
+              <p style={{ fontSize: 14, color: '#78350F', margin: 0, lineHeight: 1.5 }}>
+                Aún no confirmas tu vigencia en: {specialtyWarnings.join(', ')}. Actualiza tu certificación para mantener tu perfil completo.
+              </p>
             </div>
           </div>
         </div>

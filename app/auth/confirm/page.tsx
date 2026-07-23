@@ -21,11 +21,17 @@ export default function ConfirmPage() {
 
         const userId = session.user.id
 
+        // Confirmar el correo activa la cuenta (is_active) — nunca debe
+        // tocar review_status, que es un concepto distinto (revisión de
+        // credenciales por un admin, no algo que decida el propio médico
+        // al confirmar su email). Antes esto escribía 'aprobado', un valor
+        // que ningún otro lugar del sistema reconoce (los únicos válidos
+        // son 'pendiente'/'revisado'/'rechazado'), lo cual descuadraba los
+        // contadores de /admin/medicos sin que se notara en el badge.
         const { error: updateError } = await supabase
         .from('doctors')
         .update({
             is_active: true,
-            review_status: 'aprobado',
           })
         .eq('user_id', userId)
 

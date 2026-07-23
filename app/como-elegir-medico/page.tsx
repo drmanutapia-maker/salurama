@@ -74,7 +74,7 @@ const PREGUNTAS = [
     a: 'CONACEM (Comité Normativo Nacional de Consejos de Especialidades Médicas) es la autoridad que regula y normativiza todos los consejos de especialidad médica en México. Cuando verificas en CONACEM, estás consultando la fuente oficial que confirma si un médico tiene certificación vigente en su especialidad.',
   },
   {
-    q: '¿Todos los médicos en Salurama tienen cédula verificada?',
+    q: '¿Todos los médicos en Salurama tienen cédula registrada?',
     a: 'Todos los médicos registrados proporcionan su número de cédula al momento del registro. Salurama no verifica este dato de forma independiente — para confirmarlo, usa el botón "Verificar cédula" en el perfil del médico, que te lleva directamente al sitio de la SEP.',
   },
   {

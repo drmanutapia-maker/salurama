@@ -779,7 +779,7 @@ function BuscarContent() {
                 </p>
                 <p style={{ color: '#6B7280', fontSize: 14, marginBottom: 20, maxWidth: 360, margin: '0 auto 20px', lineHeight: 1.6 }}>
                   {medicos.length === 0
-                    ? 'Estamos incorporando médicos verificados. Si eres médico, únete ahora sin costo.'
+                    ? 'Estamos incorporando médicos a la plataforma. Si eres médico, únete ahora sin costo.'
                     : 'Intenta con otra especialidad o quita algún filtro.'}
                 </p>
                 {hayFiltros && (

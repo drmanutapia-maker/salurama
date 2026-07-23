@@ -6,6 +6,7 @@ import { Mail, MapPin, Stethoscope, CheckCircle, AlertCircle, Eye, EyeOff, Shiel
 import { Turnstile } from '@marsidev/react-turnstile'
 import { useCP } from '@/hooks/useCP'
 import TitleSelect from '@/components/TitleSelect'
+import { supabase } from '@/lib/supabaseClient'
 
 const ESPECIALIDADES = [
   'Alergología e Inmunología Clínica',
@@ -65,8 +66,10 @@ const ESPECIALIDADES = [
   'Inmunología Clínica',
   'Medicina Aeroespacial',
   'Medicina Crítica',
+  'Medicina de Urgencias',
   'Medicina del Deporte',
   'Medicina del Enfermo Pediátrico en Estado Crítico',
+  'Medicina del Trabajo',
   'Medicina Familiar',
   'Medicina Física y Rehabilitación',
   'Medicina Intensiva',
@@ -111,6 +114,7 @@ const ESPECIALIDADES = [
   'Rehabilitación Neurológica',
   'Reumatología',
   'Reumatología Pediátrica',
+  'Salud Pública',
   'Terapia Endovascular Neurológica',
   'Terapia Intensiva Pediátrica',
   'Traumatología y Ortopedia',
@@ -118,116 +122,11 @@ const ESPECIALIDADES = [
   'Urología Pediátrica'
 ]
 
-const CONSEJOS: Record<string, string> = {
- 'Alergología e Inmunología Clínica': 'Consejo Nacional de Inmunología Clínica y Alergia',
-  'Algología': 'Consejo Mexicano de Anestesiología',
-  'Anatomía Patológica': 'Consejo Mexicano de Anatomopatología',
-  'Anestesiología': 'Consejo Mexicano de Anestesiología',
-  'Anestesiología Pediátrica': 'Consejo Mexicano de Anestesiología',
-  'Angiología, Cirugía Vascular y Endovascular': 'Consejo Mexicano de Angiología, Cirugía Vascular y Endovascular',
-  'Audiología': 'Consejo Mexicano de Otorrinolaringología y Cirugía de Cabeza y Cuello',
-  'Cardiología': 'Consejo Mexicano de Cardiología',
-  'Cardiología Intervencionista': 'Consejo Mexicano de Cardiología',
-  'Cardiología Pediátrica': 'Consejo Mexicano de Cardiología',
-  'Cirugía Bariátrica': 'Consejo Mexicano de Cirugía General',
-  'Cirugía Cardiaca': 'Consejo Mexicano de Cirugía Cardiotorácica',
-  'Cirugía Cardiaca Pediátrica': 'Consejo Mexicano de Cirugía Cardiotorácica',
-  'Cirugía Cardiotorácica': 'Consejo Mexicano de Cirugía Cardiotorácica',
-  'Cirugía de Cabeza y Cuello': 'Consejo Mexicano de Otorrinolaringología y Cirugía de Cabeza y Cuello',
-  'Cirugía de Columna': 'Consejo Mexicano de Ortopedia y Traumatología',
-  'Cirugía de Tórax': 'Consejo Mexicano de Cirugía Cardiotorácica',
-  'Cirugía Endovascular Neurológica': 'Consejo Mexicano de Neurología',
-  'Cirugía General': 'Consejo Mexicano de Cirugía General',
-  'Cirugía Maxilofacial': 'Consejo Mexicano de Cirugía Oral y Maxilofacial',
-  'Cirugía Neurológica': 'Consejo Mexicano de Cirugía Neurológica',
-  'Cirugía Oncológica': 'Consejo Mexicano de Oncología',
-  'Cirugía Oral y Maxilofacial': 'Consejo Mexicano de Cirugía Oral y Maxilofacial',
-  'Cirugía Pediátrica': 'Consejo Mexicano de Cirugía Pediátrica',
-  'Cirugía Plástica, Estética y Reconstructiva': 'Consejo Mexicano de Cirugía Plástica, Estética y Reconstructiva',
-  'Cirugía Torácica Pediátrica': 'Consejo Mexicano de Cirugía Cardiotorácica',
-  'Coloproctología': 'Consejo Mexicano de Coloproctología',
-  'Cuidados Intensivos': 'Consejo Mexicano de Medicina Crítica',
-  'Cuidados Paliativos': 'Consejo Mexicano de Medicina Paliativa',
-  'Dermatología': 'Consejo Mexicano de Dermatología',
-  'Dermatología Pediátrica': 'Consejo Mexicano de Dermatología',
-  'Dermatopatología': 'Consejo Mexicano de Dermatología',
-  'Ecocardiografía': 'Consejo Mexicano de Cardiología',
-  'Electrofisiología Cardiaca': 'Consejo Mexicano de Cardiología',
-  'Endocrinología': 'Consejo Mexicano de Endocrinología',
-  'Endocrinología Pediátrica': 'Consejo Mexicano de Endocrinología',
-  'Endodoncia': 'Consejo Mexicano de Endodoncia',
-  'Endoscopia Gastrointestinal': 'Consejo Mexicano de Gastroenterología',
-  'Endoscopia del Aparato Digestivo': 'Consejo Mexicano de Gastroenterología',
-  'Epidemiología': 'Consejo Mexicano de Epidemiología',
-  'Foniatría': 'Consejo Mexicano de Otorrinolaringología y Cirugía de Cabeza y Cuello',
-  'Gastroenterología': 'Consejo Mexicano de Gastroenterología',
-  'Gastroenterología Pediátrica': 'Consejo Mexicano de Gastroenterología',
-  'Genética Médica': 'Consejo Mexicano de Genética',
-  'Genética Molecular': 'Consejo Mexicano de Genética',
-  'Geriatría': 'Consejo Mexicano de Geriatría',
-  'Gerontología': 'Consejo Mexicano de Geriatría',
-  'Ginecología Oncológica': 'Consejo Mexicano de Oncología',
-  'Ginecología y Obstetricia': 'Consejo Mexicano de Ginecología y Obstetricia',
-  'Hematología': 'Consejo Mexicano de Hematología',
-  'Hematología Pediátrica': 'Consejo Mexicano de Hematología',
-  'Imagenología Diagnóstica y Terapéutica': 'Consejo Mexicano de Radiología e Imagen',
-  'Infectología': 'Consejo Mexicano de Infectología',
-  'Infectología Pediátrica': 'Consejo Mexicano de Infectología',
-  'Inmunología Clínica': 'Consejo Nacional de Inmunología Clínica y Alergia',
-  'Medicina Aeroespacial': 'Consejo Mexicano de Medicina Aeroespacial',
-  'Medicina Crítica': 'Consejo Mexicano de Medicina Crítica',
-  'Medicina del Deporte': 'Consejo Mexicano de Medicina del Deporte',
-  'Medicina del Enfermo Pediátrico en Estado Crítico': 'Consejo Mexicano de Medicina Crítica',
-  'Medicina Familiar': 'Consejo Mexicano de Certificación en Medicina Familiar',
-  'Medicina Física y Rehabilitación': 'Consejo Mexicano de Medicina de Rehabilitación',
-  'Medicina Intensiva': 'Consejo Mexicano de Medicina Crítica',
-  'Medicina Interna': 'Consejo Mexicano de Medicina Interna',
-  'Medicina Legal y Forense': 'Consejo Mexicano de Medicina Legal y Forense',
-  'Medicina Materno Fetal': 'Consejo Mexicano de Ginecología y Obstetricia',
-  'Medicina Nuclear': 'Consejo Mexicano de Medicina Nuclear e Imagen Molecular',
-  'Medicina Nuclear e Imagen Molecular': 'Consejo Mexicano de Medicina Nuclear e Imagen Molecular',
-  'Nefrología': 'Consejo Mexicano de Nefrología',
-  'Nefrología Pediátrica': 'Consejo Mexicano de Nefrología',
-  'Neonatología': 'Consejo Mexicano de Certificación en Pediatría',
-  'Neumología': 'Consejo Nacional de Neumología',
-  'Neumología Pediátrica': 'Consejo Nacional de Neumología',
-  'Neuroanestesiología': 'Consejo Mexicano de Anestesiología',
-  'Neurocirugía Pediátrica': 'Consejo Mexicano de Cirugía Neurológica',
-  'Neurofisiología Clínica': 'Consejo Mexicano de Neurología',
-  'Neurología': 'Consejo Mexicano de Neurología',
-  'Neurología Pediátrica': 'Consejo Mexicano de Neurología',
-  'Neuropatología': 'Consejo Mexicano de Anatomopatología',
-  'Nutrición Clínica': 'Consejo Mexicano de Nutrición Clínica',
-  'Nutriología Clínica': 'Consejo Mexicano de Nutrición Clínica',
-  'Obstetricia Crítica': 'Consejo Mexicano de Ginecología y Obstetricia',
-  'Odontología Pediátrica': 'Consejo Mexicano de Odontología Pediátrica',
-  'Oftalmología': 'Consejo Mexicano de Oftalmología',
-  'Oncología Médica': 'Consejo Mexicano de Oncología',
-  'Oncología Pediátrica': 'Consejo Mexicano de Oncología',
-  'Ortodoncia': 'Consejo Mexicano de Ortodoncia',
-  'Ortopedia': 'Consejo Mexicano de Ortopedia y Traumatología',
-  'Ortopedia Pediátrica': 'Consejo Mexicano de Ortopedia y Traumatología',
-  'Otoneurología': 'Consejo Mexicano de Otorrinolaringología y Cirugía de Cabeza y Cuello',
-  'Otorrinolaringología': 'Consejo Mexicano de Otorrinolaringología y Cirugía de Cabeza y Cuello',
-  'Patología Clínica': 'Consejo Mexicano de Patología Clínica',
-  'Patología Pediátrica': 'Consejo Mexicano de Anatomopatología',
-  'Pediatría': 'Consejo Mexicano de Certificación en Pediatría',
-  'Periodoncia': 'Consejo Mexicano de Periodoncia',
-  'Psiquiatría': 'Consejo Mexicano de Psiquiatría',
-  'Psiquiatría Infantil y de la Adolescencia': 'Consejo Mexicano de Psiquiatría',
-  'Radiología e Imagen': 'Consejo Mexicano de Radiología e Imagen',
-  'Radiología Intervencionista': 'Consejo Mexicano de Radiología e Imagen',
-  'Radiooncología': 'Consejo Mexicano de Certificación en Radioterapia',
-  'Rehabilitación Cardiaca': 'Consejo Mexicano de Medicina de Rehabilitación',
-  'Rehabilitación Neurológica': 'Consejo Mexicano de Medicina de Rehabilitación',
-  'Reumatología': 'Consejo Mexicano de Reumatología',
-  'Reumatología Pediátrica': 'Consejo Mexicano de Reumatología',
-  'Terapia Endovascular Neurológica': 'Consejo Mexicano de Neurología',
-  'Terapia Intensiva Pediátrica': 'Consejo Mexicano de Medicina Crítica',
-  'Traumatología y Ortopedia': 'Consejo Mexicano de Ortopedia y Traumatología',
-  'Urología': 'Consejo Mexicano de Urología',
-  'Urología Pediátrica': 'Consejo Mexicano de Urología'
-}
+
+// El mapeo especialidad -> consejo CONACEM ya no vive aquí hardcodeado —
+// se consulta en vivo desde specialty_granular_mapping + conacem_councils
+// (fuente única de verdad, compartida con editar-perfil y el sistema de
+// credenciales). Ver fetchCouncilForSpecialty más abajo.
 
 type FormData = {
   email: string
@@ -266,12 +165,38 @@ export default function RegistroMedico() {
     cp: '', estado: '', ciudad: '', colonia: '', direccion: '', terms: false,
   })
 
-  // Auto-fill council
+  // Mapeo especialidad -> consejo CONACEM, cargado en vivo desde
+  // specialty_granular_mapping (fuente única de verdad — ver
+  // conacem_councils). exclusionReason !== null significa que esa
+  // especialidad no tiene consejo certificador oficial (ej. Medicina
+  // General) y por lo tanto no participa en el sistema de credenciales.
+  const [councilMap, setCouncilMap] = useState<Record<string, { councilName: string | null; exclusionReason: string | null }>>({})
+
   useEffect(() => {
-    if (form.specialty && CONSEJOS[form.specialty]) {
-      setForm(f => ({...f, council: CONSEJOS[form.specialty] }))
+    async function loadCouncilMapping() {
+      const { data } = await supabase
+        .from('specialty_granular_mapping')
+        .select('granular_name, exclusion_reason, conacem_councils(council_name)')
+      if (data) {
+        const map: Record<string, { councilName: string | null; exclusionReason: string | null }> = {}
+        data.forEach((row: any) => {
+          map[row.granular_name] = {
+            councilName: row.conacem_councils?.council_name ?? null,
+            exclusionReason: row.exclusion_reason,
+          }
+        })
+        setCouncilMap(map)
+      }
     }
-  }, [form.specialty])
+    loadCouncilMapping()
+  }, [])
+
+  const councilInfo = form.specialty ? councilMap[form.specialty] : undefined
+
+  // Auto-fill council (solo lectura — el consejo lo decide CONACEM, no el médico)
+  useEffect(() => {
+    setForm(f => ({ ...f, council: councilInfo?.councilName || '' }))
+  }, [form.specialty, councilInfo])
 
   // Auto-fill location from CP
   useEffect(() => {
@@ -354,7 +279,6 @@ export default function RegistroMedico() {
           professional_title: form.professionalTitle,
           specialty: form.specialty,
           professional_license: form.license.replace(/\s/g, ''),
-          specialty_council: form.council.trim(),
           license_not_current: form.licenseNotCurrent,
           cp: form.cp,
           estado: form.estado,
@@ -626,19 +550,26 @@ export default function RegistroMedico() {
                 <div className="flex items-start gap-2.5">
                   <ShieldCheck size={18} className="text-[#1E3A5F] mt-0.5 shrink-0" />
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-[#111827] mb-1">Consejo de especialidad <span className="text-[#9CA3AF] font-normal">(opcional)</span></p>
-                    <p className="text-xs text-[#6B7280] mb-2.5">Los pacientes podrán verificar tu certificación</p>
-                    <input
-                      type="text"
-                      value={form.council}
-                      onChange={e => updateField('council', e.target.value)}
-                      placeholder="Se autocompleta con tu especialidad"
-                      className="w-full h-10 px-3 text-sm border border-[#D1D5DB] rounded-lg focus:ring-2 focus:ring-[#1E3A5F]/20 focus:border-[#1E3A5F] outline-none"
-                    />
-                    <label className="flex items-center gap-2 mt-3 cursor-pointer">
-                      <input type="checkbox" checked={form.licenseNotCurrent} onChange={e => updateField('licenseNotCurrent', e.target.checked)} className="w-4 h-4 rounded border-[#D1D5DB] text-[#1E3A5F] focus:ring-[#1E3A5F]" />
-                      <span className="text-xs text-[#4B5563]">Mi certificación no está vigente</span>
-                    </label>
+                    <p className="text-sm font-medium text-[#111827] mb-1">Consejo de especialidad</p>
+                    {!form.specialty ? (
+                      <p className="text-xs text-[#9CA3AF]">Selecciona tu especialidad para ver su consejo certificador</p>
+                    ) : councilInfo?.councilName ? (
+                      <>
+                        <p className="text-xs text-[#6B7280] mb-2.5">Los pacientes podrán verificar tu certificación</p>
+                        <input
+                          type="text"
+                          value={councilInfo.councilName}
+                          disabled
+                          className="w-full h-10 px-3 text-sm border border-[#D1D5DB] rounded-lg bg-[#F3F4F6] text-[#6B7280] outline-none"
+                        />
+                        <label className="flex items-center gap-2 mt-3 cursor-pointer">
+                          <input type="checkbox" checked={form.licenseNotCurrent} onChange={e => updateField('licenseNotCurrent', e.target.checked)} className="w-4 h-4 rounded border-[#D1D5DB] text-[#1E3A5F] focus:ring-[#1E3A5F]" />
+                          <span className="text-xs text-[#4B5563]">Mi certificación no está vigente</span>
+                        </label>
+                      </>
+                    ) : (
+                      <p className="text-xs text-[#9CA3AF]">Esta especialidad no tiene un consejo certificador reconocido — no participa en el sistema de credenciales de Salurama.</p>
+                    )}
                   </div>
                 </div>
               </div>

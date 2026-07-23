@@ -54,7 +54,7 @@ interface Medico {
   instagram_url: string | null
   tiktok_url: string | null
   professional_license: string | null
-  specialty_council: string | null
+  review_status: string | null
   min_patient_age: number | null
   max_patient_age: number | null
   horario: Record<string, any> | null
@@ -97,6 +97,13 @@ interface Review {
   rating: number
   comment: string
   created_at: string
+}
+
+interface SpecialtyCredential {
+  id: string
+  credentials_status: 'pendiente' | 'verificado' | 'no_coincide'
+  granular_name: string
+  council_name: string | null
 }
 
 const normalizarTexto = (texto: string): string => {
@@ -457,6 +464,7 @@ export default function DoctorProfileClient({ doctorId }: { doctorId: string }) 
   const router = useRouter()
   const [medico, setMedico] = useState<Medico | null>(null)
   const [licenses, setLicenses] = useState<License[]>([])
+  const [specialtyCredentials, setSpecialtyCredentials] = useState<SpecialtyCredential[]>([])
   const [education, setEducation] = useState<EducationItem[]>([])
   const [experience, setExperience] = useState<ExperienceItem[]>([])
   const [conditions, setConditions] = useState<Condition[]>([])
@@ -493,17 +501,24 @@ export default function DoctorProfileClient({ doctorId }: { doctorId: string }) 
         if (user?.email === data.email) {
           setIsOwner(true)
         }
-        const [licRes, eduRes, expRes, condRes, revRes] = await Promise.all([
+        const [licRes, eduRes, expRes, condRes, revRes, credRes] = await Promise.all([
           supabase.from('doctor_licenses').select('*').eq('doctor_id', data.id),
           supabase.from('doctor_education').select('*').eq('doctor_id', data.id).order('graduation_year', { ascending: false }),
           supabase.from('doctor_experience').select('*').eq('doctor_id', data.id).order('is_current', { ascending: false }),
           supabase.from('doctor_conditions').select('*').eq('doctor_id', data.id).order('category'),
           supabase.from('reviews').select('*').eq('doctor_id', data.id).eq('is_visible', true).order('created_at', { ascending: false }).limit(20),
+          supabase.from('doctor_specialty_credentials').select('id, credentials_status, specialty_granular_mapping(granular_name, conacem_councils(council_name))').eq('doctor_id', data.id),
         ])
         setLicenses(licRes.data || [])
         setEducation(eduRes.data || [])
         setExperience(expRes.data || [])
         setConditions(condRes.data || [])
+        setSpecialtyCredentials((credRes.data || []).map((r: any) => ({
+          id: r.id,
+          credentials_status: r.credentials_status,
+          granular_name: r.specialty_granular_mapping?.granular_name,
+          council_name: r.specialty_granular_mapping?.conacem_councils?.council_name ?? null,
+        })))
         setReviews((revRes.data || []).map((r: any) => ({
           id: r.id,
           user_name: 'Paciente verificado',
@@ -526,6 +541,22 @@ export default function DoctorProfileClient({ doctorId }: { doctorId: string }) 
   const profileUrl = typeof window !== 'undefined' ? window.location.href : ''
 
   const tieneRedes = !!(medico?.facebook_url || medico?.instagram_url || medico?.tiktok_url)
+
+  // La cédula profesional aparece en la misma constancia SEP que cualquier
+  // especialidad certificada — si Manuel aprobó al menos una, ya revisó
+  // también la cédula base del médico en ese mismo documento.
+  const cedulaVerificada = specialtyCredentials.some(c => c.credentials_status === 'verificado')
+
+  // REGLA (fuente de confusión repetida — documentado 2026-07-23): esta
+  // sección del perfil público SOLO muestra especialidades con
+  // credentials_status === 'verificado', sin importar cuál sea la
+  // especialidad PRINCIPAL declarada en doctors.specialty. Si la principal
+  // no está verificada pero una adicional sí, la que se ve aquí es la
+  // adicional — y si ninguna está verificada, esta sección queda vacía
+  // aunque el médico tenga una especialidad principal perfectamente válida.
+  // No es un bug: es la regla de "nunca mostrar como verificado algo que
+  // Salurama no revisó" (ver principio legal en la memoria del proyecto).
+  const especialidadesVerificadas = specialtyCredentials.filter(c => c.credentials_status === 'verificado')
 
   // ─── COMPARTIR PERFIL ───
   const handleShare = async () => {
@@ -700,7 +731,7 @@ export default function DoctorProfileClient({ doctorId }: { doctorId: string }) 
                 {(displayName || '?')[0].toUpperCase()}
               </div>
             )}
-            {(medico.professional_license || licenses.length > 0) && (
+            {((medico.professional_license && cedulaVerificada) || licenses.length > 0) && (
               <div style={{ position: 'absolute', bottom: 16, left: 16, display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(42, 157, 143, 0.95)', backdropFilter: 'blur(8px)', padding: '6px 12px', borderRadius: 50 }}>
                 <ShieldCheck size={14} color="#fff" />
                 <span style={{ fontSize: 10, fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Cédula verificable</span>
@@ -895,7 +926,7 @@ export default function DoctorProfileClient({ doctorId }: { doctorId: string }) 
                 <p style={{ fontSize: 11, color: '#6B7280', marginBottom: 12 }}>
                   Tú decides con toda la información.
                 </p>
-                {medico.professional_license && (
+                {medico.professional_license && cedulaVerificada && (
                   <div style={{ marginBottom: 12 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#F9FAFB', borderRadius: 8, padding: '8px 12px', marginBottom: 6, border: '1px solid #E5E7EB' }}>
                       <div>
@@ -911,13 +942,13 @@ export default function DoctorProfileClient({ doctorId }: { doctorId: string }) 
                     </button>
                   </div>
                 )}
-                {medico.specialty_council && (
-                  <div>
+                {especialidadesVerificadas.map(cred => (
+                  <div key={cred.id} style={{ marginBottom: 12 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#F9FAFB', borderRadius: 8, padding: '8px 12px', marginBottom: 6, border: '1px solid #E5E7EB' }}>
                       <div>
-                        <p style={{ fontSize: 12, fontWeight: 600, margin: '0 2px', color: '#1E3A5F' }}>Certificación de especialidad</p>
+                        <p style={{ fontSize: 12, fontWeight: 600, margin: '0 2px', color: '#1E3A5F' }}>Certificación de especialidad:  {cred.granular_name}</p>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <p style={{ fontSize: 11, color: '#8B5CF6', margin: 0 }}>{medico.specialty_council}</p>
+                          <p style={{ fontSize: 11, color: '#8B5CF6', margin: 0 }}>{cred.council_name}</p>
                           <CopyButton text={displayName} label="nombre del médico" />
                         </div>
                       </div>
@@ -926,7 +957,7 @@ export default function DoctorProfileClient({ doctorId }: { doctorId: string }) 
                       <Shield size={14} /> Consultar certificación vigente
                     </button>
                   </div>
-                )}
+                ))}
               </div>
             </section>
           </div>
@@ -1155,7 +1186,7 @@ export default function DoctorProfileClient({ doctorId }: { doctorId: string }) 
             </div>
             <p style={{ fontSize: 13, color: '#6B7280' }}>Sigue estos pasos para verificar en SEP</p>
           </div>
-          {medico.professional_license && (
+          {medico.professional_license && cedulaVerificada && (
             <div style={{ background: '#F9FAFB', borderRadius: 8, padding: 12, marginBottom: 16 }}>
               <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Número de cédula:</p>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', padding: '8px 12px', borderRadius: 6, border: '1px solid #E5E7EB' }}>

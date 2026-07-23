@@ -11,8 +11,8 @@ export const metadata: Metadata = {
     default: "Salurama — Verifica. Elige. Confía.",
     template: "%s | Salurama",
   },
-  description: "Directorio médico verificado en México. Encuentra especialistas con cédula validada en SEP/CONACEM, lee reseñas de pacientes reales y agenda tu cita con confianza.",
-  keywords: ["médicos verificados", "citas médicas", "verificar cédula profesional", "directorio médico México", "agendar cita", "hematólogo", "Salurama"],
+  description: "Directorio médico en México. Encuentra especialistas, consulta su cédula profesional en SEP/CONACEM, lee reseñas de pacientes reales y agenda tu cita con confianza.",
+  keywords: ["directorio médico", "citas médicas", "verificar cédula profesional", "directorio médico México", "agendar cita", "hematólogo", "Salurama"],
   metadataBase: new URL("https://salurama.com"),
   alternates: { canonical: "https://salurama.com" },
   robots: { index: true, follow: true },
@@ -22,9 +22,9 @@ export const metadata: Metadata = {
     locale: "es_MX",
     url: "https://salurama.com",
     siteName: "Salurama",
-    title: "Salurama — Médicos verificados en México",
-    description: "Directorio médico con cédulas verificadas. Encuentra especialistas, lee reseñas y agenda citas con confianza.",
-    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Salurama - Médicos verificados en México" }],
+    title: "Salurama — Directorio médico en México",
+    description: "Directorio médico en México. Encuentra especialistas, consulta su cédula, lee reseñas y agenda citas con confianza.",
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Salurama - Directorio médico en México" }],
   },
 };
 

@@ -22,3 +22,10 @@ npm-debug.log*
 .DS_Store
 Thumbs.db
 .vercel
+
+# PDFs de prueba con datos personales reales (constancias SEP) — nunca subir
+_pdfs-prueba/
+
+# Scripts sueltos de validación de Fable (.tmp-check-x.ts, .tmp-validar-y.ts,
+# etc.) — se acumulan por sesión, nunca deben subirse al repo
+.tmp-*
