@@ -157,6 +157,10 @@ function constanciaBotonEstilo(estado: EstadoConstancia) {
   return                            { label: 'Subir constancia SEP', bg: '#F5F3FF', color: '#8B5CF6', border: '#DDD6FE' }
 }
 
+function medicoInitials(name: string) {
+  return name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase() || '').join('')
+}
+
 function StatTile({ label, value, color, bg, border, icon }: { label: string; value: string | number; color: string; bg: string; border: string; icon?: React.ReactNode }) {
   return (
     <div style={{ background:bg, border:`1px solid ${border}`, borderRadius:12, padding:'12px 14px' }}>
@@ -883,8 +887,6 @@ export default function AdminMedicos() {
           .act-btn { display:inline-flex; align-items:center; gap:5px; padding:6px 11px; border-radius:50px; font-size:12px; font-weight:700; cursor:pointer; border:1px solid; font-family:'DM Sans',sans-serif; transition:opacity 0.15s; white-space:nowrap; }
           .act-btn:disabled { opacity:0.45; cursor:not-allowed; }
           .fpill { padding:7px 15px; border:1.5px solid; border-radius:50px; font-size:13px; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.15s; }
-          .trow:hover td { background:#F9FAFB; }
-          @media (max-width:900px) { .twrap { overflow-x:auto; } }
         `}</style>
 
         <div style={{ maxWidth:1240, margin:'0 auto', padding:'24px 16px 60px' }}>
@@ -996,23 +998,11 @@ export default function AdminMedicos() {
             )}
           </div>
 
-          {/* Stats */}
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(130px,1fr))', gap:12, marginBottom:24 }}>
-            {([
-              { label:'Total',      value:counts.total,     color:'#1E3A5F', bg:'#E8ECF3',  border:'#C5D0E0' },
-              { label:'Pendientes', value:counts.pendiente, color:'#D97706', bg:'#FFFBEB',  border:'#FEF3C7' },
-              { label:'Cuenta activa', value:counts.revisado,  color:'#059669', bg:'#ECFDF5',  border:'#D1FAE5' },
-              { label:'Rechazados', value:counts.rechazado, color:'#DC2626', bg:'#FEF2F2',  border:'#FEE2E2' },
-            ] as const).map(s => (
-              <div key={s.label} style={{ background:s.bg, border:`1px solid ${s.border}`, borderRadius:14, padding:'16px 18px', textAlign:'center' }}>
-                <p style={{ fontFamily:"'Fraunces',serif", fontSize:32, fontWeight:900, color:s.color, lineHeight:1 }}>{s.value}</p>
-                <p style={{ fontSize:12, color:s.color, fontWeight:600, marginTop:4, opacity:0.85 }}>{s.label}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Filtros */}
+          {/* Filtros — Estado de cuenta */}
           <div style={{ display:'flex', gap:10, marginBottom:20, flexWrap:'wrap', alignItems:'center' }}>
+            <span style={{ fontSize:12, fontWeight:700, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.06em' }}>
+              Estado de cuenta:
+            </span>
             {(['todos','pendiente','revisado','rechazado'] as const).map(f => {
               const active = reviewFilter === f
               const map = {
@@ -1029,13 +1019,20 @@ export default function AdminMedicos() {
               )
             })}
 
-            <div style={{ position:'relative', marginLeft:'auto' }}>
-              <select value={espFilter} onChange={e => setEspFilter(e.target.value)}
-                style={{ appearance:'none', background:'#fff', border:'1.5px solid #C5D0E0', borderRadius:50, padding:'8px 36px 8px 16px', fontSize:13, fontWeight:600, color:'#1E3A5F', cursor:'pointer', fontFamily:"'DM Sans',sans-serif" }}>
-                <option value="todas">Todas las especialidades</option>
-                {especialidades.map(e => <option key={e} value={e}>{e}</option>)}
-              </select>
-              <ChevronDown size={14} color="#1E3A5F" style={{ position:'absolute', right:12, top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }} />
+            <div style={{ display:'flex', gap:10, alignItems:'center', marginLeft:'auto', flexWrap:'wrap' }}>
+              <button className="fpill" onClick={() => setFechaSortAsc(v => !v)}
+                style={{ display:'inline-flex', alignItems:'center', gap:5, background:'#F9FAFB', color:'#1E3A5F', borderColor:'#C5D0E0' }}>
+                {fechaSortAsc ? <ArrowUp size={13} /> : <ArrowDown size={13} />}
+                {fechaSortAsc ? 'Más antiguos primero' : 'Más recientes primero'}
+              </button>
+              <div style={{ position:'relative' }}>
+                <select value={espFilter} onChange={e => setEspFilter(e.target.value)}
+                  style={{ appearance:'none', background:'#fff', border:'1.5px solid #C5D0E0', borderRadius:50, padding:'8px 36px 8px 16px', fontSize:13, fontWeight:600, color:'#1E3A5F', cursor:'pointer', fontFamily:"'DM Sans',sans-serif" }}>
+                  <option value="todas">Todas las especialidades</option>
+                  {especialidades.map(e => <option key={e} value={e}>{e}</option>)}
+                </select>
+                <ChevronDown size={14} color="#1E3A5F" style={{ position:'absolute', right:12, top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }} />
+              </div>
             </div>
           </div>
 
@@ -1062,7 +1059,7 @@ export default function AdminMedicos() {
             })}
           </div>
 
-          {/* Tabla */}
+          {/* Médicos — tarjetas (misma estructura en celular y escritorio; la rejilla se reacomoda sola) */}
           {loading ? (
             <div style={{ textAlign:'center', padding:64 }}>
               <div style={{ width:36, height:36, border:'3px solid #E8ECF3', borderTopColor:'#1E3A5F', borderRadius:'50%', margin:'0 auto 12px' }} className="spin" />
@@ -1073,148 +1070,133 @@ export default function AdminMedicos() {
               <p style={{ fontSize:15, color:'#6B7280' }}>Sin médicos con ese filtro.</p>
             </div>
           ) : (
-            <div className="twrap" style={{ background:'#fff', borderRadius:16, border:'1px solid #E8ECF3', overflow:'hidden' }}>
-              <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
-                <thead>
-                  <tr style={{ background:'#F9FAFB', borderBottom:'2px solid #E8ECF3' }}>
-                    {['Médico / Email','Especialidad','Cédula','Registro','Estado','Credenciales','Acciones'].map(h => (
-                      <th key={h} style={{ padding:'11px 16px', textAlign:'left', fontSize:11, fontWeight:700, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.06em', whiteSpace:'nowrap' }}>
-                        {h === 'Registro' ? (
-                          <button
-                            onClick={() => setFechaSortAsc(v => !v)}
-                            style={{ display:'inline-flex', alignItems:'center', gap:4, background:'none', border:'none', padding:0, cursor:'pointer', font:'inherit', color:'inherit', textTransform:'inherit', letterSpacing:'inherit' }}
-                            title="Ordenar por fecha de registro"
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(320px,1fr))', gap:16 }}>
+              {medicosVisibles.map(m => {
+                const badge          = statusBadge(m.review_status)
+                const credRows       = credentialsByDoctor[m.id]
+                const credBadge      = credencialesBadge(resumenCredenciales(credRows), credRows)
+                const constanciaEstado = estadoConstancia((historialCountByDoctor[m.id] || 0) > 0, credRows)
+                const constanciaBoton  = constanciaBotonEstilo(constanciaEstado)
+                const procReview     = procesando === m.id + '_review'
+                const procActivo     = procesando === m.id + '_activo'
+
+                const acciones: { key: string; node: React.ReactNode }[] = []
+                if (!(m.review_status === 'revisado' && m.verification_status === 'verificado')) {
+                  acciones.push({ key:'verificar', node: (
+                    <button className="act-btn" disabled={procReview}
+                      onClick={() => verificarYAprobar(m)}
+                      style={{ width:'100%', justifyContent:'center', background:'#ECFDF5', color:'#059669', borderColor:'#D1FAE5' }}>
+                      {procReview
+                        ? <span className="spin" style={{ width:12, height:12, border:'2px solid #05966940', borderTopColor:'#059669', borderRadius:'50%' }} />
+                        : <CheckCircle size={13} />}
+                      Verificar y aprobar
+                    </button>
+                  )})
+                }
+                if (m.review_status !== 'rechazado') {
+                  acciones.push({ key:'rechazar', node: (
+                    <button className="act-btn" disabled={procReview}
+                      onClick={() => setReviewStatus(m, 'rechazado')}
+                      style={{ width:'100%', justifyContent:'center', background:'#FEF2F2', color:'#DC2626', borderColor:'#FEE2E2' }}>
+                      {procReview
+                        ? <span className="spin" style={{ width:12, height:12, border:'2px solid #DC262640', borderTopColor:'#DC2626', borderRadius:'50%' }} />
+                        : <XCircle size={13} />}
+                      Rechazar
+                    </button>
+                  )})
+                }
+                acciones.push({ key:'activo', node: (
+                  <button className="act-btn" disabled={procActivo}
+                    onClick={() => toggleActivo(m)}
+                    style={{ width:'100%', justifyContent:'center', background:'#E8ECF3', color:'#1E3A5F', borderColor:'#C5D0E0' }}>
+                    {procActivo
+                      ? <span className="spin" style={{ width:12, height:12, border:'2px solid #1E3A5F40', borderTopColor:'#1E3A5F', borderRadius:'50%' }} />
+                      : m.is_active ? <ToggleRight size={13}/> : <ToggleLeft size={13}/>}
+                    {m.is_active ? 'Desactivar' : 'Activar'}
+                  </button>
+                )})
+                acciones.push({ key:'perfil', node: (
+                  <Link href={`/doctor/${m.id}`} target="_blank" rel="noopener noreferrer"
+                    className="act-btn" style={{ width:'100%', justifyContent:'center', background:'#F9FAFB', color:'#6B7280', borderColor:'#E5E7EB', textDecoration:'none' }}>
+                    <ExternalLink size={13} />
+                    Ver perfil
+                  </Link>
+                )})
+
+                return (
+                  <div key={m.id} style={{ background:'#fff', border:'1px solid #E8ECF3', borderRadius:16, padding:16, display:'flex', flexDirection:'column', gap:12 }}>
+
+                    {/* Médico */}
+                    <div style={{ display:'flex', gap:12, alignItems:'flex-start' }}>
+                      <div style={{ width:44, height:44, borderRadius:'50%', background:'#E8ECF3', color:'#1E3A5F', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:900, fontSize:15, fontFamily:"'Fraunces',serif", flexShrink:0 }}>
+                        {medicoInitials(m.full_name)}
+                      </div>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <p style={{ fontWeight:700, color:'#0D1829', fontSize:15, marginBottom:2, overflowWrap:'break-word' }}>{m.full_name}</p>
+                        <p style={{ fontSize:12, color:'#2A9D8F', fontWeight:600, marginBottom:2 }}>{m.specialty}</p>
+                        <p style={{ fontSize:12, color:'#6B7280', overflowWrap:'break-word' }}>{m.email}</p>
+                      </div>
+                    </div>
+
+                    {/* Estado + Credenciales — Parte A/C, deciden visibilidad pública */}
+                    <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                      <span style={{ background:badge.bg, color:badge.color, border:`1px solid ${badge.border}`, borderRadius:20, padding:'3px 10px', fontSize:11, fontWeight:700, display:'inline-block' }}>
+                        {badge.label}
+                      </span>
+                      <span style={{
+                        background: m.is_active ? '#ECFDF5' : '#F3F4F6',
+                        color:      m.is_active ? '#059669' : '#9CA3AF',
+                        border:    `1px solid ${m.is_active ? '#D1FAE5' : '#E5E7EB'}`,
+                        borderRadius:20, padding:'3px 10px', fontSize:11, fontWeight:700, display:'inline-block',
+                      }}>
+                        {m.is_active ? 'Activo' : 'Inactivo'}
+                      </span>
+                      <span style={{ background:credBadge.bg, color:credBadge.color, border:`1px solid ${credBadge.border}`, borderRadius:20, padding:'3px 10px', fontSize:11, fontWeight:700, display:'inline-block' }}>
+                        {credBadge.label}
+                      </span>
+                    </div>
+
+                    {/* Cédula + fecha de registro */}
+                    <div style={{ display:'flex', flexWrap:'wrap', gap:'6px 16px', fontSize:12, color:'#6B7280', paddingTop:10, borderTop:'1px solid #F3F4F6' }}>
+                      <span style={{ display:'flex', alignItems:'center', gap:5 }}>
+                        Cédula:
+                        <code style={{ fontSize:12, background:'#F9FAFB', border:'1px solid #E5E7EB', borderRadius:6, padding:'2px 7px', color:'#111827' }}>
+                          {m.professional_license || '—'}
+                        </code>
+                        {m.professional_license && (
+                          <a
+                            href="https://cedulaprofesional.sep.gob.mx/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="Abrir portal de la SEP para verificar esta cédula"
+                            style={{ display:'inline-flex', color:'#1E3A5F' }}
                           >
-                            {h} {fechaSortAsc ? <ArrowUp size={11} /> : <ArrowDown size={11} />}
-                          </button>
-                        ) : h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {medicosVisibles.map((m, i) => {
-                    const badge          = statusBadge(m.review_status)
-                    const credRows       = credentialsByDoctor[m.id]
-                    const credBadge      = credencialesBadge(resumenCredenciales(credRows), credRows)
-                    const constanciaEstado = estadoConstancia((historialCountByDoctor[m.id] || 0) > 0, credRows)
-                    const constanciaBoton  = constanciaBotonEstilo(constanciaEstado)
-                    const procReview     = procesando === m.id + '_review'
-                    const procActivo     = procesando === m.id + '_activo'
-                    const isLast     = i === medicosVisibles.length - 1
-                    return (
-                      <tr key={m.id} className="trow"
-                        style={{ borderBottom: isLast ? 'none' : '1px solid #F3F4F6' }}>
+                            <ExternalLink size={12} />
+                          </a>
+                        )}
+                      </span>
+                      <span>Registrado: {formatFecha(m.created_at)}</span>
+                    </div>
 
-                        {/* Médico */}
-                        <td style={{ padding:'13px 16px' }}>
-                          <p style={{ fontWeight:700, color:'#0D1829', marginBottom:2 }}>{m.full_name}</p>
-                          <p style={{ fontSize:12, color:'#6B7280' }}>{m.email}</p>
-                        </td>
+                    {/* Constancia — ancho completo, siempre visible */}
+                    <button className="act-btn"
+                      onClick={() => abrirConstanciaModal(m)}
+                      style={{ width:'100%', justifyContent:'center', background:constanciaBoton.bg, color:constanciaBoton.color, borderColor:constanciaBoton.border, padding:'9px' }}>
+                      <FileText size={13} />
+                      {constanciaBoton.label}
+                    </button>
 
-                        {/* Especialidad */}
-                        <td style={{ padding:'13px 16px', color:'#2A9D8F', fontWeight:600, whiteSpace:'nowrap' }}>
-                          {m.specialty}
-                        </td>
-
-                        {/* Cédula */}
-                        <td style={{ padding:'13px 16px' }}>
-                          <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-                            <code style={{ fontSize:13, background:'#F9FAFB', border:'1px solid #E5E7EB', borderRadius:6, padding:'3px 8px', color:'#111827' }}>
-                              {m.professional_license || '—'}
-                            </code>
-                            {m.professional_license && (
-                              <a
-                                href="https://cedulaprofesional.sep.gob.mx/"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                title="Abrir portal de la SEP para verificar esta cédula"
-                                style={{ display:'inline-flex', color:'#1E3A5F' }}
-                              >
-                                <ExternalLink size={13} />
-                              </a>
-                            )}
-                          </div>
-                        </td>
-
-                        {/* Fecha */}
-                        <td style={{ padding:'13px 16px', color:'#6B7280', whiteSpace:'nowrap' }}>
-                          {formatFecha(m.created_at)}
-                        </td>
-
-                        {/* Estado — solo cuenta: review_status + is_active juntos (Parte C) */}
-                        <td style={{ padding:'13px 16px' }}>
-                          <div style={{ display:'flex', flexDirection:'column', gap:4, alignItems:'flex-start' }}>
-                            <span style={{ background:badge.bg, color:badge.color, border:`1px solid ${badge.border}`, borderRadius:20, padding:'3px 10px', fontSize:11, fontWeight:700, display:'inline-block' }}>
-                              {badge.label}
-                            </span>
-                            <span style={{
-                              background: m.is_active ? '#ECFDF5' : '#F3F4F6',
-                              color:      m.is_active ? '#059669' : '#9CA3AF',
-                              border:    `1px solid ${m.is_active ? '#D1FAE5' : '#E5E7EB'}`,
-                              borderRadius:20, padding:'3px 10px', fontSize:11, fontWeight:700, display:'inline-block',
-                            }}>
-                              {m.is_active ? 'Activo' : 'Inactivo'}
-                            </span>
-                          </div>
-                        </td>
-
-                        {/* Credenciales — credentials_status (Parte A/C), decide la visibilidad pública */}
-                        <td style={{ padding:'13px 16px' }}>
-                          <span style={{ background:credBadge.bg, color:credBadge.color, border:`1px solid ${credBadge.border}`, borderRadius:20, padding:'3px 10px', fontSize:11, fontWeight:700, display:'inline-block' }}>
-                            {credBadge.label}
-                          </span>
-                        </td>
-
-                        {/* Acciones */}
-                        <td style={{ padding:'13px 16px' }}>
-                          <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-                            {!(m.review_status === 'revisado' && m.verification_status === 'verificado') && (
-                              <button className="act-btn" disabled={procReview}
-                                onClick={() => verificarYAprobar(m)}
-                                style={{ background:'#ECFDF5', color:'#059669', borderColor:'#D1FAE5' }}>
-                                {procReview
-                                  ? <span className="spin" style={{ width:12, height:12, border:'2px solid #05966940', borderTopColor:'#059669', borderRadius:'50%' }} />
-                                  : <CheckCircle size={13} />}
-                                Verificar y aprobar
-                              </button>
-                            )}
-                            {m.review_status !== 'rechazado' && (
-                              <button className="act-btn" disabled={procReview}
-                                onClick={() => setReviewStatus(m, 'rechazado')}
-                                style={{ background:'#FEF2F2', color:'#DC2626', borderColor:'#FEE2E2' }}>
-                                {procReview
-                                  ? <span className="spin" style={{ width:12, height:12, border:'2px solid #DC262640', borderTopColor:'#DC2626', borderRadius:'50%' }} />
-                                  : <XCircle size={13} />}
-                                Rechazar
-                              </button>
-                            )}
-                            <button className="act-btn"
-                              onClick={() => abrirConstanciaModal(m)}
-                              style={{ background:constanciaBoton.bg, color:constanciaBoton.color, borderColor:constanciaBoton.border }}>
-                              <FileText size={13} />
-                              {constanciaBoton.label}
-                            </button>
-                            <button className="act-btn" disabled={procActivo}
-                              onClick={() => toggleActivo(m)}
-                              style={{ background:'#E8ECF3', color:'#1E3A5F', borderColor:'#C5D0E0' }}>
-                              {procActivo
-                                ? <span className="spin" style={{ width:12, height:12, border:'2px solid #1E3A5F40', borderTopColor:'#1E3A5F', borderRadius:'50%' }} />
-                                : m.is_active ? <ToggleRight size={13}/> : <ToggleLeft size={13}/>}
-                              {m.is_active ? 'Desactivar' : 'Activar'}
-                            </button>
-                            <Link href={`/doctor/${m.id}`} target="_blank" rel="noopener noreferrer"
-                              className="act-btn" style={{ background:'#F9FAFB', color:'#6B7280', borderColor:'#E5E7EB', textDecoration:'none' }}>
-                              <ExternalLink size={13} />
-                              Ver perfil
-                            </Link>
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+                    {/* Acciones secundarias — 2 por fila; si sobra una sola, ocupa el ancho completo */}
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+                      {acciones.map((a, idx) => (
+                        <div key={a.key} style={ idx === acciones.length - 1 && acciones.length % 2 === 1 ? { gridColumn:'1 / -1' } : undefined }>
+                          {a.node}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           )}
         </div>
