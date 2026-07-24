@@ -186,6 +186,8 @@ function AppointmentModal({
   const [pacienteId, setPacienteId] = useState<string | null>(null)
   const [actualizarDatos, setActualizarDatos] = useState(false)
 
+  const campoIdentidadBloqueado = resultadoBusqueda === 'encontrado' && !actualizarDatos
+
   const seleccionarModoPaciente = (nuevoModo: 'primera' | 'existente') => {
     setModoPaciente(actual => (actual === nuevoModo ? null : nuevoModo))
     setResultadoBusqueda('idle')
@@ -493,15 +495,15 @@ function AppointmentModal({
             </div>
             <div>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#1E3A5F' }}>Nombre completo *</label>
-              <input type="text" value={formData.patient_name} onChange={e => setFormData({ ...formData, patient_name: e.target.value })} style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: 12, fontSize: 14 }} placeholder="Tu nombre completo" />
+              <input type="text" value={formData.patient_name} onChange={e => setFormData({ ...formData, patient_name: e.target.value })} readOnly={campoIdentidadBloqueado} style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: 12, fontSize: 14, background: campoIdentidadBloqueado ? '#F3F4F6' : '#fff', color: campoIdentidadBloqueado ? '#6B7280' : 'inherit', cursor: campoIdentidadBloqueado ? 'not-allowed' : 'text' }} placeholder="Tu nombre completo" />
             </div>
             <div>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#1E3A5F' }}>Email *</label>
-              <input type="email" value={formData.patient_email} onChange={e => setFormData({ ...formData, patient_email: e.target.value })} style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: 12, fontSize: 14 }} placeholder="tu@email.com" />
+              <input type="email" value={formData.patient_email} onChange={e => setFormData({ ...formData, patient_email: e.target.value })} readOnly={campoIdentidadBloqueado} style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: 12, fontSize: 14, background: campoIdentidadBloqueado ? '#F3F4F6' : '#fff', color: campoIdentidadBloqueado ? '#6B7280' : 'inherit', cursor: campoIdentidadBloqueado ? 'not-allowed' : 'text' }} placeholder="tu@email.com" />
             </div>
             <div>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#1E3A5F' }}>Teléfono *</label>
-              <input type="tel" value={formData.patient_phone} onChange={e => setFormData({ ...formData, patient_phone: e.target.value })} style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: 12, fontSize: 14 }} placeholder="55 1234 5678" />
+              <input type="tel" value={formData.patient_phone} onChange={e => setFormData({ ...formData, patient_phone: e.target.value })} readOnly={campoIdentidadBloqueado} style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: 12, fontSize: 14, background: campoIdentidadBloqueado ? '#F3F4F6' : '#fff', color: campoIdentidadBloqueado ? '#6B7280' : 'inherit', cursor: campoIdentidadBloqueado ? 'not-allowed' : 'text' }} placeholder="55 1234 5678" />
             </div>
             <div>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#1E3A5F' }}>Motivo de consulta (opcional)</label>
