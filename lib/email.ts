@@ -109,6 +109,69 @@ export async function sendChatLinkEmail(
   }
 }
 
+export async function sendChatLinkReenvioEmail(
+  to: string,
+  chats: { medicoNombre: string; chatUrl: string }[]
+) {
+  const resend = getResend()
+  const esMultiple = chats.length > 1
+
+  const botones = chats.map(({ medicoNombre, chatUrl }) => `
+    <div style="margin:0 0 20px;padding:16px;background:#F9FAFB;border-radius:12px;">
+      <p style="margin:0 0 12px;color:#1F2937;font-weight:600;">${medicoNombre}</p>
+      <table cellpadding="0" cellspacing="0"><tr><td align="center">
+        <a href="${chatUrl}" style="display:inline-block;background:#2A9D8F;color:white;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;">Abrir chat</a>
+      </td></tr></table>
+    </div>
+  `).join('')
+
+  try {
+    const { data, error } = await resend.emails.send({
+      from: 'Salurama <noreply@salurama.com>',
+      to: [to],
+      subject: esMultiple ? 'Aquí están tus accesos a tus chats' : 'Aquí está tu acceso al chat',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <body style="margin:0;padding:0;background:#F9FAFB;font-family:sans-serif;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#F9FAFB;padding:40px 20px;">
+            <tr><td align="center">
+              <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:white;border-radius:16px;overflow:hidden;">
+                <tr><td style="background:#1E3A5F;padding:32px;text-align:center;">
+                  <h1 style="margin:0;color:white;font-size:28px;font-weight:900;">Salurama</h1>
+                </td></tr>
+                <tr><td style="padding:40px 32px;">
+                  <h2 style="margin:0 0 16px;color:#1F2937;font-size:24px;">${esMultiple ? 'Tus accesos al chat' : 'Tu acceso al chat'}</h2>
+                  <p style="margin:0 0 24px;color:#6B7280;line-height:1.6;">
+                    ${esMultiple
+                      ? 'Encontramos varias conversaciones activas asociadas a este correo. Aquí tienes el acceso a cada una:'
+                      : `Recibimos tu solicitud para recuperar el acceso a tu chat con <strong>${chats[0].medicoNombre}</strong>.`}
+                  </p>
+                  ${esMultiple ? botones : `
+                    <table cellpadding="0" cellspacing="0" style="margin:24px 0;"><tr><td align="center">
+                      <a href="${chats[0].chatUrl}" style="display:inline-block;background:#2A9D8F;color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;">Abrir mi chat</a>
+                    </td></tr></table>
+                  `}
+                  <p style="margin:24px 0 0;color:#9CA3AF;font-size:14px;">Por seguridad, si tenías guardado ${esMultiple ? 'algún enlace anterior, ya no funcionará' : 'un enlace anterior, ya no funcionará'} — usa ${esMultiple ? 'estos enlaces nuevos' : 'este enlace nuevo'} a partir de ahora.</p>
+                </td></tr>
+                <tr><td style="background:#F3F4F6;padding:24px;text-align:center;">
+                  <p style="margin:0;color:#9CA3AF;font-size:12px;">Salurama - Verifica. Elige. Confía.</p>
+                </td></tr>
+              </table>
+            </td></tr>
+          </table>
+        </body>
+        </html>
+      `,
+    })
+    if (error) throw error
+    return { success: true, id: data?.id }
+  } catch (error) {
+    console.error('Error enviando email de reenvío de chat:', error)
+    throw new Error('No se pudo enviar el email de reenvío de chat')
+  }
+}
+
 export async function sendAccountConfirmationEmail(
   to: string,
   confirmUrl: string,

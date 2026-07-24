@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import type { KeyboardEvent } from 'react'
+import Link from 'next/link'
 import { Send, FileText } from 'lucide-react'
 
 type Mensaje = {
@@ -206,9 +207,17 @@ export default function ChatPacienteClient({ token }: { token: string }) {
           </p>
           <p className="font-body text-sm text-neutral-500 leading-relaxed">
             {tipoError === 'no_encontrado'
-              ? 'Revisa que copiaste el enlace completo desde tu correo, o pide a tu médico que te lo reenvíe.'
+              ? 'Puede haber expirado o haberse copiado incompleto. Recupera el acceso a tu chat con tu correo.'
               : 'Intenta de nuevo en unos momentos.'}
           </p>
+          {tipoError === 'no_encontrado' && (
+            <Link
+              href="/chat/recuperar"
+              className="inline-block mt-3 font-body text-sm font-semibold text-primary-500 hover:text-primary-600 transition-colors"
+            >
+              Recuperar mi acceso
+            </Link>
+          )}
         </div>
       </div>
     )
