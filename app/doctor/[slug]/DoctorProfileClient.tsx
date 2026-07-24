@@ -431,7 +431,7 @@ function AppointmentModal({
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <label style={identLabelStyle}>
                 <input type="checkbox" checked={modoPaciente === 'primera'} onChange={() => seleccionarModoPaciente('primera')} />
-                Es mi primera vez con este médico
+                Es mi primera cita con este médico
               </label>
               {modoPaciente === 'primera' && (
                 <p style={identAvisoStyle}>
