@@ -119,6 +119,9 @@ const parseLangs = (raw: string[] | string | null): string[] => {
 const DIAS_SEMANA = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']
 const DIAS_LABELS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 
+const identLabelStyle = { display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#374151', cursor: 'pointer' } as const
+const identAvisoStyle = { fontSize: 12, color: '#6B7280', background: '#F9FAFB', padding: '8px 12px', borderRadius: 8, margin: 0, lineHeight: 1.5 } as const
+
 function CopyButton({ text, label }: { text: string; label: string }) {
   const [copied, setCopied] = useState(false)
   const handleCopy = async () => {
@@ -175,6 +178,47 @@ function AppointmentModal({
     reason: '',
     honeypot: ''
   })
+
+  const [modoPaciente, setModoPaciente] = useState<'primera' | 'existente' | null>(null)
+  const [contactoBusqueda, setContactoBusqueda] = useState('')
+  const [buscandoPaciente, setBuscandoPaciente] = useState(false)
+  const [resultadoBusqueda, setResultadoBusqueda] = useState<'idle' | 'encontrado' | 'no_encontrado'>('idle')
+  const [pacienteId, setPacienteId] = useState<string | null>(null)
+  const [actualizarDatos, setActualizarDatos] = useState(false)
+
+  const seleccionarModoPaciente = (nuevoModo: 'primera' | 'existente') => {
+    setModoPaciente(actual => (actual === nuevoModo ? null : nuevoModo))
+    setResultadoBusqueda('idle')
+    setPacienteId(null)
+    setActualizarDatos(false)
+    setContactoBusqueda('')
+  }
+
+  const handleBuscarPaciente = async () => {
+    if (!contactoBusqueda.trim()) return
+    setBuscandoPaciente(true)
+    try {
+      const res = await fetch('/api/citas/buscar-paciente', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ medicoId: medico.id, contacto: contactoBusqueda }),
+      })
+      const data = await res.json()
+      if (data.encontrado) {
+        setPacienteId(data.pacienteId)
+        setFormData(f => ({ ...f, patient_name: data.nombre || '', patient_email: data.email || '', patient_phone: data.telefono || '' }))
+        setResultadoBusqueda('encontrado')
+      } else {
+        setPacienteId(null)
+        setResultadoBusqueda('no_encontrado')
+      }
+    } catch {
+      setPacienteId(null)
+      setResultadoBusqueda('no_encontrado')
+    } finally {
+      setBuscandoPaciente(false)
+    }
+  }
 
   const horarioParsed = (() => {
     if (!medico?.horario) return null
@@ -306,6 +350,8 @@ function AppointmentModal({
           turnstileToken,
           honeypot: formData.honeypot,
           formLoadTime: Date.now() - formLoadTime,
+          pacienteId: pacienteId || undefined,
+          actualizarDatos: pacienteId ? actualizarDatos : undefined,
         }),
       })
       const result = await response.json()
@@ -382,6 +428,71 @@ function AppointmentModal({
         )}
         {step === 2 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <label style={identLabelStyle}>
+                <input type="checkbox" checked={modoPaciente === 'primera'} onChange={() => seleccionarModoPaciente('primera')} />
+                Es mi primera vez con este médico
+              </label>
+              {modoPaciente === 'primera' && (
+                <p style={identAvisoStyle}>
+                  Usamos tu correo y teléfono para mantener la continuidad de tu conversación con el médico entre citas.
+                  Si alguno ya está registrado, tu cita se vinculará automáticamente a ese historial.
+                </p>
+              )}
+
+              <label style={identLabelStyle}>
+                <input type="checkbox" checked={modoPaciente === 'existente'} onChange={() => seleccionarModoPaciente('existente')} />
+                Ya he tenido cita con este médico
+              </label>
+
+              {modoPaciente === 'existente' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingLeft: 4 }}>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <input
+                      value={contactoBusqueda}
+                      onChange={e => setContactoBusqueda(e.target.value)}
+                      placeholder="Correo o teléfono con el que agendaste antes"
+                      style={{ flex: 1, minWidth: 200, padding: '10px 14px', border: '1.5px solid #E5E7EB', borderRadius: 10, fontSize: 13 }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleBuscarPaciente}
+                      disabled={buscandoPaciente || !contactoBusqueda.trim()}
+                      style={{ padding: '10px 14px', borderRadius: 10, border: 'none', background: '#8B5CF6', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: buscandoPaciente || !contactoBusqueda.trim() ? 0.6 : 1, whiteSpace: 'nowrap' }}
+                    >
+                      {buscandoPaciente ? 'Buscando...' : 'Buscar mis datos'}
+                    </button>
+                  </div>
+
+                  {resultadoBusqueda === 'encontrado' && (
+                    <p style={{ ...identAvisoStyle, color: '#059669', background: '#ECFDF5' }}>Encontramos tus datos. Revísalos abajo.</p>
+                  )}
+                  {resultadoBusqueda === 'no_encontrado' && (
+                    <p style={identAvisoStyle}>No encontramos coincidencia. Verifica el dato o continúa como si fuera tu primera vez.</p>
+                  )}
+
+                  {resultadoBusqueda === 'encontrado' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <label style={identLabelStyle}>
+                        <input type="checkbox" checked={actualizarDatos} onChange={e => setActualizarDatos(e.target.checked)} />
+                        Actualizar mis datos
+                      </label>
+                      {actualizarDatos ? (
+                        <p style={identAvisoStyle}>
+                          Tu nuevo correo o teléfono reemplazará el que teníamos guardado. Si cambian, es posible que
+                          la próxima vez el sistema no reconozca automáticamente tu conversación anterior.
+                        </p>
+                      ) : (
+                        <p style={identAvisoStyle}>
+                          Sin esta opción, cualquier cambio que hagas aquí no se guardará: tu cita quedará ligada a tus
+                          datos originales.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
             <div>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#1E3A5F' }}>Nombre completo *</label>
               <input type="text" value={formData.patient_name} onChange={e => setFormData({ ...formData, patient_name: e.target.value })} style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: 12, fontSize: 14 }} placeholder="Tu nombre completo" />

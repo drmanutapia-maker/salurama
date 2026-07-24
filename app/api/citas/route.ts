@@ -16,6 +16,8 @@ const citaSchema = z.object({
   hora: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Hora inválida'),
   motivo: z.string().trim().max(500).optional(),
   turnstileToken: z.string().min(1),
+  pacienteId: z.string().uuid().optional(),
+  actualizarDatos: z.boolean().optional(),
 })
 
 function getClientIp(request: NextRequest): string {
@@ -74,7 +76,55 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { medicoId, pacienteNombre, pacienteEmail, pacienteTelefono, fecha, hora, motivo, turnstileToken } = validation.data
+    const { medicoId, pacienteNombre, pacienteEmail, pacienteTelefono, fecha, hora, motivo, turnstileToken, pacienteId, actualizarDatos } = validation.data
+
+    let nombreFinal = pacienteNombre
+    let emailFinal = pacienteEmail
+    let telefonoFinal = pacienteTelefono
+
+    if (pacienteId) {
+      const { data: citaPrevia } = await supabase
+        .from('citas')
+        .select('id')
+        .eq('paciente_id', pacienteId)
+        .eq('medico_id', medicoId)
+        .limit(1)
+        .maybeSingle()
+
+      if (!citaPrevia) {
+        console.warn(`[${requestId}] pacienteId sin cita previa con este médico: ${pacienteId}`)
+        return NextResponse.json({ error: 'Datos inválidos' }, { status: 400 })
+      }
+
+      if (actualizarDatos) {
+        const { error: actualizarError } = await supabase
+          .rpc('actualizar_paciente_contacto', {
+            p_paciente_id: pacienteId,
+            p_email: pacienteEmail,
+            p_telefono: pacienteTelefono,
+          })
+        if (actualizarError) {
+          console.error(`[${requestId}] Error actualizando contacto de paciente:`, actualizarError)
+          return NextResponse.json({ error: 'Error al procesar la solicitud' }, { status: 500 })
+        }
+      } else {
+        const [{ data: pacienteOriginal }, { data: citaReciente }] = await Promise.all([
+          supabase.from('pacientes').select('email, telefono').eq('id', pacienteId).maybeSingle(),
+          supabase
+            .from('citas')
+            .select('paciente_nombre')
+            .eq('paciente_id', pacienteId)
+            .eq('medico_id', medicoId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+        ])
+
+        nombreFinal = citaReciente?.paciente_nombre ?? pacienteNombre
+        emailFinal = pacienteOriginal?.email ?? pacienteEmail
+        telefonoFinal = pacienteOriginal?.telefono ?? pacienteTelefono
+      }
+    }
 
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 5000)
@@ -156,7 +206,7 @@ export async function POST(request: NextRequest) {
       supabase
        .from('citas')
        .select('id', { count: 'exact', head: true })
-       .eq('paciente_email', pacienteEmail)
+       .eq('paciente_email', emailFinal)
        .eq('medico_id', medicoId)
        .eq('estado', 'pending_verification')
        .gte('created_at', oneHourAgo),
@@ -188,9 +238,9 @@ export async function POST(request: NextRequest) {
       .from('citas')
       .insert({
         medico_id: medicoId,
-        paciente_nombre: pacienteNombre,
-        paciente_email: pacienteEmail,
-        paciente_telefono: pacienteTelefono || null,
+        paciente_nombre: nombreFinal,
+        paciente_email: emailFinal,
+        paciente_telefono: telefonoFinal || null,
         fecha,
         hora: hora + ':00',
         motivo: motivo || null,
@@ -206,7 +256,7 @@ export async function POST(request: NextRequest) {
 
     try {
       await sendVerificationEmail(
-        pacienteEmail,
+        emailFinal,
         verificationToken,
         medico.full_name,
         `${new Date(fecha + 'T00:00:00-06:00').toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' })} a las ${hora}`

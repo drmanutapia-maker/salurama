@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
 
     const { data, error } = await supabase
       .rpc('buscar_paciente_medico', { p_medico_id: medicoId, p_contacto: contacto })
-      .maybeSingle()
+      .maybeSingle() as { data: { paciente_id: string; nombre: string | null; email: string; telefono: string | null } | null; error: { message: string } | null }
 
     if (error) {
       console.error(`[${requestId}] Error buscando paciente:`, error)
