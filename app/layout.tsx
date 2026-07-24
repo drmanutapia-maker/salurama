@@ -5,6 +5,7 @@ import Footer from '@/components/Footer'
 import CookieBanner from '@/components/CookieBanner'
 import SessionManager from '@/components/SessionManager'
 import BottomNav from '@/components/BottomNav'
+import MainContent from '@/components/MainContent'
 
 export const metadata: Metadata = {
   title: {
@@ -39,9 +40,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="es">
       <body className="antialiased bg-white text-[#111827]" style={{ margin: 0, padding: 0, overflowX: 'hidden' }}>
         <Navbar />
-        <main style={{ paddingTop: '68px', minHeight: '100svh' }}>
-          {children}
-        </main>
+        <MainContent>{children}</MainContent>
         <Footer />
         <CookieBanner />
         <SessionManager />

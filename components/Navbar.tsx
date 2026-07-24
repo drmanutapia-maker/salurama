@@ -37,6 +37,10 @@ export default function Navbar() {
     { href: '/nosotros', label: 'Nosotros' },
   ]
 
+  // El chat del paciente (/chat/[token]) es una pantalla aislada sin sesión:
+  // el paciente nunca debe ver el logo ni el menú de Salurama ahí.
+  if (pathname?.startsWith('/chat/')) return null
+
   return (
     <nav data-version="v5-unificado" style={{ position: 'fixed', top: 0, left: 0, right: 0, background: '#fff', borderBottom: '1px solid #E5E7EB', zIndex: 1000, height: 72 }}>
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 20px', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

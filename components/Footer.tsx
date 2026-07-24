@@ -11,7 +11,7 @@ export default function Footer() {
   // arranque con scroll de window desplazado hacia abajo. En /hema/educacion
   // el disclaimer NOM-004 de HemaLayout sí se mantiene (es de cumplimiento,
   // no de marketing) — solo este Footer se oculta.
-  if (pathname?.startsWith('/dashboard/msl-virtual') || pathname?.startsWith('/hema/educacion')) return null
+  if (pathname?.startsWith('/dashboard/msl-virtual') || pathname?.startsWith('/hema/educacion') || pathname?.startsWith('/chat/')) return null
 
   return (
     <footer

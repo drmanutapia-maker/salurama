@@ -41,13 +41,28 @@ export async function POST(request: NextRequest) {
     }
 
     const ip = getClientIp(request)
-    const rateKey = `chat_token:${ip}`
+
+    const body = await request.json()
+    const validation = bodySchema.safeParse(body)
+    if (!validation.success) {
+      return NextResponse.json({ error: 'Enlace inválido' }, { status: 400, headers: securityHeaders })
+    }
+
+    const sesion = await verificarToken(supabase, validation.data.token)
+
+    // Solo los intentos con token inválido cuentan contra el presupuesto de
+    // adivinanza por IP (10/15min, mismo que mensaje/archivo) — así el polling
+    // legítimo de una sesión ya verificada no compite por ese mismo presupuesto.
+    // Un token válido consume en cambio una clave propia y más generosa, ligada
+    // a la sala (no a la IP), pensada para sostener polling cada pocos segundos.
+    const rateKey = sesion ? `chat_poll:${sesion.salaId}` : `chat_token:${ip}`
+    const rateLimite = sesion ? 180 : 10
 
     try {
       const count = await redis.incr(rateKey)
       if (count === 1) await redis.expire(rateKey, 900)
-      if (count > 10) {
-        console.warn(`[${requestId}] Rate limit exceeded: ${ip}`)
+      if (count > rateLimite) {
+        console.warn(`[${requestId}] Rate limit exceeded: ${rateKey}`)
         return NextResponse.json(
           { error: 'Demasiados intentos. Intenta en 15 minutos.' },
           { status: 429, headers: { ...securityHeaders, 'Retry-After': '900' } }
@@ -57,19 +72,12 @@ export async function POST(request: NextRequest) {
       console.error(`[${requestId}] Redis error:`, redisError)
     }
 
-    const body = await request.json()
-    const validation = bodySchema.safeParse(body)
-    if (!validation.success) {
-      return NextResponse.json({ error: 'Enlace inválido' }, { status: 400, headers: securityHeaders })
-    }
-
-    const sesion = await verificarToken(supabase, validation.data.token)
     if (!sesion) {
       console.warn(`[${requestId}] Token no encontrado: ${ip}`)
       return NextResponse.json({ error: 'Enlace inválido o expirado' }, { status: 404, headers: securityHeaders })
     }
 
-    const [mensajesRes, archivosRes] = await Promise.all([
+    const [mensajesRes, archivosRes, medicoRes] = await Promise.all([
       supabase
         .from('chat_mensajes')
         .select('id, cita_id, remitente_tipo, contenido, created_at')
@@ -80,6 +88,11 @@ export async function POST(request: NextRequest) {
         .select('id, cita_id, remitente_tipo, storage_path, nombre_original, tipo_mime, tamano_bytes, created_at')
         .eq('sala_id', sesion.salaId)
         .order('created_at', { ascending: true }),
+      supabase
+        .from('doctors')
+        .select('full_name, display_name, photo_url')
+        .eq('id', sesion.medicoId)
+        .maybeSingle(),
     ])
 
     if (mensajesRes.error || archivosRes.error) {
@@ -87,12 +100,32 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Error al cargar la conversación' }, { status: 500, headers: securityHeaders })
     }
 
+    // El separador visual agrupa por cita_id (una sala puede acumular mensajes
+    // de varias citas a lo largo del tiempo) — se necesita fecha/hora de cada
+    // una, no solo de la cita vigente, igual que hace la vista del médico.
+    const citaIds = Array.from(new Set([
+      sesion.citaActualId,
+      ...(mensajesRes.data || []).map(m => m.cita_id),
+      ...(archivosRes.data || []).map(a => a.cita_id),
+    ]))
+    const { data: citasData } = await supabase
+      .from('citas')
+      .select('id, fecha, hora')
+      .in('id', citaIds)
+
+    const citaVigente = citasData?.find(c => c.id === sesion.citaActualId)
+
     return NextResponse.json(
       {
         citaActualId: sesion.citaActualId,
         puedeEscribir: sesion.puedeEscribir,
         mensajes: mensajesRes.data,
         archivos: archivosRes.data,
+        medicoNombre: medicoRes.data?.display_name || medicoRes.data?.full_name || null,
+        medicoFotoUrl: medicoRes.data?.photo_url || null,
+        citaFecha: citaVigente?.fecha || null,
+        citaHora: citaVigente?.hora || null,
+        citas: citasData || [],
       },
       { headers: { ...securityHeaders, 'X-Request-ID': requestId } }
     )
