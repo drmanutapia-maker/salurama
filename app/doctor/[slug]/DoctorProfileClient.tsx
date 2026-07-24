@@ -182,7 +182,8 @@ function AppointmentModal({
   const [modoPaciente, setModoPaciente] = useState<'primera' | 'existente' | null>(null)
   const [contactoBusqueda, setContactoBusqueda] = useState('')
   const [buscandoPaciente, setBuscandoPaciente] = useState(false)
-  const [resultadoBusqueda, setResultadoBusqueda] = useState<'idle' | 'encontrado' | 'no_encontrado'>('idle')
+  const [resultadoBusqueda, setResultadoBusqueda] = useState<'idle' | 'encontrado' | 'no_encontrado' | 'limite'>('idle')
+  const [minutosEspera, setMinutosEspera] = useState<number | null>(null)
   const [pacienteId, setPacienteId] = useState<string | null>(null)
   const [actualizarDatos, setActualizarDatos] = useState(false)
 
@@ -191,6 +192,7 @@ function AppointmentModal({
   const seleccionarModoPaciente = (nuevoModo: 'primera' | 'existente') => {
     setModoPaciente(actual => (actual === nuevoModo ? null : nuevoModo))
     setResultadoBusqueda('idle')
+    setMinutosEspera(null)
     setPacienteId(null)
     setActualizarDatos(false)
     setContactoBusqueda('')
@@ -205,6 +207,13 @@ function AppointmentModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ medicoId: medico.id, contacto: contactoBusqueda }),
       })
+      if (res.status === 429) {
+        const retryAfterSeg = Number(res.headers.get('Retry-After')) || 3600
+        setMinutosEspera(Math.ceil(retryAfterSeg / 60))
+        setPacienteId(null)
+        setResultadoBusqueda('limite')
+        return
+      }
       const data = await res.json()
       if (data.encontrado) {
         setPacienteId(data.pacienteId)
@@ -471,6 +480,11 @@ function AppointmentModal({
                   )}
                   {resultadoBusqueda === 'no_encontrado' && (
                     <p style={identAvisoStyle}>No encontramos coincidencia. Verifica el dato o continúa como si fuera tu primera vez.</p>
+                  )}
+                  {resultadoBusqueda === 'limite' && (
+                    <p style={{ ...identAvisoStyle, color: '#DC2626', background: '#FEF2F2' }}>
+                      Demasiados intentos. Intenta de nuevo en {minutosEspera} minuto{minutosEspera === 1 ? '' : 's'}.
+                    </p>
                   )}
 
                   {resultadoBusqueda === 'encontrado' && (
