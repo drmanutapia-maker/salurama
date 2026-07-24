@@ -479,13 +479,11 @@ function AppointmentModal({
                       </label>
                       {actualizarDatos ? (
                         <p style={identAvisoStyle}>
-                          Tu nuevo correo o teléfono reemplazará el que teníamos guardado. Si cambian, es posible que
-                          la próxima vez el sistema no reconozca automáticamente tu conversación anterior.
+                          Actualizará tu correo/teléfono guardado.
                         </p>
                       ) : (
                         <p style={identAvisoStyle}>
-                          Sin esta opción, cualquier cambio que hagas aquí no se guardará: tu cita quedará ligada a tus
-                          datos originales.
+                          Sin marcar, tus datos no cambian.
                         </p>
                       )}
                     </div>
