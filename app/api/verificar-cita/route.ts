@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
+import { enviarLinkChatSiPrimeraVez } from '@/lib/chat/enviarLinkChat'
 
 function sanitize(str: string): string {
   return str.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]!))
@@ -27,7 +28,7 @@ export async function POST(request: NextRequest) {
 
   const { data: cita, error } = await supabase
     .from('citas')
-    .select('id, estado, medico_id, paciente_nombre, fecha, hora, expires_at')
+    .select('id, estado, medico_id, paciente_id, paciente_nombre, paciente_email, fecha, hora, expires_at')
     .eq('verification_token', token)
     .single()
 
@@ -59,6 +60,21 @@ export async function POST(request: NextRequest) {
     .select('email, full_name')
     .eq('id', cita.medico_id)
     .single()
+
+  if (cita.paciente_id && cita.paciente_email && medico?.full_name) {
+    try {
+      await enviarLinkChatSiPrimeraVez(supabase, {
+        medicoId: cita.medico_id,
+        pacienteId: cita.paciente_id,
+        pacienteEmail: cita.paciente_email,
+        medicoNombre: medico.full_name,
+      })
+    } catch (chatLinkError) {
+      console.error('[verificar-cita] Error al procesar el link de chat:', chatLinkError)
+    }
+  } else if (!cita.paciente_id) {
+    console.warn('[verificar-cita] Cita sin paciente_id, se omite el link de chat:', cita.id)
+  }
 
   if (medico?.email && process.env.RESEND_API_KEY) {
     const resend = new Resend(process.env.RESEND_API_KEY)

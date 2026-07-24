@@ -108,6 +108,21 @@ export default function CitasPage() {
     showToast(labels[nuevoEstado] || 'Cita actualizada', 'success')
     setProcesando(null)
 
+    // Si se confirmó manualmente, disparar el link de chat (idempotente en el servidor)
+    if (nuevoEstado === 'confirmed') {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.access_token) {
+        fetch('/api/citas/enviar-link-chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ citaId }),
+        }).catch(console.error)
+      }
+    }
+
     // Si se marcó como completada, enviar email de reseña (solo si no tiene token previo)
     if (nuevoEstado === 'completed') {
       const cita = citas.find(c => c.id === citaId)
