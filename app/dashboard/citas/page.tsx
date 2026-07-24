@@ -7,6 +7,8 @@ import {
   ArrowLeft, MessageCircle, Calendar, Phone, Mail, MapPin,
   FileText, Send, CheckCircle, XCircle, Check
 } from 'lucide-react'
+import ConversacionesLista, { ConversacionResumen } from '@/components/chat/ConversacionesLista'
+import ConversacionChat from '@/components/chat/ConversacionChat'
 
 interface Cita {
   id: string
@@ -30,7 +32,7 @@ interface MedicoData {
   clinic_phone: string | null
 }
 
-type Tab = 'todas' | 'pending_verification' | 'confirmed' | 'completed'
+type Tab = 'todas' | 'pending_verification' | 'confirmed' | 'completed' | 'mensajes'
 
 export default function CitasPage() {
   const router = useRouter()
@@ -41,6 +43,7 @@ export default function CitasPage() {
   const [tab, setTab] = useState<Tab>('todas')
   const [procesando, setProcesando] = useState<string | null>(null)
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
+  const [conversacionSeleccionada, setConversacionSeleccionada] = useState<ConversacionResumen | null>(null)
 
   const showToast = (msg: string, type: 'success' | 'error') => {
     setToast({ msg, type })
@@ -299,6 +302,7 @@ export default function CitasPage() {
             { id: 'pending_verification', label: 'Pendientes', count: countPorEstado('pending_verification') },
             { id: 'confirmed', label: 'Confirmadas', count: countPorEstado('confirmed') },
             { id: 'completed', label: 'Completadas', count: countPorEstado('completed') },
+            { id: 'mensajes', label: 'Mensajes', count: 0 },
           ] as { id: Tab; label: string; count: number }[]).map(t => (
             <button
               key={t.id}
@@ -320,6 +324,20 @@ export default function CitasPage() {
           ))}
         </div>
 
+        {tab === 'mensajes' ? (
+          <div className="fade-up">
+            {conversacionSeleccionada ? (
+              <ConversacionChat
+                medicoId={medico!.id}
+                conversacion={conversacionSeleccionada}
+                onVolver={() => setConversacionSeleccionada(null)}
+                onError={(msg) => showToast(msg, 'error')}
+              />
+            ) : (
+              <ConversacionesLista medicoId={medico!.id} onSeleccionar={setConversacionSeleccionada} />
+            )}
+          </div>
+        ) : (
         <div className="fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {citasFiltradas.length === 0 ? (
             <div style={{ background: '#fff', borderRadius: 16, padding: '60px 20px', border: '1px solid #E5E7EB', textAlign: 'center' }}>
@@ -419,6 +437,7 @@ export default function CitasPage() {
             })
           )}
         </div>
+        )}
       </div>
     </div>
   )
