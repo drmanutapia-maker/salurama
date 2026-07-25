@@ -10,6 +10,7 @@ import {
   PartyPopper, Sparkles, Megaphone, Shield, AlertCircle
 } from 'lucide-react'
 import { PLAN_TO_TIER_CODE } from '@/lib/pricingTiers'
+import { calculateProfileCompletion } from '@/hooks/useProfileCompletion'
 
 interface Medico {
   id: string
@@ -230,19 +231,12 @@ export default function DashboardMedico() {
         const tieneUbicacionVerificada = !!(doctor.clinic_lat && doctor.clinic_lng)
         const tieneTelefono = !!(doctor.phone || doctor.clinic_phone || doctor.whatsapp_phone)
 
-        const checks = [
-          !!doctor.photo_url,
-          !!(doctor.about_me && doctor.about_me.length > 100),
-          tieneUbicacionVerificada,
-          tieneHorarioActivo,
-          !!(doctor.consultation_price_first_time && doctor.consultation_price_general),
-          tieneTelefono,
-          !!(Array.isArray(doctor.languages) && doctor.languages.length >= 1),
-          (expRes.data?.length || 0) > 0,
-          (eduRes.data?.length || 0) > 0,
-          (condRes.data?.length || 0) > 0,
-        ]
-        const pct = Math.round((checks.filter(Boolean).length / checks.length) * 100)
+        const { percentage: pct } = calculateProfileCompletion({
+          medico: doctor,
+          experienceCount: expRes.data?.length || 0,
+          educationCount: eduRes.data?.length || 0,
+          conditionsCount: condRes.data?.length || 0,
+        })
         setProfileCompletion(pct)
 
         // CONSEJOS INTELIGENTES (basados en los 10 checks unificados)

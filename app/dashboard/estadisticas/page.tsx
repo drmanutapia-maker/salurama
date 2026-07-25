@@ -44,25 +44,29 @@ export default function EstadisticasPage() {
 
       const { data: doc } = await supabase
         .from('doctors')
-        .select('id, full_name, photo_url, specialty, about_me, clinic_lat, clinic_lng, horario, consultation_price_first_time, consultation_price_general, phone, clinic_phone, whatsapp_phone, languages, profile_views, pricing_tier')
+        .select('id, full_name, photo_url, specialty, about_me, clinic_lat, clinic_lng, horario, consultation_price_first_time, consultation_price_general, phone, clinic_phone, whatsapp_phone, languages, pricing_tier')
         .eq('user_id', user.id)
         .single()
       if (!doc) { router.push('/dashboard'); return }
       setMedico(doc)
-      setProfileViews(doc.profile_views || 0)
 
-      const [citasRes, reviewsRes, eduRes, expRes, condRes] = await Promise.all([
+      // Vistas — misma fuente que /dashboard: cuenta real desde la tabla
+      // profile_views vía /api/track-visit, no la columna doctors.profile_views
+      // (esa quedó congelada, ver app/dashboard/page.tsx).
+      const [citasRes, reviewsRes, eduRes, expRes, condRes, visitasRes] = await Promise.all([
         supabase.from('citas').select('id, estado, fecha').eq('medico_id', doc.id).order('fecha'),
         supabase.from('reviews').select('id, rating, comment, created_at').eq('doctor_id', doc.id).eq('is_visible', true).order('created_at', { ascending: false }),
         supabase.from('doctor_education').select('id').eq('doctor_id', doc.id),
         supabase.from('doctor_experience').select('id').eq('doctor_id', doc.id),
         supabase.from('doctor_conditions').select('id').eq('doctor_id', doc.id),
+        fetch('/api/track-visit').then(r => r.ok ? r.json() : { count: 0 }).catch(() => ({ count: 0 })),
       ])
       setCitas((citasRes.data as Cita[]) || [])
       setReviews((reviewsRes.data as Review[]) || [])
       setEducation(eduRes.data || [])
       setExperience(expRes.data || [])
       setConditions(condRes.data || [])
+      setProfileViews(visitasRes.count || 0)
 
       // Calcular completitud con el hook compartido
       const result = calculateProfileCompletion({

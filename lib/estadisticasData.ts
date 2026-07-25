@@ -34,18 +34,22 @@ export async function getEstadisticasData(userId: string): Promise<{ data: Estad
 
   const { data: doctor } = await db
     .from('doctors')
-    .select('id, full_name, photo_url, about_me, clinic_lat, clinic_lng, horario, consultation_price_first_time, consultation_price_general, phone, clinic_phone, whatsapp_phone, languages, profile_views, pricing_tier')
+    .select('id, full_name, photo_url, about_me, clinic_lat, clinic_lng, horario, consultation_price_first_time, consultation_price_general, phone, clinic_phone, whatsapp_phone, languages, pricing_tier')
     .eq('user_id', userId)
     .single()
 
   if (!doctor) return null
 
-  const [citasRes, reviewsRes, eduRes, expRes, condRes] = await Promise.all([
+  // Vistas — misma fuente que /dashboard y /dashboard/estadisticas: cuenta
+  // real desde la tabla profile_views, no la columna doctors.profile_views
+  // (esa quedó congelada, ver app/dashboard/page.tsx).
+  const [citasRes, reviewsRes, eduRes, expRes, condRes, visitasRes] = await Promise.all([
     db.from('citas').select('id, estado, fecha').eq('medico_id', doctor.id).order('fecha'),
     db.from('reviews').select('id, rating, comment, created_at').eq('doctor_id', doctor.id).eq('is_visible', true).order('created_at', { ascending: false }),
     db.from('doctor_education').select('id').eq('doctor_id', doctor.id),
     db.from('doctor_experience').select('id').eq('doctor_id', doctor.id),
     db.from('doctor_conditions').select('id').eq('doctor_id', doctor.id),
+    db.from('profile_views').select('*', { count: 'exact', head: true }).eq('doctor_id', doctor.id),
   ])
 
   const citas = citasRes.data ?? []
@@ -95,7 +99,7 @@ export async function getEstadisticasData(userId: string): Promise<{ data: Estad
     pricingTier: doctor.pricing_tier ?? null,
     data: {
       doctorNombre: doctor.full_name,
-      profileViews: doctor.profile_views || 0,
+      profileViews: visitasRes.count || 0,
       total,
       porStatus,
       tasaConfirmacion,
