@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
+import { isManuelEmail } from '@/lib/manuelOnly'
 import {
   Search, Heart, Calendar, User,
   Home, Clock, BarChart3, MessageCircleQuestion
@@ -15,18 +16,21 @@ type NavItem = { href: string; label: string; icon: LucideIcon; exact?: boolean 
 export default function BottomNav() {
   const pathname = usePathname()
   const [role, setRole] = useState<Role>(null)
+  const [isManuel, setIsManuel] = useState(false)
 
   useEffect(() => {
     let mounted = true
 
     const checkRole = async () => {
       const { data: { user } } = await supabase.auth.getUser()
-      
+
       // OPCIÓN A: sin usuario = sin BottomNav
       if (!user) {
-        if (mounted) setRole(null)
+        if (mounted) { setRole(null); setIsManuel(false) }
         return
       }
+
+      if (mounted) setIsManuel(isManuelEmail(user.email))
 
       const { data } = await supabase
         .from('doctors')
@@ -62,7 +66,8 @@ export default function BottomNav() {
     { href: '/dashboard/horario', label: 'Horarios', icon: Clock },
     { href: '/dashboard/citas', label: 'Citas', icon: Calendar },
     { href: '/dashboard/estadisticas', label: 'Stats', icon: BarChart3 },
-    { href: '/dashboard/msl-virtual', label: 'MSL', icon: MessageCircleQuestion },
+    // MSL Virtual: oculto salvo para la cuenta de Manuel — ver lib/manuelOnly.ts
+    ...(isManuel ? [{ href: '/dashboard/msl-virtual', label: 'MSL', icon: MessageCircleQuestion }] : []),
   ]
 
   const patientNav: NavItem[] = [

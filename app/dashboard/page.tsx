@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { PLAN_TO_TIER_CODE } from '@/lib/pricingTiers'
 import { calculateProfileCompletion } from '@/hooks/useProfileCompletion'
+import { isManuelEmail } from '@/lib/manuelOnly'
 
 interface Medico {
   id: string
@@ -700,7 +701,7 @@ export default function DashboardMedico() {
           muestre "¡Perfil completo!" ni contarse en profileCompletion,
           ya que no es parte de la completitud del perfil público.
       ═══════════════════════════════════════════════════════════ */}
-      {medico && !medico.cofepris_aviso_numero && (
+      {medico && !medico.cofepris_aviso_numero && isManuelEmail(medico.email) && (
         <div style={{ maxWidth: 1100, margin: '0 auto 20px', padding: '0 16px' }}>
           <div className="fade-in" style={{
             background: 'linear-gradient(135deg, #E8F7F5 0%, #D1FAE5 100%)',

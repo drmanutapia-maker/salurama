@@ -4,7 +4,8 @@ import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import OpenAI from 'openai'
 import Anthropic from '@anthropic-ai/sdk'
-import { PLAN_TO_TIER_CODE, PLAN_NAME, PLAN_MONTHLY_PRICE_MXN } from '@/lib/pricingTiers'
+import { PLAN_TO_TIER_CODE } from '@/lib/pricingTiers'
+import { isManuelEmail } from '@/lib/manuelOnly'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,9 +17,10 @@ const MATCH_COUNT        = 15
 const MAX_CHUNKS_PER_DOC = 2
 const FINAL_CHUNK_COUNT  = 5
 
-// Límites por nivel de pricing (doctors.pricing_tier), confirmados 2026-07-11.
-// Gratis = 0: MSL Virtual no está incluido en ese nivel (no es un rate limit,
-// es exclusión de la herramienta — ver manejo especial más abajo).
+// Cuota diaria de preguntas por nivel de pricing (doctors.pricing_tier),
+// confirmados 2026-07-11. Quién puede usar MSL Virtual en absoluto ya NO se
+// decide aquí — ver isManuelEmail() más abajo; esto solo limita cuántas
+// preguntas por día una vez adentro.
 const MESSAGE_LIMIT_BY_TIER: Record<string, number> = {
   gratis: 0,
   [PLAN_TO_TIER_CODE.profesional]: 20,
@@ -26,9 +28,6 @@ const MESSAGE_LIMIT_BY_TIER: Record<string, number> = {
   [PLAN_TO_TIER_CODE.clinica]:     200,
 }
 const DEFAULT_MESSAGE_LIMIT = MESSAGE_LIMIT_BY_TIER.gratis
-
-const UPGRADE_REQUIRED_MESSAGE =
-  `MSL Virtual no está incluido en tu plan actual. Actualiza a ${PLAN_NAME.profesional} ($${PLAN_MONTHLY_PRICE_MXN.profesional}/mes) o superior para acceder a esta herramienta.`
 
 type ChunkMatch = {
   id:          string
@@ -281,9 +280,15 @@ export async function POST(request: NextRequest) {
     return err('No autorizado', 401)
   }
 
+  // MSL Virtual: excepción de cuenta, no de plan — el corpus (8 artículos de
+  // mieloma) es insuficiente para uso general. Ver lib/manuelOnly.ts.
+  if (!isManuelEmail(user.email)) {
+    return err('MSL Virtual no está disponible por ahora.', 403)
+  }
+
   const db = getServiceSupabase()
 
-  // 2b. Límite diario de preguntas por médico, según su nivel de pricing
+  // 2b. Límite diario de preguntas, según el nivel de pricing de la cuenta
   const { data: doctorRow } = await db
     .from('doctors')
     .select('pricing_tier')
@@ -291,12 +296,6 @@ export async function POST(request: NextRequest) {
     .maybeSingle()
 
   const dailyLimit = MESSAGE_LIMIT_BY_TIER[doctorRow?.pricing_tier ?? 'gratis'] ?? DEFAULT_MESSAGE_LIMIT
-
-  // Nivel Gratis: MSL Virtual no es un rate limit, es una herramienta no incluida
-  // en el plan — 403 (no autorizado a este recurso), no 429 (límite de uso).
-  if (dailyLimit === 0) {
-    return err(UPGRADE_REQUIRED_MESSAGE, 403)
-  }
 
   const { data: msgCountToday, error: countErr } = await db.rpc('count_msl_user_messages_today', {
     p_user_id: user.id,

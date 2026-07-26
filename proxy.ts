@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { isManuelEmail } from '@/lib/manuelOnly'
 
 function decodeJwtPayload(token: string): Record<string, unknown> {
   try {
@@ -47,7 +48,7 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(loginUrl)
     }
 
-    let modules: string[] = []
+    let claims: Record<string, unknown> = {}
 
     const allRequestCookies = request.cookies.getAll()
     const authCookie = allRequestCookies.find(
@@ -65,15 +66,19 @@ export async function proxy(request: NextRequest) {
           (Array.isArray(parsed) ? parsed[0]?.access_token : null) ??
           ''
         if (accessToken) {
-          modules = (decodeJwtPayload(accessToken).modules as string[]) ?? []
+          claims = decodeJwtPayload(accessToken)
         }
       } catch {
-        modules =
-          (decodeJwtPayload(authCookie.value).modules as string[]) ?? []
+        claims = decodeJwtPayload(authCookie.value)
       }
     }
 
-    if (!modules.includes('hema')) {
+    const modules = (claims.modules as string[]) ?? []
+
+    // HEMA: además del módulo activo en la suscripción, exige que sea la
+    // cuenta de Manuel — excepción de cuenta, no de plan. Capa extra sobre
+    // el check de modules ya existente, no lo reemplaza. Ver lib/manuelOnly.ts.
+    if (!modules.includes('hema') || !isManuelEmail(claims.email as string | undefined)) {
       return NextResponse.redirect(
         new URL('/dashboard?upgrade=hema', request.url)
       )

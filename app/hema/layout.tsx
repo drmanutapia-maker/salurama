@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import HemaNav from '@/components/hema/HemaNav'
+import { isManuelEmail } from '@/lib/manuelOnly'
 
 function decodeJwtPayload(token: string): Record<string, unknown> {
   try {
@@ -51,7 +52,10 @@ export default async function HemaLayout({
   const claims = decodeJwtPayload(session.access_token)
   const modules = (claims.modules as string[]) ?? []
 
-  if (!modules.includes('hema')) {
+  // Además del módulo activo en la suscripción, exige que sea la cuenta de
+  // Manuel — excepción de cuenta, no de plan. Capa extra sobre el check de
+  // modules ya existente (y sobre proxy.ts), no lo reemplaza.
+  if (!modules.includes('hema') || !isManuelEmail(session.user.email)) {
     redirect('/dashboard?upgrade=hema')
   }
 

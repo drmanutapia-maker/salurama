@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { getUserSafe } from '@/lib/getUserSafe'
+import { isManuelEmail } from '@/lib/manuelOnly'
 import {
   AlertTriangle, Check, Download, Upload, ExternalLink,
   FileText, ClipboardList, Hash, PartyPopper,
@@ -83,6 +84,9 @@ export default function CofeprisPage() {
       const { user, networkError } = await getUserSafe(supabase)
       if (networkError) { setLoading(false); return }
       if (!user) { router.replace('/login'); return }
+
+      // Aviso de Publicidad COFEPRIS: excepción de cuenta, no de plan — ver lib/manuelOnly.ts
+      if (!isManuelEmail(user.email)) { router.replace('/dashboard'); return }
 
       const { data: doctor } = await supabase
         .from('doctors')

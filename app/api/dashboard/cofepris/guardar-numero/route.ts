@@ -3,6 +3,7 @@ import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { z } from 'zod'
+import { isManuelEmail } from '@/lib/manuelOnly'
 
 export const dynamic = 'force-dynamic'
 
@@ -49,6 +50,11 @@ export async function POST(request: NextRequest) {
   const { data: { user }, error: authError } = await anonClient.auth.getUser()
   if (authError || !user) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  }
+
+  // Aviso de Publicidad COFEPRIS: excepción de cuenta, no de plan — ver lib/manuelOnly.ts
+  if (!isManuelEmail(user.email)) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
   let body: unknown

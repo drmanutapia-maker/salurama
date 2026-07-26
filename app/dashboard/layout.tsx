@@ -4,10 +4,12 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { getUserSafe } from '@/lib/getUserSafe'
+import { isManuelEmail } from '@/lib/manuelOnly'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [pendientes, setPendientes] = useState(0)
+  const [isManuel, setIsManuel] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -16,6 +18,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       // badge como estaba — el intervalo de 60s de abajo reintentará solo.
       if (networkError) return
       if (!user) return
+      setIsManuel(isManuelEmail(user.email))
       const { data: medico } = await supabase.from('doctors').select('id').eq('user_id', user.id).single()
       if (!medico) return
       const { count } = await supabase
@@ -27,7 +30,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       setPendientes(count || 0)
     }
     load()
-    
+
     // Refrescar cada 60 segundos
     const interval = setInterval(load, 60000)
     return () => clearInterval(interval)
@@ -38,7 +41,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { href: '/dashboard/horario', label: 'Horarios' },
     { href: '/dashboard/citas', label: 'Citas', badge: pendientes },
     { href: '/dashboard/estadisticas', label: 'Estadísticas' },
-    { href: '/dashboard/msl-virtual', label: 'MSL Virtual' },
+    // MSL Virtual: oculto salvo para la cuenta de Manuel — ver lib/manuelOnly.ts
+    ...(isManuel ? [{ href: '/dashboard/msl-virtual', label: 'MSL Virtual' }] : []),
   ]
 
   const isActive = (href: string, exact?: boolean) =>
