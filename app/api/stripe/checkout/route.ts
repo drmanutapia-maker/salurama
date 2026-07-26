@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { z } from 'zod'
 import { getStripe, getPriceId, type PlanSlug, type BillingPeriod } from '@/lib/stripe'
+import { PLAN_CHANGES_FROZEN, PLAN_FREEZE_MESSAGE } from '@/lib/pricingTiers'
 
 export const dynamic = 'force-dynamic'
 
@@ -42,6 +43,11 @@ function err(message: string, status: number) {
 }
 
 export async function POST(request: NextRequest) {
+  // Congelamiento temporal de cambios de plan — ver lib/pricingTiers.ts
+  if (PLAN_CHANGES_FROZEN) {
+    return err(PLAN_FREEZE_MESSAGE, 503)
+  }
+
   let body: { plan?: unknown; period?: unknown }
   try {
     body = await request.json()

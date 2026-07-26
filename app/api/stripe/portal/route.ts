@@ -3,6 +3,7 @@ import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { getStripe } from '@/lib/stripe'
+import { PLAN_CHANGES_FROZEN, PLAN_FREEZE_MESSAGE } from '@/lib/pricingTiers'
 
 export const dynamic = 'force-dynamic'
 
@@ -36,6 +37,11 @@ function err(message: string, status: number) {
 }
 
 export async function POST() {
+  // Congelamiento temporal de cambios de plan — ver lib/pricingTiers.ts
+  if (PLAN_CHANGES_FROZEN) {
+    return err(PLAN_FREEZE_MESSAGE, 503)
+  }
+
   const anonClient = await getAnonSupabase()
   const { data: { user }, error: authError } = await anonClient.auth.getUser()
   if (authError || !user) {

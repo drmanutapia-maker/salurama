@@ -26,3 +26,10 @@ export const PLAN_MONTHLY_PRICE_MXN: Record<PlanSlug, number> = {
   premium:     799,
   clinica:     1999,
 }
+
+// Congelamiento temporal de cambios de plan mientras se hace el análisis
+// financiero (2026-07-24). Bloquea la UI de /dashboard/plan y los endpoints
+// de Stripe que permiten cambiar de plan, sin borrar nada — para reactivar,
+// volver esta bandera a `false`.
+export const PLAN_CHANGES_FROZEN = true
+export const PLAN_FREEZE_MESSAGE = 'Estamos actualizando nuestros planes. Disponible pronto.'

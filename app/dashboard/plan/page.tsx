@@ -4,7 +4,7 @@ import { useSearchParams } from 'next/navigation'
 import { Toaster, toast } from 'sonner'
 import { CheckCircle, Clock } from 'lucide-react'
 import { supabase } from '@/lib/supabaseClient'
-import { PLAN_TO_TIER_CODE, PLAN_NAME, PLAN_MONTHLY_PRICE_MXN, type PlanSlug, type BillingPeriod, type TierCode } from '@/lib/pricingTiers'
+import { PLAN_TO_TIER_CODE, PLAN_NAME, PLAN_MONTHLY_PRICE_MXN, PLAN_CHANGES_FROZEN, PLAN_FREEZE_MESSAGE, type PlanSlug, type BillingPeriod, type TierCode } from '@/lib/pricingTiers'
 
 type Feature = { text: string; comingSoon?: boolean }
 
@@ -125,6 +125,10 @@ function PlanContent() {
   }, [searchParams])
 
   const handleUpgrade = useCallback(async (plan: PlanSlug) => {
+    if (PLAN_CHANGES_FROZEN) {
+      toast.error(PLAN_FREEZE_MESSAGE)
+      return
+    }
     setLoadingPlan(plan)
     try {
       const res = await fetch('/api/stripe/checkout', {
@@ -146,6 +150,10 @@ function PlanContent() {
   }, [period])
 
   const handleManageSubscription = useCallback(async () => {
+    if (PLAN_CHANGES_FROZEN) {
+      toast.error(PLAN_FREEZE_MESSAGE)
+      return
+    }
     setLoadingPortal(true)
     try {
       const res = await fetch('/api/stripe/portal', { method: 'POST' })
@@ -173,14 +181,20 @@ function PlanContent() {
         <p className="text-neutral-500 mt-1">Elige el plan que mejor se adapte a tu consultorio.</p>
       </div>
 
+      {PLAN_CHANGES_FROZEN && (
+        <div className="mb-8 rounded-lg border border-amber-200 bg-amber-50 px-5 py-3 text-center text-sm font-semibold text-amber-800">
+          {PLAN_FREEZE_MESSAGE}
+        </div>
+      )}
+
       {hasPaidPlan && (
         <div className="flex justify-center mb-8">
           <button
             onClick={handleManageSubscription}
-            disabled={loadingPortal}
+            disabled={loadingPortal || PLAN_CHANGES_FROZEN}
             className="px-5 py-2.5 rounded-lg border border-neutral-300 text-sm font-semibold text-neutral-700 hover:bg-neutral-50 transition-colors disabled:opacity-50"
           >
-            {loadingPortal ? 'Abriendo...' : 'Gestionar mi suscripción'}
+            {PLAN_CHANGES_FROZEN ? 'Disponible pronto' : loadingPortal ? 'Abriendo...' : 'Gestionar mi suscripción'}
           </button>
         </div>
       )}
@@ -250,18 +264,18 @@ function PlanContent() {
                 ) : hasPaidPlan ? (
                   <button
                     onClick={handleManageSubscription}
-                    disabled={loadingPortal}
+                    disabled={loadingPortal || PLAN_CHANGES_FROZEN}
                     className="w-full py-2.5 rounded-lg border border-primary-500 text-primary-500 text-sm font-semibold hover:bg-primary-50 transition-colors disabled:opacity-50"
                   >
-                    Cambiar a {plan.name}
+                    {PLAN_CHANGES_FROZEN ? 'Disponible pronto' : `Cambiar a ${plan.name}`}
                   </button>
                 ) : (
                   <button
                     onClick={() => handleUpgrade(plan.slug)}
-                    disabled={loadingPlan !== null}
+                    disabled={loadingPlan !== null || PLAN_CHANGES_FROZEN}
                     className="w-full py-2.5 rounded-lg bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600 transition-colors disabled:opacity-50"
                   >
-                    {loadingPlan === plan.slug ? 'Redirigiendo...' : `Actualizar a ${plan.name}`}
+                    {PLAN_CHANGES_FROZEN ? 'Disponible pronto' : loadingPlan === plan.slug ? 'Redirigiendo...' : `Actualizar a ${plan.name}`}
                   </button>
                 )}
               </div>
