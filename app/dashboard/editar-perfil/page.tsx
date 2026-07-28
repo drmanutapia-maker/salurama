@@ -10,6 +10,8 @@ import dynamic from 'next/dynamic'
 const LocationPicker = dynamic(() => import('@/components/LocationPicker'), { ssr: false })
 import { useCP } from '@/hooks/useCP'
 import TitleSelect from '@/components/TitleSelect'
+import imageCompression from 'browser-image-compression'
+import GaleriaFotos from './GaleriaFotos'
 
 const UNIVERSIDADES_MEXICO = [
   'Benemérita Universidad Autónoma de Puebla (BUAP)',
@@ -104,6 +106,8 @@ const ASEGURADORAS = [
 
 interface Medico {
   id: string
+  slug: string
+  pricing_tier: string
   full_name: string
   display_name: string | null
   professional_title: string | null
@@ -345,6 +349,12 @@ export default function EditarPerfilPage() {
 
     setUploading(true)
     try {
+      const compressedFile = await imageCompression(file, {
+        maxSizeMB: 1,
+        maxWidthOrHeight: 1200,
+        useWebWorker: true,
+      })
+
       const ext = file.name.split('.').pop()
       const path = `${medico.id}/profile.${ext}`
 
@@ -355,7 +365,7 @@ export default function EditarPerfilPage() {
 
       const { error: uploadError } = await supabase.storage
      .from('doctor-photos')
-     .upload(path, file, { upsert: true, cacheControl: '0' })
+     .upload(path, compressedFile, { upsert: true, cacheControl: '0' })
 
       if (uploadError) throw uploadError
 
@@ -726,8 +736,8 @@ export default function EditarPerfilPage() {
             <Card title="Información básica" onEdit={() => setActiveModal('basic')}>
               <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
                 <div className="foto-wr" style={{ position: 'relative' }}>
-                  {medico.photo_url? <img src={medico.photo_url} alt={displayName} style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover', display: 'block', cursor: 'pointer' }} onClick={() => fileInputRef.current?.click()} /> : <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'linear-gradient(135deg,#1E3A5F,#2A9D8F)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, fontWeight: 900, color: '#fff', fontFamily: "'Fraunces', serif", cursor: 'pointer' }} onClick={() => fileInputRef.current?.click()}>{(displayName?.charAt(0) || '?').toUpperCase()}</div>}
-                  <div style={{ position: 'absolute', bottom: 0, right: 0, width: 26, height: 26, background: '#1E3A5F', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #fff', cursor: 'pointer' }} onClick={() => fileInputRef.current?.click()}>
+                  {medico.photo_url? <img src={medico.photo_url} alt={displayName} style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover', display: 'block', cursor: uploading? 'not-allowed' : 'pointer', opacity: uploading? 0.5 : 1 }} onClick={() => { if (!uploading) fileInputRef.current?.click() }} /> : <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'linear-gradient(135deg,#1E3A5F,#2A9D8F)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, fontWeight: 900, color: '#fff', fontFamily: "'Fraunces', serif", cursor: uploading? 'not-allowed' : 'pointer', opacity: uploading? 0.5 : 1 }} onClick={() => { if (!uploading) fileInputRef.current?.click() }}>{(displayName?.charAt(0) || '?').toUpperCase()}</div>}
+                  <div style={{ position: 'absolute', bottom: 0, right: 0, width: 26, height: 26, background: '#1E3A5F', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #fff', cursor: uploading? 'not-allowed' : 'pointer', opacity: uploading? 0.5 : 1 }} onClick={() => { if (!uploading) fileInputRef.current?.click() }}>
                     <Camera size={13} color="#fff" />
                   </div>
                   {medico.photo_url && (
@@ -764,6 +774,8 @@ export default function EditarPerfilPage() {
                 </div>
               </div>
             </Card>
+
+            <GaleriaFotos doctorId={medico.id} doctorSlug={medico.slug} pricingTier={medico.pricing_tier} />
 
             <Card title="Especialidades y cédulas" onEdit={() => setActiveModal('specialties')}>
               <div style={{ padding: '10px 12px', background: '#E8F7F5', borderRadius: 8, border: '1px solid #9FD8CD', marginBottom: 12 }}>
