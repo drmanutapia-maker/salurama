@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { Redis } from '@upstash/redis'
 import { z } from 'zod'
-import { generateOtpCode, hashOtpCode, OTP_EXPIRY_MINUTES } from '@/lib/pacienteOtp'
-import { sendPacienteOtpEmail } from '@/lib/email'
+import { hashOtpCode, OTP_MAX_ATTEMPTS } from '@/lib/pacienteOtp'
 
 export const runtime = 'edge'
 export const preferredRegion = 'mex1'
@@ -11,6 +10,7 @@ export const preferredRegion = 'mex1'
 const bodySchema = z.object({
   medicoId: z.string().uuid('ID de médico inválido'),
   contacto: z.string().trim().min(3).max(254),
+  code: z.string().trim().regex(/^\d{6}$/, 'Código inválido'),
 })
 
 function getClientIp(request: NextRequest): string {
@@ -26,14 +26,13 @@ const securityHeaders = {
   'Referrer-Policy': 'strict-origin-when-cross-origin',
 }
 
-// Respuesta genérica, siempre igual exista o no coincidencia — nunca revela
-// si el contacto pertenece a un paciente real de este médico (confirmar
-// eso ya es de por sí una fuga de información médica sensible). Ver
-// auditoría del flujo de citas, 2026-07-28.
-function respuestaGenerica(requestId: string) {
+// Mismo error genérico para todos los casos de rechazo (sin coincidencia,
+// sin código pendiente, expirado, incorrecto, agotado) — no hay que darle
+// a quien lo intenta ninguna pista de cuál fue la razón exacta.
+function codigoInvalido(requestId: string) {
   return NextResponse.json(
-    { message: 'Si tienes una cita previa con este médico, te enviamos un código a tu correo registrado.' },
-    { headers: { ...securityHeaders, 'X-Request-ID': requestId } }
+    { error: 'Código inválido o expirado. Vuelve a buscar tus datos.' },
+    { status: 400, headers: { ...securityHeaders, 'X-Request-ID': requestId } }
   )
 }
 
@@ -59,9 +58,9 @@ export async function POST(request: NextRequest) {
     const ip = getClientIp(request)
 
     try {
-      const count = await redis.incr(`buscar_paciente:${ip}`)
-      if (count === 1) await redis.expire(`buscar_paciente:${ip}`, 3600)
-      if (count > 8) {
+      const count = await redis.incr(`verificar_otp:${ip}`)
+      if (count === 1) await redis.expire(`verificar_otp:${ip}`, 3600)
+      if (count > 15) {
         console.warn(`[${requestId}] Rate limit exceeded: ${ip}`)
         return NextResponse.json(
           { error: 'Demasiados intentos. Intenta en 1 hora.' },
@@ -75,55 +74,66 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validation = bodySchema.safeParse(body)
     if (!validation.success) {
-      return NextResponse.json({ error: 'Datos inválidos' }, { status: 400, headers: securityHeaders })
+      return codigoInvalido(requestId)
     }
 
-    const { medicoId, contacto } = validation.data
+    const { medicoId, contacto, code } = validation.data
 
     const { data: match, error: rpcError } = await supabase
       .rpc('buscar_paciente_medico', { p_medico_id: medicoId, p_contacto: contacto })
       .maybeSingle() as { data: { paciente_id: string; nombre: string | null; email: string; telefono: string | null } | null; error: { message: string } | null }
 
-    if (rpcError) {
-      console.error(`[${requestId}] Error buscando paciente:`, rpcError)
-      return respuestaGenerica(requestId)
+    if (rpcError || !match) {
+      return codigoInvalido(requestId)
     }
 
-    if (match) {
-      // Límite adicional por paciente (no solo por IP) — evita que alguien
-      // bombardee el correo de una persona específica con códigos.
-      try {
-        const otpCount = await redis.incr(`buscar_paciente_otp:${match.paciente_id}`)
-        if (otpCount === 1) await redis.expire(`buscar_paciente_otp:${match.paciente_id}`, 3600)
-        if (otpCount > 3) {
-          return respuestaGenerica(requestId)
-        }
-      } catch (redisError) {
-        console.error(`[${requestId}] Redis error (otp):`, redisError)
-      }
+    const { data: paciente } = await supabase
+      .from('pacientes')
+      .select('otp_code_hash, otp_expires_at, otp_attempts')
+      .eq('id', match.paciente_id)
+      .single()
 
-      const code = generateOtpCode()
-      const codeHash = await hashOtpCode(code)
-      const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60000).toISOString()
+    if (!paciente?.otp_code_hash || !paciente.otp_expires_at) {
+      return codigoInvalido(requestId)
+    }
 
+    if (new Date(paciente.otp_expires_at) < new Date()) {
+      return codigoInvalido(requestId)
+    }
+
+    if (paciente.otp_attempts >= OTP_MAX_ATTEMPTS) {
+      return codigoInvalido(requestId)
+    }
+
+    const codeHash = await hashOtpCode(code)
+
+    if (codeHash !== paciente.otp_code_hash) {
       await supabase
         .from('pacientes')
-        .update({ otp_code_hash: codeHash, otp_expires_at: expiresAt, otp_attempts: 0 })
+        .update({ otp_attempts: paciente.otp_attempts + 1 })
         .eq('id', match.paciente_id)
-
-      const { data: medico } = await supabase.from('doctors').select('full_name').eq('id', medicoId).single()
-
-      // No se espera el envío — la respuesta al cliente no debe variar en
-      // tiempo según si hubo o no coincidencia.
-      sendPacienteOtpEmail(match.email, code, medico?.full_name || 'tu médico').catch((err) =>
-        console.error(`[${requestId}] Error enviando OTP:`, err)
-      )
+      return codigoInvalido(requestId)
     }
 
-    return respuestaGenerica(requestId)
+    // Código correcto: se consume (de un solo uso) y se marca la ventana de
+    // "sesión corta" que /api/citas exigirá para confiar en pacienteId.
+    await supabase
+      .from('pacientes')
+      .update({ otp_code_hash: null, otp_expires_at: null, otp_attempts: 0, otp_verified_at: new Date().toISOString() })
+      .eq('id', match.paciente_id)
+
+    return NextResponse.json(
+      {
+        pacienteId: match.paciente_id,
+        nombre: match.nombre,
+        email: match.email,
+        telefono: match.telefono,
+      },
+      { headers: { ...securityHeaders, 'X-Request-ID': requestId } }
+    )
   } catch (error) {
     console.error(`[${requestId}] Error:`, error)
-    return respuestaGenerica(requestId)
+    return codigoInvalido(requestId)
   }
 }
 

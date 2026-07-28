@@ -1,5 +1,5 @@
 import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from 'pdf-lib'
-import type { EstadisticasData } from './estadisticasData'
+import type { EstadisticasData, TrendMetric, BenchmarkGrupo } from './estadisticasData'
 
 // Mismo patrón que packages/hema-pdf: formas vectoriales dibujadas a mano con
 // pdf-lib (drawRectangle/drawText), sin librería de charts ni captura de imagen.
@@ -11,7 +11,6 @@ const PAGE_HEIGHT = 792
 const COLOR_INK = rgb(0.067, 0.094, 0.153) // #111827
 const COLOR_MUTED = rgb(0.42, 0.45, 0.5) // #6B7280
 const COLOR_BRAND = rgb(0.118, 0.227, 0.373) // #1E3A5F
-const COLOR_BORDER = rgb(0.898, 0.906, 0.922) // #E5E7EB
 const COLOR_TEAL = rgb(0.165, 0.616, 0.561) // #2A9D8F
 const COLOR_AMBER = rgb(0.851, 0.467, 0.024) // #D97706
 const COLOR_PURPLE = rgb(0.545, 0.361, 0.965) // #8B5CF6
@@ -21,23 +20,6 @@ const COLOR_TRACK = rgb(0.953, 0.957, 0.965) // #F3F4F6
 interface Cursor {
   page: PDFPage
   y: number
-}
-
-function wrapText(text: string, font: PDFFont, size: number, maxWidth: number): string[] {
-  const words = text.split(/\s+/).filter(Boolean)
-  const lines: string[] = []
-  let current = ''
-  for (const word of words) {
-    const candidate = current ? `${current} ${word}` : word
-    if (font.widthOfTextAtSize(candidate, size) > maxWidth && current) {
-      lines.push(current)
-      current = word
-    } else {
-      current = candidate
-    }
-  }
-  if (current) lines.push(current)
-  return lines.length > 0 ? lines : ['']
 }
 
 export async function buildEstadisticasPdf(data: EstadisticasData): Promise<Uint8Array> {
@@ -133,6 +115,32 @@ export async function buildEstadisticasPdf(data: EstadisticasData): Promise<Uint
   })
   cursor.y -= 68
 
+  // ── Tendencia mensual (beneficio Premium — quien genera este PDF ya lo
+  // tiene, no hace falta gate adicional aquí) ────────────────────────────
+  function formatTendencia(t: TrendMetric): { texto: string; color: ReturnType<typeof rgb> } {
+    if (t.direccion === 'nuevo') return { texto: 'Nuevo este mes', color: COLOR_TEAL }
+    if (t.direccion === 'flat') return { texto: 'Sin cambio vs. mes anterior', color: COLOR_MUTED }
+    const pct = t.cambioPct !== null ? `${t.direccion === 'up' ? '+' : ''}${Math.round(t.cambioPct)}%` : ''
+    const texto = `${t.direccion === 'up' ? 'Subió' : 'Bajó'} ${pct} vs. mes anterior`
+    return { texto, color: t.direccion === 'up' ? COLOR_TEAL : COLOR_RED }
+  }
+
+  sectionTitle('Tendencia mensual')
+  const filasTendencia: { label: string; trend: TrendMetric; valor: string }[] = [
+    { label: 'Vistas al perfil', trend: data.tendencias.vistas, valor: String(data.tendencias.vistas.actual) },
+    { label: 'Calificación', trend: data.tendencias.calificacion, valor: data.tendencias.calificacion.actual.toFixed(1) },
+    { label: 'Reseñas nuevas', trend: data.tendencias.reseñas, valor: String(data.tendencias.reseñas.actual) },
+  ]
+  for (const fila of filasTendencia) {
+    ensureSpace(18)
+    const prefijo = `${fila.label}: ${fila.valor} este mes — `
+    text(prefijo, { x: MARGIN, size: 10, color: COLOR_INK })
+    const { texto, color } = formatTendencia(fila.trend)
+    const prefijoWidth = font.widthOfTextAtSize(prefijo, 10)
+    text(texto, { x: MARGIN + prefijoWidth, size: 10, f: bold, color })
+    cursor.y -= 18
+  }
+
   // ── Distribución de citas ──────────────────────────────────────────────
   sectionTitle('Distribución de citas')
   if (data.total === 0) {
@@ -169,54 +177,39 @@ export async function buildEstadisticasPdf(data: EstadisticasData): Promise<Uint
     cursor.y -= 20
   }
 
-  // ── Últimas reseñas ──────────────────────────────────────────────────────
-  if (data.reviews.length > 0) {
-    sectionTitle('Últimas reseñas')
-    for (const r of data.reviews.slice(0, 3)) {
-      ensureSpace(40)
-      // WinAnsi (fuentes estándar de pdf-lib) no puede codificar ★/☆ — se dibujan como círculos vectoriales.
-      for (let i = 0; i < 5; i++) {
-        cursor.page.drawEllipse({
-          x: MARGIN + i * 12 + 4,
-          y: cursor.y + 3,
-          xScale: 4,
-          yScale: 4,
-          color: i < r.rating ? COLOR_AMBER : undefined,
-          borderColor: COLOR_AMBER,
-          borderWidth: 1,
-        })
-      }
-      text('Paciente verificado', { x: MARGIN + 68, size: 10, f: bold, color: COLOR_INK })
-      cursor.y -= 14
-      const comment = r.comment?.trim() || '(sin comentario)'
-      const lines = wrapText(comment, font, 9, PAGE_WIDTH - MARGIN * 2)
-      for (const line of lines) {
-        ensureSpace(13)
-        text(line, { x: MARGIN, size: 9, color: COLOR_MUTED })
-        cursor.y -= 13
-      }
-      cursor.y -= 8
-    }
-  }
+  // ── Cómo te comparas (benchmark de especialidad, beneficio Premium —
+  // mismo criterio que la tendencia mensual: quien genera este PDF ya lo
+  // tiene, no hace falta gate adicional aquí) ────────────────────────────
+  if (data.benchmark) {
+    sectionTitle('Cómo te comparas')
+    const tuRatingTexto = data.reviews.length > 0 ? `${data.ratingPromedio.toFixed(1)} estrellas` : 'sin dato'
+    const grupos: { titulo: string; grupo: BenchmarkGrupo | null }[] = [
+      { titulo: `${data.benchmark.especialidad} — toda la plataforma`, grupo: data.benchmark.nacional },
+      { titulo: `${data.benchmark.especialidad} — ${data.benchmark.ciudad || 'sin ciudad registrada'}`, grupo: data.benchmark.ciudadGrupo },
+    ]
+    for (const { titulo, grupo } of grupos) {
+      ensureSpace(18)
+      text(titulo, { x: MARGIN, size: 10, f: bold, color: COLOR_BRAND })
+      cursor.y -= 16
 
-  // ── Perfil completado ────────────────────────────────────────────────────
-  sectionTitle('Perfil completado')
-  text(`${data.completionPct}%`, { x: MARGIN, size: 12, f: bold, color: data.completionPct >= 80 ? COLOR_TEAL : data.completionPct >= 50 ? COLOR_AMBER : COLOR_RED })
-  cursor.y -= 18
-  for (const check of data.checks) {
-    ensureSpace(16)
-    // Círculo vectorial en vez de ✓/○ — WinAnsi no codifica esos glifos.
-    cursor.page.drawEllipse({
-      x: MARGIN + 4,
-      y: cursor.y + 3,
-      xScale: 4,
-      yScale: 4,
-      color: check.ok ? COLOR_TEAL : undefined,
-      borderColor: check.ok ? COLOR_TEAL : COLOR_BORDER,
-      borderWidth: 1,
-    })
-    text(check.label, { x: MARGIN + 16, size: 10, color: check.ok ? COLOR_INK : COLOR_MUTED })
-    cursor.y -= 16
+      const filas = [
+        { label: 'Rating promedio', tuTexto: tuRatingTexto, grupoValor: grupo?.ratingPromedio ?? null, suficiente: grupo?.ratingSuficiente ?? false, formato: (v: number) => `${v.toFixed(1)} estrellas` },
+        { label: 'Tasa de confirmación', tuTexto: `${data.tasaConfirmacion}%`, grupoValor: grupo?.tasaConfirmacion ?? null, suficiente: grupo?.tasaSuficiente ?? false, formato: (v: number) => `${v}%` },
+      ]
+      for (const fila of filas) {
+        ensureSpace(16)
+        const prefijo = `${fila.label}: Tú ${fila.tuTexto} — `
+        text(prefijo, { x: MARGIN + 12, size: 9, color: COLOR_MUTED })
+        const prefijoWidth = font.widthOfTextAtSize(prefijo, 9)
+        if (fila.suficiente && fila.grupoValor !== null) {
+          text(`Grupo ${fila.formato(fila.grupoValor)}`, { x: MARGIN + 12 + prefijoWidth, size: 9, f: bold, color: COLOR_INK })
+        } else {
+          text('Aún no hay datos suficientes', { x: MARGIN + 12 + prefijoWidth, size: 9, color: COLOR_MUTED })
+        }
+        cursor.y -= 16
+      }
+      cursor.y -= 6
+    }
   }
 
   return doc.save()

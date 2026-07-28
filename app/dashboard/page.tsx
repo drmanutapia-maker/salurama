@@ -750,11 +750,7 @@ export default function DashboardMedico() {
         <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 16 }}>
           
           {/* VISITAS */}
-          <Link
-            href="/dashboard/estadisticas"
-            className="card-hover"
-            style={{ background: '#fff', padding: 24, borderRadius: 16, border: '1px solid #E5E7EB', textDecoration: 'none', display: 'block', cursor: 'pointer' }}
-          >
+          <div style={{ background: '#fff', padding: 24, borderRadius: 16, border: '1px solid #E5E7EB' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
               <p style={{ fontSize: 11, color: '#9CA3AF', textTransform: 'uppercase', fontWeight: 700, margin: 0, letterSpacing: '0.05em' }}>Visitas</p>
               <Eye size={18} color="#8B5CF6" />
@@ -767,17 +763,10 @@ export default function DashboardMedico() {
                 Acumulando datos desde el {fechaHoyLegible} — la tendencia estará disponible próximamente
               </p>
             )}
-            <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', gap: 4, color: '#8B5CF6', fontSize: 13, fontWeight: 600 }}>
-              Ver detalles <ArrowRight size={14} />
-            </div>
-          </Link>
+          </div>
 
           {/* SOLICITUDES */}
-          <Link
-            href="/dashboard/citas"
-            className="card-hover"
-            style={{ background: '#fff', padding: 24, borderRadius: 16, border: '1px solid #E5E7EB', textDecoration: 'none', display: 'block', cursor: 'pointer' }}
-          >
+          <div style={{ background: '#fff', padding: 24, borderRadius: 16, border: '1px solid #E5E7EB' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
               <p style={{ fontSize: 11, color: '#9CA3AF', textTransform: 'uppercase', fontWeight: 700, margin: 0, letterSpacing: '0.05em' }}>Solicitudes</p>
               <Calendar size={18} color="#2A9D8F" />
@@ -791,8 +780,8 @@ export default function DashboardMedico() {
                   Comparte tu perfil para conseguir la primera
                 </div>
                 <div
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleShare() }}
-                  style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', gap: 4, color: '#2A9D8F', fontSize: 13, fontWeight: 600 }}
+                  onClick={handleShare}
+                  style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', gap: 4, color: '#2A9D8F', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
                 >
                   <Share2 size={14} /> Compartir perfil
                 </div>
@@ -807,19 +796,12 @@ export default function DashboardMedico() {
                   <span style={{ fontWeight: 600 }}>{stats?.citas_solicitadas_mes || 0}</span>
                   <span style={{ color: '#9CA3AF', marginLeft: 4 }}>este mes</span>
                 </div>
-                <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', gap: 4, color: '#2A9D8F', fontSize: 13, fontWeight: 600 }}>
-                  {(stats?.citas_pendientes ?? 0) > 0 ? 'Responder ahora' : 'Ver historial'} <ArrowRight size={14} />
-                </div>
               </>
             )}
-          </Link>
+          </div>
 
           {/* CALIFICACIÓN */}
-          <div
-            className="card-hover"
-            style={{ background: '#fff', padding: 24, borderRadius: 16, border: '1px solid #E5E7EB', cursor: 'pointer' }}
-            onClick={() => router.push(`/doctor/${medico.id}`)}
-          >
+          <div style={{ background: '#fff', padding: 24, borderRadius: 16, border: '1px solid #E5E7EB' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
               <p style={{ fontSize: 11, color: '#9CA3AF', textTransform: 'uppercase', fontWeight: 700, margin: 0, letterSpacing: '0.05em' }}>Calificación</p>
               <Star size={18} color="#F59E0B" fill="#F59E0B" />
@@ -834,8 +816,11 @@ export default function DashboardMedico() {
               <Users size={14} />
               {stats?.reseñas_count ? `${stats.reseñas_count} reseñas` : 'Sin reseñas aún'}
             </div>
-            <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', gap: 4, color: '#F59E0B', fontSize: 13, fontWeight: 600 }}>
-              {stats?.reseñas_count === 0 ? 'Cómo conseguirlas' : 'Ver reseñas'} <ArrowRight size={14} />
+            <div
+              onClick={() => router.push('/dashboard/resenas')}
+              style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', gap: 4, color: '#2A9D8F', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+            >
+              <ArrowRight size={14} /> Ver reseñas
             </div>
           </div>
         </div>

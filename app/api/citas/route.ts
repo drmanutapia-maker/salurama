@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { sendVerificationEmail } from '@/lib/email'
 import { Redis } from '@upstash/redis'
 import { z } from 'zod'
+import { OTP_PROOF_WINDOW_MINUTES } from '@/lib/pacienteOtp'
 
 export const runtime = 'edge'
 export const preferredRegion = 'mex1'
@@ -83,20 +84,24 @@ export async function POST(request: NextRequest) {
     let telefonoFinal = pacienteTelefono
 
     if (pacienteId) {
-      const { data: citaPrevia } = await supabase
-        .from('citas')
-        .select('id')
-        .eq('paciente_id', pacienteId)
-        .eq('medico_id', medicoId)
-        .limit(1)
+      // pacienteId por sí solo ya no basta como prueba de identidad (ver
+      // auditoría del flujo de citas, 2026-07-28) — solo se confía en él
+      // si pasó la verificación por código OTP en los últimos
+      // OTP_PROOF_WINDOW_MINUTES. Si no, se seguirá como paciente nuevo en
+      // silencio: no se rechaza la reserva completa, solo se ignoran el
+      // autocompletado y actualizarDatos.
+      const { data: pacienteRow } = await supabase
+        .from('pacientes')
+        .select('email, telefono, otp_verified_at')
+        .eq('id', pacienteId)
         .maybeSingle()
 
-      if (!citaPrevia) {
-        console.warn(`[${requestId}] pacienteId sin cita previa con este médico: ${pacienteId}`)
-        return NextResponse.json({ error: 'Datos inválidos' }, { status: 400 })
-      }
+      const verificadoReciente = !!pacienteRow?.otp_verified_at &&
+        new Date(pacienteRow.otp_verified_at).getTime() > Date.now() - OTP_PROOF_WINDOW_MINUTES * 60000
 
-      if (actualizarDatos) {
+      if (!verificadoReciente) {
+        console.warn(`[${requestId}] pacienteId sin verificación OTP reciente, se ignora: ${pacienteId}`)
+      } else if (actualizarDatos) {
         const { error: actualizarError } = await supabase
           .rpc('actualizar_paciente_contacto', {
             p_paciente_id: pacienteId,
@@ -108,21 +113,18 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'Error al procesar la solicitud' }, { status: 500 })
         }
       } else {
-        const [{ data: pacienteOriginal }, { data: citaReciente }] = await Promise.all([
-          supabase.from('pacientes').select('email, telefono').eq('id', pacienteId).maybeSingle(),
-          supabase
-            .from('citas')
-            .select('paciente_nombre')
-            .eq('paciente_id', pacienteId)
-            .eq('medico_id', medicoId)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle(),
-        ])
+        const { data: citaReciente } = await supabase
+          .from('citas')
+          .select('paciente_nombre')
+          .eq('paciente_id', pacienteId)
+          .eq('medico_id', medicoId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
 
         nombreFinal = citaReciente?.paciente_nombre ?? pacienteNombre
-        emailFinal = pacienteOriginal?.email ?? pacienteEmail
-        telefonoFinal = pacienteOriginal?.telefono ?? pacienteTelefono
+        emailFinal = pacienteRow?.email ?? pacienteEmail
+        telefonoFinal = pacienteRow?.telefono ?? pacienteTelefono
       }
     }
 

@@ -32,7 +32,7 @@ export default function CookieBanner() {
           inset: 0,
           background: 'rgba(30, 27, 75, 0.5)',
           backdropFilter: 'blur(4px)',
-          zIndex: 9998,
+          zIndex: 1999,
           display: showConfig ? 'block' : 'none',
         }}
         onClick={() => setShowConfig(false)}
@@ -55,7 +55,7 @@ export default function CookieBanner() {
           background: '#fff',
           borderRadius: 16,
           boxShadow: '0 8px 32px rgba(30, 27, 75, 0.15)',
-          zIndex: 9999,
+          zIndex: 2000,
           border: '1px solid #E5E7EB',
           fontFamily: "'DM Sans', sans-serif",
         }}

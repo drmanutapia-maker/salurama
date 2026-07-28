@@ -31,6 +31,7 @@ function getServiceSupabase() {
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
 
 // Registra una visita a un perfil público en profile_views. Fire-and-forget
 // desde el cliente — nunca debe bloquear ni afectar el render del perfil,
@@ -78,6 +79,11 @@ export async function POST(request: NextRequest) {
 // Cuenta las visitas reales del médico autenticado a su propio perfil.
 // profile_views tiene RLS habilitado sin políticas (nadie puede leerlo desde
 // el cliente) — se resuelve vía service role, igual que el insert de arriba.
+// También devuelve la serie de los últimos 6 meses (mismo criterio que
+// citasPorMes en app/dashboard/estadisticas) para la tendencia mensual y la
+// gráfica de línea (beneficio Premium) — mismo motivo: esos conteos tampoco
+// se pueden leer directo desde el cliente. mesActual/mesAnterior se derivan
+// de esa misma serie, sin consultas repetidas.
 export async function GET() {
   const anonClient = await getAnonSupabase()
   const { data: { user }, error: authError } = await anonClient.auth.getUser()
@@ -91,15 +97,31 @@ export async function GET() {
     return NextResponse.json({ error: 'Perfil de médico no encontrado' }, { status: 404 })
   }
 
-  const { count, error } = await db
-    .from('profile_views')
-    .select('*', { count: 'exact', head: true })
-    .eq('doctor_id', doctor.id)
+  const ahora = new Date()
 
+  const [totalRes, ...mesesRes] = await Promise.all([
+    db.from('profile_views').select('*', { count: 'exact', head: true }).eq('doctor_id', doctor.id),
+    ...Array.from({ length: 6 }, (_, i) => {
+      const inicio = new Date(ahora.getFullYear(), ahora.getMonth() - (5 - i), 1)
+      const fin = new Date(ahora.getFullYear(), ahora.getMonth() - (5 - i) + 1, 1)
+      return db.from('profile_views').select('*', { count: 'exact', head: true })
+        .eq('doctor_id', doctor.id).gte('viewed_at', inicio.toISOString()).lt('viewed_at', fin.toISOString())
+        .then(res => ({ ...res, label: MESES[inicio.getMonth()] }))
+    }),
+  ])
+
+  const error = totalRes.error || mesesRes.find(r => r.error)?.error
   if (error) {
     console.error('[track-visit] Error contando visitas:', error)
     return NextResponse.json({ error: 'Error al contar visitas' }, { status: 500 })
   }
 
-  return NextResponse.json({ count: count ?? 0 }, { status: 200 })
+  const vistasPorMes = mesesRes.map(r => ({ label: r.label, count: r.count ?? 0 }))
+
+  return NextResponse.json({
+    count: totalRes.count ?? 0,
+    mesActual: vistasPorMes[5].count,
+    mesAnterior: vistasPorMes[4].count,
+    vistasPorMes,
+  }, { status: 200 })
 }

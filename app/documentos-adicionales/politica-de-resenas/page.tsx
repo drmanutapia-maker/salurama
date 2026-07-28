@@ -25,7 +25,7 @@ export default function PoliticaResenas() {
         <div style={{ maxWidth:820, margin:'0 auto' }}>
           <p style={{ fontSize:11, fontWeight:600, color:'#2A9D8F', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:10 }}>Comunidad y confianza</p>
           <h1 style={{ fontFamily:"'Fraunces',serif", fontSize:'clamp(26px,5vw,38px)', fontWeight:900, color:'#0D1829', marginBottom:12 }}>Política de Contenido y Reseñas</h1>
-          <p style={{ fontSize:14, color:'#6B7280' }}>Última actualización: 31 de marzo de 2026 · SALURAMA S.A.S.</p>
+          <p style={{ fontSize:14, color:'#6B7280' }}>Última actualización: 28 de julio de 2026 · SALURAMA S.A.S.</p>
         </div>
       </section>
 
@@ -42,9 +42,9 @@ export default function PoliticaResenas() {
         <div className="section-block">
           <h2 className="legal-h2">2. Quién puede publicar reseñas</h2>
           <ul className="legal-ul">
-            <li className="legal-li">Usuarios registrados en la plataforma que hayan tenido contacto con el profesional.</li>
-            <li className="legal-li">Se permite una reseña por usuario por profesional. Las reseñas duplicadas serán eliminadas.</li>
-            <li className="legal-li">Salurama no verifica si el usuario efectivamente consultó al profesional, pero se reserva el derecho de eliminar reseñas con indicios de fraude o conflicto de interés.</li>
+            <li className="legal-li">Pacientes que hayan tenido una cita registrada y completada con el profesional en Salurama — no se requiere crear una cuenta de usuario para dejar una reseña.</li>
+            <li className="legal-li">Se permite una reseña por cada cita completada. Un mismo paciente puede dejar más de una reseña si ha tenido varias consultas distintas con el mismo profesional. Las reseñas duplicadas para la misma cita serán eliminadas.</li>
+            <li className="legal-li">Salurama verifica que cada reseña provenga de una cita real y completada con el profesional evaluado, mediante un enlace de verificación único enviado exclusivamente al paciente de esa cita. Aun así, se reserva el derecho de eliminar reseñas con indicios de fraude o conflicto de interés.</li>
           </ul>
         </div>
 

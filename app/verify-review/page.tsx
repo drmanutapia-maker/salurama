@@ -29,39 +29,21 @@ function VerifyReviewContent() {
     let cancelled = false
 
     async function load() {
-      const { data: citaData, error } = await supabase
-        .from('citas')
-        .select('id, medico_id, paciente_nombre, paciente_email, fecha, review_token')
-        .eq('review_token', token)
-        .eq('estado', 'completed')
-        .maybeSingle()
+      const res = await fetch('/api/verify-review/lookup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
+      })
+      const json = await res.json()
 
       if (cancelled) return
-      if (error || !citaData) {
+      if (!res.ok) {
         setStatus('error')
-        setErrorMsg('Este enlace ya fue usado, expiró o es inválido')
+        setErrorMsg(json.error || 'Este enlace ya fue usado, expiró o es inválido')
         return
       }
 
-      const { data: existingReview } = await supabase
-        .from('reviews')
-        .select('id')
-        .eq('cita_id', citaData.id)
-        .maybeSingle()
-
-      if (existingReview) {
-        setStatus('error')
-        setErrorMsg('Ya enviaste una reseña para esta cita. ¡Gracias!')
-        return
-      }
-
-      const { data: medicoData } = await supabase
-        .from('doctors')
-        .select('full_name')
-        .eq('id', citaData.medico_id)
-        .single()
-
-      setAppointment({ ...citaData, doctorName: medicoData?.full_name || '' })
+      setAppointment(json.appointment)
       setStatus('success')
     }
 

@@ -1,15 +1,16 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Turnstile } from '@marsidev/react-turnstile'
 import {
   MapPin, Star, ShieldCheck, Shield, ExternalLink, Copy, CheckCircle, X,
-  ChevronDown, Briefcase, GraduationCap, Heart, Calendar, DollarSign, Info,
-  Clock, Navigation, Phone, MessageCircle, Globe, Share2
+  ChevronDown, ChevronLeft, ChevronRight, Briefcase, GraduationCap, Heart, Calendar, DollarSign, Info,
+  Clock, Navigation, Phone, MessageCircle, Globe, Share2, Image as ImageIcon
 } from 'lucide-react'
 import BackButton from '@/components/BackButton'
+import { isPlusTier } from '@/lib/planGates'
 
 interface Medico {
   id: string
@@ -58,6 +59,13 @@ interface Medico {
   min_patient_age: number | null
   max_patient_age: number | null
   horario: Record<string, any> | null
+  pricing_tier: string
+}
+
+interface GalleryPhoto {
+  id: string
+  photo_url: string
+  caption: string | null
 }
 
 interface License {
@@ -182,8 +190,13 @@ function AppointmentModal({
   const [modoPaciente, setModoPaciente] = useState<'primera' | 'existente' | null>(null)
   const [contactoBusqueda, setContactoBusqueda] = useState('')
   const [buscandoPaciente, setBuscandoPaciente] = useState(false)
-  const [resultadoBusqueda, setResultadoBusqueda] = useState<'idle' | 'encontrado' | 'no_encontrado' | 'limite'>('idle')
+  // Ya no existe 'no_encontrado' — la respuesta de buscar-paciente nunca
+  // revela si hubo coincidencia (ver auditoría del flujo de citas,
+  // 2026-07-28), así que siempre se pasa a pedir el código.
+  const [resultadoBusqueda, setResultadoBusqueda] = useState<'idle' | 'codigo_enviado' | 'encontrado' | 'codigo_invalido' | 'limite' | 'error'>('idle')
   const [minutosEspera, setMinutosEspera] = useState<number | null>(null)
+  const [codigoOtp, setCodigoOtp] = useState('')
+  const [verificandoCodigo, setVerificandoCodigo] = useState(false)
   const [pacienteId, setPacienteId] = useState<string | null>(null)
   const [actualizarDatos, setActualizarDatos] = useState(false)
 
@@ -193,6 +206,7 @@ function AppointmentModal({
     setModoPaciente(actual => (actual === nuevoModo ? null : nuevoModo))
     setResultadoBusqueda('idle')
     setMinutosEspera(null)
+    setCodigoOtp('')
     setPacienteId(null)
     setActualizarDatos(false)
     setContactoBusqueda('')
@@ -201,6 +215,7 @@ function AppointmentModal({
   const handleBuscarPaciente = async () => {
     if (!contactoBusqueda.trim()) return
     setBuscandoPaciente(true)
+    setCodigoOtp('')
     try {
       const res = await fetch('/api/citas/buscar-paciente', {
         method: 'POST',
@@ -210,24 +225,48 @@ function AppointmentModal({
       if (res.status === 429) {
         const retryAfterSeg = Number(res.headers.get('Retry-After')) || 3600
         setMinutosEspera(Math.ceil(retryAfterSeg / 60))
-        setPacienteId(null)
         setResultadoBusqueda('limite')
         return
       }
-      const data = await res.json()
-      if (data.encontrado) {
-        setPacienteId(data.pacienteId)
-        setFormData(f => ({ ...f, patient_name: data.nombre || '', patient_email: data.email || '', patient_phone: data.telefono || '' }))
-        setResultadoBusqueda('encontrado')
-      } else {
-        setPacienteId(null)
-        setResultadoBusqueda('no_encontrado')
-      }
-    } catch {
+      // Sin importar si hubo o no coincidencia real, la respuesta es la
+      // misma: pasamos a pedir el código que, si existía un paciente, ya
+      // le llegó a su correo.
       setPacienteId(null)
-      setResultadoBusqueda('no_encontrado')
+      setResultadoBusqueda('codigo_enviado')
+    } catch {
+      setResultadoBusqueda('error')
     } finally {
       setBuscandoPaciente(false)
+    }
+  }
+
+  const handleVerificarCodigo = async () => {
+    if (!codigoOtp.trim()) return
+    setVerificandoCodigo(true)
+    try {
+      const res = await fetch('/api/citas/verificar-codigo-paciente', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ medicoId: medico.id, contacto: contactoBusqueda, code: codigoOtp.trim() }),
+      })
+      if (res.status === 429) {
+        const retryAfterSeg = Number(res.headers.get('Retry-After')) || 3600
+        setMinutosEspera(Math.ceil(retryAfterSeg / 60))
+        setResultadoBusqueda('limite')
+        return
+      }
+      if (!res.ok) {
+        setResultadoBusqueda('codigo_invalido')
+        return
+      }
+      const data = await res.json()
+      setPacienteId(data.pacienteId)
+      setFormData(f => ({ ...f, patient_name: data.nombre || '', patient_email: data.email || '', patient_phone: data.telefono || '' }))
+      setResultadoBusqueda('encontrado')
+    } catch {
+      setResultadoBusqueda('codigo_invalido')
+    } finally {
+      setVerificandoCodigo(false)
     }
   }
 
@@ -463,23 +502,56 @@ function AppointmentModal({
                       value={contactoBusqueda}
                       onChange={e => setContactoBusqueda(e.target.value)}
                       placeholder="Correo o teléfono con el que agendaste antes"
+                      readOnly={resultadoBusqueda === 'encontrado'}
                       style={{ flex: 1, minWidth: 200, padding: '10px 14px', border: '1.5px solid #E5E7EB', borderRadius: 10, fontSize: 13 }}
                     />
                     <button
                       type="button"
                       onClick={handleBuscarPaciente}
-                      disabled={buscandoPaciente || !contactoBusqueda.trim()}
-                      style={{ padding: '10px 14px', borderRadius: 10, border: 'none', background: '#8B5CF6', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: buscandoPaciente || !contactoBusqueda.trim() ? 0.6 : 1, whiteSpace: 'nowrap' }}
+                      disabled={buscandoPaciente || !contactoBusqueda.trim() || resultadoBusqueda === 'encontrado'}
+                      style={{ padding: '10px 14px', borderRadius: 10, border: 'none', background: '#8B5CF6', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: buscandoPaciente || !contactoBusqueda.trim() || resultadoBusqueda === 'encontrado' ? 0.6 : 1, whiteSpace: 'nowrap' }}
                     >
-                      {buscandoPaciente ? 'Buscando...' : 'Buscar mis datos'}
+                      {buscandoPaciente ? 'Enviando...' : resultadoBusqueda === 'codigo_enviado' || resultadoBusqueda === 'codigo_invalido' ? 'Reenviar código' : 'Buscar mis datos'}
                     </button>
                   </div>
+
+                  {(resultadoBusqueda === 'codigo_enviado' || resultadoBusqueda === 'codigo_invalido') && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <p style={identAvisoStyle}>
+                        Si tienes una cita previa con este médico, te enviamos un código a tu correo registrado. Revísalo e ingrésalo aquí.
+                      </p>
+                      {resultadoBusqueda === 'codigo_invalido' && (
+                        <p style={{ ...identAvisoStyle, color: '#DC2626', background: '#FEF2F2' }}>
+                          Código inválido o expirado. Puedes intentar de nuevo o pedir un código nuevo.
+                        </p>
+                      )}
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <input
+                          value={codigoOtp}
+                          onChange={e => setCodigoOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                          placeholder="Código de 6 dígitos"
+                          inputMode="numeric"
+                          style={{ flex: 1, minWidth: 160, padding: '10px 14px', border: '1.5px solid #E5E7EB', borderRadius: 10, fontSize: 13, letterSpacing: 2 }}
+                        />
+                        <button
+                          type="button"
+                          onClick={handleVerificarCodigo}
+                          disabled={verificandoCodigo || codigoOtp.trim().length !== 6}
+                          style={{ padding: '10px 14px', borderRadius: 10, border: 'none', background: '#8B5CF6', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: verificandoCodigo || codigoOtp.trim().length !== 6 ? 0.6 : 1, whiteSpace: 'nowrap' }}
+                        >
+                          {verificandoCodigo ? 'Verificando...' : 'Verificar código'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   {resultadoBusqueda === 'encontrado' && (
                     <p style={{ ...identAvisoStyle, color: '#059669', background: '#ECFDF5' }}>Encontramos tus datos. Revísalos abajo.</p>
                   )}
-                  {resultadoBusqueda === 'no_encontrado' && (
-                    <p style={identAvisoStyle}>No encontramos coincidencia. Verifica el dato o continúa como si fuera tu primera vez.</p>
+                  {resultadoBusqueda === 'error' && (
+                    <p style={{ ...identAvisoStyle, color: '#DC2626', background: '#FEF2F2' }}>
+                      Error de conexión. Intenta de nuevo o continúa como si fuera tu primera vez.
+                    </p>
                   )}
                   {resultadoBusqueda === 'limite' && (
                     <p style={{ ...identAvisoStyle, color: '#DC2626', background: '#FEF2F2' }}>
@@ -594,6 +666,9 @@ export default function DoctorProfileClient({ doctorId }: { doctorId: string }) 
   const [experience, setExperience] = useState<ExperienceItem[]>([])
   const [conditions, setConditions] = useState<Condition[]>([])
   const [reviews, setReviews] = useState<Review[]>([])
+  const [galleryPhotos, setGalleryPhotos] = useState<GalleryPhoto[]>([])
+  const [lightboxPhoto, setLightboxPhoto] = useState<GalleryPhoto | null>(null)
+  const [showAllPhotosModal, setShowAllPhotosModal] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
@@ -603,6 +678,7 @@ export default function DoctorProfileClient({ doctorId }: { doctorId: string }) 
   const [showPhotoModal, setShowPhotoModal] = useState(false)
   const [isOwner, setIsOwner] = useState(false)
   const [copiedToast, setCopiedToast] = useState(false)
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null)
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768)
@@ -626,18 +702,20 @@ export default function DoctorProfileClient({ doctorId }: { doctorId: string }) 
         if (user?.email === data.email) {
           setIsOwner(true)
         }
-        const [licRes, eduRes, expRes, condRes, revRes, credRes] = await Promise.all([
+        const [licRes, eduRes, expRes, condRes, revRes, credRes, galRes] = await Promise.all([
           supabase.from('doctor_licenses').select('*').eq('doctor_id', data.id),
           supabase.from('doctor_education').select('*').eq('doctor_id', data.id).order('graduation_year', { ascending: false }),
           supabase.from('doctor_experience').select('*').eq('doctor_id', data.id).order('is_current', { ascending: false }),
           supabase.from('doctor_conditions').select('*').eq('doctor_id', data.id).order('category'),
           supabase.from('reviews').select('*').eq('doctor_id', data.id).eq('is_visible', true).order('created_at', { ascending: false }).limit(20),
           supabase.from('doctor_specialty_credentials').select('id, credentials_status, specialty_granular_mapping(granular_name, conacem_councils(council_name))').eq('doctor_id', data.id),
+          supabase.from('doctor_gallery_photos').select('id, photo_url, caption').eq('doctor_id', data.id).order('position'),
         ])
         setLicenses(licRes.data || [])
         setEducation(eduRes.data || [])
         setExperience(expRes.data || [])
         setConditions(condRes.data || [])
+        setGalleryPhotos(galRes.data || [])
         setSpecialtyCredentials((credRes.data || []).map((r: any) => ({
           id: r.id,
           credentials_status: r.credentials_status,
@@ -813,6 +891,27 @@ export default function DoctorProfileClient({ doctorId }: { doctorId: string }) 
     url: profileUrl,
   } : null
 
+  const lightboxIndex = lightboxPhoto ? galleryPhotos.findIndex(p => p.id === lightboxPhoto.id) : -1
+  const goToLightboxPhoto = (direction: -1 | 1) => {
+    const nextIndex = lightboxIndex + direction
+    if (nextIndex < 0 || nextIndex >= galleryPhotos.length) return
+    setLightboxPhoto(galleryPhotos[nextIndex])
+  }
+  const handleLightboxTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0]
+    touchStartRef.current = { x: t.clientX, y: t.clientY }
+  }
+  const handleLightboxTouchEnd = (e: React.TouchEvent) => {
+    const start = touchStartRef.current
+    touchStartRef.current = null
+    if (!start) return
+    const t = e.changedTouches[0]
+    const dx = t.clientX - start.x
+    const dy = t.clientY - start.y
+    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return
+    goToLightboxPhoto(dx < 0 ? 1 : -1)
+  }
+
   return (
     <div style={{ minHeight: '100vh', background: '#F9FAFB', fontFamily: "'DM Sans', sans-serif", color: '#111827', paddingBottom: 100 }}>
 
@@ -966,6 +1065,34 @@ export default function DoctorProfileClient({ doctorId }: { doctorId: string }) 
                 {medico.about_me || 'Información no disponible. El médico no ha completado su presentación.'}
               </p>
             </section>
+
+            {/* Galería de fotos (plan Plus) */}
+            {isPlusTier(medico.pricing_tier) && galleryPhotos.length > 0 && (
+              <section className="fade-up" style={{ marginBottom: 32 }}>
+                <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 900, color: '#1E3A5F', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <ImageIcon size={20} /> Galería
+                </h2>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10 }}>
+                  {(isMobile ? galleryPhotos.slice(0, 4) : galleryPhotos).map((photo, idx) => {
+                    const isMoreTile = isMobile && idx === 3 && galleryPhotos.length > 4
+                    return (
+                      <div
+                        key={photo.id}
+                        style={{ position: 'relative', aspectRatio: '1/1', borderRadius: 12, overflow: 'hidden', cursor: 'pointer', border: '1px solid #E5E7EB' }}
+                        onClick={() => (isMoreTile ? setShowAllPhotosModal(true) : setLightboxPhoto(photo))}
+                      >
+                        <img src={photo.photo_url} alt={photo.caption || `Foto de ${displayName}`} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                        {isMoreTile && (
+                          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <span style={{ color: '#fff', fontSize: 17, fontWeight: 700 }}>+{galleryPhotos.length - 4} fotos</span>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </section>
+            )}
 
             {/* Formación académica */}
             {education.length > 0 && (
@@ -1301,6 +1428,71 @@ export default function DoctorProfileClient({ doctorId }: { doctorId: string }) 
             <X size={32} />
           </button>
           <img src={medico.photo_url} alt={displayName} style={{ maxWidth: '100%', maxHeight: '80vh', borderRadius: 16 }} />
+        </div>
+      )}
+      {showAllPhotosModal && (
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget) setShowAllPhotosModal(false) }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 3500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+        >
+          <div style={{ background: '#fff', borderRadius: 16, padding: 20, maxWidth: 480, width: '100%', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexShrink: 0 }}>
+              <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 900, color: '#1E3A5F' }}>Galería ({galleryPhotos.length})</h3>
+              <button
+                onClick={() => setShowAllPhotosModal(false)}
+                style={{ background: '#F3F4F6', border: 'none', borderRadius: '50%', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#374151', flexShrink: 0 }}
+              >
+                <X size={22} />
+              </button>
+            </div>
+            <div style={{ overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+              {galleryPhotos.map(photo => (
+                <div
+                  key={photo.id}
+                  style={{ aspectRatio: '1/1', borderRadius: 10, overflow: 'hidden', cursor: 'pointer', border: '1px solid #E5E7EB' }}
+                  onClick={() => setLightboxPhoto(photo)}
+                >
+                  <img src={photo.photo_url} alt={photo.caption || `Foto de ${displayName}`} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+      {lightboxPhoto && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 4000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={() => setLightboxPhoto(null)}>
+          <button onClick={() => setLightboxPhoto(null)} style={{ position: 'absolute', top: 20, right: 20, background: 'none', border: 'none', color: '#fff', cursor: 'pointer', zIndex: 10 }}>
+            <X size={32} />
+          </button>
+          {lightboxIndex > 0 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); goToLightboxPhoto(-1) }}
+              style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', cursor: 'pointer', zIndex: 10 }}
+              title="Foto anterior"
+            >
+              <ChevronLeft size={26} />
+            </button>
+          )}
+          {lightboxIndex >= 0 && lightboxIndex < galleryPhotos.length - 1 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); goToLightboxPhoto(1) }}
+              style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', cursor: 'pointer', zIndex: 10 }}
+              title="Foto siguiente"
+            >
+              <ChevronRight size={26} />
+            </button>
+          )}
+          <div
+            style={{ textAlign: 'center' }}
+            onClick={(e) => e.stopPropagation()}
+            onTouchStart={handleLightboxTouchStart}
+            onTouchEnd={handleLightboxTouchEnd}
+          >
+            <img src={lightboxPhoto.photo_url} alt={lightboxPhoto.caption || displayName} style={{ maxWidth: '100%', maxHeight: '75vh', borderRadius: 16, touchAction: 'pan-y' }} />
+            {lightboxPhoto.caption && (
+              <p style={{ color: '#fff', fontSize: 13, marginTop: 12 }}>{lightboxPhoto.caption}</p>
+            )}
+          </div>
         </div>
       )}
       {showVerificationModal && (

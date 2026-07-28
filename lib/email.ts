@@ -1,4 +1,5 @@
 import { Resend } from 'resend'
+import { OTP_EXPIRY_MINUTES } from './pacienteOtp'
 
 let _resend: Resend | null = null
 function getResend() {
@@ -57,6 +58,54 @@ export async function sendVerificationEmail(
   } catch (error) {
     console.error('Error enviando email:', error)
     throw new Error('No se pudo enviar email')
+  }
+}
+
+export async function sendPacienteOtpEmail(
+  to: string,
+  code: string,
+  medicoNombre: string
+) {
+  const resend = getResend()
+
+  try {
+    const { data, error } = await resend.emails.send({
+      from: 'Salurama <noreply@salurama.com>',
+      to: [to],
+      subject: `Tu código de verificación: ${code}`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <body style="margin:0;padding:0;background:#F9FAFB;font-family:sans-serif;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#F9FAFB;padding:40px 20px;">
+            <tr><td align="center">
+              <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:white;border-radius:16px;overflow:hidden;">
+                <tr><td style="background:#1E3A5F;padding:32px;text-align:center;">
+                  <h1 style="margin:0;color:white;font-size:28px;font-weight:900;">Salurama</h1>
+                </td></tr>
+                <tr><td style="padding:40px 32px;">
+                  <h2 style="margin:0 0 16px;color:#1F2937;font-size:24px;">Confirma que eres tú</h2>
+                  <p style="margin:0 0 24px;color:#6B7280;line-height:1.6;">Recibimos una solicitud para autocompletar tus datos al agendar con <strong>${medicoNombre}</strong>. Usa este código para continuar:</p>
+                  <table cellpadding="0" cellspacing="0" style="margin:0 0 24px;width:100%;"><tr><td align="center">
+                    <div style="display:inline-block;background:#F3F4F6;border-radius:12px;padding:20px 32px;font-size:32px;font-weight:900;letter-spacing:8px;color:#1E3A5F;">${code}</div>
+                  </td></tr></table>
+                  <p style="margin:0;color:#9CA3AF;font-size:14px;">Este código expira en ${OTP_EXPIRY_MINUTES} minutos. Si tú no hiciste esta solicitud, puedes ignorar este correo.</p>
+                </td></tr>
+                <tr><td style="background:#F3F4F6;padding:24px;text-align:center;">
+                  <p style="margin:0;color:#9CA3AF;font-size:12px;">Salurama - Verifica. Elige. Confía.</p>
+                </td></tr>
+              </table>
+            </td></tr>
+          </table>
+        </body>
+        </html>
+      `,
+    })
+    if (error) throw error
+    return { success: true, id: data?.id }
+  } catch (error) {
+    console.error('Error enviando email de código OTP:', error)
+    throw new Error('No se pudo enviar el email de verificación')
   }
 }
 

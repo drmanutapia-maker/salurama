@@ -1,11 +1,12 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
-import { Star, Calendar, TrendingUp, CheckCircle, BarChart2, Eye, FileText, FileSpreadsheet, Lock } from 'lucide-react'
+import { Star, Calendar, CheckCircle, BarChart2, Eye, FileText, FileSpreadsheet, Lock, ArrowUp, ArrowDown, Minus, TrendingUp } from 'lucide-react'
 import { calculateProfileCompletion } from '@/hooks/useProfileCompletion'
 import { PLAN_TO_TIER_CODE } from '@/lib/pricingTiers'
 import { getUserSafe } from '@/lib/getUserSafe'
+import type { Benchmark, BenchmarkGrupo } from '@/lib/estadisticasData'
 
 interface Cita {
   id: string
@@ -18,6 +19,26 @@ interface Review {
   rating: number
   comment: string
   created_at: string
+}
+
+// Tendencia mensual (beneficio Premium) — mismo tipo y misma lógica que
+// lib/estadisticasData.ts, espejada aquí a propósito (esta pantalla ya
+// duplica el resto del cálculo server-side en vez de compartirlo, para no
+// mezclar el módulo que usa la service role key con el bundle de cliente).
+interface TrendMetric {
+  actual: number
+  anterior: number
+  cambioPct: number | null
+  direccion: 'up' | 'down' | 'flat' | 'nuevo'
+}
+
+function calcularTendencia(actual: number, anterior: number): TrendMetric {
+  if (anterior === 0) {
+    return { actual, anterior, cambioPct: null, direccion: actual > 0 ? 'nuevo' : 'flat' }
+  }
+  const cambioPct = ((actual - anterior) / anterior) * 100
+  const direccion = actual > anterior ? 'up' : actual < anterior ? 'down' : 'flat'
+  return { actual, anterior, cambioPct, direccion }
 }
 
 const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
@@ -34,7 +55,11 @@ export default function EstadisticasPage() {
   const [experience, setExperience] = useState<any[]>([])
   const [conditions, setConditions] = useState<any[]>([])
   const [profileViews, setProfileViews] = useState(0)
+  const [visitasMes, setVisitasMes] = useState(0)
+  const [visitasMesAnterior, setVisitasMesAnterior] = useState(0)
+  const [vistasPorMes, setVistasPorMes] = useState<{ label: string; count: number }[]>([])
   const [completionData, setCompletionData] = useState<{ checks: any[]; percentage: number }>({ checks: [], percentage: 0 })
+  const [benchmark, setBenchmark] = useState<Benchmark | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -52,21 +77,36 @@ export default function EstadisticasPage() {
 
       // Vistas — misma fuente que /dashboard: cuenta real desde la tabla
       // profile_views vía /api/track-visit, no la columna doctors.profile_views
-      // (esa quedó congelada, ver app/dashboard/page.tsx).
+      // (esa quedó congelada, ver app/dashboard/page.tsx). profile_views tiene
+      // RLS sin políticas — no se puede leer directo con el cliente anon, por
+      // eso el desglose de mes actual/anterior también viene de este mismo
+      // endpoint (resuelto con service role) y no de una consulta aparte.
       const [citasRes, reviewsRes, eduRes, expRes, condRes, visitasRes] = await Promise.all([
         supabase.from('citas').select('id, estado, fecha').eq('medico_id', doc.id).order('fecha'),
         supabase.from('reviews').select('id, rating, comment, created_at').eq('doctor_id', doc.id).eq('is_visible', true).order('created_at', { ascending: false }),
         supabase.from('doctor_education').select('id').eq('doctor_id', doc.id),
         supabase.from('doctor_experience').select('id').eq('doctor_id', doc.id),
         supabase.from('doctor_conditions').select('id').eq('doctor_id', doc.id),
-        fetch('/api/track-visit').then(r => r.ok ? r.json() : { count: 0 }).catch(() => ({ count: 0 })),
+        fetch('/api/track-visit').then(r => r.ok ? r.json() : { count: 0, mesActual: 0, mesAnterior: 0, vistasPorMes: [] }).catch(() => ({ count: 0, mesActual: 0, mesAnterior: 0, vistasPorMes: [] })),
       ])
+      // El benchmark exige agregar reseñas/citas de OTROS médicos — desde
+      // que restringimos el RLS de citas al dueño (ver auditoría del flujo
+      // de citas), esto ya no se puede calcular con el cliente anon como
+      // el resto de esta pantalla; viene de un endpoint server-side que
+      // vuelve a gatear a Premium (no basta con ocultarlo en la UI).
+      fetch('/api/estadisticas/benchmark')
+        .then(r => r.ok ? r.json() : null)
+        .then(json => setBenchmark(json?.benchmark ?? null))
+        .catch(() => setBenchmark(null))
       setCitas((citasRes.data as Cita[]) || [])
       setReviews((reviewsRes.data as Review[]) || [])
       setEducation(eduRes.data || [])
       setExperience(expRes.data || [])
       setConditions(condRes.data || [])
       setProfileViews(visitasRes.count || 0)
+      setVisitasMes(visitasRes.mesActual || 0)
+      setVisitasMesAnterior(visitasRes.mesAnterior || 0)
+      setVistasPorMes(visitasRes.vistasPorMes || [])
 
       // Calcular completitud con el hook compartido
       const result = calculateProfileCompletion({
@@ -98,6 +138,47 @@ export default function EstadisticasPage() {
     : 0
 
   const hoy = new Date()
+
+  // Tendencia mensual (beneficio Premium) — calificación compara el
+  // promedio ACUMULADO de siempre contra el acumulado a inicios de este
+  // mes (no "reseñas recibidas este mes"), para no mostrar una caída falsa
+  // cuando simplemente no llegó ninguna reseña nueva. Ver Parte 1 en
+  // lib/estadisticasData.ts para el detalle de esta decisión.
+  const inicioMesTendencia = new Date(hoy.getFullYear(), hoy.getMonth(), 1)
+  const inicioMesAnteriorTendencia = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1)
+  const reviewsHastaInicioMes = reviews.filter(r => new Date(r.created_at) < inicioMesTendencia)
+  const reviewsMes = reviews.filter(r => new Date(r.created_at) >= inicioMesTendencia)
+  const reviewsMesAnterior = reviews.filter(r => new Date(r.created_at) >= inicioMesAnteriorTendencia && new Date(r.created_at) < inicioMesTendencia)
+  const promedioDe = (arr: Review[]) => (arr.length > 0 ? arr.reduce((s, r) => s + r.rating, 0) / arr.length : 0)
+
+  const tendencias = {
+    vistas: calcularTendencia(visitasMes, visitasMesAnterior),
+    calificacion: calcularTendencia(
+      Math.round(promedioDe(reviews) * 10) / 10,
+      Math.round(promedioDe(reviewsHastaInicioMes) * 10) / 10
+    ),
+    reseñas: calcularTendencia(reviewsMes.length, reviewsMesAnterior.length),
+  }
+
+  // Series de 6 meses para la gráfica de línea (beneficio Premium) —
+  // mismos límites de mes que citasPorMes abajo. Calificación usa el
+  // promedio ACUMULADO al cierre de cada mes (no "reseñas de ese mes"),
+  // mismo criterio que la tendencia de 2 puntos de arriba, para que la
+  // línea no dé saltos falsos en meses sin reseñas nuevas.
+  const seriesMeses = Array.from({ length: 6 }, (_, i) => {
+    const inicio = new Date(hoy.getFullYear(), hoy.getMonth() - (5 - i), 1)
+    const fin = new Date(hoy.getFullYear(), hoy.getMonth() - (5 - i) + 1, 1)
+    return { label: MESES[inicio.getMonth()], inicio, fin }
+  })
+  const calificacionPorMes = seriesMeses.map(({ label, fin }) => ({
+    label,
+    value: Math.round(promedioDe(reviews.filter(r => new Date(r.created_at) < fin)) * 10) / 10,
+  }))
+  const reseñasPorMes = seriesMeses.map(({ label, inicio, fin }) => ({
+    label,
+    value: reviews.filter(r => { const d = new Date(r.created_at); return d >= inicio && d < fin }).length,
+  }))
+
   const citasPorMes: { label: string; count: number }[] = Array.from({ length: 6 }, (_, i) => {
     const d = new Date(hoy.getFullYear(), hoy.getMonth() - (5 - i), 1)
     const mesNum = d.getMonth()
@@ -193,7 +274,7 @@ export default function EstadisticasPage() {
               onClick={() => router.push('/dashboard/plan')}
               style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#F3F4F6', color: '#6B7280', border: 'none', borderRadius: 50, padding: '10px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
             >
-              <Lock size={14} /> Mejorar a Premium
+              <Lock size={14} /> Mejora a Premium
             </button>
           )}
         </div>
@@ -201,17 +282,43 @@ export default function EstadisticasPage() {
         {/* KPIs */}
         <div className="kpi-grid fade-up" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
           {[
-            { icon: <Eye size={20} color="#8B5CF6" />, label: 'Vistas al perfil', value: profileViews, bg: '#F5F3FF', color: '#8B5CF6' },
-            { icon: <Calendar size={20} color="#1E3A5F" />, label: 'Total citas', value: total, bg: '#E8ECF3', color: '#1E3A5F' },
-            { icon: <CheckCircle size={20} color="#2A9D8F" />, label: 'Tasa confirmación', value: `${tasaConfirmacion}%`, bg: '#E8F7F5', color: '#2A9D8F' },
-            { icon: <Star size={20} color="#D97706" />, label: 'Rating promedio', value: reviews.length > 0 ? ratingPromedio.toFixed(1) : '—', bg: '#FFFBEB', color: '#D97706' },
+            { icon: <Eye size={20} color="#8B5CF6" />, label: 'Vistas al perfil', value: profileViews, bg: '#F5F3FF', color: '#8B5CF6', trend: { metric: tendencias.vistas, texto: 'Descubre si subieron o bajaron tus vistas este mes' } },
+            { icon: <Calendar size={20} color="#1E3A5F" />, label: 'Total citas', value: total, bg: '#E8ECF3', color: '#1E3A5F', trend: null },
+            { icon: <CheckCircle size={20} color="#2A9D8F" />, label: 'Tasa confirmación', value: `${tasaConfirmacion}%`, bg: '#E8F7F5', color: '#2A9D8F', trend: null },
+            { icon: <Star size={20} color="#D97706" />, label: 'Rating promedio', value: reviews.length > 0 ? ratingPromedio.toFixed(1) : '—', bg: '#FFFBEB', color: '#D97706', trend: { metric: tendencias.calificacion, texto: 'Descubre si subió o bajó tu calificación este mes' } },
           ].map(k => (
             <div key={k.label} style={{ background: k.bg, borderRadius: 14, padding: '18px 16px', textAlign: 'center' }}>
               <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>{k.icon}</div>
               <p style={{ fontFamily: "'Fraunces', serif", fontSize: 28, fontWeight: 900, color: k.color, lineHeight: 1 }}>{k.value}</p>
               <p style={{ fontSize: 12, color: k.color, fontWeight: 500, marginTop: 4, opacity: 0.8 }}>{k.label}</p>
+              {k.trend && (
+                <div style={{ marginTop: 8, display: 'flex', justifyContent: 'center' }}>
+                  {isPremium ? <TrendBadge trend={k.trend.metric} /> : <CandadoPremium texto={`${k.trend.texto} — Mejora a Premium`} />}
+                </div>
+              )}
             </div>
           ))}
+        </div>
+
+        {/* Tendencia de los últimos 6 meses (gráfica de línea, beneficio Premium) —
+            a diferencia del candado dorado de las tarjetas KPI (que siempre muestra
+            el número real junto al candado), aquí se bloquea la gráfica completa
+            para quien no es Premium: una serie de 6 meses no se puede "mostrar a
+            medias". */}
+        <div className="card fade-up" style={{ marginBottom: 16 }}>
+          <p className="section-title">Tendencia de los últimos 6 meses</p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 20 }}>
+            {[
+              { label: 'Vistas', data: vistasPorMes.map(d => ({ label: d.label, value: d.count })), color: '#8B5CF6', formatValue: (v: number) => String(v) },
+              { label: 'Calificación', data: calificacionPorMes, color: '#D97706', formatValue: (v: number) => v.toFixed(1) },
+              { label: 'Reseñas', data: reseñasPorMes, color: '#F59E0B', formatValue: (v: number) => String(v) },
+            ].map(g => (
+              <div key={g.label}>
+                <p style={{ fontSize: 12, fontWeight: 700, color: '#6B7280', marginBottom: 8 }}>{g.label}</p>
+                {isPremium ? <LineChart data={g.data} color={g.color} formatValue={g.formatValue} /> : <ChartUpsell />}
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Distribución de citas + Últimos 6 meses */}
@@ -244,7 +351,7 @@ export default function EstadisticasPage() {
 
           <div className="card">
             <p className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <BarChart2 size={16} color="#1E3A5F" /> Últimos 6 meses
+              <BarChart2 size={16} color="#1E3A5F" /> Citas — últimos 6 meses
             </p>
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: 120 }}>
               {citasPorMes.map(({ label, count }) => (
@@ -274,7 +381,10 @@ export default function EstadisticasPage() {
           </div>
 
           <div className="card">
-            <p className="section-title">Distribución de reseñas</p>
+            <p className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              Distribución de reseñas
+              {isPremium ? <TrendBadge trend={tendencias.reseñas} /> : <CandadoPremium texto="Descubre si subieron o bajaron tus reseñas este mes — Mejora a Premium" />}
+            </p>
             {reviews.length === 0 ? (
               <p style={{ fontSize: 14, color: '#9CA3AF', textAlign: 'center', padding: '20px 0' }}>Aún no tienes reseñas verificadas</p>
             ) : (
@@ -294,30 +404,55 @@ export default function EstadisticasPage() {
                 </p>
               </div>
             )}
+            <button
+              onClick={() => router.push('/dashboard/resenas')}
+              style={{ display: 'block', width: '100%', marginTop: 14, background: 'none', border: 'none', borderTop: '1px solid #F3F4F6', paddingTop: 14, color: '#1E3A5F', fontSize: 13, fontWeight: 600, cursor: 'pointer', textAlign: 'center' }}
+            >
+              Ver todas las reseñas →
+            </button>
           </div>
         </div>
 
-        {/* Últimas reseñas */}
-        {reviews.length > 0 && (
-          <div className="card fade-up" style={{ marginBottom: 16 }}>
-            <p className="section-title">Últimas reseñas</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {reviews.slice(0, 3).map(r => (
-                <div key={r.id} style={{ background: '#F9FAFB', borderRadius: 10, padding: '14px 16px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>Paciente verificado</span>
-                    <div style={{ display: 'flex', gap: 2 }}>
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <Star key={i} size={12} color="#F59E0B" fill={i < r.rating ? '#F59E0B' : 'none'} />
-                      ))}
-                    </div>
-                  </div>
-                  {r.comment && <p style={{ fontSize: 13, color: '#4A5568', lineHeight: 1.5 }}>{r.comment}</p>}
-                </div>
-              ))}
+        {/* Cómo te comparas (benchmark de especialidad, Premium) */}
+        <div className="card fade-up" style={{ marginBottom: 16 }}>
+          <p className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <TrendingUp size={16} color="#1E3A5F" /> Cómo te comparas
+          </p>
+          {isPremium ? (
+            benchmark ? (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 16 }}>
+                <BenchmarkGrupoCard
+                  titulo={`Médicos de ${benchmark.especialidad}`}
+                  subtitulo="En toda la plataforma"
+                  grupo={benchmark.nacional}
+                  tuRatingTexto={reviews.length > 0 ? `${ratingPromedio.toFixed(1)} ★` : '—'}
+                  tuTasaTexto={`${tasaConfirmacion}%`}
+                />
+                <BenchmarkGrupoCard
+                  titulo={`Médicos de ${benchmark.especialidad}`}
+                  subtitulo={benchmark.ciudad ? `En ${benchmark.ciudad}` : 'Sin ciudad registrada en tu perfil'}
+                  grupo={benchmark.ciudadGrupo}
+                  tuRatingTexto={reviews.length > 0 ? `${ratingPromedio.toFixed(1)} ★` : '—'}
+                  tuTasaTexto={`${tasaConfirmacion}%`}
+                />
+              </div>
+            ) : (
+              <p style={{ fontSize: 14, color: '#9CA3AF', textAlign: 'center', padding: '20px 0' }}>Cargando comparación...</p>
+            )
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+              <p style={{ fontSize: 13, color: '#6B7280', maxWidth: 420 }}>
+                Compara tu rating y tasa de confirmación contra médicos de tu misma especialidad, a nivel nacional y en tu ciudad.
+              </p>
+              <button
+                onClick={() => router.push('/dashboard/plan')}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#F3F4F6', color: '#6B7280', border: 'none', borderRadius: 50, padding: '10px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+              >
+                <Lock size={14} /> Mejora a Premium
+              </button>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Perfil completado (CHECKLIST UNIFICADO) */}
         <div className="card fade-up">
@@ -351,6 +486,270 @@ export default function EstadisticasPage() {
             </button>
           )}
         </div>
+      </div>
+    </div>
+  )
+}
+
+// Gráfica de línea de 6 meses (beneficio Premium) — un solo componente
+// reusable para las 3 métricas (vistas, calificación, reseñas), cada una
+// con su propia escala de eje Y ajustada a sus propios valores (no fija
+// 0-100% ni 1-5), para que un cambio real pequeño (ej. 4.8 a 4.9 en
+// calificación) sí se vea en la línea en vez de aplanarse.
+//
+// Sigue las especificaciones de la skill de dataviz: línea de 2px, marcador
+// final ≥8px (r≥4) con anillo del color de superficie, relleno de área al
+// ~10% de opacidad, sin leyenda (una sola serie — el título de la tarjeta
+// ya dice qué es), etiqueta de valor solo en el punto final, y una capa de
+// hover con línea vertical + tooltip (el valor de cada punto también
+// queda accesible por hover/foco, no solo mirando la línea).
+function LineChart({ data, color, formatValue }: { data: { label: string; value: number }[]; color: string; formatValue: (v: number) => string }) {
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null)
+  const svgRef = useRef<SVGSVGElement>(null)
+
+  const width = 280
+  const height = 90
+  const padX = 10
+  const padY = 18
+
+  const values = data.map(d => d.value)
+  const min = Math.min(...values)
+  const max = Math.max(...values)
+  const range = max - min || 1
+  const paddedMin = min - range * 0.2
+  const paddedMax = max + range * 0.2
+  const paddedRange = paddedMax - paddedMin || 1
+
+  const points = data.map((d, i) => ({
+    ...d,
+    x: padX + (data.length > 1 ? (i / (data.length - 1)) * (width - padX * 2) : (width - padX * 2) / 2),
+    y: padY + (1 - (d.value - paddedMin) / paddedRange) * (height - padY * 2),
+  }))
+
+  const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ')
+  const baseline = height - padY
+  const areaPath = `${linePath} L ${points[points.length - 1].x.toFixed(1)} ${baseline} L ${points[0].x.toFixed(1)} ${baseline} Z`
+
+  const handleMove = (clientX: number) => {
+    const svg = svgRef.current
+    if (!svg) return
+    const rect = svg.getBoundingClientRect()
+    const relX = ((clientX - rect.left) / rect.width) * width
+    let nearest = 0
+    let nearestDist = Infinity
+    points.forEach((p, i) => {
+      const dist = Math.abs(p.x - relX)
+      if (dist < nearestDist) { nearestDist = dist; nearest = i }
+    })
+    setHoverIndex(nearest)
+  }
+
+  const last = points[points.length - 1]
+  const hovered = hoverIndex !== null ? points[hoverIndex] : null
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <svg
+        ref={svgRef}
+        width="100%"
+        height={height + 16}
+        viewBox={`0 0 ${width} ${height + 16}`}
+        preserveAspectRatio="none"
+        style={{ display: 'block', touchAction: 'pan-y' }}
+        onMouseMove={(e) => handleMove(e.clientX)}
+        onMouseLeave={() => setHoverIndex(null)}
+        onTouchStart={(e) => handleMove(e.touches[0].clientX)}
+        onTouchMove={(e) => handleMove(e.touches[0].clientX)}
+        onTouchEnd={() => setHoverIndex(null)}
+      >
+        <path d={areaPath} fill={color} opacity={0.1} stroke="none" />
+        <path d={linePath} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+
+        {hovered && (
+          <line x1={hovered.x} y1={padY} x2={hovered.x} y2={baseline} stroke="#D1D5DB" strokeWidth={1} />
+        )}
+
+        {points.map((p, i) => {
+          const isLast = i === points.length - 1
+          const isHovered = i === hoverIndex
+          const r = isLast || isHovered ? 4 : 2.5
+          return <circle key={i} cx={p.x} cy={p.y} r={r} fill={isLast || isHovered ? color : '#fff'} stroke={color} strokeWidth={1.5} />
+        })}
+
+        <text x={last.x} y={Math.max(last.y - 8, 9)} textAnchor="middle" fontSize="10" fontWeight="700" fill={color}>
+          {formatValue(last.value)}
+        </text>
+
+        {points.map((p, i) => (
+          <text key={i} x={p.x} y={height + 12} textAnchor="middle" fontSize="9" fill="#9CA3AF">{p.label}</text>
+        ))}
+      </svg>
+
+      {hovered && hoverIndex !== points.length - 1 && (
+        <div
+          style={{
+            position: 'absolute', left: `${(hovered.x / width) * 100}%`, top: 0, transform: 'translateX(-50%)',
+            background: '#111827', color: '#fff', borderRadius: 6, padding: '4px 8px', fontSize: 11, fontWeight: 600,
+            whiteSpace: 'nowrap', pointerEvents: 'none', marginTop: -28,
+          }}
+        >
+          {hovered.label}: {formatValue(hovered.value)}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Bloqueo de gráfica completa (médicos sin Premium) — a diferencia de
+// CandadoPremium (que deja el número real visible junto a un candado), aquí
+// no hay número parcial que mostrar: se reemplaza la gráfica entera por un
+// upsell directo a /dashboard/plan.
+function ChartUpsell() {
+  const router = useRouter()
+  return (
+    <div style={{
+      height: 106, borderRadius: 10, background: '#FFFBEB', border: '1px dashed #FCD34D',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 8,
+    }}>
+      <div style={{ width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #FCD34D, #D97706)' }}>
+        <Lock size={13} color="#fff" />
+      </div>
+      <button
+        type="button"
+        onClick={() => router.push('/dashboard/plan')}
+        style={{ fontSize: 11, fontWeight: 700, color: '#D97706', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+      >
+        Mejora a Premium
+      </button>
+    </div>
+  )
+}
+
+// Insignia compacta de tendencia — solo la ve quien ya es Premium.
+function TrendBadge({ trend }: { trend: TrendMetric }) {
+  if (trend.direccion === 'nuevo') {
+    return <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, fontSize: 11, fontWeight: 700, color: '#2A9D8F' }}>Nuevo</span>
+  }
+  if (trend.direccion === 'flat') {
+    return <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, fontSize: 11, fontWeight: 700, color: '#9CA3AF' }}><Minus size={11} /> Sin cambio</span>
+  }
+  const pct = trend.cambioPct !== null ? Math.round(Math.abs(trend.cambioPct)) : 0
+  const up = trend.direccion === 'up'
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, fontSize: 11, fontWeight: 700, color: up ? '#2A9D8F' : '#EF4444' }}>
+      {up ? <ArrowUp size={11} /> : <ArrowDown size={11} />} {pct}%
+    </span>
+  )
+}
+
+// Candado dorado (médicos sin Premium) — mismo lenguaje visual que el
+// "contenido bloqueado" de apps de streaming: el número normal se ve igual
+// siempre, el candado solo se agrega al lado. Nunca navega directo a
+// /dashboard/plan — hover (desktop) o tap (móvil) abre un tooltip con el
+// texto específico de la métrica, y solo el botón de adentro navega.
+function CandadoPremium({ texto }: { texto: string }) {
+  const router = useRouter()
+  const [open, setOpen] = useState(false)
+  const wrapRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const onOutside = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('click', onOutside)
+    return () => document.removeEventListener('click', onOutside)
+  }, [open])
+
+  return (
+    <div
+      ref={wrapRef}
+      style={{ position: 'relative', display: 'inline-block' }}
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); setOpen(true) }}
+        aria-label="Función de plan Premium"
+        style={{
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          width: 20, height: 20, borderRadius: '50%', border: 'none', cursor: 'pointer', padding: 0,
+          background: 'linear-gradient(135deg, #FCD34D, #D97706)',
+          boxShadow: '0 1px 4px rgba(217,119,6,0.5)',
+        }}
+      >
+        <Lock size={11} color="#fff" />
+      </button>
+      {open && (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', marginTop: 8,
+            width: 220, background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.12)', padding: 14, zIndex: 30, textAlign: 'left',
+          }}
+        >
+          <p style={{ fontSize: 12, color: '#374151', lineHeight: 1.5, marginBottom: 10 }}>{texto}</p>
+          <button
+            type="button"
+            onClick={() => router.push('/dashboard/plan')}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              background: 'linear-gradient(135deg, #FCD34D, #D97706)', color: '#fff', border: 'none',
+              borderRadius: 8, padding: '8px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+            }}
+          >
+            <Lock size={12} /> Mejora a Premium
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Tarjeta de un grupo de comparación del benchmark (nacional o ciudad) —
+// muestra "Tú" siempre (es tu propio dato), y "Grupo" solo si se cumplió
+// el umbral de anonimato (grupo?.xSuficiente); si no, un aviso en vez del
+// número, para nunca dar a entender un promedio de 1 o 2 médicos.
+function BenchmarkGrupoCard({
+  titulo, subtitulo, grupo, tuRatingTexto, tuTasaTexto,
+}: {
+  titulo: string
+  subtitulo: string
+  grupo: BenchmarkGrupo | null
+  tuRatingTexto: string
+  tuTasaTexto: string
+}) {
+  return (
+    <div style={{ background: '#F8FAFC', borderRadius: 14, padding: 16 }}>
+      <p style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{titulo}</p>
+      <p style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 12 }}>{subtitulo}</p>
+      <ComparacionFila label="Rating promedio" tuTexto={tuRatingTexto} grupoValor={grupo?.ratingPromedio ?? null} suficiente={grupo?.ratingSuficiente ?? false} formatoGrupo={(v) => `${v.toFixed(1)} ★`} />
+      <ComparacionFila label="Tasa de confirmación" tuTexto={tuTasaTexto} grupoValor={grupo?.tasaConfirmacion ?? null} suficiente={grupo?.tasaSuficiente ?? false} formatoGrupo={(v) => `${v}%`} />
+    </div>
+  )
+}
+
+function ComparacionFila({
+  label, tuTexto, grupoValor, suficiente, formatoGrupo,
+}: {
+  label: string
+  tuTexto: string
+  grupoValor: number | null
+  suficiente: boolean
+  formatoGrupo: (v: number) => string
+}) {
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <p style={{ fontSize: 11, color: '#6B7280', fontWeight: 600, marginBottom: 4 }}>{label}</p>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
+        <span style={{ fontSize: 15, fontWeight: 800, color: '#1E3A5F' }}>Tú: {tuTexto}</span>
+        {suficiente && grupoValor !== null ? (
+          <span style={{ fontSize: 13, color: '#6B7280' }}>Grupo: {formatoGrupo(grupoValor)}</span>
+        ) : (
+          <span style={{ fontSize: 11, color: '#9CA3AF', fontStyle: 'italic' }}>Aún no hay datos suficientes</span>
+        )}
       </div>
     </div>
   )
