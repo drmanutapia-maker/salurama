@@ -6,6 +6,15 @@ const nextConfig: NextConfig = {
     '@salurama/hema-validator',
     '@salurama/hema-pdf',
   ],
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'pwcdwxhfypaxvtqydzcg.supabase.co',
+        pathname: '/storage/v1/object/public/**',
+      },
+    ],
+  },
   async headers() {
     return [
       {

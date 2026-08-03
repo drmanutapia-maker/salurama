@@ -345,9 +345,14 @@ export default function DashboardMedico() {
         })
 
         if (consejosDisponibles.length > 0) {
-          // Orden aleatorio
-          const shuffled = [...consejosDisponibles].sort(() => Math.random() - 0.5)
-          setConsejo(shuffled[0])
+          // La bio siempre se muestra primero mientras esté incompleta — es
+          // la señal más importante para que el perfil no se vea como
+          // contenido genérico/duplicado ante buscadores, así que no debe
+          // depender de la suerte del orden aleatorio como el resto.
+          const bioConsejo = consejosDisponibles.find(c => c.id === 'bio')
+          const otros = consejosDisponibles.filter(c => c.id !== 'bio')
+          const shuffled = [...otros].sort(() => Math.random() - 0.5)
+          setConsejo(bioConsejo || shuffled[0])
         } else {
           // Perfil 100% completado
           setConsejo({

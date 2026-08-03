@@ -50,7 +50,10 @@ export type State = typeof STATES[number]
 // poco natural para un selector — el value real (el que se manda a /buscar)
 // nunca cambia, solo la etiqueta visible.
 const STATE_LABELS: Partial<Record<State, string>> = {
-  'México': 'México (Estado)',
+  'México': 'Estado de México',
+  'Coahuila de Zaragoza': 'Coahuila',
+  'Michoacán de Ocampo': 'Michoacán',
+  'Veracruz de Ignacio de la Llave': 'Veracruz',
 }
 
 export function getStateLabel(state: string): string {

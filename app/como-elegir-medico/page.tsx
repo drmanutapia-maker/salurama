@@ -19,7 +19,7 @@ const PASOS = [
       'Especialista → condición crónica o síntoma persistente',
       'Alta especialidad → casos complejos o segunda opinión',
     ],
-    tip: 'En Salurama usa el buscador: escribe la especialidad, el síntoma o el nombre del médico.',
+    tip: 'En Salurama usa el buscador: escribe la especialidad y elige el estado de la república.',
     accion: { label: 'Ir al buscador', href: '/buscar' },
   },
   {

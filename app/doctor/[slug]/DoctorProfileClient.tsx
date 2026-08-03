@@ -2,8 +2,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { Turnstile } from '@marsidev/react-turnstile'
+import { fraunces, dmSans } from '@/lib/fonts'
 import {
   MapPin, Star, ShieldCheck, Shield, ExternalLink, Copy, CheckCircle, X,
   ChevronDown, ChevronLeft, ChevronRight, Briefcase, GraduationCap, Heart, Calendar, DollarSign, Info,
@@ -11,9 +13,12 @@ import {
 } from 'lucide-react'
 import BackButton from '@/components/BackButton'
 import { isPlusTier } from '@/lib/planGates'
+import { getStateLabel } from '@/lib/locations'
 
-interface Medico {
+export interface Medico {
   id: string
+  slug: string | null
+  is_active: boolean
   full_name: string
   display_name: string | null
   professional_title: string | null
@@ -62,20 +67,20 @@ interface Medico {
   pricing_tier: string
 }
 
-interface GalleryPhoto {
+export interface GalleryPhoto {
   id: string
   photo_url: string
   caption: string | null
 }
 
-interface License {
+export interface License {
   id: string
   license_number: string
   license_type: string
   institution: string
 }
 
-interface EducationItem {
+export interface EducationItem {
   id: string
   institution: string
   degree: string
@@ -83,7 +88,7 @@ interface EducationItem {
   graduation_year: number
 }
 
-interface ExperienceItem {
+export interface ExperienceItem {
   id: string
   institution_name: string
   position: string
@@ -93,13 +98,13 @@ interface ExperienceItem {
   is_current: boolean
 }
 
-interface Condition {
+export interface Condition {
   id: string
   condition_name: string
   category: string
 }
 
-interface Review {
+export interface Review {
   id: string
   user_name: string
   rating: number
@@ -107,7 +112,7 @@ interface Review {
   created_at: string
 }
 
-interface SpecialtyCredential {
+export interface SpecialtyCredential {
   id: string
   credentials_status: 'pendiente' | 'verificado' | 'no_coincide'
   granular_name: string
@@ -153,7 +158,7 @@ function InfoModal({ title, children, onClose }: { title: string; children: Reac
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={onClose}>
       <div style={{ background: '#fff', borderRadius: 20, padding: 32, maxWidth: 500, width: '100%', maxHeight: '80vh', overflow: 'auto' }} onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 900, color: '#1E3A5F' }}>{title}</h3>
+          <h3 style={{ fontFamily: 'var(--font-fraunces), serif', fontSize: 20, fontWeight: 900, color: '#1E3A5F' }}>{title}</h3>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6B7280' }}>
             <X size={20} />
           </button>
@@ -358,7 +363,7 @@ function AppointmentModal({
           <div style={{ width: 64, height: 64, background: '#ECFDF5', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
             <CheckCircle size={32} color="#10B981" />
           </div>
-          <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 900, color: '#1E3A5F', marginBottom: 12 }}>
+          <h3 style={{ fontFamily: 'var(--font-fraunces), serif', fontSize: 24, fontWeight: 900, color: '#1E3A5F', marginBottom: 12 }}>
             ¡Revisa tu email!
           </h3>
           <p style={{ fontSize: 14, color: '#6B7280', marginBottom: 24, lineHeight: 1.6 }}>
@@ -421,7 +426,7 @@ function AppointmentModal({
       <div style={{ background: '#fff', borderRadius: 20, padding: 32, maxWidth: 600, width: '100%', maxHeight: '90vh', overflow: 'auto' }} onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <div>
-            <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 900, color: '#1E3A5F' }}>
+            <h3 style={{ fontFamily: 'var(--font-fraunces), serif', fontSize: 20, fontWeight: 900, color: '#1E3A5F' }}>
               Agendar Cita
             </h3>
             <p style={{ fontSize: 13, color: '#6B7280' }}>Paso {step} de 3</p>
@@ -656,21 +661,35 @@ function AppointmentModal({
   )
 }
 
-export default function DoctorProfileClient({ doctorId }: { doctorId: string }) {
-  const id = doctorId
+// Datos públicos del perfil (medico, licencias, educación, reseñas, etc.) ya
+// llegan resueltos desde el Server Component (page.tsx) para que el HTML
+// inicial traiga el contenido real y el JSON-LD — antes se pedían aquí vía
+// useEffect, así que un crawler que no ejecuta JS (o el primer paint de
+// Googlebot) veía un spinner vacío. Solo lo que depende de la sesión del
+// navegador (track-visit, isOwner) sigue cargándose del lado del cliente.
+export default function DoctorProfileClient({
+  medico,
+  licenses,
+  specialtyCredentials,
+  education,
+  experience,
+  conditions,
+  reviews,
+  galleryPhotos,
+}: {
+  medico: Medico
+  licenses: License[]
+  specialtyCredentials: SpecialtyCredential[]
+  education: EducationItem[]
+  experience: ExperienceItem[]
+  conditions: Condition[]
+  reviews: Review[]
+  galleryPhotos: GalleryPhoto[]
+}) {
+  const id = medico.id
   const router = useRouter()
-  const [medico, setMedico] = useState<Medico | null>(null)
-  const [licenses, setLicenses] = useState<License[]>([])
-  const [specialtyCredentials, setSpecialtyCredentials] = useState<SpecialtyCredential[]>([])
-  const [education, setEducation] = useState<EducationItem[]>([])
-  const [experience, setExperience] = useState<ExperienceItem[]>([])
-  const [conditions, setConditions] = useState<Condition[]>([])
-  const [reviews, setReviews] = useState<Review[]>([])
-  const [galleryPhotos, setGalleryPhotos] = useState<GalleryPhoto[]>([])
   const [lightboxPhoto, setLightboxPhoto] = useState<GalleryPhoto | null>(null)
   const [showAllPhotosModal, setShowAllPhotosModal] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [showAppointmentModal, setShowAppointmentModal] = useState(false)
   const [showVerificationModal, setShowVerificationModal] = useState(false)
@@ -688,52 +707,15 @@ export default function DoctorProfileClient({ doctorId }: { doctorId: string }) 
   }, [])
 
   useEffect(() => {
-    async function load() {
-      try {
-        const { data, error } = await supabase.from('doctors').select('*').eq('id', id as string).single()
-        if (error || !data) { setError(true); return }
-        setMedico(data)
-        fetch('/api/track-visit', {
-          method:  'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body:    JSON.stringify({ doctorId: data.id }),
-        }).catch(() => {})
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user?.email === data.email) {
-          setIsOwner(true)
-        }
-        const [licRes, eduRes, expRes, condRes, revRes, credRes, galRes] = await Promise.all([
-          supabase.from('doctor_licenses').select('*').eq('doctor_id', data.id),
-          supabase.from('doctor_education').select('*').eq('doctor_id', data.id).order('graduation_year', { ascending: false }),
-          supabase.from('doctor_experience').select('*').eq('doctor_id', data.id).order('is_current', { ascending: false }),
-          supabase.from('doctor_conditions').select('*').eq('doctor_id', data.id).order('category'),
-          supabase.from('reviews').select('*').eq('doctor_id', data.id).eq('is_visible', true).order('created_at', { ascending: false }).limit(20),
-          supabase.from('doctor_specialty_credentials').select('id, credentials_status, specialty_granular_mapping(granular_name, conacem_councils(council_name))').eq('doctor_id', data.id),
-          supabase.from('doctor_gallery_photos').select('id, photo_url, caption').eq('doctor_id', data.id).order('position'),
-        ])
-        setLicenses(licRes.data || [])
-        setEducation(eduRes.data || [])
-        setExperience(expRes.data || [])
-        setConditions(condRes.data || [])
-        setGalleryPhotos(galRes.data || [])
-        setSpecialtyCredentials((credRes.data || []).map((r: any) => ({
-          id: r.id,
-          credentials_status: r.credentials_status,
-          granular_name: r.specialty_granular_mapping?.granular_name,
-          council_name: r.specialty_granular_mapping?.conacem_councils?.council_name ?? null,
-        })))
-        setReviews((revRes.data || []).map((r: any) => ({
-          id: r.id,
-          user_name: 'Paciente verificado',
-          rating: r.rating,
-          comment: r.comment,
-          created_at: r.created_at
-        })))
-      } catch { setError(true) }
-      finally { setLoading(false) }
-    }
-    load()
-  }, [id])
+    fetch('/api/track-visit', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ doctorId: id }),
+    }).catch(() => {})
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user?.email === medico.email) setIsOwner(true)
+    })
+  }, [id, medico.email])
 
   const yearsExp = medico?.years_experience ?? medico?.years_of_experience ?? null
   const langs = parseLangs(medico?.languages ?? null)
@@ -741,7 +723,11 @@ export default function DoctorProfileClient({ doctorId }: { doctorId: string }) 
   const precioSubsecuente = medico?.consultation_price_general || null
   const displayName = medico?.display_name || medico?.full_name || ''
   const titlePrefix = medico?.professional_title ? `${medico.professional_title} ` : ''
-  const profileUrl = typeof window !== 'undefined' ? window.location.href : ''
+  // Determinística (no window.location.href): el JSON-LD ahora se sirve en
+  // el HTML inicial, y usar window.location causaba un mismatch de
+  // hidratación (servidor no tiene window, cliente sí). Coincide con el
+  // canonicalUrl que ya arma generateMetadata en page.tsx.
+  const profileUrl = `https://salurama.com/doctor/${medico.slug ?? medico.id}`
 
   const tieneRedes = !!(medico?.facebook_url || medico?.instagram_url || medico?.tiktok_url)
 
@@ -804,7 +790,7 @@ export default function DoctorProfileClient({ doctorId }: { doctorId: string }) 
     medico?.colonia,
     medico?.cp ? `CP ${medico.cp}` : '',
     medico?.ciudad,
-    medico?.estado,
+    medico?.estado ? getStateLabel(medico.estado) : medico?.estado,
   ].filter(Boolean).join(', ')
 
   const direccionNavegacion = encodeURIComponent([
@@ -829,28 +815,6 @@ export default function DoctorProfileClient({ doctorId }: { doctorId: string }) 
     })
     return normalizado
   })()
-
-  if (loading) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif" }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;700&display=swap'); @keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      <div style={{ textAlign: 'center' }}>
-        <div style={{ width: 40, height: 40, border: '3px solid #EDE9FE', borderTopColor: '#8B5CF6', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
-        <p style={{ color: '#9CA3AF', fontSize: 14 }}>Cargando perfil...</p>
-      </div>
-    </div>
-  )
-
-  if (error || !medico) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif", padding: 24 }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@900&family=DM+Sans:wght@400;700&display=swap');`}</style>
-      <div style={{ textAlign: 'center', maxWidth: 340 }}>
-        <p style={{ fontSize: 40, marginBottom: 12 }}>🔍</p>
-        <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 22, fontWeight: 900, color: '#1E3A5F', marginBottom: 8 }}>Perfil no encontrado</h2>
-        <p style={{ color: '#6B7280', marginBottom: 20, fontSize: 14 }}>Este perfil no existe o no está disponible.</p>
-        <Link href="/" style={{ background: '#8B5CF6', color: '#fff', padding: '11px 28px', borderRadius: 50, textDecoration: 'none', fontWeight: 600, fontSize: 14 }}>Ir al inicio</Link>
-      </div>
-    </div>
-  )
 
   // Schema.org para Google (estrellas en resultados de búsqueda)
   const doctorSchema = medico ? {
@@ -913,7 +877,7 @@ export default function DoctorProfileClient({ doctorId }: { doctorId: string }) 
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F9FAFB', fontFamily: "'DM Sans', sans-serif", color: '#111827', paddingBottom: 100 }}>
+    <div className={`${fraunces.variable} ${dmSans.variable}`} style={{ minHeight: '100vh', background: '#F9FAFB', fontFamily: 'var(--font-dm-sans), sans-serif', color: '#111827', paddingBottom: 100 }}>
 
             {doctorSchema && (
         <script
@@ -921,9 +885,8 @@ export default function DoctorProfileClient({ doctorId }: { doctorId: string }) 
           dangerouslySetInnerHTML={{ __html: JSON.stringify(doctorSchema) }}
         />
       )}
-      
+
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@600;900&family=DM+Sans:wght@300;400;500;700&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
         @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
@@ -949,9 +912,17 @@ export default function DoctorProfileClient({ doctorId }: { doctorId: string }) 
         <section className="fade-up" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '320px 1fr', gap: 40, alignItems: 'start', marginBottom: 48 }}>
           <div style={{ position: 'relative', aspectRatio: isMobile ? '1/1' : '4/5', borderRadius: 24, overflow: 'hidden', background: '#EDE9FE', width: '100%', maxWidth: isMobile ? 280 : 320, margin: isMobile ? '0 auto' : '0' }}>
             {medico.photo_url ? (
-              <img src={medico.photo_url} alt={displayName} style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'pointer' }} onClick={() => setShowPhotoModal(true)} />
+              <Image
+                src={medico.photo_url}
+                alt={displayName}
+                fill
+                sizes="(max-width: 767px) 280px, 320px"
+                priority
+                style={{ objectFit: 'cover', cursor: 'pointer' }}
+                onClick={() => setShowPhotoModal(true)}
+              />
             ) : (
-              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #1E3A5F, #2A9D8F)', fontFamily: "'Fraunces', serif", fontSize: 64, fontWeight: 900, color: '#fff' }}>
+              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #1E3A5F, #2A9D8F)', fontFamily: 'var(--font-fraunces), serif', fontSize: 64, fontWeight: 900, color: '#fff' }}>
                 {(displayName || '?')[0].toUpperCase()}
               </div>
             )}
@@ -963,7 +934,7 @@ export default function DoctorProfileClient({ doctorId }: { doctorId: string }) 
             )}
           </div>
           <div>
-            <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: isMobile ? 28 : 40, fontWeight: 900, color: '#1E3A5F', marginBottom: 4, lineHeight: 1.1 }}>
+            <h1 style={{ fontFamily: 'var(--font-fraunces), serif', fontSize: isMobile ? 28 : 40, fontWeight: 900, color: '#1E3A5F', marginBottom: 4, lineHeight: 1.1 }}>
               {titlePrefix}{displayName}
             </h1>
             <p style={{ fontSize: 15, color: '#6B7280', marginBottom: 12 }}>{medico.specialty}{medico.sub_specialty && ` · ${medico.sub_specialty}`}</p>
@@ -1002,7 +973,7 @@ export default function DoctorProfileClient({ doctorId }: { doctorId: string }) 
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24, maxWidth: 400 }}>
               <div style={{ background: '#fff', borderRadius: 12, padding: 14, textAlign: 'center', border: '1px solid #E5E7EB' }}>
-                <p style={{ fontFamily: "'Fraunces', serif", fontSize: 22, fontWeight: 900, color: '#1E3A5F' }}>{(medico.rating_avg || 0).toFixed(1)}</p>
+                <p style={{ fontFamily: 'var(--font-fraunces), serif', fontSize: 22, fontWeight: 900, color: '#1E3A5F' }}>{(medico.rating_avg || 0).toFixed(1)}</p>
                 <div style={{ display: 'flex', justifyContent: 'center', gap: 2, marginBottom: 4 }}>
                   {[1, 2, 3, 4, 5].map(s => (
                     <Star key={s} size={11} fill={s <= Math.round(medico.rating_avg || 0) ? '#F59E0B' : 'none'} color={s <= Math.round(medico.rating_avg || 0) ? '#F59E0B' : '#E5E7EB'} />
@@ -1011,11 +982,11 @@ export default function DoctorProfileClient({ doctorId }: { doctorId: string }) 
                 <p style={{ fontSize: 10, color: '#9CA3AF', textTransform: 'uppercase', fontWeight: 600 }}>Rating</p>
               </div>
               <div style={{ background: '#fff', borderRadius: 12, padding: 14, textAlign: 'center', border: '1px solid #E5E7EB' }}>
-                <p style={{ fontFamily: "'Fraunces', serif", fontSize: 22, fontWeight: 900, color: '#1E3A5F' }}>{reviews.length}</p>
+                <p style={{ fontFamily: 'var(--font-fraunces), serif', fontSize: 22, fontWeight: 900, color: '#1E3A5F' }}>{reviews.length}</p>
                 <p style={{ fontSize: 10, color: '#9CA3AF', textTransform: 'uppercase', fontWeight: 600, marginTop: 8 }}>Reseñas</p>
               </div>
               <div style={{ background: '#fff', borderRadius: 12, padding: 14, textAlign: 'center', border: '1px solid #E5E7EB' }}>
-                <p style={{ fontFamily: "'Fraunces', serif", fontSize: 22, fontWeight: 900, color: '#1E3A5F' }}>{yearsExp || 'N/A'}</p>
+                <p style={{ fontFamily: 'var(--font-fraunces), serif', fontSize: 22, fontWeight: 900, color: '#1E3A5F' }}>{yearsExp || 'N/A'}</p>
                 <p style={{ fontSize: 10, color: '#9CA3AF', textTransform: 'uppercase', fontWeight: 600, marginTop: 8 }}>Años Exp.</p>
               </div>
             </div>
@@ -1031,16 +1002,16 @@ export default function DoctorProfileClient({ doctorId }: { doctorId: string }) 
                       <div style={{ display: 'flex', gap: 16, alignItems: 'baseline' }}>
                         <div>
                           <p style={{ fontSize: 10, color: '#6B7280', marginBottom: 2 }}>Primera vez</p>
-                          <p style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 900, color: '#1E3A5F' }}>${precioPrimera}</p>
+                          <p style={{ fontFamily: 'var(--font-fraunces), serif', fontSize: 18, fontWeight: 900, color: '#1E3A5F' }}>${precioPrimera}</p>
                         </div>
                         <div style={{ width: 1, height: 28, background: '#DDD6FE' }} />
                         <div>
                           <p style={{ fontSize: 10, color: '#6B7280', marginBottom: 2 }}>Subsecuente</p>
-                          <p style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 900, color: '#1E3A5F' }}>${precioSubsecuente}</p>
+                          <p style={{ fontFamily: 'var(--font-fraunces), serif', fontSize: 18, fontWeight: 900, color: '#1E3A5F' }}>${precioSubsecuente}</p>
                         </div>
                       </div>
                     ) : (
-                      <p style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 900, color: '#1E3A5F' }}>${precioPrimera || precioSubsecuente} MXN</p>
+                      <p style={{ fontFamily: 'var(--font-fraunces), serif', fontSize: 20, fontWeight: 900, color: '#1E3A5F' }}>${precioPrimera || precioSubsecuente} MXN</p>
                     )}
                   </div>
                 </div>
@@ -1049,7 +1020,7 @@ export default function DoctorProfileClient({ doctorId }: { doctorId: string }) 
             {(medico.ciudad || medico.estado) && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#6B7280', fontSize: 13 }}>
                 <MapPin size={14} />
-                {medico.ciudad}{medico.estado ? `, ${medico.estado}` : ''}
+                {medico.ciudad}{medico.estado ? `, ${getStateLabel(medico.estado)}` : ''}
               </div>
             )}
           </div>
@@ -1060,7 +1031,7 @@ export default function DoctorProfileClient({ doctorId }: { doctorId: string }) 
           <div>
             {/* Sobre el Doctor */}
             <section className="fade-up" style={{ marginBottom: 40 }}>
-              <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 900, color: '#1E3A5F', marginBottom: 12 }}>Sobre el Doctor</h2>
+              <h2 style={{ fontFamily: 'var(--font-fraunces), serif', fontSize: 24, fontWeight: 900, color: '#1E3A5F', marginBottom: 12 }}>Sobre el Doctor</h2>
               <p style={{ fontSize: 14, color: '#4A5568', lineHeight: 1.7 }}>
                 {medico.about_me || 'Información no disponible. El médico no ha completado su presentación.'}
               </p>
@@ -1069,7 +1040,7 @@ export default function DoctorProfileClient({ doctorId }: { doctorId: string }) 
             {/* Galería de fotos (plan Plus) */}
             {isPlusTier(medico.pricing_tier) && galleryPhotos.length > 0 && (
               <section className="fade-up" style={{ marginBottom: 32 }}>
-                <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 900, color: '#1E3A5F', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <h2 style={{ fontFamily: 'var(--font-fraunces), serif', fontSize: 20, fontWeight: 900, color: '#1E3A5F', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
                   <ImageIcon size={20} /> Galería
                 </h2>
                 <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10 }}>
@@ -1081,7 +1052,13 @@ export default function DoctorProfileClient({ doctorId }: { doctorId: string }) 
                         style={{ position: 'relative', aspectRatio: '1/1', borderRadius: 12, overflow: 'hidden', cursor: 'pointer', border: '1px solid #E5E7EB' }}
                         onClick={() => (isMoreTile ? setShowAllPhotosModal(true) : setLightboxPhoto(photo))}
                       >
-                        <img src={photo.photo_url} alt={photo.caption || `Foto de ${displayName}`} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                        <Image
+                          src={photo.photo_url}
+                          alt={photo.caption || `Foto de ${displayName}`}
+                          fill
+                          sizes="(max-width: 767px) 45vw, 130px"
+                          style={{ objectFit: 'cover' }}
+                        />
                         {isMoreTile && (
                           <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <span style={{ color: '#fff', fontSize: 17, fontWeight: 700 }}>+{galleryPhotos.length - 4} fotos</span>
@@ -1097,7 +1074,7 @@ export default function DoctorProfileClient({ doctorId }: { doctorId: string }) 
             {/* Formación académica */}
             {education.length > 0 && (
               <section className="fade-up" style={{ marginBottom: 32 }}>
-                <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 900, color: '#1E3A5F', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <h2 style={{ fontFamily: 'var(--font-fraunces), serif', fontSize: 20, fontWeight: 900, color: '#1E3A5F', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
                   <GraduationCap size={20} /> Formación académica
                 </h2>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -1119,7 +1096,7 @@ export default function DoctorProfileClient({ doctorId }: { doctorId: string }) 
             {/* Experiencia profesional */}
             {experience.length > 0 && (
               <section className="fade-up" style={{ marginBottom: 32 }}>
-                <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 900, color: '#1E3A5F', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <h2 style={{ fontFamily: 'var(--font-fraunces), serif', fontSize: 20, fontWeight: 900, color: '#1E3A5F', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Briefcase size={20} /> Experiencia profesional
                 </h2>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -1141,7 +1118,7 @@ export default function DoctorProfileClient({ doctorId }: { doctorId: string }) 
             {/* Padecimientos que atiende */}
             {conditions.length > 0 && (
               <section className="fade-up" style={{ marginBottom: 32 }}>
-                <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 900, color: '#1E3A5F', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <h2 style={{ fontFamily: 'var(--font-fraunces), serif', fontSize: 20, fontWeight: 900, color: '#1E3A5F', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Heart size={20} /> Padecimientos que atiende
                 </h2>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -1155,7 +1132,7 @@ export default function DoctorProfileClient({ doctorId }: { doctorId: string }) 
             {/* Idiomas */}
             {langs.length > 0 && (
               <section className="fade-up" style={{ marginBottom: 32 }}>
-                <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 900, color: '#1E3A5F', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <h2 style={{ fontFamily: 'var(--font-fraunces), serif', fontSize: 20, fontWeight: 900, color: '#1E3A5F', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Globe size={20} /> Idiomas
                 </h2>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -1168,7 +1145,7 @@ export default function DoctorProfileClient({ doctorId }: { doctorId: string }) 
 
             {/* Credenciales */}
             <section className="fade-up" style={{ marginBottom: 40 }}>
-              <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 900, color: '#1E3A5F', marginBottom: 12 }}>
+              <h2 style={{ fontFamily: 'var(--font-fraunces), serif', fontSize: 24, fontWeight: 900, color: '#1E3A5F', marginBottom: 12 }}>
                 Consulta credenciales en portales oficiales
               </h2>
               <div style={{ background: '#F9FAFB', borderRadius: 12, padding: 16, border: '1px solid #E5E7EB', maxWidth: 600 }}>
@@ -1230,7 +1207,7 @@ export default function DoctorProfileClient({ doctorId }: { doctorId: string }) 
                   {[
                     medico.cp ? `CP ${medico.cp}` : '',
                     medico.ciudad,
-                    medico.estado,
+                    medico.estado ? getStateLabel(medico.estado) : medico.estado,
                   ].filter(Boolean).join(', ')}
                 </p>
                 {(() => {
@@ -1371,7 +1348,7 @@ export default function DoctorProfileClient({ doctorId }: { doctorId: string }) 
         </div>
       {reviews.length > 0 && (
   <section className="fade-up" style={{ maxWidth: 1200, margin: '40px auto 0', padding: '0 20px' }}>
-    <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 900, color: '#1E3A5F', marginBottom: 16 }}>
+    <h2 style={{ fontFamily: 'var(--font-fraunces), serif', fontSize: 24, fontWeight: 900, color: '#1E3A5F', marginBottom: 16 }}>
       Reseñas de pacientes ({reviews.length})
     </h2>
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -1410,7 +1387,7 @@ export default function DoctorProfileClient({ doctorId }: { doctorId: string }) 
           {(precioPrimera || precioSubsecuente) && (
             <div style={{ flex: '0 0 auto', textAlign: 'center', minWidth: 80 }}>
               <p style={{ fontSize: 10, color: '#9CA3AF', textTransform: 'uppercase', fontWeight: 600 }}>Desde</p>
-              <p style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 900, color: '#1E3A5F' }}>${precioSubsecuente || precioPrimera}</p>
+              <p style={{ fontFamily: 'var(--font-fraunces), serif', fontSize: 18, fontWeight: 900, color: '#1E3A5F' }}>${precioSubsecuente || precioPrimera}</p>
             </div>
           )}
           <button onClick={() => setShowAppointmentModal(true)} style={{ flex: 1, background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)', color: '#fff', border: 'none', borderRadius: 12, padding: '14px 24px', fontSize: 14, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: '0 4px 14px rgba(139, 92, 246, 0.3)' }}>
@@ -1437,7 +1414,7 @@ export default function DoctorProfileClient({ doctorId }: { doctorId: string }) 
         >
           <div style={{ background: '#fff', borderRadius: 16, padding: 20, maxWidth: 480, width: '100%', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexShrink: 0 }}>
-              <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 900, color: '#1E3A5F' }}>Galería ({galleryPhotos.length})</h3>
+              <h3 style={{ fontFamily: 'var(--font-fraunces), serif', fontSize: 18, fontWeight: 900, color: '#1E3A5F' }}>Galería ({galleryPhotos.length})</h3>
               <button
                 onClick={() => setShowAllPhotosModal(false)}
                 style={{ background: '#F3F4F6', border: 'none', borderRadius: '50%', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#374151', flexShrink: 0 }}

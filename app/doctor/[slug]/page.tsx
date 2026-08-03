@@ -1,22 +1,18 @@
 import { createClient } from '@supabase/supabase-js'
 import { permanentRedirect, notFound } from 'next/navigation'
 import type { Metadata } from 'next'
+import { cache } from 'react'
 import { isUuid } from '@/lib/slug'
-import DoctorProfileClient from './DoctorProfileClient'
-
-type DoctorLookup = {
-  id: string
-  slug: string | null
-  full_name: string
-  display_name: string | null
-  professional_title: string | null
-  specialty: string
-  about_me: string | null
-  photo_url: string | null
-  ciudad: string | null
-  estado: string | null
-  is_active: boolean
-}
+import DoctorProfileClient, {
+  type Medico,
+  type License,
+  type EducationItem,
+  type ExperienceItem,
+  type Condition,
+  type Review,
+  type SpecialtyCredential,
+  type GalleryPhoto,
+} from './DoctorProfileClient'
 
 function getSupabase() {
   return createClient(
@@ -25,17 +21,58 @@ function getSupabase() {
   )
 }
 
-// No filtra is_active en la query — un perfil inactivo (ej. correo aún sin
+// select('*') porque este mismo lookup alimenta tanto generateMetadata como
+// el perfil completo (envuelto en cache() de React para que, aunque Next
+// invoque esta función por separado en cada uno, solo se ejecute una query
+// por request). No filtra is_active: un perfil inactivo (ej. correo aún sin
 // confirmar) debe tratarse como no encontrado, no simplemente omitirse de
 // listados, así que el chequeo se hace explícito donde se usa este lookup.
-async function resolveDoctor(slugParam: string): Promise<DoctorLookup | null> {
+const resolveDoctor = cache(async (slugParam: string): Promise<Medico | null> => {
   const column = isUuid(slugParam) ? 'id' : 'slug'
   const { data } = await getSupabase()
     .from('doctors')
-    .select('id, slug, full_name, display_name, professional_title, specialty, about_me, photo_url, ciudad, estado, is_active')
+    .select('*')
     .eq(column, slugParam)
     .maybeSingle()
   return data
+})
+
+// Resto de la data pública del perfil (licencias, educación, experiencia,
+// condiciones, reseñas, credenciales, galería) — se resuelve en el servidor
+// para que el HTML inicial (y el JSON-LD) traigan el contenido real, en vez
+// de depender de un useEffect del lado del cliente.
+async function getDoctorProfileData(doctorId: string) {
+  const supabase = getSupabase()
+  const [licRes, eduRes, expRes, condRes, revRes, credRes, galRes] = await Promise.all([
+    supabase.from('doctor_licenses').select('*').eq('doctor_id', doctorId),
+    supabase.from('doctor_education').select('*').eq('doctor_id', doctorId).order('graduation_year', { ascending: false }),
+    supabase.from('doctor_experience').select('*').eq('doctor_id', doctorId).order('is_current', { ascending: false }),
+    supabase.from('doctor_conditions').select('*').eq('doctor_id', doctorId).order('category'),
+    supabase.from('reviews').select('*').eq('doctor_id', doctorId).eq('is_visible', true).order('created_at', { ascending: false }).limit(20),
+    supabase.from('doctor_specialty_credentials').select('id, credentials_status, specialty_granular_mapping(granular_name, conacem_councils(council_name))').eq('doctor_id', doctorId),
+    supabase.from('doctor_gallery_photos').select('id, photo_url, caption').eq('doctor_id', doctorId).order('position'),
+  ])
+
+  return {
+    licenses: (licRes.data ?? []) as License[],
+    education: (eduRes.data ?? []) as EducationItem[],
+    experience: (expRes.data ?? []) as ExperienceItem[],
+    conditions: (condRes.data ?? []) as Condition[],
+    galleryPhotos: (galRes.data ?? []) as GalleryPhoto[],
+    specialtyCredentials: (credRes.data ?? []).map((r: any) => ({
+      id: r.id,
+      credentials_status: r.credentials_status,
+      granular_name: r.specialty_granular_mapping?.granular_name,
+      council_name: r.specialty_granular_mapping?.conacem_councils?.council_name ?? null,
+    })) as SpecialtyCredential[],
+    reviews: (revRes.data ?? []).map((r: any) => ({
+      id: r.id,
+      user_name: 'Paciente verificado',
+      rating: r.rating,
+      comment: r.comment,
+      created_at: r.created_at,
+    })) as Review[],
+  }
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
@@ -96,5 +133,7 @@ export default async function DoctorPage({
     permanentRedirect(`/doctor/${doctor.slug}${queryString ? `?${queryString}` : ''}`)
   }
 
-  return <DoctorProfileClient doctorId={doctor.id} />
+  const profileData = await getDoctorProfileData(doctor.id)
+
+  return <DoctorProfileClient medico={doctor} {...profileData} />
 }

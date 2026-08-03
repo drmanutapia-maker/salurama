@@ -1339,7 +1339,17 @@ function IntroForm({ aboutMe, onSave, saving }: { aboutMe: string | null; onSave
   const submit = (e: React.FormEvent) => { e.preventDefault(); onSave({ about_me: text }) }
   return (
     <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div><label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5, color: '#374151', textTransform: 'uppercase' }}>Sobre mí</label><p style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 8 }}>Mínimo 100 caracteres.</p><textarea value={text} onChange={e => setText(e.target.value)} rows={7} style={{...inputStyle, resize: 'vertical' }} placeholder="Soy médico con X años..." /><p style={{ fontSize: 11, color: text.length < 100? '#D97706' : '#2A9D8F', marginTop: 4, fontWeight: 500 }}>{text.length} caracteres {text.length < 100? `(faltan ${100 - text.length})` : '✓'}</p></div>
+      <div>
+        <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5, color: '#374151', textTransform: 'uppercase' }}>Sobre mí</label>
+        <p style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 8 }}>Mínimo 100 caracteres.</p>
+        {text.length < 100 && (
+          <p style={{ fontSize: 12, color: '#4B5563', background: '#F5F3FF', border: '1px solid #DDD6FE', borderRadius: 8, padding: '8px 10px', marginBottom: 8, lineHeight: 1.5 }}>
+            Tu biografía ayuda a que buscadores como Google muestren tu perfil como contenido único, no genérico — hoy la mayoría de los perfiles no la tienen.
+          </p>
+        )}
+        <textarea value={text} onChange={e => setText(e.target.value)} rows={7} style={{...inputStyle, resize: 'vertical' }} placeholder="Soy médico con X años..." />
+        <p style={{ fontSize: 11, color: text.length < 100? '#D97706' : '#2A9D8F', marginTop: 4, fontWeight: 500 }}>{text.length} caracteres {text.length < 100? `(faltan ${100 - text.length})` : '✓'}</p>
+      </div>
       <button type="submit" disabled={saving} style={{...btnPrimary, opacity: saving? 0.6 : 1 }}><Save size={15} /> {saving? 'Guardando...' : 'Guardar'}</button>
     </form>
   )
