@@ -84,7 +84,7 @@ export async function buildResenasPdf(data: ResenasData): Promise<Uint8Array> {
   cursor.page.drawText('Salurama', { x: MARGIN, y: PAGE_HEIGHT - 42, size: 22, font: bold, color: rgb(1, 1, 1) })
   cursor.page.drawText('Reporte de reseñas', { x: MARGIN, y: PAGE_HEIGHT - 64, size: 12, font, color: rgb(1, 1, 1) })
   const fechaGenerado = new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })
-  cursor.page.drawText(`${data.doctorNombre} — generado el ${fechaGenerado}`, { x: MARGIN, y: PAGE_HEIGHT - 80, size: 9, font, color: rgb(0.85, 0.88, 0.93) })
+  cursor.page.drawText(`${data.doctorNombre}, generado el ${fechaGenerado}`, { x: MARGIN, y: PAGE_HEIGHT - 80, size: 9, font, color: rgb(0.85, 0.88, 0.93) })
   cursor.y = PAGE_HEIGHT - 90 - 28
 
   // ── Resumen ─────────────────────────────────────────────────────────────

@@ -42,7 +42,7 @@ export default function PoliticaResenas() {
         <div className="section-block">
           <h2 className="legal-h2">2. Quién puede publicar reseñas</h2>
           <ul className="legal-ul">
-            <li className="legal-li">Pacientes que hayan tenido una cita registrada y completada con el profesional en Salurama — no se requiere crear una cuenta de usuario para dejar una reseña.</li>
+            <li className="legal-li">Pacientes que hayan tenido una cita registrada y completada con el profesional en Salurama. No se requiere crear una cuenta de usuario para dejar una reseña.</li>
             <li className="legal-li">Se permite una reseña por cada cita completada. Un mismo paciente puede dejar más de una reseña si ha tenido varias consultas distintas con el mismo profesional. Las reseñas duplicadas para la misma cita serán eliminadas.</li>
             <li className="legal-li">Salurama verifica que cada reseña provenga de una cita real y completada con el profesional evaluado, mediante un enlace de verificación único enviado exclusivamente al paciente de esa cita. Aun así, se reserva el derecho de eliminar reseñas con indicios de fraude o conflicto de interés.</li>
           </ul>

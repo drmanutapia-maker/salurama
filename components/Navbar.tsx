@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { isManuelEmail } from '@/lib/manuelOnly'
-import { Menu, X, LogOut, User, UserPlus, LayoutDashboard, CreditCard, Shield, Megaphone } from 'lucide-react'
+import { Menu, X, LogOut, User, UserPlus, LayoutDashboard, CreditCard, Shield, ShieldCheck } from 'lucide-react'
 
 export default function Navbar() {
   const router = useRouter()
@@ -69,10 +69,10 @@ export default function Navbar() {
                 {user ? (
                   <>
                     <Link href="/dashboard" onClick={() => setShowDropdown(false)} className="dropdown-item" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', color: '#374151', textDecoration: 'none', fontSize: 14, borderBottom: '1px solid #F3F4F6' }}><LayoutDashboard size={16}/> Mi perfil</Link>
-                    <Link href="/dashboard/plan" onClick={() => setShowDropdown(false)} className="dropdown-item" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', color: '#374151', textDecoration: 'none', fontSize: 14, borderBottom: '1px solid #F3F4F6' }}><CreditCard size={16}/> Mi plan</Link>
+                    <Link href="/dashboard/plan" onClick={() => setShowDropdown(false)} className="dropdown-item" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', color: '#374151', textDecoration: 'none', fontSize: 14, borderBottom: '1px solid #F3F4F6' }}><CreditCard size={16}/> Beneficios</Link>
                     <Link href="/dashboard/seguridad" onClick={() => setShowDropdown(false)} className="dropdown-item" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', color: '#374151', textDecoration: 'none', fontSize: 14, borderBottom: '1px solid #F3F4F6' }}><Shield size={16}/> Seguridad</Link>
                     {isManuelEmail(user.email) && (
-                      <Link href="/dashboard/cofepris" onClick={() => setShowDropdown(false)} className="dropdown-item" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', color: '#374151', textDecoration: 'none', fontSize: 14, borderBottom: '1px solid #F3F4F6' }}><Megaphone size={16}/> Aviso COFEPRIS</Link>
+                      <Link href="/admin" onClick={() => setShowDropdown(false)} className="dropdown-item" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', color: '#374151', textDecoration: 'none', fontSize: 14, borderBottom: '1px solid #F3F4F6' }}><ShieldCheck size={16}/> Admin</Link>
                     )}
                     <button onClick={handleLogout} className="dropdown-item" style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', background: 'none', border: 'none', color: '#DC2626', fontSize: 14, cursor: 'pointer', textAlign: 'left' }}><LogOut size={16}/> Cerrar sesión</button>
                   </>
@@ -100,10 +100,10 @@ export default function Navbar() {
             {user ? (
               <>
                 <Link href="/dashboard" onClick={() => setMobileOpen(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px', background: 'white', border: '1px solid #E5E7EB', borderRadius: 12, color: '#1A1A2E', textDecoration: 'none', fontWeight: 500 }}><LayoutDashboard size={18}/> Mi perfil</Link>
-                <Link href="/dashboard/plan" onClick={() => setMobileOpen(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px', background: 'white', border: '1px solid #E5E7EB', borderRadius: 12, color: '#1A1A2E', textDecoration: 'none', fontWeight: 500 }}><CreditCard size={18}/> Mi plan</Link>
+                <Link href="/dashboard/plan" onClick={() => setMobileOpen(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px', background: 'white', border: '1px solid #E5E7EB', borderRadius: 12, color: '#1A1A2E', textDecoration: 'none', fontWeight: 500 }}><CreditCard size={18}/> Beneficios</Link>
                 <Link href="/dashboard/seguridad" onClick={() => setMobileOpen(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px', background: 'white', border: '1px solid #E5E7EB', borderRadius: 12, color: '#1A1A2E', textDecoration: 'none', fontWeight: 500 }}><Shield size={18}/> Seguridad</Link>
                 {isManuelEmail(user.email) && (
-                  <Link href="/dashboard/cofepris" onClick={() => setMobileOpen(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px', background: 'white', border: '1px solid #E5E7EB', borderRadius: 12, color: '#1A1A2E', textDecoration: 'none', fontWeight: 500 }}><Megaphone size={18}/> Aviso COFEPRIS</Link>
+                  <Link href="/admin" onClick={() => setMobileOpen(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px', background: 'white', border: '1px solid #E5E7EB', borderRadius: 12, color: '#1A1A2E', textDecoration: 'none', fontWeight: 500 }}><ShieldCheck size={18}/> Admin</Link>
                 )}
                 <button onClick={handleLogout} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px', background: 'white', border: '1px solid #FECACA', borderRadius: 12, color: '#DC2626', fontWeight: 500, width: '100%' }}><LogOut size={18}/> Cerrar sesión</button>
               </>

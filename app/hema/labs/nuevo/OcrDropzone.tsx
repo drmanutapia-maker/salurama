@@ -125,7 +125,7 @@ export default function OcrDropzone({ patientId, imagePath, onImageUploaded, onI
         <ScanLine size={12} /> OCR automático próximamente
       </span>
       <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: 10 }}>
-        Se guarda como referencia — captura los valores manualmente abajo
+        Se guarda como referencia: captura los valores manualmente abajo
       </p>
 
       {error && (

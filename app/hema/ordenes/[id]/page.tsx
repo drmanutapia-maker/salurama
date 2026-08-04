@@ -246,7 +246,7 @@ export default function OrderDetailPage() {
           <div style={{ marginBottom: 16, padding: '12px 16px', background: '#FFFBEB', border: '1.5px solid #FDE68A', borderRadius: 14, display: 'flex', gap: 10 }}>
             <AlertTriangle size={16} color="#D97706" style={{ flexShrink: 0, marginTop: 1 }} />
             <p style={{ fontSize: 13, color: '#92400E', fontWeight: 600, margin: 0 }}>
-              Esta indicación lleva {days} día{days !== 1 ? 's' : ''} sin firmar — verifica que los datos clínicos sigan vigentes.
+              Esta indicación lleva {days} día{days !== 1 ? 's' : ''} sin firmar. Verifica que los datos clínicos sigan vigentes.
             </p>
           </div>
         )
@@ -383,7 +383,7 @@ export default function OrderDetailPage() {
               </div>
               {sig.psc_provider === 'dev' ? (
                 <p style={{ fontSize: 12, color: '#B91C1C', fontWeight: 700, marginTop: 4, marginLeft: 24 }}>
-                  ⚠ FIRMA DE PRUEBA — no válida ante NOM-151
+                  ⚠ FIRMA DE PRUEBA: no válida ante NOM-151
                 </p>
               ) : (
                 <p style={{ fontSize: 12, color: '#6B7280', marginTop: 4, marginLeft: 24 }}>{sig.psc_provider.toUpperCase()}</p>

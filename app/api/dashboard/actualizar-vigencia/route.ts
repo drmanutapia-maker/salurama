@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Error al buscar tu especialidad' }, { status: 500 })
   }
   if (!primaryRow) {
-    return NextResponse.json({ error: 'Tu especialidad actual no tiene consejo certificador — no hay vigencia que editar' }, { status: 404 })
+    return NextResponse.json({ error: 'Tu especialidad actual no tiene consejo certificador: no hay vigencia que editar' }, { status: 404 })
   }
 
   const { error: updateError } = await db

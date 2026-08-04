@@ -1,10 +1,8 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import imageCompression from 'browser-image-compression'
-import { Plus, Trash2, Lock, ChevronLeft, ChevronRight, CheckCircle, AlertCircle } from 'lucide-react'
-import { isPlusTier } from '@/lib/planGates'
+import { Plus, Trash2, ChevronLeft, ChevronRight, CheckCircle, AlertCircle } from 'lucide-react'
 
 interface GalleryPhoto {
   id: string
@@ -16,9 +14,7 @@ interface GalleryPhoto {
 
 const MAX_PHOTOS = 10
 
-export default function GaleriaFotos({ doctorId, doctorSlug, pricingTier }: { doctorId: string; doctorSlug: string; pricingTier: string }) {
-  const router = useRouter()
-  const isPlus = isPlusTier(pricingTier)
+export default function GaleriaFotos({ doctorId, doctorSlug }: { doctorId: string; doctorSlug: string }) {
   const [photos, setPhotos] = useState<GalleryPhoto[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
@@ -188,50 +184,6 @@ export default function GaleriaFotos({ doctorId, doctorSlug, pricingTier }: { do
       </div>
     </div>
   )
-
-  if (!isPlus) {
-    if (photos.length === 0) {
-      return (
-        <div style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1.5px solid #E5E7EB', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-          <div>
-            <p style={{ fontSize: 15, fontWeight: 700, color: '#111827', marginBottom: 2 }}>Galería de fotos</p>
-            <p style={{ fontSize: 13, color: '#6B7280' }}>Disponible en el plan Plus.</p>
-          </div>
-          <button
-            onClick={() => router.push('/dashboard/plan')}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#F3F4F6', color: '#6B7280', border: 'none', borderRadius: 50, padding: '10px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-          >
-            <Lock size={14} /> Mejorar a Plus
-          </button>
-        </div>
-      )
-    }
-    return (
-      <div style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1.5px solid #E5E7EB' }}>
-        <p style={{ fontSize: 15, fontWeight: 700, color: '#111827', marginBottom: 4 }}>Galería de fotos</p>
-        <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 12 }}>
-          Tu plan actual no incluye galería — estas fotos ya no se muestran en tu perfil público. Puedes borrarlas, pero no agregar nuevas.
-        </p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: 10 }}>
-          {photos.map(photo => (
-            <div key={photo.id} style={{ position: 'relative', aspectRatio: '1/1', borderRadius: 8, overflow: 'hidden' }}>
-              <img src={photo.photo_url} alt={photo.caption || ''} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              <button
-                onClick={() => setPhotoToDelete(photo)}
-                disabled={uploading}
-                style={{ position: 'absolute', top: 4, right: 4, width: 22, height: 22, background: 'rgba(220,38,38,0.9)', borderRadius: '50%', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: uploading ? 'not-allowed' : 'pointer', padding: 0 }}
-                title="Eliminar foto"
-              >
-                <Trash2 size={11} color="#fff" />
-              </button>
-            </div>
-          ))}
-        </div>
-        {Toast}
-        {DeleteModal}
-      </div>
-    )
-  }
 
   return (
     <div style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1.5px solid #E5E7EB' }}>

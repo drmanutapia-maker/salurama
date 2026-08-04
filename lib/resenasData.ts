@@ -26,12 +26,12 @@ export interface ResenasData {
 // A diferencia de lib/estadisticasData.ts (que solo trae agregados/histograma
 // para el dashboard general), esta trae TODAS las reseñas visibles del
 // médico, sin límite — es la fuente para /dashboard/resenas y su reporte.
-export async function getResenasData(userId: string): Promise<{ data: ResenasData; pricingTier: string | null } | null> {
+export async function getResenasData(userId: string): Promise<{ data: ResenasData } | null> {
   const db = getServiceSupabase()
 
   const { data: doctor } = await db
     .from('doctors')
-    .select('id, full_name, pricing_tier')
+    .select('id, full_name')
     .eq('user_id', userId)
     .single()
 
@@ -53,7 +53,6 @@ export async function getResenasData(userId: string): Promise<{ data: ResenasDat
   }))
 
   return {
-    pricingTier: doctor.pricing_tier ?? null,
     data: {
       doctorNombre: doctor.full_name,
       reviews,

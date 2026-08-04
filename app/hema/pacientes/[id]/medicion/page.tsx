@@ -309,7 +309,7 @@ export default function NuevaMedicionPage() {
                     <p style={{ fontSize: 12, color: '#B45309' }}>
                       BSA anterior: {prevBsa?.toFixed(2)} m²
                       {prevDate ? ` (${new Date(prevDate).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })})` : ''}.
-                      Variación mayor al 10% — verifica peso y talla antes de continuar.
+                      Variación mayor al 10%. Verifica peso y talla antes de continuar.
                     </p>
                   </div>
                 </div>
@@ -365,7 +365,7 @@ export default function NuevaMedicionPage() {
               Guardando medición...
             </>
           ) : bsa ? (
-            `Guardar — BSA ${bsa.mosteller.toFixed(2)} m²`
+            `Guardar: BSA ${bsa.mosteller.toFixed(2)} m²`
           ) : (
             'Ingresa peso y talla'
           )}

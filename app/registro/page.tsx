@@ -292,37 +292,6 @@ export default function RegistroMedico() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Error en el registro')
 
-      // GEOCODIFICACIÓN AUTOMÁTICA - Si hay dirección, obtener coordenadas
-      if (form.direccion && form.direccion.trim() && data.doctorId) {
-        try {
-          const fullAddress = `${form.direccion}, ${form.colonia}, ${form.ciudad}, ${form.estado}, ${form.cp}, México`
-
-          const geoRes = await fetch('/api/geocode', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ address: fullAddress })
-          })
-
-          if (geoRes.ok) {
-            const geoData = await geoRes.json()
-            if (geoData.lat && geoData.lng) {
-              await fetch('/api/update-doctor-location', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  doctorId: data.doctorId,
-                  lat: geoData.lat,
-                  lng: geoData.lng,
-                  formattedAddress: geoData.formatted_address || fullAddress
-                })
-              })
-            }
-          }
-        } catch (geoError) {
-          console.error('Geocodificación falló (no crítico):', geoError)
-        }
-      }
-
       setSuccess(true)
     } catch (e: any) {
       setError(e.message)
@@ -568,7 +537,7 @@ export default function RegistroMedico() {
                         </label>
                       </>
                     ) : (
-                      <p className="text-xs text-[#9CA3AF]">Esta especialidad no tiene un consejo certificador reconocido — no participa en el sistema de credenciales de Salurama.</p>
+                      <p className="text-xs text-[#9CA3AF]">Esta especialidad no tiene un consejo certificador reconocido. No participa en el sistema de credenciales de Salurama.</p>
                     )}
                   </div>
                 </div>

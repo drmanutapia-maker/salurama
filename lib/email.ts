@@ -44,7 +44,7 @@ export async function sendVerificationEmail(
                   <p style="margin:24px 0 0;color:#9CA3AF;font-size:14px;">Este enlace expira en 24 horas.</p>
                 </td></tr>
                 <tr><td style="background:#F3F4F6;padding:24px;text-align:center;">
-                  <p style="margin:0;color:#9CA3AF;font-size:12px;">Salurama - Verifica. Elige. Confía.</p>
+                  <p style="margin:0;color:#9CA3AF;font-size:12px;">Salurama. Verifica. Elige. Confía.</p>
                 </td></tr>
               </table>
             </td></tr>
@@ -92,7 +92,7 @@ export async function sendPacienteOtpEmail(
                   <p style="margin:0;color:#9CA3AF;font-size:14px;">Este código expira en ${OTP_EXPIRY_MINUTES} minutos. Si tú no hiciste esta solicitud, puedes ignorar este correo.</p>
                 </td></tr>
                 <tr><td style="background:#F3F4F6;padding:24px;text-align:center;">
-                  <p style="margin:0;color:#9CA3AF;font-size:12px;">Salurama - Verifica. Elige. Confía.</p>
+                  <p style="margin:0;color:#9CA3AF;font-size:12px;">Salurama. Verifica. Elige. Confía.</p>
                 </td></tr>
               </table>
             </td></tr>
@@ -141,7 +141,7 @@ export async function sendChatLinkEmail(
                   <p style="margin:24px 0 0;color:#9CA3AF;font-size:14px;">Guarda este enlace: es el mismo para todas tus citas con este médico.</p>
                 </td></tr>
                 <tr><td style="background:#F3F4F6;padding:24px;text-align:center;">
-                  <p style="margin:0;color:#9CA3AF;font-size:12px;">Salurama - Verifica. Elige. Confía.</p>
+                  <p style="margin:0;color:#9CA3AF;font-size:12px;">Salurama. Verifica. Elige. Confía.</p>
                 </td></tr>
               </table>
             </td></tr>
@@ -201,10 +201,10 @@ export async function sendChatLinkReenvioEmail(
                       <a href="${chats[0].chatUrl}" style="display:inline-block;background:#2A9D8F;color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;">Abrir mi chat</a>
                     </td></tr></table>
                   `}
-                  <p style="margin:24px 0 0;color:#9CA3AF;font-size:14px;">Por seguridad, si tenías guardado ${esMultiple ? 'algún enlace anterior, ya no funcionará' : 'un enlace anterior, ya no funcionará'} — usa ${esMultiple ? 'estos enlaces nuevos' : 'este enlace nuevo'} a partir de ahora.</p>
+                  <p style="margin:24px 0 0;color:#9CA3AF;font-size:14px;">Por seguridad, si tenías guardado ${esMultiple ? 'algún enlace anterior, ya no funcionará' : 'un enlace anterior, ya no funcionará'}. Usa ${esMultiple ? 'estos enlaces nuevos' : 'este enlace nuevo'} a partir de ahora.</p>
                 </td></tr>
                 <tr><td style="background:#F3F4F6;padding:24px;text-align:center;">
-                  <p style="margin:0;color:#9CA3AF;font-size:12px;">Salurama - Verifica. Elige. Confía.</p>
+                  <p style="margin:0;color:#9CA3AF;font-size:12px;">Salurama. Verifica. Elige. Confía.</p>
                 </td></tr>
               </table>
             </td></tr>
@@ -253,7 +253,7 @@ export async function sendAccountConfirmationEmail(
                   <p style="margin:24px 0 0;color:#9CA3AF;font-size:14px;">Si tú no creaste esta cuenta, puedes ignorar este correo.</p>
                 </td></tr>
                 <tr><td style="background:#F3F4F6;padding:24px;text-align:center;">
-                  <p style="margin:0;color:#9CA3AF;font-size:12px;">Salurama - Verifica. Elige. Confía.</p>
+                  <p style="margin:0;color:#9CA3AF;font-size:12px;">Salurama. Verifica. Elige. Confía.</p>
                 </td></tr>
               </table>
             </td></tr>
@@ -282,7 +282,7 @@ export async function sendNewDoctorRegistrationEmail(
     const { data, error } = await resend.emails.send({
       from: 'Salurama <noreply@salurama.com>',
       to: ['drmanutapia@gmail.com'],
-      subject: `Nuevo médico registrado — ${fullName}`,
+      subject: `Nuevo médico registrado: ${fullName}`,
       html: `
         <!DOCTYPE html>
         <html>
@@ -303,7 +303,7 @@ export async function sendNewDoctorRegistrationEmail(
                   </td></tr></table>
                 </td></tr>
                 <tr><td style="background:#F3F4F6;padding:24px;text-align:center;">
-                  <p style="margin:0;color:#9CA3AF;font-size:12px;">Salurama - Verifica. Elige. Confía.</p>
+                  <p style="margin:0;color:#9CA3AF;font-size:12px;">Salurama. Verifica. Elige. Confía.</p>
                 </td></tr>
               </table>
             </td></tr>
@@ -333,7 +333,7 @@ export async function sendB2BContactEmail(
       from: 'Salurama <contacto@salurama.com>',
       to: ['contacto@salurama.com'],
       replyTo: correo,
-      subject: `Nuevo contacto B2B — ${empresa}`,
+      subject: `Nuevo contacto B2B: ${empresa}`,
       html: `
         <!DOCTYPE html>
         <html>
@@ -345,17 +345,17 @@ export async function sendB2BContactEmail(
                   <h1 style="margin:0;color:white;font-size:28px;font-weight:900;">Salurama</h1>
                 </td></tr>
                 <tr><td style="padding:40px 32px;">
-                  <h2 style="margin:0 0 16px;color:#1F2937;font-size:22px;">Nuevo contacto — Para Empresas</h2>
+                  <h2 style="margin:0 0 16px;color:#1F2937;font-size:22px;">Nuevo contacto: Para Empresas</h2>
                   <p style="margin:0 0 8px;color:#6B7280;line-height:1.6;"><strong>Nombre:</strong> ${nombre}</p>
                   <p style="margin:0 0 8px;color:#6B7280;line-height:1.6;"><strong>Empresa:</strong> ${empresa}</p>
                   <p style="margin:0 0 16px;color:#6B7280;line-height:1.6;"><strong>Correo:</strong> ${correo}</p>
                   <div style="background:#F9FAFB;border-radius:10px;padding:16px;margin-bottom:20px;">
                     <p style="margin:0;color:#111827;white-space:pre-wrap;">${mensaje}</p>
                   </div>
-                  <p style="margin:0;color:#9CA3AF;font-size:13px;">Responde directamente a este correo — el reply-to ya apunta a ${correo}.</p>
+                  <p style="margin:0;color:#9CA3AF;font-size:13px;">Responde directamente a este correo: el reply-to ya apunta a ${correo}.</p>
                 </td></tr>
                 <tr><td style="background:#F3F4F6;padding:24px;text-align:center;">
-                  <p style="margin:0;color:#9CA3AF;font-size:12px;">Salurama - Verifica. Elige. Confía.</p>
+                  <p style="margin:0;color:#9CA3AF;font-size:12px;">Salurama. Verifica. Elige. Confía.</p>
                 </td></tr>
               </table>
             </td></tr>

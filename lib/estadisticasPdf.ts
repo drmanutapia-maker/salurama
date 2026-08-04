@@ -92,7 +92,7 @@ export async function buildEstadisticasPdf(data: EstadisticasData): Promise<Uint
   cursor.page.drawText('Salurama', { x: MARGIN, y: PAGE_HEIGHT - 42, size: 22, font: bold, color: rgb(1, 1, 1) })
   cursor.page.drawText('Reporte de estadísticas', { x: MARGIN, y: PAGE_HEIGHT - 64, size: 12, font, color: rgb(1, 1, 1) })
   const fechaGenerado = new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })
-  cursor.page.drawText(`${data.doctorNombre} — generado el ${fechaGenerado}`, { x: MARGIN, y: PAGE_HEIGHT - 80, size: 9, font, color: rgb(0.85, 0.88, 0.93) })
+  cursor.page.drawText(`${data.doctorNombre}, generado el ${fechaGenerado}`, { x: MARGIN, y: PAGE_HEIGHT - 80, size: 9, font, color: rgb(0.85, 0.88, 0.93) })
   cursor.y = PAGE_HEIGHT - 90 - 28
 
   // ── KPIs ────────────────────────────────────────────────────────────────
@@ -133,7 +133,7 @@ export async function buildEstadisticasPdf(data: EstadisticasData): Promise<Uint
   ]
   for (const fila of filasTendencia) {
     ensureSpace(18)
-    const prefijo = `${fila.label}: ${fila.valor} este mes — `
+    const prefijo = `${fila.label}: ${fila.valor} este mes, `
     text(prefijo, { x: MARGIN, size: 10, color: COLOR_INK })
     const { texto, color } = formatTendencia(fila.trend)
     const prefijoWidth = font.widthOfTextAtSize(prefijo, 10)
@@ -184,8 +184,8 @@ export async function buildEstadisticasPdf(data: EstadisticasData): Promise<Uint
     sectionTitle('Cómo te comparas')
     const tuRatingTexto = data.reviews.length > 0 ? `${data.ratingPromedio.toFixed(1)} estrellas` : 'sin dato'
     const grupos: { titulo: string; grupo: BenchmarkGrupo | null }[] = [
-      { titulo: `${data.benchmark.especialidad} — toda la plataforma`, grupo: data.benchmark.nacional },
-      { titulo: `${data.benchmark.especialidad} — ${data.benchmark.ciudad || 'sin ciudad registrada'}`, grupo: data.benchmark.ciudadGrupo },
+      { titulo: `${data.benchmark.especialidad}: toda la plataforma`, grupo: data.benchmark.nacional },
+      { titulo: `${data.benchmark.especialidad}: ${data.benchmark.ciudad || 'sin ciudad registrada'}`, grupo: data.benchmark.ciudadGrupo },
     ]
     for (const { titulo, grupo } of grupos) {
       ensureSpace(18)
@@ -198,7 +198,7 @@ export async function buildEstadisticasPdf(data: EstadisticasData): Promise<Uint
       ]
       for (const fila of filas) {
         ensureSpace(16)
-        const prefijo = `${fila.label}: Tú ${fila.tuTexto} — `
+        const prefijo = `${fila.label}: Tú ${fila.tuTexto}, `
         text(prefijo, { x: MARGIN + 12, size: 9, color: COLOR_MUTED })
         const prefijoWidth = font.widthOfTextAtSize(prefijo, 9)
         if (fila.suficiente && fila.grupoValor !== null) {

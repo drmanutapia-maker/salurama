@@ -50,7 +50,7 @@ export default async function BlogPage() {
         <div style={{ maxWidth: 960, margin: '0 auto' }}>
           {articulos.length === 0 ? (
             <p style={{ textAlign: 'center', color: '#6B7280', fontSize: 15, padding: '40px 0' }}>
-              Todavía no hay artículos publicados. Vuelve pronto — publicamos contenido nuevo cada semana.
+              Todavía no hay artículos publicados. Vuelve pronto: publicamos contenido nuevo cada semana.
             </p>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20 }}>

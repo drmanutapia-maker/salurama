@@ -72,7 +72,6 @@ export default function BottomNav() {
 
   const patientNav: NavItem[] = [
     { href: '/buscar', label: 'Buscar', icon: Search },
-    { href: '/favoritos', label: 'Favoritos', icon: Heart },
     { href: '/citas', label: 'Citas', icon: Calendar },
     { href: '/perfil', label: 'Perfil', icon: User },
   ]

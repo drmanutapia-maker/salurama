@@ -169,8 +169,8 @@ export default function BsaCard({
           }}
         >
           {isVeryStale
-            ? 'Medición desactualizada — requiere nueva medición antes de calcular dosis'
-            : 'Medición con más de 30 días — se recomienda actualizar antes de nueva indicación'}
+            ? 'Medición desactualizada: requiere nueva medición antes de calcular dosis'
+            : 'Medición con más de 30 días: se recomienda actualizar antes de nueva indicación'}
         </div>
       )}
     </div>

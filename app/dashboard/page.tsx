@@ -7,9 +7,8 @@ import {
   X, ZoomIn, Calendar, Edit2, Eye, Share2,
   Star, Users, MoreVertical, Lightbulb,
   CheckCircle, ArrowRight,
-  PartyPopper, Sparkles, Megaphone, Shield, AlertCircle
+  PartyPopper, Sparkles, Megaphone, AlertCircle
 } from 'lucide-react'
-import { PLAN_TO_TIER_CODE } from '@/lib/pricingTiers'
 import { calculateProfileCompletion } from '@/hooks/useProfileCompletion'
 import { isManuelEmail } from '@/lib/manuelOnly'
 
@@ -32,7 +31,6 @@ interface Medico {
   clinic_address: string | null
   ciudad: string | null
   estado: string | null
-  pricing_tier: string | null
   user_id?: string
   cofepris_aviso_numero: string | null
 }
@@ -79,8 +77,6 @@ export default function DashboardMedico() {
   const [profileCompletion, setProfileCompletion] = useState(0)
   const [isMobile, setIsMobile] = useState(false)
   const [photoTs] = useState(() => Date.now())
-  // Se verifica por consulta a la tabla `admins` — nunca por correo hardcodeado.
-  const [isAdmin, setIsAdmin] = useState(false)
   // Detectar mobile
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 640)
@@ -136,9 +132,6 @@ export default function DashboardMedico() {
 
         if (!mounted) return
         setMedico(doctor)
-
-        const { data: adminRow } = await supabase.from('admins').select('id').eq('user_id', user.id).maybeSingle()
-        if (mounted) setIsAdmin(!!adminRow)
 
         const hoy = new Date().toISOString().split('T')[0]
         const inicioMes = new Date()
@@ -421,9 +414,6 @@ export default function DashboardMedico() {
 
   const esPerfilCompleto = consejo?.id === 'completo'
   const profileUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/doctor/${medico.id}`
-  const esProfesionalOMas = medico.pricing_tier === PLAN_TO_TIER_CODE.profesional
-    || medico.pricing_tier === PLAN_TO_TIER_CODE.premium
-    || medico.pricing_tier === PLAN_TO_TIER_CODE.clinica
   const fechaHoyLegible = new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })
 
   const formatProximaFecha = (fechaStr: string) => {
@@ -513,15 +503,6 @@ export default function DashboardMedico() {
                   : <Share2 size={15} />
                 }
               </button>
-              {isAdmin && (
-                <Link
-                  href="/admin"
-                  className="btn-hover"
-                  style={{ background: '#fff', color: '#1E3A5F', border: '1.5px solid #E5E7EB', padding: isMobile ? '14px 20px' : '10px 20px', borderRadius: 12, fontSize: 14, fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 48 }}
-                >
-                  <Shield size={16} /> Panel de administración
-                </Link>
-              )}
             </div>
           </div>
         </div>
@@ -728,7 +709,7 @@ export default function DashboardMedico() {
                   Formaliza tu Aviso de Publicidad ante COFEPRIS
                 </p>
                 <p style={{ fontSize: 14, color: '#4A5568', margin: 0, lineHeight: 1.5 }}>
-                  Te ayudamos a preparar la documentación — es un servicio opcional, no afecta tu perfil ni tu visibilidad.
+                  Te ayudamos a preparar la documentación. Es un servicio opcional, no afecta tu perfil ni tu visibilidad.
                 </p>
               </div>
             </div>
@@ -763,11 +744,9 @@ export default function DashboardMedico() {
             <p style={{ fontSize: 32, fontFamily: 'Fraunces', fontWeight: 900, color: '#1E3A5F', margin: '8px 0', lineHeight: 1 }}>
               {stats?.visitas_mes || 0}
             </p>
-            {esProfesionalOMas && (
-              <p style={{ fontSize: 11, color: '#9CA3AF', lineHeight: 1.4, margin: 0 }}>
-                Acumulando datos desde el {fechaHoyLegible} — la tendencia estará disponible próximamente
-              </p>
-            )}
+            <p style={{ fontSize: 11, color: '#9CA3AF', lineHeight: 1.4, margin: 0 }}>
+              Acumulando datos desde el {fechaHoyLegible}. La tendencia estará disponible próximamente
+            </p>
           </div>
 
           {/* SOLICITUDES */}

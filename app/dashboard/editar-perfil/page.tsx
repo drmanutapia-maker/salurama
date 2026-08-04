@@ -775,7 +775,7 @@ export default function EditarPerfilPage() {
               </div>
             </Card>
 
-            <GaleriaFotos doctorId={medico.id} doctorSlug={medico.slug} pricingTier={medico.pricing_tier} />
+            <GaleriaFotos doctorId={medico.id} doctorSlug={medico.slug} />
 
             <Card title="Especialidades y cédulas" onEdit={() => setActiveModal('specialties')}>
               <div style={{ padding: '10px 12px', background: '#E8F7F5', borderRadius: 8, border: '1px solid #9FD8CD', marginBottom: 12 }}>
@@ -805,7 +805,7 @@ export default function EditarPerfilPage() {
                     </div>
                     {licenseError && <p style={{ fontSize: 12, color: '#DC2626', marginTop: 4 }}>{licenseError}</p>}
                     <p style={{ fontSize: 11, color: '#6B7280', marginTop: 4 }}>
-                      Cambiar la cédula la vuelve a poner en revisión — dejará de mostrar el badge de cédula disponible para consulta hasta que se revise de nuevo.
+                      Cambiar la cédula la vuelve a poner en revisión. Dejará de mostrar el badge de cédula disponible para consulta hasta que se revise de nuevo.
                     </p>
                   </div>
                 ) : (
@@ -1344,7 +1344,7 @@ function IntroForm({ aboutMe, onSave, saving }: { aboutMe: string | null; onSave
         <p style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 8 }}>Mínimo 100 caracteres.</p>
         {text.length < 100 && (
           <p style={{ fontSize: 12, color: '#4B5563', background: '#F5F3FF', border: '1px solid #DDD6FE', borderRadius: 8, padding: '8px 10px', marginBottom: 8, lineHeight: 1.5 }}>
-            Tu biografía ayuda a que buscadores como Google muestren tu perfil como contenido único, no genérico — hoy la mayoría de los perfiles no la tienen.
+            Tu biografía ayuda a que buscadores como Google muestren tu perfil como contenido único, no genérico. Hoy la mayoría de los perfiles no la tienen.
           </p>
         )}
         <textarea value={text} onChange={e => setText(e.target.value)} rows={7} style={{...inputStyle, resize: 'vertical' }} placeholder="Soy médico con X años..." />
@@ -1383,7 +1383,7 @@ function SpecialtiesForm({ specialties, specialty, councilMap, onAdd, onDelete, 
             councilInfo?.councilName
               ? <p style={{ fontSize: 12, color: '#6B7280', margin: 0 }}>Consejo: {councilInfo.councilName}</p>
               : councilInfo
-                ? <p style={{ fontSize: 12, color: '#9CA3AF', margin: 0 }}>Sin consejo certificador reconocido — no participará en el sistema de credenciales.</p>
+                ? <p style={{ fontSize: 12, color: '#9CA3AF', margin: 0 }}>Sin consejo certificador reconocido: no participará en el sistema de credenciales.</p>
                 : null
           )}
           <input type="text" value={form.license_number} onChange={e => setForm(p => ({ ...p, license_number: e.target.value }))} style={inputStyle} required placeholder="Cédula" />

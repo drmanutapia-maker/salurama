@@ -80,7 +80,7 @@ export async function buildEstadisticasExcel(data: EstadisticasData): Promise<Bu
 
   citasSheet.addRow([])
   const mesesStartRow = citasSheet.rowCount + 1
-  citasSheet.getCell(mesesStartRow, 1).value = 'Citas — últimos 6 meses'
+  citasSheet.getCell(mesesStartRow, 1).value = 'Citas: últimos 6 meses'
   citasSheet.getCell(mesesStartRow, 1).font = { bold: true, size: 12, color: { argb: 'FF1E3A5F' } }
   styleHeaderRow(citasSheet.addRow(['Mes', 'Citas']))
   for (const m of data.citasPorMes) citasSheet.addRow([m.label, m.count])
@@ -133,7 +133,7 @@ export async function buildEstadisticasExcel(data: EstadisticasData): Promise<Bu
 
   // ── Perfil completado ────────────────────────────────────────────────────
   const perfilSheet = workbook.addWorksheet('Perfil completado')
-  addTitle(perfilSheet, `Perfil completado — ${data.completionPct}%`, 2)
+  addTitle(perfilSheet, `Perfil completado: ${data.completionPct}%`, 2)
   perfilSheet.addRow([])
   styleHeaderRow(perfilSheet.addRow(['Rubro', 'Completado']))
   for (const c of data.checks) {

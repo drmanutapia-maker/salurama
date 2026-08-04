@@ -9,7 +9,7 @@ import MainContent from '@/components/MainContent'
 
 export const metadata: Metadata = {
   title: {
-    default: "Salurama — Verifica. Elige. Confía.",
+    default: "Salurama. Verifica. Elige. Confía.",
     template: "%s | Salurama",
   },
   description: "Directorio médico en México. Encuentra especialistas, consulta su cédula profesional en SEP/CONACEM, lee reseñas de pacientes reales y agenda tu cita con confianza.",
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
     locale: "es_MX",
     url: "https://salurama.com",
     siteName: "Salurama",
-    title: "Salurama — Directorio médico en México",
+    title: "Salurama: Directorio médico en México",
     description: "Directorio médico en México. Encuentra especialistas, consulta su cédula, lee reseñas y agenda citas con confianza.",
     images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Salurama - Directorio médico en México" }],
   },

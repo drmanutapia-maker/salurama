@@ -9,7 +9,6 @@ import {
   Shield,
   Star,
   MessageCircle,
-  Building2,
 } from 'lucide-react'
 import { STATES, getStateLabel } from '@/lib/locations'
 import BottomNav from '@/components/BottomNav'
@@ -283,8 +282,8 @@ export default function HomeClient({
               </div>
               <div className="card-medico" style={{ background: '#fff', borderRadius: 16, padding: 32, textAlign: 'center' }}>
                 <div style={{ width: 64, height: 64, background: '#ECFDF5', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}><MessageCircle size={32} color="#059669" /></div>
-                <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1E3A5F', marginBottom: 12 }}>Contacto directo</h3>
-                <p style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.6 }}>Sin intermediarios, sin costos adicionales. Habla directo con el consultorio</p>
+                <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1E3A5F', marginBottom: 12 }}>Habla con tu médico</h3>
+                <p style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.6 }}>Chatea directo con tu médico dentro de Salurama tras confirmar tu cita, sin salir de la plataforma.</p>
               </div>
             </div>
           </section>
@@ -292,19 +291,19 @@ export default function HomeClient({
           <section className="fade-up" style={{ maxWidth: 1200, margin: '0 auto', padding: '40px 20px', borderTop: '1px solid #E5E7EB' }}>
             <div style={{ background: '#1E3A5F', borderRadius: 20, padding: 'clamp(32px,5vw,48px) 24px', textAlign: 'center' }}>
               <div style={{ width: 56, height: 56, background: 'rgba(255,255,255,0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 18px' }}>
-                <Building2 size={26} color="#fff" />
+                <Stethoscope size={26} color="#fff" />
               </div>
               <h2 style={{ fontSize: 'clamp(20px,4vw,28px)', fontWeight: 900, color: '#fff', marginBottom: 10 }}>
-                ¿Eres una empresa del sector salud?
+                ¿Eres médico y quieres estar aquí?
               </h2>
               <p style={{ fontSize: 15, color: '#C5D0E0', lineHeight: 1.7, maxWidth: 480, margin: '0 auto 24px' }}>
-                Lleva información científica balanceada a los médicos que ya están trabajando en Salurama con MSL Virtual.
+                Perfil verificado, chat directo con tus pacientes, reseñas reales y estadísticas de tu especialidad. Descubre todo lo que Salurama hace por ti.
               </p>
               <Link
-                href="/para-empresas"
+                href="/beneficios"
                 style={{ display: 'inline-block', background: '#2A9D8F', color: '#fff', fontWeight: 700, textDecoration: 'none', padding: '13px 28px', borderRadius: 50, fontSize: 15 }}
               >
-                Para Empresas →
+                Ver beneficios →
               </Link>
             </div>
           </section>

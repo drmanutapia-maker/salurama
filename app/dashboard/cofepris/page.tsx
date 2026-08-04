@@ -223,7 +223,7 @@ export default function CofeprisPage() {
                 <p style={{ fontSize: 13, color: '#4A5568', lineHeight: 1.7, marginBottom: 12 }}>
                   El Aviso de Publicidad ante COFEPRIS solo aplica a consultorios que ya cuentan con su Aviso de
                   Funcionamiento vigente ante la Secretaría de Salud. No podemos continuar con este asistente hasta
-                  que lo tengas — el resto de tu perfil y de Salurama sigue funcionando normalmente mientras tanto.
+                  que lo tengas. El resto de tu perfil y de Salurama sigue funcionando normalmente mientras tanto.
                 </p>
                 <a
                   href="https://www.gob.mx/cofepris/acciones-y-programas/autorizacion-publicitaria"
@@ -248,7 +248,7 @@ export default function CofeprisPage() {
                 </div>
                 <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 18, lineHeight: 1.6 }}>
                   Genera un PDF base con tus datos de perfil (nombre, título, especialidad, cédula, foto y
-                  descripción). Es un borrador de apoyo — revísalo antes de subirlo a DIGIPRiS, incluye un espacio
+                  descripción). Es un borrador de apoyo: revísalo antes de subirlo a DIGIPRiS, incluye un espacio
                   marcado para las leyendas legales obligatorias que aún están pendientes de revisión.
                 </p>
                 <a
@@ -275,10 +275,10 @@ export default function CofeprisPage() {
                 <ol style={{ paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 18 }}>
                   {[
                     'Ingresa a DIGIPRiS (trámites autogestivos de COFEPRIS) con tu e.firma (SAT).',
-                    'Selecciona el trámite de Aviso de Publicidad — Modalidad A (actividades profesionales, no requiere aprobación previa).',
+                    'Selecciona el trámite de Aviso de Publicidad, Modalidad A (actividades profesionales, no requiere aprobación previa).',
                     'Sube el PDF de tu proyecto de anuncio (el que generaste en el paso anterior).',
                     'Firma electrónicamente el trámite con tu e.firma.',
-                    'Descarga tu acuse de recibido — trae el folio/número de aviso que necesitarás en el siguiente paso.',
+                    'Descarga tu acuse de recibido: trae el folio/número de aviso que necesitarás en el siguiente paso.',
                   ].map((paso, i) => (
                     <li key={i} style={{ fontSize: 13, color: '#374151', lineHeight: 1.6 }}>{paso}</li>
                   ))}
@@ -286,11 +286,11 @@ export default function CofeprisPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <a href="https://www.gob.mx/cofepris/documentos/digipris-tramites-autogestivos?state=published" target="_blank" rel="noopener noreferrer"
                     style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#1E3A5F', fontSize: 13, fontWeight: 700, textDecoration: 'none' }}>
-                    DIGIPRiS — trámites autogestivos (gob.mx) <ExternalLink size={13} />
+                    DIGIPRiS: trámites autogestivos (gob.mx) <ExternalLink size={13} />
                   </a>
                   <a href="https://www.gob.mx/cofepris/acciones-y-programas/autorizacion-publicitaria" target="_blank" rel="noopener noreferrer"
                     style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#1E3A5F', fontSize: 13, fontWeight: 700, textDecoration: 'none' }}>
-                    Autorización publicitaria — información general (gob.mx) <ExternalLink size={13} />
+                    Autorización publicitaria: información general (gob.mx) <ExternalLink size={13} />
                   </a>
                 </div>
                 <div style={{ marginTop: 20, display: 'flex', justifyContent: 'space-between' }}>
@@ -311,7 +311,7 @@ export default function CofeprisPage() {
                   <h2 style={{ fontFamily: 'Fraunces', fontSize: 18, fontWeight: 900, color: '#1E3A5F' }}>Número de aviso y acuse</h2>
                 </div>
                 <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 18, lineHeight: 1.6 }}>
-                  Captura el folio de tu acuse de DIGIPRiS y sube el PDF del acuse — queda guardado de forma privada,
+                  Captura el folio de tu acuse de DIGIPRiS y sube el PDF del acuse. Queda guardado de forma privada,
                   solo tú puedes verlo.
                 </p>
 
@@ -348,7 +348,7 @@ export default function CofeprisPage() {
                   <div style={{ marginTop: 24, background: '#ECFDF5', border: '1.5px solid #D1FAE5', borderRadius: 12, padding: 16, display: 'flex', gap: 10, alignItems: 'center' }}>
                     <PartyPopper size={20} color="#059669" />
                     <p style={{ fontSize: 13, color: '#065F46', fontWeight: 600 }}>
-                      Listo — tu aviso de publicidad quedó registrado en tu perfil.
+                      Listo: tu aviso de publicidad quedó registrado en tu perfil.
                     </p>
                   </div>
                 )}

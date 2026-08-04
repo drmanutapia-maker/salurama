@@ -430,7 +430,7 @@ export default function CookieBanner() {
                   <p
                     style={{ fontSize: 11, color: '#9CA3AF', margin: 0 }}
                   >
-                    Mapbox, preferencias guardadas
+                    Preferencias guardadas
                   </p>
                 </div>
               </div>

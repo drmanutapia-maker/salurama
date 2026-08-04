@@ -148,7 +148,7 @@ export default function Step4Review({
           <div style={{ marginTop: 12, padding: '10px 14px', background: '#FFFBEB', border: '1.5px solid #FDE68A', borderRadius: 10, display: 'flex', gap: 8 }}>
             <AlertTriangle size={15} color="#D97706" style={{ flexShrink: 0, marginTop: 1 }} />
             <p style={{ fontSize: 12, color: '#92400E', fontWeight: 700, margin: 0 }}>
-              ⚠ Protocolo pendiente de aprobación — solo disponible en modo desarrollo
+              ⚠ Protocolo pendiente de aprobación: solo disponible en modo desarrollo
             </p>
           </div>
         )}

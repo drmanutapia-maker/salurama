@@ -27,11 +27,11 @@ const PASOS = [
     titulo: 'Usa los filtros según lo que más te importa',
     icon: MapPin,
     contenido: [
-      '📍 Ubicación — cerca de tu domicilio o trabajo',
-      '🎓 Años de experiencia — trayectoria profesional',
-      '🏥 Alta especialidad — subespecialidad si tu caso es complejo',
-      '💰 Costo — opciones dentro de tu presupuesto',
-      '⭐ Reseñas — como complemento, no como único criterio',
+      '📍 Ubicación: cerca de tu domicilio o trabajo',
+      '🎓 Años de experiencia: trayectoria profesional',
+      '🏥 Alta especialidad: subespecialidad si tu caso es complejo',
+      '💰 Costo: opciones dentro de tu presupuesto',
+      '⭐ Reseñas: como complemento, no como único criterio',
     ],
     tip: 'Combina varios filtros para obtener resultados más alineados a lo que buscas.',
     accion: { label: 'Buscar con filtros', href: '/buscar' },
@@ -63,7 +63,7 @@ const CHECKLIST = [
 const PREGUNTAS = [
   {
     q: '¿Salurama verifica las credenciales de los médicos?',
-    a: 'No. Salurama no verifica, avala ni certifica credenciales. Lo que hacemos es darte acceso directo a las fuentes oficiales — la SEP y CONACEM — para que tú mismo puedas confirmar la información. La decisión es tuya, y nosotros te damos las herramientas para tomarla informado.',
+    a: 'No. Salurama no verifica, avala ni certifica credenciales. Lo que hacemos es darte acceso directo a las fuentes oficiales (la SEP y CONACEM) para que tú mismo puedas confirmar la información. La decisión es tuya, y nosotros te damos las herramientas para tomarla informado.',
   },
   {
     q: '¿Qué diferencia hay entre cédula profesional y certificación de especialidad?',
@@ -75,11 +75,11 @@ const PREGUNTAS = [
   },
   {
     q: '¿Todos los médicos en Salurama tienen cédula registrada?',
-    a: 'Todos los médicos registrados proporcionan su número de cédula al momento del registro. Salurama no verifica este dato de forma independiente — para confirmarlo, usa el botón "Verificar cédula" en el perfil del médico, que te lleva directamente al sitio de la SEP.',
+    a: 'Todos los médicos registrados proporcionan su número de cédula al momento del registro. Salurama no verifica este dato de forma independiente. Para confirmarlo, usa el botón "Verificar cédula" en el perfil del médico, que te lleva directamente al sitio de la SEP.',
   },
   {
     q: '¿Por qué Salurama es gratuito para los médicos?',
-    a: 'Porque creemos que la visibilidad médica no debe estar condicionada a quién paga más. Salurama funciona con un modelo de negocio B2B — trabajamos con laboratorios, aseguradoras y farmacéuticas para financiar la plataforma, sin que esto afecte los resultados de búsqueda ni el orden en que aparecen los médicos.',
+    a: 'Porque creemos que la visibilidad médica no debe estar condicionada a quién paga más. Salurama funciona con un modelo de negocio B2B: trabajamos con laboratorios, aseguradoras y farmacéuticas para financiar la plataforma, sin que esto afecte los resultados de búsqueda ni el orden en que aparecen los médicos.',
   },
 ]
 

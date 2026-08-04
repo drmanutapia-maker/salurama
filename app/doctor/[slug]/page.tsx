@@ -85,7 +85,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
   const displayName = doctor.display_name || doctor.full_name
   const titlePrefix = doctor.professional_title ? `${doctor.professional_title} ` : ''
-  const title = `${titlePrefix}${displayName} — ${doctor.specialty}`
+  const title = `${titlePrefix}${displayName}: ${doctor.specialty}`
   const description = (doctor.about_me?.slice(0, 157) || null)
     ? `${doctor.about_me!.slice(0, 157)}...`
     : `${titlePrefix}${displayName}, especialista en ${doctor.specialty}${doctor.ciudad ? ` en ${doctor.ciudad}` : ''}. Agenda tu cita en Salurama.`

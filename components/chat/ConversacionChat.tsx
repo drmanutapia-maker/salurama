@@ -1,10 +1,14 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import type { KeyboardEvent } from 'react'
-import { ArrowLeft, Send, FileText } from 'lucide-react'
+import type { ChangeEvent, KeyboardEvent } from 'react'
+import { ArrowLeft, Send, FileText, Paperclip, Image as ImageIcon, Loader2 } from 'lucide-react'
+import imageCompression from 'browser-image-compression'
 import { supabase } from '@/lib/supabaseClient'
 import type { ConversacionResumen } from './ConversacionesLista'
+
+const TIPOS_MIME_PERMITIDOS = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'] as const
+const TAMANO_MAXIMO_BYTES = 15728640 // 15 MB — mismo límite que el bucket chat-archivos
 
 type Mensaje = {
   tipo: 'mensaje'
@@ -21,6 +25,8 @@ type Archivo = {
   citaId: string
   remitente: 'medico' | 'paciente'
   nombreOriginal: string
+  storagePath: string
+  tipoMime: string
   createdAt: string
 }
 
@@ -76,8 +82,12 @@ export default function ConversacionChat({
   const [loading, setLoading] = useState(true)
   const [input, setInput] = useState('')
   const [enviando, setEnviando] = useState(false)
+  const [subiendoArchivo, setSubiendoArchivo] = useState(false)
+  const [errorArchivo, setErrorArchivo] = useState<string | null>(null)
+  const [abriendoArchivoId, setAbriendoArchivoId] = useState<string | null>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     let activo = true
@@ -90,7 +100,7 @@ export default function ConversacionChat({
           .order('created_at', { ascending: true }),
         supabase
           .from('chat_archivos')
-          .select('id, cita_id, remitente_tipo, nombre_original, created_at')
+          .select('id, cita_id, remitente_tipo, nombre_original, storage_path, tipo_mime, created_at')
           .eq('sala_id', conversacion.salaId)
           .order('created_at', { ascending: true }),
       ])
@@ -99,7 +109,7 @@ export default function ConversacionChat({
         tipo: 'mensaje', id: m.id, citaId: m.cita_id, remitente: m.remitente_tipo, contenido: m.contenido, createdAt: m.created_at,
       }))
       const archivos: Item[] = ((archivosRes.data || []) as any[]).map(a => ({
-        tipo: 'archivo', id: a.id, citaId: a.cita_id, remitente: a.remitente_tipo, nombreOriginal: a.nombre_original, createdAt: a.created_at,
+        tipo: 'archivo', id: a.id, citaId: a.cita_id, remitente: a.remitente_tipo, nombreOriginal: a.nombre_original, storagePath: a.storage_path, tipoMime: a.tipo_mime, createdAt: a.created_at,
       }))
       const combinados = [...mensajes, ...archivos].sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1))
 
@@ -129,6 +139,18 @@ export default function ConversacionChat({
           setItems(prev => {
             if (prev.some(i => i.tipo === 'mensaje' && i.id === row.id)) return prev
             return [...prev, { tipo: 'mensaje', id: row.id, citaId: row.cita_id, remitente: row.remitente_tipo, contenido: row.contenido, createdAt: row.created_at } as Item]
+              .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1))
+          })
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'chat_archivos', filter: `sala_id=eq.${conversacion.salaId}` },
+        (payload: any) => {
+          const row = payload.new as { id: string; cita_id: string; remitente_tipo: 'medico' | 'paciente'; nombre_original: string; storage_path: string; tipo_mime: string; created_at: string }
+          setItems(prev => {
+            if (prev.some(i => i.tipo === 'archivo' && i.id === row.id)) return prev
+            return [...prev, { tipo: 'archivo', id: row.id, citaId: row.cita_id, remitente: row.remitente_tipo, nombreOriginal: row.nombre_original, storagePath: row.storage_path, tipoMime: row.tipo_mime, createdAt: row.created_at } as Item]
               .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1))
           })
         }
@@ -179,6 +201,97 @@ export default function ConversacionChat({
       if (prev.some(i => i.tipo === 'mensaje' && i.id === data.id)) return prev
       return [...prev, { tipo: 'mensaje', id: data.id, citaId: conversacion.citaActualId, remitente: 'medico', contenido, createdAt: data.created_at }]
     })
+  }
+
+  const handleAdjuntarClick = () => {
+    if (subiendoArchivo || !puedeEscribir) return
+    fileInputRef.current?.click()
+  }
+
+  const handleArchivoSeleccionado = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (fileInputRef.current) fileInputRef.current.value = ''
+    if (!file) return
+
+    setErrorArchivo(null)
+
+    if (!(TIPOS_MIME_PERMITIDOS as readonly string[]).includes(file.type)) {
+      setErrorArchivo('Solo se permiten imágenes (JPG, PNG, WEBP) o PDF')
+      return
+    }
+    if (file.size > TAMANO_MAXIMO_BYTES) {
+      setErrorArchivo('El archivo no puede pesar más de 15 MB')
+      return
+    }
+
+    setSubiendoArchivo(true)
+    let rutaSubida: string | null = null
+
+    try {
+      const archivoFinal = file.type.startsWith('image/')
+        ? await imageCompression(file, { maxSizeMB: 3, maxWidthOrHeight: 2000, useWebWorker: true })
+        : file
+
+      const archivoId = crypto.randomUUID()
+      const ext = file.name.split('.').pop() || 'bin'
+      const path = `${conversacion.salaId}/${archivoId}.${ext}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('chat-archivos')
+        .upload(path, archivoFinal, { contentType: file.type })
+      if (uploadError) throw uploadError
+      rutaSubida = path
+
+      const { data, error } = await supabase
+        .from('chat_archivos')
+        .insert({
+          id: archivoId,
+          sala_id: conversacion.salaId,
+          cita_id: conversacion.citaActualId,
+          remitente_tipo: 'medico',
+          medico_id: medicoId,
+          storage_path: path,
+          nombre_original: file.name,
+          tipo_mime: file.type,
+          tamano_bytes: archivoFinal.size,
+        })
+        .select('id, created_at')
+        .single()
+
+      if (error || !data) throw error || new Error('insert falló sin error explícito')
+
+      setItems(prev => {
+        if (prev.some(i => i.tipo === 'archivo' && i.id === data.id)) return prev
+        return [...prev, { tipo: 'archivo', id: data.id, citaId: conversacion.citaActualId, remitente: 'medico', nombreOriginal: file.name, storagePath: path, tipoMime: file.type, createdAt: data.created_at }]
+      })
+    } catch (err) {
+      console.error('Error al subir archivo:', err)
+      // El archivo ya se subió a Storage pero el registro en chat_archivos
+      // falló — borrarlo para no dejarlo huérfano sin fila que lo referencie.
+      if (rutaSubida) {
+        await supabase.storage.from('chat-archivos').remove([rutaSubida]).catch(() => {})
+      }
+      setErrorArchivo('No se pudo subir el archivo. Intenta de nuevo.')
+    } finally {
+      setSubiendoArchivo(false)
+    }
+  }
+
+  const abrirArchivo = async (item: Archivo) => {
+    if (abriendoArchivoId) return
+    setAbriendoArchivoId(item.id)
+    try {
+      const { data, error } = await supabase.storage
+        .from('chat-archivos')
+        .createSignedUrl(item.storagePath, 300)
+      if (error || !data) throw error || new Error('sin URL firmada')
+      window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
+    } catch (err) {
+      console.error('Error al abrir archivo:', err)
+      onError('No se pudo abrir el archivo')
+    } finally {
+      setAbriendoArchivoId(null)
+    }
   }
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -239,10 +352,20 @@ export default function ConversacionChat({
                       {item.contenido}
                     </div>
                   ) : (
-                    <div className="max-w-[80%] rounded-2xl px-4 py-2.5 bg-neutral-100 text-neutral-700 flex items-center gap-2 text-sm">
-                      <FileText size={14} />
-                      {item.nombreOriginal}
-                    </div>
+                    <button
+                      onClick={() => abrirArchivo(item)}
+                      disabled={abriendoArchivoId === item.id}
+                      className="max-w-[80%] rounded-2xl px-4 py-2.5 bg-neutral-100 text-neutral-700 flex items-center gap-2 text-sm hover:bg-neutral-200 active:bg-neutral-300 disabled:opacity-60 transition-colors text-left"
+                    >
+                      {abriendoArchivoId === item.id ? (
+                        <Loader2 size={14} className="animate-spin shrink-0" />
+                      ) : item.tipoMime.startsWith('image/') ? (
+                        <ImageIcon size={14} className="shrink-0" />
+                      ) : (
+                        <FileText size={14} className="shrink-0" />
+                      )}
+                      <span className="truncate">{item.nombreOriginal}</span>
+                    </button>
                   )}
                 </div>
               </div>
@@ -253,7 +376,23 @@ export default function ConversacionChat({
 
       {puedeEscribir ? (
         <div className="shrink-0 border-t border-neutral-200 bg-white px-4 pt-3 pb-3">
+          {errorArchivo && <p className="font-body text-xs text-error-600 mb-2">{errorArchivo}</p>}
           <div className="flex items-end gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={TIPOS_MIME_PERMITIDOS.join(',')}
+              className="hidden"
+              onChange={handleArchivoSeleccionado}
+            />
+            <button
+              onClick={handleAdjuntarClick}
+              disabled={subiendoArchivo}
+              title="Adjuntar imagen o PDF"
+              className="shrink-0 flex items-center justify-center w-10 h-10 rounded-xl border border-neutral-200 text-neutral-500 disabled:opacity-40 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+            >
+              <Paperclip size={16} />
+            </button>
             <textarea
               ref={textareaRef}
               value={input}

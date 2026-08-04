@@ -2,9 +2,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
-import { Star, Calendar, CheckCircle, BarChart2, Eye, FileText, FileSpreadsheet, Lock, ArrowUp, ArrowDown, Minus, TrendingUp } from 'lucide-react'
+import { Star, Calendar, CheckCircle, BarChart2, Eye, FileText, FileSpreadsheet, ArrowUp, ArrowDown, Minus, TrendingUp } from 'lucide-react'
 import { calculateProfileCompletion } from '@/hooks/useProfileCompletion'
-import { PLAN_TO_TIER_CODE } from '@/lib/pricingTiers'
 import { getUserSafe } from '@/lib/getUserSafe'
 import type { Benchmark, BenchmarkGrupo } from '@/lib/estadisticasData'
 
@@ -92,8 +91,7 @@ export default function EstadisticasPage() {
       // El benchmark exige agregar reseñas/citas de OTROS médicos — desde
       // que restringimos el RLS de citas al dueño (ver auditoría del flujo
       // de citas), esto ya no se puede calcular con el cliente anon como
-      // el resto de esta pantalla; viene de un endpoint server-side que
-      // vuelve a gatear a Premium (no basta con ocultarlo en la UI).
+      // el resto de esta pantalla; viene de un endpoint server-side.
       fetch('/api/estadisticas/benchmark')
         .then(r => r.ok ? r.json() : null)
         .then(json => setBenchmark(json?.benchmark ?? null))
@@ -205,7 +203,6 @@ export default function EstadisticasPage() {
 
   const { checks, percentage: completionPct } = completionData
   const colorProgreso = completionPct >= 80 ? '#2A9D8F' : completionPct >= 50 ? '#F59E0B' : '#EF4444'
-  const isPremium = medico?.pricing_tier === PLAN_TO_TIER_CODE.premium || medico?.pricing_tier === PLAN_TO_TIER_CODE.clinica
 
   if (loadError) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif" }}>
@@ -252,31 +249,20 @@ export default function EstadisticasPage() {
           <p style={{ fontSize: 14, color: '#6B7280' }}>Resumen de tu actividad en Salurama</p>
         </div>
 
-        {/* Reportes descargables (Premium) */}
+        {/* Reportes descargables */}
         <div className="card fade-up" style={{ marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
           <div>
             <p style={{ fontSize: 14, fontWeight: 700, color: '#111827', marginBottom: 2 }}>Reportes descargables</p>
-            <p style={{ fontSize: 12, color: '#6B7280' }}>
-              {isPremium ? 'Exporta este resumen en PDF o Excel.' : 'Disponible en el plan Premium.'}
-            </p>
+            <p style={{ fontSize: 12, color: '#6B7280' }}>Exporta este resumen en PDF o Excel.</p>
           </div>
-          {isPremium ? (
-            <div style={{ display: 'flex', gap: 8 }}>
-              <a href="/api/estadisticas/pdf" style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#1E3A5F', color: '#fff', textDecoration: 'none', borderRadius: 50, padding: '10px 18px', fontSize: 13, fontWeight: 600 }}>
-                <FileText size={14} /> PDF
-              </a>
-              <a href="/api/estadisticas/excel" style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#2A9D8F', color: '#fff', textDecoration: 'none', borderRadius: 50, padding: '10px 18px', fontSize: 13, fontWeight: 600 }}>
-                <FileSpreadsheet size={14} /> Excel
-              </a>
-            </div>
-          ) : (
-            <button
-              onClick={() => router.push('/dashboard/plan')}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#F3F4F6', color: '#6B7280', border: 'none', borderRadius: 50, padding: '10px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-            >
-              <Lock size={14} /> Mejora a Premium
-            </button>
-          )}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <a href="/api/estadisticas/pdf" style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#1E3A5F', color: '#fff', textDecoration: 'none', borderRadius: 50, padding: '10px 18px', fontSize: 13, fontWeight: 600 }}>
+              <FileText size={14} /> PDF
+            </a>
+            <a href="/api/estadisticas/excel" style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#2A9D8F', color: '#fff', textDecoration: 'none', borderRadius: 50, padding: '10px 18px', fontSize: 13, fontWeight: 600 }}>
+              <FileSpreadsheet size={14} /> Excel
+            </a>
+          </div>
         </div>
 
         {/* KPIs */}
@@ -293,18 +279,14 @@ export default function EstadisticasPage() {
               <p style={{ fontSize: 12, color: k.color, fontWeight: 500, marginTop: 4, opacity: 0.8 }}>{k.label}</p>
               {k.trend && (
                 <div style={{ marginTop: 8, display: 'flex', justifyContent: 'center' }}>
-                  {isPremium ? <TrendBadge trend={k.trend.metric} /> : <CandadoPremium texto={`${k.trend.texto} — Mejora a Premium`} />}
+                  <TrendBadge trend={k.trend.metric} />
                 </div>
               )}
             </div>
           ))}
         </div>
 
-        {/* Tendencia de los últimos 6 meses (gráfica de línea, beneficio Premium) —
-            a diferencia del candado dorado de las tarjetas KPI (que siempre muestra
-            el número real junto al candado), aquí se bloquea la gráfica completa
-            para quien no es Premium: una serie de 6 meses no se puede "mostrar a
-            medias". */}
+        {/* Tendencia de los últimos 6 meses (gráfica de línea) */}
         <div className="card fade-up" style={{ marginBottom: 16 }}>
           <p className="section-title">Tendencia de los últimos 6 meses</p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 20 }}>
@@ -315,7 +297,7 @@ export default function EstadisticasPage() {
             ].map(g => (
               <div key={g.label}>
                 <p style={{ fontSize: 12, fontWeight: 700, color: '#6B7280', marginBottom: 8 }}>{g.label}</p>
-                {isPremium ? <LineChart data={g.data} color={g.color} formatValue={g.formatValue} /> : <ChartUpsell />}
+                <LineChart data={g.data} color={g.color} formatValue={g.formatValue} />
               </div>
             ))}
           </div>
@@ -351,7 +333,7 @@ export default function EstadisticasPage() {
 
           <div className="card">
             <p className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <BarChart2 size={16} color="#1E3A5F" /> Citas — últimos 6 meses
+              <BarChart2 size={16} color="#1E3A5F" /> Citas: últimos 6 meses
             </p>
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: 120 }}>
               {citasPorMes.map(({ label, count }) => (
@@ -383,7 +365,7 @@ export default function EstadisticasPage() {
           <div className="card">
             <p className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               Distribución de reseñas
-              {isPremium ? <TrendBadge trend={tendencias.reseñas} /> : <CandadoPremium texto="Descubre si subieron o bajaron tus reseñas este mes — Mejora a Premium" />}
+              <TrendBadge trend={tendencias.reseñas} />
             </p>
             {reviews.length === 0 ? (
               <p style={{ fontSize: 14, color: '#9CA3AF', textAlign: 'center', padding: '20px 0' }}>Aún no tienes reseñas verificadas</p>
@@ -413,44 +395,30 @@ export default function EstadisticasPage() {
           </div>
         </div>
 
-        {/* Cómo te comparas (benchmark de especialidad, Premium) */}
+        {/* Cómo te comparas (benchmark de especialidad) */}
         <div className="card fade-up" style={{ marginBottom: 16 }}>
           <p className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <TrendingUp size={16} color="#1E3A5F" /> Cómo te comparas
           </p>
-          {isPremium ? (
-            benchmark ? (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 16 }}>
-                <BenchmarkGrupoCard
-                  titulo={`Médicos de ${benchmark.especialidad}`}
-                  subtitulo="En toda la plataforma"
-                  grupo={benchmark.nacional}
-                  tuRatingTexto={reviews.length > 0 ? `${ratingPromedio.toFixed(1)} ★` : '—'}
-                  tuTasaTexto={`${tasaConfirmacion}%`}
-                />
-                <BenchmarkGrupoCard
-                  titulo={`Médicos de ${benchmark.especialidad}`}
-                  subtitulo={benchmark.ciudad ? `En ${benchmark.ciudad}` : 'Sin ciudad registrada en tu perfil'}
-                  grupo={benchmark.ciudadGrupo}
-                  tuRatingTexto={reviews.length > 0 ? `${ratingPromedio.toFixed(1)} ★` : '—'}
-                  tuTasaTexto={`${tasaConfirmacion}%`}
-                />
-              </div>
-            ) : (
-              <p style={{ fontSize: 14, color: '#9CA3AF', textAlign: 'center', padding: '20px 0' }}>Cargando comparación...</p>
-            )
-          ) : (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-              <p style={{ fontSize: 13, color: '#6B7280', maxWidth: 420 }}>
-                Compara tu rating y tasa de confirmación contra médicos de tu misma especialidad, a nivel nacional y en tu ciudad.
-              </p>
-              <button
-                onClick={() => router.push('/dashboard/plan')}
-                style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#F3F4F6', color: '#6B7280', border: 'none', borderRadius: 50, padding: '10px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
-              >
-                <Lock size={14} /> Mejora a Premium
-              </button>
+          {benchmark ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 16 }}>
+              <BenchmarkGrupoCard
+                titulo={`Médicos de ${benchmark.especialidad}`}
+                subtitulo="En toda la plataforma"
+                grupo={benchmark.nacional}
+                tuRatingTexto={reviews.length > 0 ? `${ratingPromedio.toFixed(1)} ★` : '—'}
+                tuTasaTexto={`${tasaConfirmacion}%`}
+              />
+              <BenchmarkGrupoCard
+                titulo={`Médicos de ${benchmark.especialidad}`}
+                subtitulo={benchmark.ciudad ? `En ${benchmark.ciudad}` : 'Sin ciudad registrada en tu perfil'}
+                grupo={benchmark.ciudadGrupo}
+                tuRatingTexto={reviews.length > 0 ? `${ratingPromedio.toFixed(1)} ★` : '—'}
+                tuTasaTexto={`${tasaConfirmacion}%`}
+              />
             </div>
+          ) : (
+            <p style={{ fontSize: 14, color: '#9CA3AF', textAlign: 'center', padding: '20px 0' }}>Cargando comparación...</p>
           )}
         </div>
 
@@ -600,32 +568,7 @@ function LineChart({ data, color, formatValue }: { data: { label: string; value:
   )
 }
 
-// Bloqueo de gráfica completa (médicos sin Premium) — a diferencia de
-// CandadoPremium (que deja el número real visible junto a un candado), aquí
-// no hay número parcial que mostrar: se reemplaza la gráfica entera por un
-// upsell directo a /dashboard/plan.
-function ChartUpsell() {
-  const router = useRouter()
-  return (
-    <div style={{
-      height: 106, borderRadius: 10, background: '#FFFBEB', border: '1px dashed #FCD34D',
-      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 8,
-    }}>
-      <div style={{ width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #FCD34D, #D97706)' }}>
-        <Lock size={13} color="#fff" />
-      </div>
-      <button
-        type="button"
-        onClick={() => router.push('/dashboard/plan')}
-        style={{ fontSize: 11, fontWeight: 700, color: '#D97706', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
-      >
-        Mejora a Premium
-      </button>
-    </div>
-  )
-}
-
-// Insignia compacta de tendencia — solo la ve quien ya es Premium.
+// Insignia compacta de tendencia.
 function TrendBadge({ trend }: { trend: TrendMetric }) {
   if (trend.direccion === 'nuevo') {
     return <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, fontSize: 11, fontWeight: 700, color: '#2A9D8F' }}>Nuevo</span>
@@ -639,72 +582,6 @@ function TrendBadge({ trend }: { trend: TrendMetric }) {
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, fontSize: 11, fontWeight: 700, color: up ? '#2A9D8F' : '#EF4444' }}>
       {up ? <ArrowUp size={11} /> : <ArrowDown size={11} />} {pct}%
     </span>
-  )
-}
-
-// Candado dorado (médicos sin Premium) — mismo lenguaje visual que el
-// "contenido bloqueado" de apps de streaming: el número normal se ve igual
-// siempre, el candado solo se agrega al lado. Nunca navega directo a
-// /dashboard/plan — hover (desktop) o tap (móvil) abre un tooltip con el
-// texto específico de la métrica, y solo el botón de adentro navega.
-function CandadoPremium({ texto }: { texto: string }) {
-  const router = useRouter()
-  const [open, setOpen] = useState(false)
-  const wrapRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!open) return
-    const onOutside = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('click', onOutside)
-    return () => document.removeEventListener('click', onOutside)
-  }, [open])
-
-  return (
-    <div
-      ref={wrapRef}
-      style={{ position: 'relative', display: 'inline-block' }}
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
-    >
-      <button
-        type="button"
-        onClick={(e) => { e.stopPropagation(); setOpen(true) }}
-        aria-label="Función de plan Premium"
-        style={{
-          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-          width: 20, height: 20, borderRadius: '50%', border: 'none', cursor: 'pointer', padding: 0,
-          background: 'linear-gradient(135deg, #FCD34D, #D97706)',
-          boxShadow: '0 1px 4px rgba(217,119,6,0.5)',
-        }}
-      >
-        <Lock size={11} color="#fff" />
-      </button>
-      {open && (
-        <div
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', marginTop: 8,
-            width: 220, background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.12)', padding: 14, zIndex: 30, textAlign: 'left',
-          }}
-        >
-          <p style={{ fontSize: 12, color: '#374151', lineHeight: 1.5, marginBottom: 10 }}>{texto}</p>
-          <button
-            type="button"
-            onClick={() => router.push('/dashboard/plan')}
-            style={{
-              width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              background: 'linear-gradient(135deg, #FCD34D, #D97706)', color: '#fff', border: 'none',
-              borderRadius: 8, padding: '8px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
-            }}
-          >
-            <Lock size={12} /> Mejora a Premium
-          </button>
-        </div>
-      )}
-    </div>
   )
 }
 

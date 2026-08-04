@@ -143,7 +143,7 @@ function BsaChart({ measurements }: { measurements: Measurement[] }) {
                 {m.bsa_mosteller.toFixed(2)}
               </span>
               <div
-                title={`${formatDate(m.measured_at)} — ${m.bsa_mosteller} m²`}
+                title={`${formatDate(m.measured_at)}: ${m.bsa_mosteller} m²`}
                 style={{
                   width: '100%',
                   height: `${Math.round(pct * 40)}px`,

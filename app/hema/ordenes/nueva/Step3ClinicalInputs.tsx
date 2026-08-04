@@ -52,7 +52,7 @@ export default function Step3ClinicalInputs({ value, onChange }: Step3ClinicalIn
         Datos clínicos
       </h3>
       <p style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 16 }}>
-        Captura manual — el módulo de Labs con OCR llega en una sesión futura.
+        Captura manual: el módulo de Labs con OCR llega en una sesión futura.
       </p>
 
       {/* ── Laboratorios ── */}
@@ -188,7 +188,7 @@ export default function Step3ClinicalInputs({ value, onChange }: Step3ClinicalIn
           style={{ width: 18, height: 18, accentColor: '#1E3A5F', cursor: 'pointer' }}
         />
         <span style={{ fontSize: 13, color: '#374151' }}>
-          Serología VHB confirmada (HBsAg + anti-HBc, &lt;90 días) — solo aplica si el protocolo incluye anti-CD20
+          Serología VHB confirmada (HBsAg + anti-HBc, &lt;90 días): solo aplica si el protocolo incluye anti-CD20
         </span>
       </label>
     </div>

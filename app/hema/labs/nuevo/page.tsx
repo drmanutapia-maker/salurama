@@ -88,7 +88,7 @@ function NuevoLabContent() {
       return { crcl: null as number | null, crclUnavailableReason: null as string | null }
     }
     if (patient.last_weight_kg === null) {
-      return { crcl: null, crclUnavailableReason: 'El paciente no tiene peso registrado — registra una medición primero.' }
+      return { crcl: null, crclUnavailableReason: 'El paciente no tiene peso registrado: registra una medición primero.' }
     }
     try {
       const age = calcAge(patient.birth_date)

@@ -97,7 +97,7 @@ export async function buildAvisoPublicidadPdf(data: AvisoPublicidadData): Promis
   cursor.y -= 20
   drawWrapped(
     'Documento de apoyo para el trámite de Aviso de Publicidad ante COFEPRIS (Modalidad A). ' +
-    'Este archivo es un borrador base — revísalo y ajústalo antes de subirlo al portal oficial.',
+    'Este archivo es un borrador base. Revísalo y ajústalo antes de subirlo al portal oficial.',
     { x: MARGIN, maxWidth: PAGE_WIDTH - MARGIN * 2, size: 10, color: COLOR_MUTED, lineGap: 3 }
   )
   cursor.y -= 10
@@ -182,12 +182,12 @@ export async function buildAvisoPublicidadPdf(data: AvisoPublicidadData): Promis
     color: COLOR_WARN_BG, borderColor: COLOR_WARN_BORDER, borderWidth: 1.5,
   })
   cursor.y = boxTop - 22
-  text('[ LEYENDAS LEGALES — PENDIENTE DE REVISIÓN LEGAL ]', { x: MARGIN + 16, size: 12, f: bold, color: COLOR_WARN_TEXT })
+  text('[ LEYENDAS LEGALES: PENDIENTE DE REVISIÓN LEGAL ]', { x: MARGIN + 16, size: 12, f: bold, color: COLOR_WARN_TEXT })
   cursor.y -= 18
   drawWrapped(
     'Este espacio debe contener las leyendas obligatorias que exige la normativa de publicidad ' +
     'de servicios de salud (COFEPRIS / Ley General de Salud). El texto exacto está pendiente de ' +
-    'aprobación por un abogado antes de usarse en un trámite real — no se generó automáticamente.',
+    'aprobación por un abogado antes de usarse en un trámite real. No se generó automáticamente.',
     { x: MARGIN + 16, maxWidth: PAGE_WIDTH - MARGIN * 2 - 32, size: 10, f: italic, color: COLOR_WARN_TEXT, lineGap: 4 }
   )
 
@@ -196,7 +196,7 @@ export async function buildAvisoPublicidadPdf(data: AvisoPublicidadData): Promis
   // ── Pie ──────────────────────────────────────────────────────────────
   ensureSpace(30)
   const fecha = new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })
-  text(`Generado por Salurama el ${fecha} — documento de apoyo, no es el aviso presentado ante COFEPRIS.`, {
+  text(`Generado por Salurama el ${fecha}, documento de apoyo, no es el aviso presentado ante COFEPRIS.`, {
     x: MARGIN, size: 8.5, color: COLOR_MUTED,
   })
 

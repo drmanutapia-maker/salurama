@@ -166,7 +166,7 @@ export default function Nosotros() {
           </h2>
           <p style={{ fontSize: 15, color: '#6B7280', textAlign: 'center', lineHeight: 1.8, maxWidth: 560, margin: '0 auto 36px' }}>
             El registro de médicos y el uso por pacientes siempre será gratuito. Nos financiamos a través
-            de acuerdos con empresas del sector salud — farmacéuticas, aseguradoras, laboratorios — para
+            de acuerdos con empresas del sector salud (farmacéuticas, aseguradoras, laboratorios) para
             publicar contenido informativo y educativo.
           </p>
 

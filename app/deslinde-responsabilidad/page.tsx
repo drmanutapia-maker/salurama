@@ -96,7 +96,7 @@ export default function DeslindeResponsabilidad() {
         </div>
 
         <div className="section-block">
-          <h2 className="legal-h2">3. Lo que Salurama SÍ hace — y cómo usarlo</h2>
+          <h2 className="legal-h2">3. Lo que Salurama SÍ hace y cómo usarlo</h2>
           <div className="info-box">
             <p>Salurama proporciona acceso directo a fuentes oficiales del gobierno mexicano para que el paciente pueda verificar por sí mismo las credenciales de cualquier médico antes de agendar una cita.</p>
           </div>

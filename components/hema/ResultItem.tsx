@@ -48,7 +48,7 @@ export function ResultItem({ result, override, onAddOverride, onRemoveOverride }
 
           {result.requires_second_signer && (
             <p style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#991B1B', fontWeight: 600, marginTop: 8 }}>
-              <ShieldAlert size={13} /> Requiere segunda firma — no disponible en este flujo. No se puede continuar.
+              <ShieldAlert size={13} /> Requiere segunda firma. No disponible en este flujo. No se puede continuar.
             </p>
           )}
 

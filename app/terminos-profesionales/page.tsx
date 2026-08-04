@@ -88,7 +88,7 @@ export default function TerminosProfesionales() {
             </p></div>
 
           {/* 3 */}
-          <div id="verificacion" className="section-block"><h2 className="legal-h2">3. Verificación de credenciales — Transparencia al paciente</h2><div className="alert-box"><p>El diferenciador central de Salurama es que los pacientes verifican las credenciales directamente en fuentes oficiales (SEP, consejos de especialidad), sin intermediarios. Salurama NO es un aval, NO certifica y NO garantiza la vigencia de ninguna credencial.</p></div><p className="legal-p">
+          <div id="verificacion" className="section-block"><h2 className="legal-h2">3. Verificación de credenciales: Transparencia al paciente</h2><div className="alert-box"><p>El diferenciador central de Salurama es que los pacientes verifican las credenciales directamente en fuentes oficiales (SEP, consejos de especialidad), sin intermediarios. Salurama NO es un aval, NO certifica y NO garantiza la vigencia de ninguna credencial.</p></div><p className="legal-p">
               En el perfil del profesional se incluirán botones de acceso directo al portal de cédulas de la SEP y al consejo de especialidad correspondiente. El profesional acepta que esta funcionalidad es fundamental para el servicio y no puede ser desactivada.
             </p><p className="legal-p">
               Salurama podrá incluir en el perfil la leyenda <strong className="legal-strong">"Cédula verificable en SEP"</strong> únicamente para indicar que el número de cédula reportado por el profesional es consultable en el portal oficial. Esta leyenda no implica que Salurama haya realizado verificación alguna ni que avale al profesional.

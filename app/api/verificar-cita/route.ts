@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
       await resend.emails.send({
         from: 'Salurama <noreply@salurama.com>',
         to: [medico.email],
-        subject: `Nueva cita confirmada — ${cita.paciente_nombre}`,
+        subject: `Nueva cita confirmada: ${cita.paciente_nombre}`,
         html: `
           <!DOCTYPE html>
           <html>
@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
                     </a>
                   </td></tr>
                   <tr><td style="background:#F3F4F6;padding:20px;text-align:center;">
-                    <p style="margin:0;color:#9CA3AF;font-size:12px;">Salurama — Verifica. Elige. Confía.</p>
+                    <p style="margin:0;color:#9CA3AF;font-size:12px;">Salurama. Verifica. Elige. Confía.</p>
                   </td></tr>
                 </table>
               </td></tr>

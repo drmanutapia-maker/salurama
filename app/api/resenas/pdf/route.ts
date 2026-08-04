@@ -3,7 +3,6 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { getResenasData } from '@/lib/resenasData'
 import { buildResenasPdf } from '@/lib/resenasPdf'
-import { isPremiumTier } from '@/lib/planGates'
 
 export const dynamic = 'force-dynamic'
 
@@ -34,10 +33,6 @@ export async function GET() {
   const result = await getResenasData(user.id)
   if (!result) {
     return NextResponse.json({ error: 'Perfil de médico no encontrado' }, { status: 404 })
-  }
-
-  if (!isPremiumTier(result.pricingTier)) {
-    return NextResponse.json({ error: 'Los reportes descargables son un beneficio del plan Premium' }, { status: 403 })
   }
 
   const pdfBytes = await buildResenasPdf(result.data)

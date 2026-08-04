@@ -163,7 +163,7 @@ export default function Step3Dose({
         <div style={{ marginBottom: 16, padding: '12px 16px', background: '#FFFBEB', border: '1.5px solid #FDE68A', borderRadius: 12, display: 'flex', gap: 10 }}>
           <AlertTriangle size={16} color="#D97706" style={{ flexShrink: 0, marginTop: 1 }} />
           <p style={{ fontSize: 13, color: '#92400E', fontWeight: 700, margin: 0 }}>
-            ⚠ Protocolo pendiente de aprobación — solo disponible en modo desarrollo
+            ⚠ Protocolo pendiente de aprobación: solo disponible en modo desarrollo
           </p>
         </div>
       )}

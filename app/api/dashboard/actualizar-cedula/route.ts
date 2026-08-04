@@ -7,7 +7,7 @@ import { z } from 'zod'
 export const dynamic = 'force-dynamic'
 
 const schema = z.object({
-  professional_license: z.string().regex(/^\d{7,8}$/, 'Cédula inválida — debe tener 7 u 8 dígitos'),
+  professional_license: z.string().regex(/^\d{7,8}$/, 'Cédula inválida: debe tener 7 u 8 dígitos'),
 })
 
 async function getAnonSupabase() {

@@ -12,7 +12,6 @@ import {
   Clock, Navigation, Phone, MessageCircle, Globe, Share2, Image as ImageIcon
 } from 'lucide-react'
 import BackButton from '@/components/BackButton'
-import { isPlusTier } from '@/lib/planGates'
 import { getStateLabel } from '@/lib/locations'
 
 export interface Medico {
@@ -1037,8 +1036,8 @@ export default function DoctorProfileClient({
               </p>
             </section>
 
-            {/* Galería de fotos (plan Plus) */}
-            {isPlusTier(medico.pricing_tier) && galleryPhotos.length > 0 && (
+            {/* Galería de fotos */}
+            {galleryPhotos.length > 0 && (
               <section className="fade-up" style={{ marginBottom: 32 }}>
                 <h2 style={{ fontFamily: 'var(--font-fraunces), serif', fontSize: 20, fontWeight: 900, color: '#1E3A5F', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
                   <ImageIcon size={20} /> Galería

@@ -60,10 +60,10 @@ export default function ParaEmpresas() {
             Para empresas farmacéuticas
           </p>
           <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(30px,6vw,48px)', fontWeight: 900, color: '#0D1829', lineHeight: 1.15, marginBottom: 20 }}>
-            Salurama MSL Virtual — Llega a los médicos que prescriben tus productos.
+            Salurama MSL Virtual: Llega a los médicos que prescriben tus productos.
           </h1>
           <p style={{ fontSize: 'clamp(15px,3vw,18px)', color: '#4A5568', lineHeight: 1.8, maxWidth: 580, margin: '0 auto 32px' }}>
-            Información científica balanceada, anclada en literatura verificada — no publicidad.
+            Información científica balanceada, anclada en literatura verificada, no publicidad.
             MSL Virtual responde preguntas clínicas de hematólogos y oncólogos con las mismas
             exigencias de rigor y trazabilidad que un Medical Science Liaison humano.
           </p>
@@ -179,7 +179,7 @@ export default function ParaEmpresas() {
           </h2>
           <p style={{ fontSize: 15, color: '#4A5568', lineHeight: 1.85 }}>
             Los médicos preguntan sobre criterios diagnósticos, regímenes de tratamiento y manejo de
-            comorbilidades — tu contenido científico puede responder esas preguntas directamente donde
+            comorbilidades. Tu contenido científico puede responder esas preguntas directamente donde
             el médico ya está trabajando, dentro de su flujo clínico, no en un canal publicitario aparte.
           </p>
         </div>

@@ -3,7 +3,6 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { getEstadisticasData } from '@/lib/estadisticasData'
 import { buildEstadisticasPdf } from '@/lib/estadisticasPdf'
-import { PLAN_TO_TIER_CODE } from '@/lib/pricingTiers'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,8 +23,6 @@ async function getAnonSupabase() {
   )
 }
 
-const PREMIUM_TIERS = [PLAN_TO_TIER_CODE.premium, PLAN_TO_TIER_CODE.clinica]
-
 export async function GET() {
   const anonClient = await getAnonSupabase()
   const { data: { user }, error: authError } = await anonClient.auth.getUser()
@@ -36,10 +33,6 @@ export async function GET() {
   const result = await getEstadisticasData(user.id)
   if (!result) {
     return NextResponse.json({ error: 'Perfil de médico no encontrado' }, { status: 404 })
-  }
-
-  if (!result.pricingTier || !PREMIUM_TIERS.includes(result.pricingTier as any)) {
-    return NextResponse.json({ error: 'Los reportes descargables son un beneficio del plan Premium' }, { status: 403 })
   }
 
   const pdfBytes = await buildEstadisticasPdf(result.data)

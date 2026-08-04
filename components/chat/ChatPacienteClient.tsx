@@ -1,9 +1,13 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import type { KeyboardEvent } from 'react'
+import type { ChangeEvent, KeyboardEvent } from 'react'
 import Link from 'next/link'
-import { Send, FileText } from 'lucide-react'
+import { Send, FileText, Paperclip, Image as ImageIcon, Loader2 } from 'lucide-react'
+import imageCompression from 'browser-image-compression'
+
+const TIPOS_MIME_PERMITIDOS = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'] as const
+const TAMANO_MAXIMO_BYTES = 15728640 // 15 MB — mismo límite que el bucket chat-archivos
 
 type Mensaje = {
   tipo: 'mensaje'
@@ -20,6 +24,7 @@ type Archivo = {
   citaId: string
   remitente: 'medico' | 'paciente'
   nombreOriginal: string
+  tipoMime: string
   createdAt: string
 }
 
@@ -60,9 +65,13 @@ export default function ChatPacienteClient({ token }: { token: string }) {
   const [input, setInput] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [avisoEnvio, setAvisoEnvio] = useState<string | null>(null)
+  const [subiendoArchivo, setSubiendoArchivo] = useState(false)
+  const [errorArchivo, setErrorArchivo] = useState<string | null>(null)
+  const [abriendoArchivoId, setAbriendoArchivoId] = useState<string | null>(null)
 
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const primeraCarga = useRef(true)
 
   const cargarSesion = useCallback(async () => {
@@ -91,7 +100,7 @@ export default function ChatPacienteClient({ token }: { token: string }) {
         tipo: 'mensaje', id: m.id, citaId: m.cita_id, remitente: m.remitente_tipo, contenido: m.contenido, createdAt: m.created_at,
       }))
       const archivos: Item[] = (data.archivos || []).map((a: any) => ({
-        tipo: 'archivo', id: a.id, citaId: a.cita_id, remitente: a.remitente_tipo, nombreOriginal: a.nombre_original, createdAt: a.created_at,
+        tipo: 'archivo', id: a.id, citaId: a.cita_id, remitente: a.remitente_tipo, nombreOriginal: a.nombre_original, tipoMime: a.tipo_mime, createdAt: a.created_at,
       }))
       const items = [...mensajes, ...archivos].sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1))
 
@@ -173,6 +182,80 @@ export default function ChatPacienteClient({ token }: { token: string }) {
       setInput(contenido)
     } finally {
       setEnviando(false)
+    }
+  }
+
+  const handleAdjuntarClick = () => {
+    if (subiendoArchivo || !sesion?.puedeEscribir) return
+    fileInputRef.current?.click()
+  }
+
+  const handleArchivoSeleccionado = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (fileInputRef.current) fileInputRef.current.value = ''
+    if (!file || !sesion?.puedeEscribir) return
+
+    setErrorArchivo(null)
+
+    if (!(TIPOS_MIME_PERMITIDOS as readonly string[]).includes(file.type)) {
+      setErrorArchivo('Solo se permiten imágenes (JPG, PNG, WEBP) o PDF')
+      return
+    }
+    if (file.size > TAMANO_MAXIMO_BYTES) {
+      setErrorArchivo('El archivo no puede pesar más de 15 MB')
+      return
+    }
+
+    setSubiendoArchivo(true)
+
+    try {
+      const archivoFinal = file.type.startsWith('image/')
+        ? await imageCompression(file, { maxSizeMB: 3, maxWidthOrHeight: 2000, useWebWorker: true })
+        : file
+
+      const formData = new FormData()
+      formData.append('token', token)
+      formData.append('archivo', archivoFinal, file.name)
+
+      const res = await fetch('/api/chat/paciente/archivo', { method: 'POST', body: formData })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        setErrorArchivo(data?.error || 'No se pudo subir el archivo. Intenta de nuevo.')
+        return
+      }
+
+      const data = await res.json()
+      setSesion(prev => prev ? {
+        ...prev,
+        items: [...prev.items, {
+          tipo: 'archivo', id: data.archivo.id, citaId: prev.citaActualId, remitente: 'paciente', nombreOriginal: file.name, tipoMime: file.type, createdAt: data.archivo.created_at,
+        }],
+      } : prev)
+      cargarSesion()
+    } catch {
+      setErrorArchivo('No se pudo subir el archivo. Intenta de nuevo.')
+    } finally {
+      setSubiendoArchivo(false)
+    }
+  }
+
+  const abrirArchivo = async (item: Archivo) => {
+    if (abriendoArchivoId) return
+    setAbriendoArchivoId(item.id)
+    try {
+      const res = await fetch('/api/chat/paciente/archivo-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, archivoId: item.id }),
+      })
+      if (!res.ok) throw new Error('No se pudo obtener el enlace')
+      const data = await res.json()
+      window.open(data.url, '_blank', 'noopener,noreferrer')
+    } catch {
+      setErrorArchivo('No se pudo abrir el archivo. Intenta de nuevo.')
+    } finally {
+      setAbriendoArchivoId(null)
     }
   }
 
@@ -275,10 +358,20 @@ export default function ChatPacienteClient({ token }: { token: string }) {
                       {item.contenido}
                     </div>
                   ) : (
-                    <div className="max-w-[80%] rounded-2xl px-4 py-2.5 bg-neutral-100 text-neutral-700 flex items-center gap-2 text-sm">
-                      <FileText size={14} />
-                      {item.nombreOriginal}
-                    </div>
+                    <button
+                      onClick={() => abrirArchivo(item)}
+                      disabled={abriendoArchivoId === item.id}
+                      className="max-w-[80%] rounded-2xl px-4 py-2.5 bg-neutral-100 text-neutral-700 flex items-center gap-2 text-sm hover:bg-neutral-200 active:bg-neutral-300 disabled:opacity-60 transition-colors text-left"
+                    >
+                      {abriendoArchivoId === item.id ? (
+                        <Loader2 size={14} className="animate-spin shrink-0" />
+                      ) : item.tipoMime.startsWith('image/') ? (
+                        <ImageIcon size={14} className="shrink-0" />
+                      ) : (
+                        <FileText size={14} className="shrink-0" />
+                      )}
+                      <span className="truncate">{item.nombreOriginal}</span>
+                    </button>
                   )}
                 </div>
               </div>
@@ -290,7 +383,23 @@ export default function ChatPacienteClient({ token }: { token: string }) {
       {sesion.puedeEscribir ? (
         <div className="shrink-0 border-t border-neutral-200 bg-white px-4 pt-3 pb-3">
           {avisoEnvio && <p className="font-body text-xs text-error-600 mb-2">{avisoEnvio}</p>}
+          {errorArchivo && <p className="font-body text-xs text-error-600 mb-2">{errorArchivo}</p>}
           <div className="flex items-end gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={TIPOS_MIME_PERMITIDOS.join(',')}
+              className="hidden"
+              onChange={handleArchivoSeleccionado}
+            />
+            <button
+              onClick={handleAdjuntarClick}
+              disabled={subiendoArchivo}
+              title="Adjuntar imagen o PDF"
+              className="shrink-0 flex items-center justify-center w-10 h-10 rounded-xl border border-neutral-200 text-neutral-500 disabled:opacity-40 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+            >
+              <Paperclip size={16} />
+            </button>
             <textarea
               ref={textareaRef}
               value={input}

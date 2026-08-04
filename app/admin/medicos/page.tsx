@@ -419,7 +419,7 @@ export default function AdminMedicos() {
         }).eq('id', m.id)
       if (error) throw error
       setMedicos(prev => prev.map(x => x.id === m.id ? { ...x, review_status: status } : x))
-      setToast({ msg: `${m.full_name} — ${status === 'revisado' ? 'cédula aprobada ✓' : 'rechazado'}`, type: 'success' })
+      setToast({ msg: `${m.full_name}: ${status === 'revisado' ? 'cédula aprobada ✓' : 'rechazado'}`, type: 'success' })
     } catch {
       setToast({ msg: 'Error al actualizar. Revisa permisos RLS.', type: 'error' })
     } finally {
@@ -451,7 +451,7 @@ export default function AdminMedicos() {
       setMedicos(prev => prev.map(x => x.id === m.id
         ? { ...x, review_status: 'revisado', verification_status: 'verificado', license_verified: true }
         : x))
-      setToast({ msg: `${m.full_name} — verificada y cédula aprobada ✓`, type: 'success' })
+      setToast({ msg: `${m.full_name}: verificada y cédula aprobada ✓`, type: 'success' })
     } catch {
       setToast({ msg: 'Error al actualizar. Revisa permisos RLS.', type: 'error' })
     } finally {
@@ -598,7 +598,7 @@ export default function AdminMedicos() {
       if (logError) throw logError
 
       setCurrentAuditLogId(logRow.id)
-      setToast({ msg: 'Documento guardado — ya puedes aprobar cada especialidad', type: 'success' })
+      setToast({ msg: 'Documento guardado: ya puedes aprobar cada especialidad', type: 'success' })
       await cargarHistorialConstancias(doctorId)
     } catch (e) {
       console.error('[guardarDocumento]', e)
@@ -631,7 +631,7 @@ export default function AdminMedicos() {
         avisos.push(data.warning)
       } else {
         if (data.documentFolio && !data.folioConsistente) {
-          avisos.push('El folio del encabezado y el pie del documento no coinciden — verifica el folio a mano.')
+          avisos.push('El folio del encabezado y el pie del documento no coinciden: verifica el folio a mano.')
         } else if (data.documentFolio) {
           setConstanciaFolio(prev => prev || data.documentFolio)
         }
@@ -646,23 +646,23 @@ export default function AdminMedicos() {
               },
             }))
             if (!cert.vigenciaFecha && cert.vigenciaRaw) {
-              avisos.push(`${cert.matchedGranularName}: vigencia "${cert.vigenciaRaw}" no es una fecha — captúrala a mano si aplica.`)
+              avisos.push(`${cert.matchedGranularName}: vigencia "${cert.vigenciaRaw}" no es una fecha, captúrala a mano si aplica.`)
             }
           } else if (cert.matchStatus === 'sin_match') {
-            avisos.push(`No se pudo emparejar la certificación de "${cert.especialidadTexto}" (${cert.organismoCertificador}) con ninguna especialidad de este médico — revisa el PDF.`)
+            avisos.push(`No se pudo emparejar la certificación de "${cert.especialidadTexto}" (${cert.organismoCertificador}) con ninguna especialidad de este médico. Revisa el PDF.`)
           } else if (cert.matchStatus === 'ambiguo') {
-            avisos.push(`La certificación de "${cert.especialidadTexto}" coincide con más de una especialidad del médico — captúrala a mano.`)
+            avisos.push(`La certificación de "${cert.especialidadTexto}" coincide con más de una especialidad del médico. Captúrala a mano.`)
           }
         }
 
         if ((data.certifications || []).length === 0) {
-          avisos.push('El PDF no tiene ninguna certificación de consejo registrada — captura folio y vigencia a mano si el médico la tiene.')
+          avisos.push('El PDF no tiene ninguna certificación de consejo registrada. Captura folio y vigencia a mano si el médico la tiene.')
         }
       }
 
       setExtraccionAvisos(avisos)
     } catch (e: any) {
-      setExtraccionAvisos([e.message || 'Error al extraer datos del PDF — captura todo a mano.'])
+      setExtraccionAvisos([e.message || 'Error al extraer datos del PDF. Captura todo a mano.'])
     } finally {
       setExtrayendo(false)
     }
@@ -718,7 +718,7 @@ export default function AdminMedicos() {
         .from('doctors').update({ is_active: !m.is_active }).eq('id', m.id)
       if (error) throw error
       setMedicos(prev => prev.map(x => x.id === m.id ? { ...x, is_active: !x.is_active } : x))
-      setToast({ msg: `${m.full_name} — ${!m.is_active ? 'activado' : 'desactivado'}`, type: 'success' })
+      setToast({ msg: `${m.full_name}: ${!m.is_active ? 'activado' : 'desactivado'}`, type: 'success' })
     } catch {
       setToast({ msg: 'Error al actualizar estado', type: 'error' })
     } finally {

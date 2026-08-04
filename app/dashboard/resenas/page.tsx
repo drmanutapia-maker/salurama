@@ -2,9 +2,8 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
-import { Star, ArrowLeft, Lock, FileText, FileSpreadsheet } from 'lucide-react'
+import { Star, ArrowLeft, FileText, FileSpreadsheet } from 'lucide-react'
 import { getUserSafe } from '@/lib/getUserSafe'
-import { isPremiumTier } from '@/lib/planGates'
 
 interface Review {
   id: string
@@ -18,7 +17,6 @@ export default function ResenasPage() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
   const [reviews, setReviews] = useState<Review[]>([])
-  const [pricingTier, setPricingTier] = useState<string | null>(null)
   const [filtro, setFiltro] = useState<number | null>(null)
 
   useEffect(() => {
@@ -29,11 +27,10 @@ export default function ResenasPage() {
 
       const { data: doc } = await supabase
         .from('doctors')
-        .select('id, pricing_tier')
+        .select('id')
         .eq('user_id', user.id)
         .single()
       if (!doc) { router.push('/dashboard'); return }
-      setPricingTier(doc.pricing_tier ?? null)
 
       const { data } = await supabase
         .from('reviews')
@@ -48,9 +45,8 @@ export default function ResenasPage() {
     load()
   }, [router])
 
-  const isPremium = isPremiumTier(pricingTier)
   const ratingPromedio = reviews.length > 0 ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length : 0
-  const reviewsFiltradas = isPremium && filtro !== null ? reviews.filter((r) => r.rating === filtro) : reviews
+  const reviewsFiltradas = filtro !== null ? reviews.filter((r) => r.rating === filtro) : reviews
 
   if (loadError) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif" }}>
@@ -104,69 +100,44 @@ export default function ResenasPage() {
           </p>
         </div>
 
-        {/* Reportes descargables (Premium) */}
+        {/* Reportes descargables */}
         <div className="card fade-up" style={{ marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
           <div>
             <p style={{ fontSize: 14, fontWeight: 700, color: '#111827', marginBottom: 2 }}>Reportes descargables</p>
-            <p style={{ fontSize: 12, color: '#6B7280' }}>
-              {isPremium ? 'Exporta todas tus reseñas en PDF o Excel.' : 'Disponible en el plan Premium.'}
-            </p>
+            <p style={{ fontSize: 12, color: '#6B7280' }}>Exporta todas tus reseñas en PDF o Excel.</p>
           </div>
-          {isPremium ? (
-            <div style={{ display: 'flex', gap: 8 }}>
-              <a href="/api/resenas/pdf" style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#1E3A5F', color: '#fff', textDecoration: 'none', borderRadius: 50, padding: '10px 18px', fontSize: 13, fontWeight: 600 }}>
-                <FileText size={14} /> PDF
-              </a>
-              <a href="/api/resenas/excel" style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#2A9D8F', color: '#fff', textDecoration: 'none', borderRadius: 50, padding: '10px 18px', fontSize: 13, fontWeight: 600 }}>
-                <FileSpreadsheet size={14} /> Excel
-              </a>
-            </div>
-          ) : (
-            <button
-              onClick={() => router.push('/dashboard/plan')}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#F3F4F6', color: '#6B7280', border: 'none', borderRadius: 50, padding: '10px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-            >
-              <Lock size={14} /> Mejora a Premium
-            </button>
-          )}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <a href="/api/resenas/pdf" style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#1E3A5F', color: '#fff', textDecoration: 'none', borderRadius: 50, padding: '10px 18px', fontSize: 13, fontWeight: 600 }}>
+              <FileText size={14} /> PDF
+            </a>
+            <a href="/api/resenas/excel" style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#2A9D8F', color: '#fff', textDecoration: 'none', borderRadius: 50, padding: '10px 18px', fontSize: 13, fontWeight: 600 }}>
+              <FileSpreadsheet size={14} /> Excel
+            </a>
+          </div>
         </div>
 
         {reviews.length > 0 && (
           <div className="card fade-up" style={{ marginBottom: 20 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-              <p style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>Filtrar por calificación</p>
-              {!isPremium && (
-                <button
-                  onClick={() => router.push('/dashboard/plan')}
-                  style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#F3F4F6', color: '#6B7280', border: 'none', borderRadius: 50, padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-                >
-                  <Lock size={13} /> Mejora a Premium
-                </button>
-              )}
+            <p style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>Filtrar por calificación</p>
+            <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+              {[null, 5, 4, 3, 2, 1].map((f) => {
+                const count = f === null ? reviews.length : reviews.filter((r) => r.rating === f).length
+                const active = filtro === f
+                return (
+                  <button
+                    key={f ?? 'todas'}
+                    onClick={() => setFiltro(f)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 4,
+                      background: active ? '#1E3A5F' : '#F3F4F6', color: active ? '#fff' : '#4A5568',
+                      border: 'none', borderRadius: 50, padding: '8px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                    }}
+                  >
+                    {f === null ? 'Todas' : <>{f} <Star size={11} fill={active ? '#fff' : '#F59E0B'} color={active ? '#fff' : '#F59E0B'} /></>} ({count})
+                  </button>
+                )
+              })}
             </div>
-            {isPremium ? (
-              <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-                {[null, 5, 4, 3, 2, 1].map((f) => {
-                  const count = f === null ? reviews.length : reviews.filter((r) => r.rating === f).length
-                  const active = filtro === f
-                  return (
-                    <button
-                      key={f ?? 'todas'}
-                      onClick={() => setFiltro(f)}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 4,
-                        background: active ? '#1E3A5F' : '#F3F4F6', color: active ? '#fff' : '#4A5568',
-                        border: 'none', borderRadius: 50, padding: '8px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                      }}
-                    >
-                      {f === null ? 'Todas' : <>{f} <Star size={11} fill={active ? '#fff' : '#F59E0B'} color={active ? '#fff' : '#F59E0B'} /></>} ({count})
-                    </button>
-                  )
-                })}
-              </div>
-            ) : (
-              <p style={{ fontSize: 12, color: '#6B7280', marginTop: 4 }}>Filtra tus reseñas por número de estrellas.</p>
-            )}
           </div>
         )}
 

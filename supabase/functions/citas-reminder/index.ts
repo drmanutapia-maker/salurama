@@ -57,7 +57,7 @@ function buildReminderHtml(opts: {
               <p style="margin:0;color:#6B7280;line-height:1.6;">Si ya no puedes asistir, por favor contacta directamente al consultorio.</p>
             </td></tr>
             <tr><td style="background:#F3F4F6;padding:24px;text-align:center;">
-              <p style="margin:0;color:#9CA3AF;font-size:12px;">Salurama &mdash; Verifica. Elige. Confía.</p>
+              <p style="margin:0;color:#9CA3AF;font-size:12px;">Salurama. Verifica. Elige. Confía.</p>
             </td></tr>
           </table>
         </td></tr>
@@ -68,11 +68,17 @@ function buildReminderHtml(opts: {
 }
 
 Deno.serve(async (req) => {
-  // Verificar que el request viene del cron: compara el bearer contra el service_role key.
-  // (No se decodifica como JWT — este proyecto usa el formato nuevo `sb_secret_...`, no JWT.)
-  const authHeader = req.headers.get('Authorization')
-  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-  if (!authHeader || !serviceRoleKey || authHeader !== `Bearer ${serviceRoleKey}`) {
+  // Verificar que el request viene del cron: compara un header dedicado
+  // (X-Cron-Secret) contra CRON_SECRET. No se usa Authorization para este check
+  // — el gateway de Supabase exige ahí una credencial de formato reconocido
+  // (JWT o sb_secret_.../sb_publishable_...) para dejar pasar la petición antes
+  // de que llegue a la función, sin importar verify_jwt; un secreto arbitrario
+  // ahí nunca llega al código (bug encontrado y corregido 2026-08-04 — la
+  // comparación original contra SUPABASE_SERVICE_ROLE_KEY tampoco funcionaba,
+  // porque ese nombre lo reserva la plataforma e inyecta su propio valor).
+  const cronHeader = req.headers.get('X-Cron-Secret')
+  const cronSecret = Deno.env.get('CRON_SECRET')
+  if (!cronHeader || !cronSecret || cronHeader !== cronSecret) {
     return new Response('Unauthorized', { status: 401 })
   }
 

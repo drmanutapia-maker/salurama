@@ -76,7 +76,7 @@ export default function LabsSummaryCard({ collectedAt, values }: LabsSummaryCard
 
       {isStale && (
         <p style={{ fontSize: 11, color: '#D97706', marginTop: 10 }}>
-          Laboratorios con más de 30 días — se recomienda actualizar antes de una nueva indicación.
+          Laboratorios con más de 30 días: se recomienda actualizar antes de una nueva indicación.
         </p>
       )}
     </div>

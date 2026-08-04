@@ -105,7 +105,7 @@ export default async function EspecialidadEstadoPage({ params }: { params: Promi
             Especialistas en {combinacion.especialidad} en {estadoLabel}
           </h1>
           <p style={{ fontSize: 15, color: '#6B7280', lineHeight: 1.7 }}>
-            Encontramos {combinacion.total} especialistas en {combinacion.especialidad} activos en {estadoLabel}. Cada perfil incluye su cédula profesional para que la verifiques directamente en la SEP, además de reseñas de pacientes reales — nunca certificamos ni avalamos a ningún médico nosotros mismos.
+            Encontramos {combinacion.total} especialistas en {combinacion.especialidad} activos en {estadoLabel}. Cada perfil incluye su cédula profesional para que la verifiques directamente en la SEP, además de reseñas de pacientes reales. Nunca certificamos ni avalamos a ningún médico nosotros mismos.
           </p>
         </div>
 
@@ -126,7 +126,7 @@ export default async function EspecialidadEstadoPage({ params }: { params: Promi
             <p style={{ fontSize: 13.5, color: '#6B7280', lineHeight: 1.6 }}>
               {rangoPrecio
                 ? `El costo de consulta entre los especialistas listados va de ${rangoPrecio}, según el médico y el tipo de consulta.`
-                : 'El costo varía por médico — consulta el precio directamente en cada perfil.'}
+                : 'El costo varía por médico: consulta el precio directamente en cada perfil.'}
             </p>
           </div>
         </div>
