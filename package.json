@@ -12,7 +12,8 @@
     "test:hema:rls": "vitest run tests/hema/rls",
     "test:hema:e2e": "playwright test tests/hema/e2e",
     "db:hema:reset": "supabase db reset --linked",
-    "db:hema:seed": "npx tsx supabase/seed/hema_seed.ts"
+    "db:hema:seed": "npx tsx supabase/seed/hema_seed.ts",
+    "chat:backfill-cifrado": "npx tsx scripts/backfill-chat-encryption.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.110.0",

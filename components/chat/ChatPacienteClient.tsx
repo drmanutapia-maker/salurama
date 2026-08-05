@@ -249,9 +249,13 @@ export default function ChatPacienteClient({ token }: { token: string }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, archivoId: item.id }),
       })
-      if (!res.ok) throw new Error('No se pudo obtener el enlace')
-      const data = await res.json()
-      window.open(data.url, '_blank', 'noopener,noreferrer')
+      if (!res.ok) throw new Error('No se pudo obtener el archivo')
+      const blob = await res.blob()
+      const objectUrl = URL.createObjectURL(blob)
+      window.open(objectUrl, '_blank', 'noopener,noreferrer')
+      // Revocar después de darle tiempo a la pestaña nueva de cargarlo —
+      // no se puede revocar de inmediato porque la carga es asíncrona.
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 60000)
     } catch {
       setErrorArchivo('No se pudo abrir el archivo. Intenta de nuevo.')
     } finally {

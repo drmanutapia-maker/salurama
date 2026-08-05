@@ -328,7 +328,6 @@ export default function CitasPage() {
           <div className="fade-up">
             {conversacionSeleccionada ? (
               <ConversacionChat
-                medicoId={medico!.id}
                 conversacion={conversacionSeleccionada}
                 onVolver={() => setConversacionSeleccionada(null)}
                 onError={(msg) => showToast(msg, 'error')}

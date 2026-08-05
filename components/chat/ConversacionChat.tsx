@@ -1,14 +1,14 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ChangeEvent, KeyboardEvent } from 'react'
 import { ArrowLeft, Send, FileText, Paperclip, Image as ImageIcon, Loader2 } from 'lucide-react'
 import imageCompression from 'browser-image-compression'
-import { supabase } from '@/lib/supabaseClient'
 import type { ConversacionResumen } from './ConversacionesLista'
 
 const TIPOS_MIME_PERMITIDOS = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'] as const
 const TAMANO_MAXIMO_BYTES = 15728640 // 15 MB — mismo límite que el bucket chat-archivos
+const POLL_INTERVAL_MS = 6000 // mismo intervalo que ChatPacienteClient.tsx, presupuesto chat_medico_poll:{salaId}
 
 type Mensaje = {
   tipo: 'mensaje'
@@ -25,7 +25,6 @@ type Archivo = {
   citaId: string
   remitente: 'medico' | 'paciente'
   nombreOriginal: string
-  storagePath: string
   tipoMime: string
   createdAt: string
 }
@@ -41,19 +40,6 @@ type CitaInfo = {
   completed_at: string | null
 }
 
-// Mismo criterio que la función SQL sesion_cerrada(): cancelada, o completada
-// hace más de 72h. Una cita completada sin completed_at (anterior al Paso 1,
-// nunca corrió ese trigger) se trata como cerrada, no como escribible.
-function sesionCerrada(cita: CitaInfo | undefined): boolean {
-  if (!cita) return true
-  if (cita.estado === 'cancelled') return true
-  if (cita.estado === 'completed') {
-    if (!cita.completed_at) return true
-    return Date.now() - new Date(cita.completed_at).getTime() > 72 * 60 * 60 * 1000
-  }
-  return false
-}
-
 function formatFechaCorta(fechaStr: string) {
   const d = new Date(fechaStr + 'T00:00:00')
   return d.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })
@@ -67,18 +53,18 @@ const estadoLabels: Record<string, string> = {
 }
 
 export default function ConversacionChat({
-  medicoId,
   conversacion,
   onVolver,
   onError,
 }: {
-  medicoId: string
   conversacion: ConversacionResumen
   onVolver: () => void
   onError: (msg: string) => void
 }) {
   const [items, setItems] = useState<Item[]>([])
   const [citasInfo, setCitasInfo] = useState<Map<string, CitaInfo>>(new Map())
+  const [citaActualId, setCitaActualId] = useState(conversacion.citaActualId)
+  const [puedeEscribir, setPuedeEscribir] = useState(false)
   const [loading, setLoading] = useState(true)
   const [input, setInput] = useState('')
   const [enviando, setEnviando] = useState(false)
@@ -88,76 +74,59 @@ export default function ConversacionChat({
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const primeraCarga = useRef(true)
 
-  useEffect(() => {
-    let activo = true
-    async function cargar() {
-      const [mensajesRes, archivosRes] = await Promise.all([
-        supabase
-          .from('chat_mensajes')
-          .select('id, cita_id, remitente_tipo, contenido, created_at')
-          .eq('sala_id', conversacion.salaId)
-          .order('created_at', { ascending: true }),
-        supabase
-          .from('chat_archivos')
-          .select('id, cita_id, remitente_tipo, nombre_original, storage_path, tipo_mime, created_at')
-          .eq('sala_id', conversacion.salaId)
-          .order('created_at', { ascending: true }),
-      ])
+  const cargarConversacion = useCallback(async () => {
+    try {
+      const res = await fetch('/api/chat/medico/sesion', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ salaId: conversacion.salaId }),
+      })
+      if (!res.ok) {
+        if (primeraCarga.current) onError('No se pudo cargar la conversación')
+        return
+      }
 
-      const mensajes: Item[] = ((mensajesRes.data || []) as any[]).map(m => ({
+      const data = await res.json()
+      const mensajes: Item[] = ((data.mensajes || []) as any[]).map(m => ({
         tipo: 'mensaje', id: m.id, citaId: m.cita_id, remitente: m.remitente_tipo, contenido: m.contenido, createdAt: m.created_at,
       }))
-      const archivos: Item[] = ((archivosRes.data || []) as any[]).map(a => ({
-        tipo: 'archivo', id: a.id, citaId: a.cita_id, remitente: a.remitente_tipo, nombreOriginal: a.nombre_original, storagePath: a.storage_path, tipoMime: a.tipo_mime, createdAt: a.created_at,
+      const archivos: Item[] = ((data.archivos || []) as any[]).map(a => ({
+        tipo: 'archivo', id: a.id, citaId: a.cita_id, remitente: a.remitente_tipo, nombreOriginal: a.nombre_original, tipoMime: a.tipo_mime, createdAt: a.created_at,
       }))
       const combinados = [...mensajes, ...archivos].sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1))
 
-      const citaIds = Array.from(new Set([conversacion.citaActualId, ...combinados.map(i => i.citaId)]))
-      const { data: citas } = await supabase
-        .from('citas')
-        .select('id, fecha, hora, motivo, estado, completed_at')
-        .in('id', citaIds)
-
-      if (!activo) return
       setItems(combinados)
-      setCitasInfo(new Map(((citas || []) as CitaInfo[]).map(c => [c.id, c])))
+      setCitasInfo(new Map(((data.citas || []) as CitaInfo[]).map(c => [c.id, c])))
+      setCitaActualId(data.citaActualId)
+      setPuedeEscribir(!!data.puedeEscribir)
+    } catch (err) {
+      console.error('Error cargando conversación:', err)
+      if (primeraCarga.current) onError('No se pudo cargar la conversación')
+    } finally {
       setLoading(false)
+      primeraCarga.current = false
     }
-    cargar()
-    return () => { activo = false }
-  }, [conversacion.salaId, conversacion.citaActualId])
+  }, [conversacion.salaId, onError])
 
   useEffect(() => {
-    const channel = supabase
-      .channel(`chat_mensajes_sala_${conversacion.salaId}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'chat_mensajes', filter: `sala_id=eq.${conversacion.salaId}` },
-        (payload: any) => {
-          const row = payload.new as { id: string; cita_id: string; remitente_tipo: 'medico' | 'paciente'; contenido: string; created_at: string }
-          setItems(prev => {
-            if (prev.some(i => i.tipo === 'mensaje' && i.id === row.id)) return prev
-            return [...prev, { tipo: 'mensaje', id: row.id, citaId: row.cita_id, remitente: row.remitente_tipo, contenido: row.contenido, createdAt: row.created_at } as Item]
-              .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1))
-          })
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'chat_archivos', filter: `sala_id=eq.${conversacion.salaId}` },
-        (payload: any) => {
-          const row = payload.new as { id: string; cita_id: string; remitente_tipo: 'medico' | 'paciente'; nombre_original: string; storage_path: string; tipo_mime: string; created_at: string }
-          setItems(prev => {
-            if (prev.some(i => i.tipo === 'archivo' && i.id === row.id)) return prev
-            return [...prev, { tipo: 'archivo', id: row.id, citaId: row.cita_id, remitente: row.remitente_tipo, nombreOriginal: row.nombre_original, storagePath: row.storage_path, tipoMime: row.tipo_mime, createdAt: row.created_at } as Item]
-              .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1))
-          })
-        }
-      )
-      .subscribe()
-    return () => { supabase.removeChannel(channel) }
-  }, [conversacion.salaId])
+    cargarConversacion()
+
+    const interval = setInterval(() => {
+      if (!document.hidden) cargarConversacion()
+    }, POLL_INTERVAL_MS)
+
+    const onVisible = () => {
+      if (!document.hidden) cargarConversacion()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [cargarConversacion])
 
   // scrollIntoView() ajusta TODOS los ancestros scrollables, incluido el
   // documento (esta vista, a diferencia de MSLChat, vive dentro del flujo
@@ -169,8 +138,7 @@ export default function ConversacionChat({
     if (el) el.scrollTop = el.scrollHeight
   }, [items.length])
 
-  const citaActual = citasInfo.get(conversacion.citaActualId)
-  const puedeEscribir = !sesionCerrada(citaActual)
+  const citaActual = citasInfo.get(citaActualId)
 
   const enviar = async () => {
     const contenido = input.trim()
@@ -179,28 +147,24 @@ export default function ConversacionChat({
     setInput('')
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
 
-    const { data, error } = await supabase
-      .from('chat_mensajes')
-      .insert({
-        sala_id: conversacion.salaId,
-        cita_id: conversacion.citaActualId,
-        remitente_tipo: 'medico',
-        medico_id: medicoId,
-        contenido,
+    try {
+      const res = await fetch('/api/chat/medico/mensaje', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ salaId: conversacion.salaId, contenido }),
       })
-      .select('id, created_at')
-      .single()
-
-    setEnviando(false)
-    if (error || !data) {
+      if (!res.ok) throw new Error('No se pudo enviar el mensaje')
+      const data = await res.json()
+      setItems(prev => {
+        if (prev.some(i => i.tipo === 'mensaje' && i.id === data.mensaje.id)) return prev
+        return [...prev, { tipo: 'mensaje', id: data.mensaje.id, citaId: citaActualId, remitente: 'medico', contenido, createdAt: data.mensaje.created_at }]
+      })
+    } catch {
       onError('No se pudo enviar el mensaje')
       setInput(contenido)
-      return
+    } finally {
+      setEnviando(false)
     }
-    setItems(prev => {
-      if (prev.some(i => i.tipo === 'mensaje' && i.id === data.id)) return prev
-      return [...prev, { tipo: 'mensaje', id: data.id, citaId: conversacion.citaActualId, remitente: 'medico', contenido, createdAt: data.created_at }]
-    })
   }
 
   const handleAdjuntarClick = () => {
@@ -225,52 +189,26 @@ export default function ConversacionChat({
     }
 
     setSubiendoArchivo(true)
-    let rutaSubida: string | null = null
 
     try {
       const archivoFinal = file.type.startsWith('image/')
         ? await imageCompression(file, { maxSizeMB: 3, maxWidthOrHeight: 2000, useWebWorker: true })
         : file
 
-      const archivoId = crypto.randomUUID()
-      const ext = file.name.split('.').pop() || 'bin'
-      const path = `${conversacion.salaId}/${archivoId}.${ext}`
+      const form = new FormData()
+      form.set('salaId', conversacion.salaId)
+      form.set('archivo', archivoFinal, file.name)
 
-      const { error: uploadError } = await supabase.storage
-        .from('chat-archivos')
-        .upload(path, archivoFinal, { contentType: file.type })
-      if (uploadError) throw uploadError
-      rutaSubida = path
-
-      const { data, error } = await supabase
-        .from('chat_archivos')
-        .insert({
-          id: archivoId,
-          sala_id: conversacion.salaId,
-          cita_id: conversacion.citaActualId,
-          remitente_tipo: 'medico',
-          medico_id: medicoId,
-          storage_path: path,
-          nombre_original: file.name,
-          tipo_mime: file.type,
-          tamano_bytes: archivoFinal.size,
-        })
-        .select('id, created_at')
-        .single()
-
-      if (error || !data) throw error || new Error('insert falló sin error explícito')
+      const res = await fetch('/api/chat/medico/archivo', { method: 'POST', body: form })
+      if (!res.ok) throw new Error('No se pudo subir el archivo')
+      const data = await res.json()
 
       setItems(prev => {
-        if (prev.some(i => i.tipo === 'archivo' && i.id === data.id)) return prev
-        return [...prev, { tipo: 'archivo', id: data.id, citaId: conversacion.citaActualId, remitente: 'medico', nombreOriginal: file.name, storagePath: path, tipoMime: file.type, createdAt: data.created_at }]
+        if (prev.some(i => i.tipo === 'archivo' && i.id === data.archivo.id)) return prev
+        return [...prev, { tipo: 'archivo', id: data.archivo.id, citaId: citaActualId, remitente: 'medico', nombreOriginal: file.name, tipoMime: file.type, createdAt: data.archivo.created_at }]
       })
     } catch (err) {
       console.error('Error al subir archivo:', err)
-      // El archivo ya se subió a Storage pero el registro en chat_archivos
-      // falló — borrarlo para no dejarlo huérfano sin fila que lo referencie.
-      if (rutaSubida) {
-        await supabase.storage.from('chat-archivos').remove([rutaSubida]).catch(() => {})
-      }
       setErrorArchivo('No se pudo subir el archivo. Intenta de nuevo.')
     } finally {
       setSubiendoArchivo(false)
@@ -281,11 +219,16 @@ export default function ConversacionChat({
     if (abriendoArchivoId) return
     setAbriendoArchivoId(item.id)
     try {
-      const { data, error } = await supabase.storage
-        .from('chat-archivos')
-        .createSignedUrl(item.storagePath, 300)
-      if (error || !data) throw error || new Error('sin URL firmada')
-      window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
+      const res = await fetch('/api/chat/medico/archivo-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ salaId: conversacion.salaId, archivoId: item.id }),
+      })
+      if (!res.ok) throw new Error('No se pudo obtener el archivo')
+      const blob = await res.blob()
+      const objectUrl = URL.createObjectURL(blob)
+      window.open(objectUrl, '_blank', 'noopener,noreferrer')
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 60000)
     } catch (err) {
       console.error('Error al abrir archivo:', err)
       onError('No se pudo abrir el archivo')

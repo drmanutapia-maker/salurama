@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
+import { cookies } from 'next/headers'
 import { Redis } from '@upstash/redis'
 import { z } from 'zod'
-import { verificarToken } from '@/lib/chat/token'
+import { verificarSalaMedico } from '@/lib/chat/token'
 import { descifrar } from '@/lib/chat/crypto'
+
+export const dynamic = 'force-dynamic'
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL!,
@@ -11,14 +15,8 @@ const redis = new Redis({
 })
 
 const bodySchema = z.object({
-  token: z.string().min(1).max(200),
+  salaId: z.string().uuid(),
 })
-
-function getClientIp(request: NextRequest): string {
-  const forwarded = request.headers.get('x-forwarded-for')
-  const realIp = request.headers.get('x-real-ip')
-  return forwarded?.split(',')[0].trim() || realIp || 'unknown'
-}
 
 const securityHeaders = {
   'Cache-Control': 'no-store',
@@ -27,8 +25,31 @@ const securityHeaders = {
   'Referrer-Policy': 'strict-origin-when-cross-origin',
 }
 
+async function getAnonSupabase() {
+  const cookieStore = await cookies()
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll()      { return cookieStore.getAll() },
+        setAll(toSet) {
+          try { toSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options)) }
+          catch {}
+        },
+      },
+    }
+  )
+}
+
 export async function POST(request: NextRequest) {
   const requestId = crypto.randomUUID().slice(0, 8)
+
+  const anonClient = await getAnonSupabase()
+  const { data: { user }, error: authError } = await anonClient.auth.getUser()
+  if (authError || !user) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401, headers: securityHeaders })
+  }
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -37,32 +58,18 @@ export async function POST(request: NextRequest) {
   )
 
   try {
-    if (!request.headers.get('content-type')?.includes('application/json')) {
-      return NextResponse.json({ error: 'Content-Type inválido' }, { status: 415 })
-    }
-
-    const ip = getClientIp(request)
-
     const body = await request.json()
     const validation = bodySchema.safeParse(body)
     if (!validation.success) {
-      return NextResponse.json({ error: 'Enlace inválido' }, { status: 400, headers: securityHeaders })
+      return NextResponse.json({ error: 'Solicitud inválida' }, { status: 400, headers: securityHeaders })
     }
+    const { salaId } = validation.data
 
-    const sesion = await verificarToken(supabase, validation.data.token)
-
-    // Solo los intentos con token inválido cuentan contra el presupuesto de
-    // adivinanza por IP (10/15min, mismo que mensaje/archivo) — así el polling
-    // legítimo de una sesión ya verificada no compite por ese mismo presupuesto.
-    // Un token válido consume en cambio una clave propia y más generosa, ligada
-    // a la sala (no a la IP), pensada para sostener polling cada pocos segundos.
-    const rateKey = sesion ? `chat_poll:${sesion.salaId}` : `chat_token:${ip}`
-    const rateLimite = sesion ? 180 : 10
-
+    const rateKey = `chat_medico_poll:${salaId}`
     try {
       const count = await redis.incr(rateKey)
       if (count === 1) await redis.expire(rateKey, 900)
-      if (count > rateLimite) {
+      if (count > 180) {
         console.warn(`[${requestId}] Rate limit exceeded: ${rateKey}`)
         return NextResponse.json(
           { error: 'Demasiados intentos. Intenta en 15 minutos.' },
@@ -73,12 +80,12 @@ export async function POST(request: NextRequest) {
       console.error(`[${requestId}] Redis error:`, redisError)
     }
 
+    const sesion = await verificarSalaMedico(supabase, user.id, salaId)
     if (!sesion) {
-      console.warn(`[${requestId}] Token no encontrado: ${ip}`)
-      return NextResponse.json({ error: 'Enlace inválido o expirado' }, { status: 404, headers: securityHeaders })
+      return NextResponse.json({ error: 'Sala no encontrada' }, { status: 404, headers: securityHeaders })
     }
 
-    const [mensajesRes, archivosRes, medicoRes] = await Promise.all([
+    const [mensajesRes, archivosRes] = await Promise.all([
       supabase
         .from('chat_mensajes')
         .select('id, cita_id, remitente_tipo, contenido, created_at')
@@ -89,11 +96,6 @@ export async function POST(request: NextRequest) {
         .select('id, cita_id, remitente_tipo, storage_path, nombre_original, tipo_mime, tamano_bytes, created_at')
         .eq('sala_id', sesion.salaId)
         .order('created_at', { ascending: true }),
-      supabase
-        .from('doctors')
-        .select('full_name, display_name, photo_url')
-        .eq('id', sesion.medicoId)
-        .maybeSingle(),
     ])
 
     if (mensajesRes.error || archivosRes.error) {
@@ -102,7 +104,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Un mensaje individual corrupto o cifrado con otra llave no debe tumbar
-    // el resto de la conversación — se degrada solo esa fila.
+    // el resto de la conversación — se degrada solo esa fila (mismo criterio
+    // que /api/chat/paciente/sesion).
     const mensajesDescifrados = (mensajesRes.data || []).map(m => {
       try {
         return { ...m, contenido: descifrar(m.contenido) }
@@ -112,9 +115,6 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // El separador visual agrupa por cita_id (una sala puede acumular mensajes
-    // de varias citas a lo largo del tiempo) — se necesita fecha/hora de cada
-    // una, no solo de la cita vigente, igual que hace la vista del médico.
     const citaIds = Array.from(new Set([
       sesion.citaActualId,
       ...mensajesDescifrados.map(m => m.cita_id),
@@ -122,21 +122,16 @@ export async function POST(request: NextRequest) {
     ]))
     const { data: citasData } = await supabase
       .from('citas')
-      .select('id, fecha, hora')
+      .select('id, fecha, hora, motivo, estado, completed_at')
       .in('id', citaIds)
-
-    const citaVigente = citasData?.find(c => c.id === sesion.citaActualId)
 
     return NextResponse.json(
       {
+        salaId: sesion.salaId,
         citaActualId: sesion.citaActualId,
         puedeEscribir: sesion.puedeEscribir,
         mensajes: mensajesDescifrados,
         archivos: archivosRes.data,
-        medicoNombre: medicoRes.data?.display_name || medicoRes.data?.full_name || null,
-        medicoFotoUrl: medicoRes.data?.photo_url || null,
-        citaFecha: citaVigente?.fecha || null,
-        citaHora: citaVigente?.hora || null,
         citas: citasData || [],
       },
       { headers: { ...securityHeaders, 'X-Request-ID': requestId } }

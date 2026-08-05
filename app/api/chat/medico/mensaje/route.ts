@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
+import { cookies } from 'next/headers'
 import { Redis } from '@upstash/redis'
 import { z } from 'zod'
-import { verificarToken } from '@/lib/chat/token'
+import { verificarSalaMedico } from '@/lib/chat/token'
 import { cifrar } from '@/lib/chat/crypto'
+
+export const dynamic = 'force-dynamic'
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL!,
@@ -11,15 +15,9 @@ const redis = new Redis({
 })
 
 const bodySchema = z.object({
-  token: z.string().min(1).max(200),
+  salaId: z.string().uuid(),
   contenido: z.string().trim().min(1).max(4000),
 })
-
-function getClientIp(request: NextRequest): string {
-  const forwarded = request.headers.get('x-forwarded-for')
-  const realIp = request.headers.get('x-real-ip')
-  return forwarded?.split(',')[0].trim() || realIp || 'unknown'
-}
 
 const securityHeaders = {
   'Cache-Control': 'no-store',
@@ -28,8 +26,31 @@ const securityHeaders = {
   'Referrer-Policy': 'strict-origin-when-cross-origin',
 }
 
+async function getAnonSupabase() {
+  const cookieStore = await cookies()
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll()      { return cookieStore.getAll() },
+        setAll(toSet) {
+          try { toSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options)) }
+          catch {}
+        },
+      },
+    }
+  )
+}
+
 export async function POST(request: NextRequest) {
   const requestId = crypto.randomUUID().slice(0, 8)
+
+  const anonClient = await getAnonSupabase()
+  const { data: { user }, error: authError } = await anonClient.auth.getUser()
+  if (authError || !user) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401, headers: securityHeaders })
+  }
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -38,18 +59,19 @@ export async function POST(request: NextRequest) {
   )
 
   try {
-    if (!request.headers.get('content-type')?.includes('application/json')) {
-      return NextResponse.json({ error: 'Content-Type inválido' }, { status: 415 })
+    const body = await request.json()
+    const validation = bodySchema.safeParse(body)
+    if (!validation.success) {
+      return NextResponse.json({ error: 'Datos inválidos' }, { status: 400, headers: securityHeaders })
     }
+    const { salaId, contenido } = validation.data
 
-    const ip = getClientIp(request)
-    const rateKey = `chat_token:${ip}`
-
+    const rateKey = `chat_medico_mensaje:${user.id}`
     try {
       const count = await redis.incr(rateKey)
       if (count === 1) await redis.expire(rateKey, 900)
-      if (count > 10) {
-        console.warn(`[${requestId}] Rate limit exceeded: ${ip}`)
+      if (count > 60) {
+        console.warn(`[${requestId}] Rate limit exceeded: ${rateKey}`)
         return NextResponse.json(
           { error: 'Demasiados intentos. Intenta en 15 minutos.' },
           { status: 429, headers: { ...securityHeaders, 'Retry-After': '900' } }
@@ -59,23 +81,10 @@ export async function POST(request: NextRequest) {
       console.error(`[${requestId}] Redis error:`, redisError)
     }
 
-    const body = await request.json()
-    const validation = bodySchema.safeParse(body)
-    if (!validation.success) {
-      return NextResponse.json(
-        { error: 'Datos inválidos', details: validation.error.issues[0].message },
-        { status: 400, headers: securityHeaders }
-      )
-    }
-
-    const { token, contenido } = validation.data
-
-    const sesion = await verificarToken(supabase, token)
+    const sesion = await verificarSalaMedico(supabase, user.id, salaId)
     if (!sesion) {
-      console.warn(`[${requestId}] Token no encontrado: ${ip}`)
-      return NextResponse.json({ error: 'Enlace inválido o expirado' }, { status: 404, headers: securityHeaders })
+      return NextResponse.json({ error: 'Sala no encontrada' }, { status: 404, headers: securityHeaders })
     }
-
     if (!sesion.puedeEscribir) {
       return NextResponse.json(
         { error: 'Esta conversación ya no admite mensajes nuevos' },
@@ -88,8 +97,8 @@ export async function POST(request: NextRequest) {
       .insert({
         sala_id: sesion.salaId,
         cita_id: sesion.citaActualId,
-        remitente_tipo: 'paciente',
-        medico_id: null,
+        remitente_tipo: 'medico',
+        medico_id: sesion.medicoId,
         contenido: cifrar(contenido),
       })
       .select('id, created_at')
