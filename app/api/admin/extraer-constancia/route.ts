@@ -7,6 +7,8 @@ import { parseConstanciaText, normalizeForMatch } from '@/lib/constanciaParser'
 
 export const dynamic = 'force-dynamic'
 
+const TAMANO_MAXIMO_BYTES = 15728640 // 15 MB — mismo límite que chat/paciente/archivo
+
 async function getAnonSupabase() {
   const cookieStore = await cookies()
   return createServerClient(
@@ -61,6 +63,10 @@ export async function POST(request: NextRequest) {
   const doctorId = formData.get('doctorId')
   if (!(file instanceof Blob) || typeof doctorId !== 'string' || !doctorId) {
     return NextResponse.json({ error: 'Falta el archivo o el médico' }, { status: 400 })
+  }
+
+  if (file.size > TAMANO_MAXIMO_BYTES) {
+    return NextResponse.json({ error: 'El archivo no puede pesar más de 15 MB' }, { status: 400 })
   }
 
   let text: string
