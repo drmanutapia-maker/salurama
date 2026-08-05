@@ -1,3 +1,11 @@
+// Este script NO corre automático con `supabase db reset` / `db:hema:reset`
+// — el CLI de Supabase solo ejecuta seeds declarados como archivos .sql
+// (via [db.seed] en config.toml o supabase/seed.sql), y este es TypeScript.
+// Después de cualquier reset completo de la base (local o del proyecto
+// linkeado), hay que correr `npm run db:hema:seed` a mano para repoblar el
+// catálogo de fármacos y protocolos — si no, hema.drugs y hema.protocols
+// quedan vacíos en silencio.
+
 import { createClient } from '@supabase/supabase-js'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
