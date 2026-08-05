@@ -11,10 +11,16 @@ update doctors set slug = 'dr-manu-dav-hematologia' where id = 'b98f1737-6855-4f
 
 -- A partir de aquí todo médico nuevo se crea con slug (ver app/api/registro-medico/route.ts)
 alter table doctors alter column slug set not null;
-alter table doctors add constraint doctors_slug_unique unique (slug);
+
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'doctors_slug_unique') then
+    alter table doctors add constraint doctors_slug_unique unique (slug);
+  end if;
+end $$;
 
 -- Nivel de pricing de Salurama (Gratis/$349/$799/$1,999 MXN) — separado de la tabla
 -- subscriptions, que es del módulo HEMA. Nombres alineados a los precios actuales
 -- del documento de pricing; si cambian los montos, renombrar valores permitidos aquí.
-alter table doctors add column pricing_tier text not null default 'gratis'
+alter table doctors add column if not exists pricing_tier text not null default 'gratis'
   check (pricing_tier in ('gratis', '349', '799', '1999'));

@@ -19,6 +19,7 @@ $$;
 
 ALTER TABLE hema.tenants ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "tenant_select_own" ON hema.tenants;
 CREATE POLICY "tenant_select_own" ON hema.tenants
   FOR SELECT USING (id = hema.current_tenant_id());
 
@@ -28,6 +29,7 @@ CREATE POLICY "tenant_select_own" ON hema.tenants
 
 ALTER TABLE hema.users ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "users_tenant_isolation" ON hema.users;
 CREATE POLICY "users_tenant_isolation" ON hema.users
   USING (tenant_id = hema.current_tenant_id());
 
@@ -37,6 +39,7 @@ CREATE POLICY "users_tenant_isolation" ON hema.users
 
 ALTER TABLE hema.patients ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "patients_tenant_isolation" ON hema.patients;
 CREATE POLICY "patients_tenant_isolation" ON hema.patients
   USING (tenant_id = hema.current_tenant_id());
 
@@ -46,6 +49,7 @@ CREATE POLICY "patients_tenant_isolation" ON hema.patients
 
 ALTER TABLE hema.patient_measurements ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "measurements_tenant_isolation" ON hema.patient_measurements;
 CREATE POLICY "measurements_tenant_isolation" ON hema.patient_measurements
   USING (
     patient_id IN (
@@ -53,9 +57,11 @@ CREATE POLICY "measurements_tenant_isolation" ON hema.patient_measurements
     )
   );
 
+DROP POLICY IF EXISTS "measurements_no_update" ON hema.patient_measurements;
 CREATE POLICY "measurements_no_update" ON hema.patient_measurements
   FOR UPDATE USING (false);
 
+DROP POLICY IF EXISTS "measurements_no_delete" ON hema.patient_measurements;
 CREATE POLICY "measurements_no_delete" ON hema.patient_measurements
   FOR DELETE USING (false);
 
@@ -65,6 +71,7 @@ CREATE POLICY "measurements_no_delete" ON hema.patient_measurements
 
 ALTER TABLE hema.patient_diagnoses ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "patient_diagnoses_tenant_isolation" ON hema.patient_diagnoses;
 CREATE POLICY "patient_diagnoses_tenant_isolation" ON hema.patient_diagnoses
   USING (
     patient_id IN (
@@ -78,9 +85,11 @@ CREATE POLICY "patient_diagnoses_tenant_isolation" ON hema.patient_diagnoses
 
 ALTER TABLE hema.diagnoses ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "diagnoses_read_all" ON hema.diagnoses;
 CREATE POLICY "diagnoses_read_all" ON hema.diagnoses
   FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "diagnoses_no_write" ON hema.diagnoses;
 CREATE POLICY "diagnoses_no_write" ON hema.diagnoses
   FOR ALL USING (false)
   WITH CHECK (false);
@@ -91,9 +100,11 @@ CREATE POLICY "diagnoses_no_write" ON hema.diagnoses
 
 ALTER TABLE hema.drugs ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "drugs_read_all" ON hema.drugs;
 CREATE POLICY "drugs_read_all" ON hema.drugs
   FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "drugs_no_write" ON hema.drugs;
 CREATE POLICY "drugs_no_write" ON hema.drugs
   FOR ALL USING (false)
   WITH CHECK (false);
@@ -104,9 +115,11 @@ CREATE POLICY "drugs_no_write" ON hema.drugs
 
 ALTER TABLE hema.protocols ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "protocols_read_active" ON hema.protocols;
 CREATE POLICY "protocols_read_active" ON hema.protocols
   FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "protocols_no_write" ON hema.protocols;
 CREATE POLICY "protocols_no_write" ON hema.protocols
   FOR ALL USING (false)
   WITH CHECK (false);
@@ -116,14 +129,18 @@ CREATE POLICY "protocols_no_write" ON hema.protocols
 -- ─────────────────────────────────────────
 
 ALTER TABLE hema.protocol_diagnoses ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "protocol_diagnoses_read_all" ON hema.protocol_diagnoses;
 CREATE POLICY "protocol_diagnoses_read_all" ON hema.protocol_diagnoses
   FOR SELECT USING (true);
+DROP POLICY IF EXISTS "protocol_diagnoses_no_write" ON hema.protocol_diagnoses;
 CREATE POLICY "protocol_diagnoses_no_write" ON hema.protocol_diagnoses
   FOR ALL USING (false) WITH CHECK (false);
 
 ALTER TABLE hema.protocol_drugs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "protocol_drugs_read_all" ON hema.protocol_drugs;
 CREATE POLICY "protocol_drugs_read_all" ON hema.protocol_drugs
   FOR SELECT USING (true);
+DROP POLICY IF EXISTS "protocol_drugs_no_write" ON hema.protocol_drugs;
 CREATE POLICY "protocol_drugs_no_write" ON hema.protocol_drugs
   FOR ALL USING (false) WITH CHECK (false);
 
@@ -133,6 +150,7 @@ CREATE POLICY "protocol_drugs_no_write" ON hema.protocol_drugs
 
 ALTER TABLE hema.lab_panels ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "lab_panels_tenant_isolation" ON hema.lab_panels;
 CREATE POLICY "lab_panels_tenant_isolation" ON hema.lab_panels
   USING (tenant_id = hema.current_tenant_id());
 
@@ -142,6 +160,7 @@ CREATE POLICY "lab_panels_tenant_isolation" ON hema.lab_panels
 
 ALTER TABLE hema.lab_values ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "lab_values_tenant_isolation" ON hema.lab_values;
 CREATE POLICY "lab_values_tenant_isolation" ON hema.lab_values
   USING (
     panel_id IN (
@@ -155,6 +174,7 @@ CREATE POLICY "lab_values_tenant_isolation" ON hema.lab_values
 
 ALTER TABLE hema.orders ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "orders_tenant_isolation" ON hema.orders;
 CREATE POLICY "orders_tenant_isolation" ON hema.orders
   USING (tenant_id = hema.current_tenant_id());
 
@@ -164,6 +184,7 @@ CREATE POLICY "orders_tenant_isolation" ON hema.orders
 
 ALTER TABLE hema.order_drugs ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "order_drugs_tenant_isolation" ON hema.order_drugs;
 CREATE POLICY "order_drugs_tenant_isolation" ON hema.order_drugs
   USING (
     order_id IN (
@@ -177,6 +198,7 @@ CREATE POLICY "order_drugs_tenant_isolation" ON hema.order_drugs
 
 ALTER TABLE hema.cumulative_doses ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "cumulative_doses_tenant_isolation" ON hema.cumulative_doses;
 CREATE POLICY "cumulative_doses_tenant_isolation" ON hema.cumulative_doses
   USING (
     patient_id IN (
@@ -190,10 +212,12 @@ CREATE POLICY "cumulative_doses_tenant_isolation" ON hema.cumulative_doses
 
 ALTER TABLE hema.audit_log ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "audit_log_tenant_isolation" ON hema.audit_log;
 CREATE POLICY "audit_log_tenant_isolation" ON hema.audit_log
   FOR SELECT USING (tenant_id = hema.current_tenant_id());
 
 -- INSERT solo permitido desde service_role (triggers de auditoría)
+DROP POLICY IF EXISTS "audit_log_insert_service_only" ON hema.audit_log;
 CREATE POLICY "audit_log_insert_service_only" ON hema.audit_log
   FOR INSERT WITH CHECK (tenant_id = hema.current_tenant_id());
 
@@ -203,9 +227,11 @@ CREATE POLICY "audit_log_insert_service_only" ON hema.audit_log
 
 ALTER TABLE hema.audit_anchors ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "audit_anchors_read_all" ON hema.audit_anchors;
 CREATE POLICY "audit_anchors_read_all" ON hema.audit_anchors
   FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "audit_anchors_no_write" ON hema.audit_anchors;
 CREATE POLICY "audit_anchors_no_write" ON hema.audit_anchors
   FOR ALL USING (false) WITH CHECK (false);
 
@@ -215,6 +241,7 @@ CREATE POLICY "audit_anchors_no_write" ON hema.audit_anchors
 
 ALTER TABLE hema.signatures ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "signatures_tenant_isolation" ON hema.signatures;
 CREATE POLICY "signatures_tenant_isolation" ON hema.signatures
   USING (
     order_id IN (

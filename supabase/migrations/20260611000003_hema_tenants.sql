@@ -2,7 +2,7 @@
 -- Afecta schema: hema
 -- Reversión: DROP TABLE hema.tenants CASCADE;
 
-CREATE TABLE hema.tenants (
+CREATE TABLE IF NOT EXISTS hema.tenants (
   id               uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   name             text        NOT NULL,
   rfc              text,

@@ -13,10 +13,10 @@
 -- ─────────────────────────────────────────────────────────────────────────────
 
 ALTER TABLE hema.tenants
-  ADD COLUMN tenant_type TEXT NOT NULL DEFAULT 'independiente'
+  ADD COLUMN IF NOT EXISTS tenant_type TEXT NOT NULL DEFAULT 'independiente'
     CHECK (tenant_type IN ('independiente', 'clinica')),
-  ADD COLUMN tenant_code TEXT UNIQUE,  -- nullable por ahora; lo llenamos manualmente, luego NOT NULL
-  ADD COLUMN logo_path   TEXT;         -- ruta en bucket hema-tenant-logos
+  ADD COLUMN IF NOT EXISTS tenant_code TEXT UNIQUE,  -- nullable por ahora; lo llenamos manualmente, luego NOT NULL
+  ADD COLUMN IF NOT EXISTS logo_path   TEXT;         -- ruta en bucket hema-tenant-logos
 
 COMMENT ON COLUMN hema.tenants.tenant_type IS
   'independiente = consultorio/médico privado; clinica = hospital o grupo que comparte logo institucional.';
@@ -44,18 +44,21 @@ ON CONFLICT (id) DO NOTHING;
 
 -- RLS: mismo patrón que hema-order-pdfs — primer segmento del path = tenant_id
 
+DROP POLICY IF EXISTS "hema_tenant_logos_select_own_tenant" ON storage.objects;
 CREATE POLICY "hema_tenant_logos_select_own_tenant" ON storage.objects
   FOR SELECT USING (
     bucket_id = 'hema-tenant-logos'
     AND (storage.foldername(name))[1] = hema.current_tenant_id()::text
   );
 
+DROP POLICY IF EXISTS "hema_tenant_logos_insert_own_tenant" ON storage.objects;
 CREATE POLICY "hema_tenant_logos_insert_own_tenant" ON storage.objects
   FOR INSERT WITH CHECK (
     bucket_id = 'hema-tenant-logos'
     AND (storage.foldername(name))[1] = hema.current_tenant_id()::text
   );
 
+DROP POLICY IF EXISTS "hema_tenant_logos_update_own_tenant" ON storage.objects;
 CREATE POLICY "hema_tenant_logos_update_own_tenant" ON storage.objects
   FOR UPDATE USING (
     bucket_id = 'hema-tenant-logos'

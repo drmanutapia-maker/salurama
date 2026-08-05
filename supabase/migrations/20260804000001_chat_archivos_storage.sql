@@ -32,6 +32,7 @@ ON CONFLICT (id) DO NOTHING;
 --    del chat nunca se editan ni se borran (retención NOM-004).
 -- ─────────────────────────────────────────────────────────────────────────────
 
+DROP POLICY IF EXISTS "chat_archivos_storage_medico_select" ON storage.objects;
 CREATE POLICY "chat_archivos_storage_medico_select" ON storage.objects
   FOR SELECT USING (
     bucket_id = 'chat-archivos'
@@ -43,6 +44,7 @@ CREATE POLICY "chat_archivos_storage_medico_select" ON storage.objects
     )
   );
 
+DROP POLICY IF EXISTS "chat_archivos_storage_medico_insert" ON storage.objects;
 CREATE POLICY "chat_archivos_storage_medico_insert" ON storage.objects
   FOR INSERT WITH CHECK (
     bucket_id = 'chat-archivos'

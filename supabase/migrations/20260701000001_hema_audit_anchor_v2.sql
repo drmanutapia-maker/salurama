@@ -20,7 +20,7 @@ COMMENT ON COLUMN hema.audit_anchors.storage_path IS
 
 -- ── 2. Columna OTS proof ──────────────────────────────────────────────────────
 
-ALTER TABLE hema.audit_anchors ADD COLUMN ots_proof text;
+ALTER TABLE hema.audit_anchors ADD COLUMN IF NOT EXISTS ots_proof text;
 
 COMMENT ON COLUMN hema.audit_anchors.ots_proof IS
   'OpenTimestamps incomplete proof en base64 '
@@ -57,6 +57,7 @@ ON CONFLICT (id) DO NOTHING;
 -- ── 5. Storage policy: lectura para admin y director_medico ──────────────────
 -- hema.users.id = auth.uid() porque el PK de hema.users IS el auth.users.id.
 
+DROP POLICY IF EXISTS "hema_audit_anchors_select" ON storage.objects;
 CREATE POLICY "hema_audit_anchors_select" ON storage.objects
   FOR SELECT USING (
     bucket_id = 'hema-audit-anchors'

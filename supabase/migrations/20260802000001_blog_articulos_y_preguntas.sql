@@ -19,7 +19,7 @@
 --   DROP TABLE IF EXISTS public.blog_articulos;
 -- ═══════════════════════════════════════════════════════════════════════
 
-CREATE TABLE public.blog_articulos (
+CREATE TABLE IF NOT EXISTS public.blog_articulos (
   id                  uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   slug                text UNIQUE NOT NULL,
   titulo              text NOT NULL,
@@ -39,9 +39,11 @@ CREATE INDEX idx_blog_articulos_estado_publicado_at ON public.blog_articulos (es
 
 ALTER TABLE public.blog_articulos ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "blog_articulos_public_select" ON public.blog_articulos;
 CREATE POLICY "blog_articulos_public_select" ON public.blog_articulos
   FOR SELECT USING (estado = 'publicado');
 
+DROP POLICY IF EXISTS "blog_articulos_admin_all" ON public.blog_articulos;
 CREATE POLICY "blog_articulos_admin_all" ON public.blog_articulos
   FOR ALL USING (
     EXISTS (SELECT 1 FROM public.admins WHERE admins.user_id = auth.uid())
@@ -49,7 +51,7 @@ CREATE POLICY "blog_articulos_admin_all" ON public.blog_articulos
     EXISTS (SELECT 1 FROM public.admins WHERE admins.user_id = auth.uid())
   );
 
-CREATE TABLE public.blog_preguntas (
+CREATE TABLE IF NOT EXISTS public.blog_preguntas (
   id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   articulo_id  uuid NOT NULL REFERENCES public.blog_articulos(id) ON DELETE CASCADE,
   pregunta     text NOT NULL,
@@ -65,6 +67,7 @@ ALTER TABLE public.blog_preguntas ENABLE ROW LEVEL SECURITY;
 -- Sin política pública a propósito: ni anon ni authenticated tienen ningún
 -- acceso vía RLS. El insert público pasa por service role en la API route
 -- (bypassa RLS), y la única lectura es admin.
+DROP POLICY IF EXISTS "blog_preguntas_admin_all" ON public.blog_preguntas;
 CREATE POLICY "blog_preguntas_admin_all" ON public.blog_preguntas
   FOR ALL USING (
     EXISTS (SELECT 1 FROM public.admins WHERE admins.user_id = auth.uid())

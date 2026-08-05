@@ -2,7 +2,7 @@
 -- Afecta schema: hema
 -- Reversión: DROP TABLE hema.patients CASCADE;
 
-CREATE TABLE hema.patients (
+CREATE TABLE IF NOT EXISTS hema.patients (
   id                      uuid  PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id               uuid  NOT NULL REFERENCES hema.tenants(id),
   -- CURP: 18 caracteres, formato oficial RENAPO

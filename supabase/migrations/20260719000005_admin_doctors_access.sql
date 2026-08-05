@@ -11,10 +11,12 @@
 -- doctors, mismo patrón EXISTS ya usado en doctor-documents,
 -- admin-documents, doctor_license_audit_log y cofepris_audit_log.
 
+DROP POLICY IF EXISTS "admins_select_all_doctors" ON public.doctors;
 CREATE POLICY "admins_select_all_doctors" ON public.doctors
   FOR SELECT
   USING (EXISTS (SELECT 1 FROM public.admins WHERE admins.user_id = auth.uid()));
 
+DROP POLICY IF EXISTS "admins_update_all_doctors" ON public.doctors;
 CREATE POLICY "admins_update_all_doctors" ON public.doctors
   FOR UPDATE
   USING (EXISTS (SELECT 1 FROM public.admins WHERE admins.user_id = auth.uid()))

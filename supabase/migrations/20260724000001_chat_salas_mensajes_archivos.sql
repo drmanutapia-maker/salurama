@@ -11,7 +11,7 @@
 --   DROP TABLE IF EXISTS chat_salas;
 
 -- ── chat_salas ───────────────────────────────────────────────────────────
-CREATE TABLE chat_salas (
+CREATE TABLE IF NOT EXISTS chat_salas (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   medico_id uuid NOT NULL REFERENCES doctors(id),
   paciente_id uuid NOT NULL REFERENCES pacientes(id),
@@ -31,7 +31,7 @@ COMMENT ON COLUMN chat_salas.token_hash IS
   'NULL hasta que el backend recepcionista (Paso 3) lo emite.';
 
 -- ── chat_mensajes ────────────────────────────────────────────────────────
-CREATE TABLE chat_mensajes (
+CREATE TABLE IF NOT EXISTS chat_mensajes (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   sala_id uuid NOT NULL REFERENCES chat_salas(id),
   cita_id uuid NOT NULL REFERENCES citas(id),
@@ -53,7 +53,7 @@ COMMENT ON TABLE chat_mensajes IS
   'por sesión dentro del hilo continuo de chat_salas.';
 
 -- ── chat_archivos ────────────────────────────────────────────────────────
-CREATE TABLE chat_archivos (
+CREATE TABLE IF NOT EXISTS chat_archivos (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   sala_id uuid NOT NULL REFERENCES chat_salas(id),
   cita_id uuid NOT NULL REFERENCES citas(id),
@@ -112,12 +112,14 @@ ALTER TABLE chat_salas ENABLE ROW LEVEL SECURITY;
 ALTER TABLE chat_mensajes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE chat_archivos ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS chat_salas_medico_select ON chat_salas;
 CREATE POLICY chat_salas_medico_select ON chat_salas
 FOR SELECT
 USING (EXISTS (
   SELECT 1 FROM doctors d WHERE d.id = chat_salas.medico_id AND d.user_id = auth.uid()
 ));
 
+DROP POLICY IF EXISTS chat_mensajes_medico_select ON chat_mensajes;
 CREATE POLICY chat_mensajes_medico_select ON chat_mensajes
 FOR SELECT
 USING (EXISTS (
@@ -126,6 +128,7 @@ USING (EXISTS (
   WHERE cs.id = chat_mensajes.sala_id AND d.user_id = auth.uid()
 ));
 
+DROP POLICY IF EXISTS chat_mensajes_medico_insert ON chat_mensajes;
 CREATE POLICY chat_mensajes_medico_insert ON chat_mensajes
 FOR INSERT
 WITH CHECK (
@@ -143,6 +146,7 @@ WITH CHECK (
   )
 );
 
+DROP POLICY IF EXISTS chat_archivos_medico_select ON chat_archivos;
 CREATE POLICY chat_archivos_medico_select ON chat_archivos
 FOR SELECT
 USING (EXISTS (
@@ -151,6 +155,7 @@ USING (EXISTS (
   WHERE cs.id = chat_archivos.sala_id AND d.user_id = auth.uid()
 ));
 
+DROP POLICY IF EXISTS chat_archivos_medico_insert ON chat_archivos;
 CREATE POLICY chat_archivos_medico_insert ON chat_archivos
 FOR INSERT
 WITH CHECK (

@@ -11,7 +11,7 @@
 CREATE EXTENSION IF NOT EXISTS vector;
 
 -- 2. Tabla de documentos fuente (papers)
-CREATE TABLE msl_documents (
+CREATE TABLE IF NOT EXISTS msl_documents (
   id          UUID        DEFAULT gen_random_uuid() PRIMARY KEY,
   title       TEXT        NOT NULL,
   authors     TEXT,
@@ -26,7 +26,7 @@ CREATE TABLE msl_documents (
 );
 
 -- 3. Tabla de chunks con embeddings
-CREATE TABLE msl_chunks (
+CREATE TABLE IF NOT EXISTS msl_chunks (
   id           UUID  DEFAULT gen_random_uuid() PRIMARY KEY,
   document_id  UUID  NOT NULL REFERENCES msl_documents(id) ON DELETE CASCADE,
   chunk_index  INT   NOT NULL,
@@ -42,9 +42,11 @@ CREATE INDEX ON msl_chunks USING ivfflat (embedding vector_cosine_ops) WITH (lis
 ALTER TABLE msl_documents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE msl_chunks    ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Authenticated can read documents" ON msl_documents;
 CREATE POLICY "Authenticated can read documents"
   ON msl_documents FOR SELECT TO authenticated USING (true);
 
+DROP POLICY IF EXISTS "Authenticated can read chunks" ON msl_chunks;
 CREATE POLICY "Authenticated can read chunks"
   ON msl_chunks FOR SELECT TO authenticated USING (true);
 

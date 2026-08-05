@@ -6,7 +6,7 @@
 -- Reversión:
 --   ALTER TABLE citas DROP COLUMN reminder_sent_at;
 
-ALTER TABLE citas ADD COLUMN reminder_sent_at timestamptz;
+ALTER TABLE citas ADD COLUMN IF NOT EXISTS reminder_sent_at timestamptz;
 
 COMMENT ON COLUMN citas.reminder_sent_at IS
   'Timestamp del envío del recordatorio por correo 24h antes de la cita. '

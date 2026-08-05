@@ -16,7 +16,7 @@
 -- 1. Tabla
 -- ─────────────────────────────────────────────────────────────────────────────
 
-CREATE TABLE public.doctor_gallery_photos (
+CREATE TABLE IF NOT EXISTS public.doctor_gallery_photos (
   id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   doctor_id    uuid NOT NULL REFERENCES public.doctors(id) ON DELETE CASCADE,
   storage_path text NOT NULL,
@@ -45,6 +45,7 @@ CREATE TRIGGER doctor_gallery_photos_limit_trigger
 ALTER TABLE public.doctor_gallery_photos ENABLE ROW LEVEL SECURITY;
 
 -- SELECT: pública si el médico está activo, o el dueño, o admin.
+DROP POLICY IF EXISTS "doctor_gallery_photos_select" ON public.doctor_gallery_photos;
 CREATE POLICY "doctor_gallery_photos_select" ON public.doctor_gallery_photos
   FOR SELECT USING (
     doctor_id IN (SELECT id FROM public.doctors WHERE user_id = auth.uid())
@@ -54,6 +55,7 @@ CREATE POLICY "doctor_gallery_photos_select" ON public.doctor_gallery_photos
 
 -- INSERT: solo el dueño, y solo si su plan es Plus (defensa en profundidad;
 -- la UI ya oculta el uploader a médicos que no son Plus).
+DROP POLICY IF EXISTS "doctor_gallery_photos_owner_insert" ON public.doctor_gallery_photos;
 CREATE POLICY "doctor_gallery_photos_owner_insert" ON public.doctor_gallery_photos
   FOR INSERT WITH CHECK (
     EXISTS (
@@ -65,13 +67,16 @@ CREATE POLICY "doctor_gallery_photos_owner_insert" ON public.doctor_gallery_phot
 
 -- UPDATE/DELETE: el dueño, sin gate de plan (si baja de plan puede seguir
 -- gestionando lo que ya subió, solo no puede agregar más).
+DROP POLICY IF EXISTS "doctor_gallery_photos_owner_update" ON public.doctor_gallery_photos;
 CREATE POLICY "doctor_gallery_photos_owner_update" ON public.doctor_gallery_photos
   FOR UPDATE USING (doctor_id IN (SELECT id FROM public.doctors WHERE user_id = auth.uid()))
   WITH CHECK (doctor_id IN (SELECT id FROM public.doctors WHERE user_id = auth.uid()));
 
+DROP POLICY IF EXISTS "doctor_gallery_photos_owner_delete" ON public.doctor_gallery_photos;
 CREATE POLICY "doctor_gallery_photos_owner_delete" ON public.doctor_gallery_photos
   FOR DELETE USING (doctor_id IN (SELECT id FROM public.doctors WHERE user_id = auth.uid()));
 
+DROP POLICY IF EXISTS "doctor_gallery_photos_admin_all" ON public.doctor_gallery_photos;
 CREATE POLICY "doctor_gallery_photos_admin_all" ON public.doctor_gallery_photos
   FOR ALL USING (EXISTS (SELECT 1 FROM public.admins WHERE admins.user_id = auth.uid()))
   WITH CHECK (EXISTS (SELECT 1 FROM public.admins WHERE admins.user_id = auth.uid()));
@@ -89,9 +94,11 @@ VALUES (
 )
 ON CONFLICT (id) DO NOTHING;
 
+DROP POLICY IF EXISTS "doctor_gallery_storage_select" ON storage.objects;
 CREATE POLICY "doctor_gallery_storage_select" ON storage.objects
   FOR SELECT USING (bucket_id = 'doctor-gallery');
 
+DROP POLICY IF EXISTS "doctor_gallery_storage_owner_insert" ON storage.objects;
 CREATE POLICY "doctor_gallery_storage_owner_insert" ON storage.objects
   FOR INSERT WITH CHECK (
     bucket_id = 'doctor-gallery'
@@ -100,12 +107,14 @@ CREATE POLICY "doctor_gallery_storage_owner_insert" ON storage.objects
     )
   );
 
+DROP POLICY IF EXISTS "doctor_gallery_storage_owner_delete" ON storage.objects;
 CREATE POLICY "doctor_gallery_storage_owner_delete" ON storage.objects
   FOR DELETE USING (
     bucket_id = 'doctor-gallery'
     AND (storage.foldername(name))[1] IN (SELECT id::text FROM public.doctors WHERE user_id = auth.uid())
   );
 
+DROP POLICY IF EXISTS "doctor_gallery_storage_admin_all" ON storage.objects;
 CREATE POLICY "doctor_gallery_storage_admin_all" ON storage.objects
   FOR ALL USING (
     bucket_id = 'doctor-gallery' AND EXISTS (SELECT 1 FROM public.admins WHERE admins.user_id = auth.uid())

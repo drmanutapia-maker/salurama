@@ -8,7 +8,7 @@
 
 -- ── 1. Columna ─────────────────────────────────────────────────────────────────
 ALTER TABLE hema.orders
-  ADD COLUMN next_cycle_date DATE;
+  ADD COLUMN IF NOT EXISTS next_cycle_date DATE;
 
 -- ── 2. hema_create_order v2 — agrega p_next_cycle_date opcional ────────────────
 -- PostgreSQL no admite CREATE OR REPLACE al cambiar la firma de parámetros:

@@ -8,7 +8,7 @@
 --   DROP TABLE hema.access_log CASCADE;
 
 -- ── 1. Tabla ───────────────────────────────────────────────────────────────────
-CREATE TABLE hema.access_log (
+CREATE TABLE IF NOT EXISTS hema.access_log (
   id          bigserial   PRIMARY KEY,
   tenant_id   uuid        NOT NULL,
   user_id     uuid        NOT NULL,
@@ -37,6 +37,7 @@ CREATE INDEX access_log_user_idx   ON hema.access_log (user_id, accessed_at DESC
 ALTER TABLE hema.access_log ENABLE ROW LEVEL SECURITY;
 
 -- Solo director_medico y admin pueden leer la bitácora de accesos
+DROP POLICY IF EXISTS "access_log_select_admin" ON hema.access_log;
 CREATE POLICY "access_log_select_admin" ON hema.access_log
   FOR SELECT USING (
     tenant_id = hema.current_tenant_id()
@@ -50,5 +51,6 @@ CREATE POLICY "access_log_select_admin" ON hema.access_log
 
 -- INSERT permitido a cualquier usuario autenticado del mismo tenant
 -- (las RPCs que registran accesos usan auth.uid() del caller)
+DROP POLICY IF EXISTS "access_log_insert_own_tenant" ON hema.access_log;
 CREATE POLICY "access_log_insert_own_tenant" ON hema.access_log
   FOR INSERT WITH CHECK (tenant_id = hema.current_tenant_id());

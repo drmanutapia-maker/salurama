@@ -8,7 +8,7 @@
 -- Órdenes de quimioterapia
 -- ─────────────────────────────────────────
 
-CREATE TABLE hema.orders (
+CREATE TABLE IF NOT EXISTS hema.orders (
   id                    uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id             uuid        NOT NULL REFERENCES hema.tenants(id),
   patient_id            uuid        NOT NULL REFERENCES hema.patients(id),
@@ -69,7 +69,7 @@ COMMENT ON COLUMN hema.orders.disclaimer IS
 -- Fármacos de una orden específica (con dosis calculadas)
 -- ─────────────────────────────────────────
 
-CREATE TABLE hema.order_drugs (
+CREATE TABLE IF NOT EXISTS hema.order_drugs (
   id                uuid    PRIMARY KEY DEFAULT gen_random_uuid(),
   order_id          uuid    NOT NULL REFERENCES hema.orders(id) ON DELETE CASCADE,
   protocol_drug_id  uuid    REFERENCES hema.protocol_drugs(id),
@@ -106,7 +106,7 @@ COMMENT ON COLUMN hema.order_drugs.override_reason IS
 -- Acumulado de dosis por paciente y fármaco
 -- ─────────────────────────────────────────
 
-CREATE TABLE hema.cumulative_doses (
+CREATE TABLE IF NOT EXISTS hema.cumulative_doses (
   patient_id       uuid    NOT NULL REFERENCES hema.patients(id),
   drug_id          uuid    NOT NULL REFERENCES hema.drugs(id),
   cumulative_mg_m2 numeric DEFAULT 0,

@@ -15,7 +15,7 @@
 -- de INSERT para authenticated/anon, así que un médico no puede escribir
 -- aquí directamente ni falsear su propio historial.
 
-CREATE TABLE public.doctor_specialty_history (
+CREATE TABLE IF NOT EXISTS public.doctor_specialty_history (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   doctor_id     uuid NOT NULL REFERENCES public.doctors(id) ON DELETE CASCADE,
   old_council   text,
@@ -31,6 +31,7 @@ ALTER TABLE public.doctor_specialty_history ENABLE ROW LEVEL SECURITY;
 -- El médico ve su propio historial; los admins ven todo. Nadie tiene
 -- policy de INSERT/UPDATE/DELETE — esas operaciones solo las hace
 -- service_role desde el backend, que bypassa RLS.
+DROP POLICY IF EXISTS "doctor_specialty_history_select" ON public.doctor_specialty_history;
 CREATE POLICY "doctor_specialty_history_select" ON public.doctor_specialty_history
   FOR SELECT USING (
     doctor_id IN (SELECT id FROM public.doctors WHERE user_id = auth.uid())

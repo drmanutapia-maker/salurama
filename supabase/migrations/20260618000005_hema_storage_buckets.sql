@@ -35,18 +35,21 @@ ON CONFLICT (id) DO NOTHING;
 --    en storage.objects; solo agregamos las políticas.
 -- ─────────────────────────────────────────────────────────────────────────────
 
+DROP POLICY IF EXISTS "hema_order_pdfs_select_own_tenant" ON storage.objects;
 CREATE POLICY "hema_order_pdfs_select_own_tenant" ON storage.objects
   FOR SELECT USING (
     bucket_id = 'hema-order-pdfs'
     AND (storage.foldername(name))[1] = hema.current_tenant_id()::text
   );
 
+DROP POLICY IF EXISTS "hema_order_pdfs_insert_own_tenant" ON storage.objects;
 CREATE POLICY "hema_order_pdfs_insert_own_tenant" ON storage.objects
   FOR INSERT WITH CHECK (
     bucket_id = 'hema-order-pdfs'
     AND (storage.foldername(name))[1] = hema.current_tenant_id()::text
   );
 
+DROP POLICY IF EXISTS "hema_order_pdfs_update_own_tenant" ON storage.objects;
 CREATE POLICY "hema_order_pdfs_update_own_tenant" ON storage.objects
   FOR UPDATE USING (
     bucket_id = 'hema-order-pdfs'
@@ -56,18 +59,21 @@ CREATE POLICY "hema_order_pdfs_update_own_tenant" ON storage.objects
     AND (storage.foldername(name))[1] = hema.current_tenant_id()::text
   );
 
+DROP POLICY IF EXISTS "hema_lab_images_select_own_tenant" ON storage.objects;
 CREATE POLICY "hema_lab_images_select_own_tenant" ON storage.objects
   FOR SELECT USING (
     bucket_id = 'hema-lab-images'
     AND (storage.foldername(name))[1] = hema.current_tenant_id()::text
   );
 
+DROP POLICY IF EXISTS "hema_lab_images_insert_own_tenant" ON storage.objects;
 CREATE POLICY "hema_lab_images_insert_own_tenant" ON storage.objects
   FOR INSERT WITH CHECK (
     bucket_id = 'hema-lab-images'
     AND (storage.foldername(name))[1] = hema.current_tenant_id()::text
   );
 
+DROP POLICY IF EXISTS "hema_lab_images_update_own_tenant" ON storage.objects;
 CREATE POLICY "hema_lab_images_update_own_tenant" ON storage.objects
   FOR UPDATE USING (
     bucket_id = 'hema-lab-images'

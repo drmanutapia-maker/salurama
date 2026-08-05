@@ -8,8 +8,15 @@
 -- — bloqueada hasta para admins. Se renombra a doctor_license_audit_log
 -- (nombre acordado) conservando los datos, y se le agrega la política que
 -- le faltaba.
-ALTER TABLE public.admin_verificaciones_sep RENAME TO doctor_license_audit_log;
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'admin_verificaciones_sep')
+     AND NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'doctor_license_audit_log') THEN
+    ALTER TABLE public.admin_verificaciones_sep RENAME TO doctor_license_audit_log;
+  END IF;
+END $$;
 
+DROP POLICY IF EXISTS "doctor_license_audit_log_admin_only" ON public.doctor_license_audit_log;
 CREATE POLICY "doctor_license_audit_log_admin_only" ON public.doctor_license_audit_log
   FOR ALL
   USING (EXISTS (SELECT 1 FROM public.admins WHERE admins.user_id = auth.uid()))
@@ -19,7 +26,7 @@ CREATE POLICY "doctor_license_audit_log_admin_only" ON public.doctor_license_aud
 -- adaptado a campos de COFEPRIS. Se llena desde
 -- app/api/dashboard/cofepris/guardar-numero cuando el médico guarda su
 -- número de aviso en el wizard.
-CREATE TABLE public.cofepris_audit_log (
+CREATE TABLE IF NOT EXISTS public.cofepris_audit_log (
   id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   doctor_id      uuid REFERENCES public.doctors(id) ON DELETE CASCADE,
   aviso_numero   text NOT NULL,
@@ -40,6 +47,7 @@ CREATE INDEX cofepris_audit_log_doctor_id_idx ON public.cofepris_audit_log(docto
 
 ALTER TABLE public.cofepris_audit_log ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "cofepris_audit_log_admin_only" ON public.cofepris_audit_log;
 CREATE POLICY "cofepris_audit_log_admin_only" ON public.cofepris_audit_log
   FOR ALL
   USING (EXISTS (SELECT 1 FROM public.admins WHERE admins.user_id = auth.uid()))
@@ -53,6 +61,7 @@ INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
 VALUES ('admin-documents', 'admin-documents', false, 5242880, ARRAY['application/pdf'])
 ON CONFLICT (id) DO NOTHING;
 
+DROP POLICY IF EXISTS "admin_documents_admin_only" ON storage.objects;
 CREATE POLICY "admin_documents_admin_only" ON storage.objects
   FOR ALL
   USING (

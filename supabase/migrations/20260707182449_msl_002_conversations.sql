@@ -7,7 +7,7 @@
 -- MIGRACIÓN MSL-002: Historial de conversaciones del chat
 -- ============================================================
 
-CREATE TABLE msl_conversations (
+CREATE TABLE IF NOT EXISTS msl_conversations (
   id          UUID        DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id     UUID        NOT NULL REFERENCES auth.users(id),
   specialty   TEXT        NOT NULL DEFAULT 'hematologia',
@@ -15,7 +15,7 @@ CREATE TABLE msl_conversations (
   created_at  TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE TABLE msl_messages (
+CREATE TABLE IF NOT EXISTS msl_messages (
   id               UUID        DEFAULT gen_random_uuid() PRIMARY KEY,
   conversation_id  UUID        NOT NULL REFERENCES msl_conversations(id) ON DELETE CASCADE,
   role             TEXT        NOT NULL CHECK (role IN ('user', 'assistant')),
@@ -27,11 +27,13 @@ CREATE TABLE msl_messages (
 ALTER TABLE msl_conversations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE msl_messages      ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users see own conversations" ON msl_conversations;
 CREATE POLICY "Users see own conversations"
   ON msl_conversations FOR ALL
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users see own messages" ON msl_messages;
 CREATE POLICY "Users see own messages"
   ON msl_messages FOR ALL
   USING (

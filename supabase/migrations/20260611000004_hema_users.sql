@@ -2,7 +2,7 @@
 -- Afecta schema: hema
 -- Reversión: DROP TABLE hema.users CASCADE;
 
-CREATE TABLE hema.users (
+CREATE TABLE IF NOT EXISTS hema.users (
   id                     uuid        PRIMARY KEY REFERENCES auth.users(id),
   tenant_id              uuid        NOT NULL REFERENCES hema.tenants(id),
   -- FK directa al perfil de Salurama (tabla public.doctors)

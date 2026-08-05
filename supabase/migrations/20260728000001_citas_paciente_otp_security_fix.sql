@@ -18,10 +18,10 @@
 -- patrón que review_token/verification_token en este proyecto) — válido
 -- ~15 minutos, verificado en el código de la aplicación, no en SQL.
 ALTER TABLE pacientes
-  ADD COLUMN otp_code_hash text,
-  ADD COLUMN otp_expires_at timestamptz,
-  ADD COLUMN otp_attempts integer NOT NULL DEFAULT 0,
-  ADD COLUMN otp_verified_at timestamptz;
+  ADD COLUMN IF NOT EXISTS otp_code_hash text,
+  ADD COLUMN IF NOT EXISTS otp_expires_at timestamptz,
+  ADD COLUMN IF NOT EXISTS otp_attempts integer NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS otp_verified_at timestamptz;
 
 -- Ya no hace falta que anon/authenticated llamen estas funciones directo —
 -- solo las rutas del servidor (con service role) las necesitan de aquí en

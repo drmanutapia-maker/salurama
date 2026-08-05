@@ -3,7 +3,7 @@
 -- Reversión: DROP TABLE hema.audit_anchors CASCADE;
 --            DROP TABLE hema.audit_log CASCADE;
 
-CREATE TABLE hema.audit_log (
+CREATE TABLE IF NOT EXISTS hema.audit_log (
   id            bigserial   PRIMARY KEY,
   tenant_id     uuid        NOT NULL,
   user_id       uuid,
@@ -39,7 +39,7 @@ CREATE RULE audit_no_delete AS ON DELETE TO hema.audit_log DO INSTEAD NOTHING;
 -- Anchors diarios en S3 object-lock
 -- ─────────────────────────────────────────
 
-CREATE TABLE hema.audit_anchors (
+CREATE TABLE IF NOT EXISTS hema.audit_anchors (
   id           uuid  PRIMARY KEY DEFAULT gen_random_uuid(),
   anchor_date  date  NOT NULL UNIQUE,
   row_hash     text  NOT NULL,

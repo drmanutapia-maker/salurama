@@ -9,14 +9,14 @@
 -- público.
 
 ALTER TABLE public.doctors
-  ADD COLUMN credentials_status text NOT NULL DEFAULT 'pendiente'
+  ADD COLUMN IF NOT EXISTS credentials_status text NOT NULL DEFAULT 'pendiente'
     CHECK (credentials_status IN ('pendiente', 'verificado', 'no_coincide')),
-  ADD COLUMN credentials_verified_at timestamptz;
+  ADD COLUMN IF NOT EXISTS credentials_verified_at timestamptz;
 
 -- Bitácora de constancias SEP subidas por el admin — mismo esqueleto que
 -- cofepris_audit_log, permisos admin-only idénticos. Cada fila es una
 -- constancia subida (permite historial si se sube una renovación).
-CREATE TABLE public.doctor_constancia_audit_log (
+CREATE TABLE IF NOT EXISTS public.doctor_constancia_audit_log (
   id                       uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   doctor_id                uuid REFERENCES public.doctors(id) ON DELETE CASCADE,
   folio                    text,
@@ -36,6 +36,7 @@ CREATE INDEX doctor_constancia_audit_log_doctor_id_idx ON public.doctor_constanc
 
 ALTER TABLE public.doctor_constancia_audit_log ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "doctor_constancia_audit_log_admin_only" ON public.doctor_constancia_audit_log;
 CREATE POLICY "doctor_constancia_audit_log_admin_only" ON public.doctor_constancia_audit_log
   FOR ALL
   USING (EXISTS (SELECT 1 FROM public.admins WHERE admins.user_id = auth.uid()))

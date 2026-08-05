@@ -11,7 +11,7 @@
 -- 1. Contador atómico por tenant
 -- ─────────────────────────────────────────────────────────────────────────────
 
-CREATE TABLE hema.tenant_patient_counters (
+CREATE TABLE IF NOT EXISTS hema.tenant_patient_counters (
   tenant_id       uuid    PRIMARY KEY REFERENCES hema.tenants(id),
   last_sequential int     NOT NULL DEFAULT 0
 );
@@ -24,7 +24,7 @@ COMMENT ON TABLE hema.tenant_patient_counters IS
 -- ─────────────────────────────────────────────────────────────────────────────
 
 ALTER TABLE hema.patients
-  ADD COLUMN expediente_sequential INT;
+  ADD COLUMN IF NOT EXISTS expediente_sequential INT;
 
 COMMENT ON COLUMN hema.patients.expediente_sequential IS
   'Consecutivo de expediente dentro del tenant, asignado por trigger. '

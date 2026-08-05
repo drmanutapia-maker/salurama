@@ -3,7 +3,7 @@
 -- Reversión: DROP TABLE hema.patient_diagnoses CASCADE;
 --            DROP TABLE hema.diagnoses CASCADE;
 
-CREATE TABLE hema.diagnoses (
+CREATE TABLE IF NOT EXISTS hema.diagnoses (
   code           text PRIMARY KEY,
   description_es text NOT NULL,
   description_en text,
@@ -26,7 +26,7 @@ COMMENT ON COLUMN hema.diagnoses.category IS
 -- Diagnósticos activos por paciente
 -- ─────────────────────────────────────────
 
-CREATE TABLE hema.patient_diagnoses (
+CREATE TABLE IF NOT EXISTS hema.patient_diagnoses (
   id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   patient_id     uuid NOT NULL REFERENCES hema.patients(id),
   diagnosis_code text NOT NULL REFERENCES hema.diagnoses(code),

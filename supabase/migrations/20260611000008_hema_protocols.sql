@@ -9,7 +9,7 @@
 -- Catálogo de fármacos
 -- ─────────────────────────────────────────
 
-CREATE TABLE hema.drugs (
+CREATE TABLE IF NOT EXISTS hema.drugs (
   id                      uuid    PRIMARY KEY DEFAULT gen_random_uuid(),
   inn                     text    NOT NULL UNIQUE,
   trade_names             text[]  DEFAULT '{}',
@@ -46,7 +46,7 @@ COMMENT ON COLUMN hema.drugs.requires_pft IS
 -- Protocolos de quimioterapia
 -- ─────────────────────────────────────────
 
-CREATE TABLE hema.protocols (
+CREATE TABLE IF NOT EXISTS hema.protocols (
   id                           uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   code                         text        NOT NULL UNIQUE,
   name                         text        NOT NULL,
@@ -78,7 +78,7 @@ COMMENT ON COLUMN hema.protocols.active IS
 -- Relación protocolo ↔ diagnósticos CIE-10
 -- ─────────────────────────────────────────
 
-CREATE TABLE hema.protocol_diagnoses (
+CREATE TABLE IF NOT EXISTS hema.protocol_diagnoses (
   protocol_id    uuid REFERENCES hema.protocols(id)  ON DELETE CASCADE,
   diagnosis_code text REFERENCES hema.diagnoses(code),
   is_preferred   boolean DEFAULT false,
@@ -93,7 +93,7 @@ COMMENT ON COLUMN hema.protocol_diagnoses.is_preferred IS
 -- Fármacos dentro de un protocolo (con dosis)
 -- ─────────────────────────────────────────
 
-CREATE TABLE hema.protocol_drugs (
+CREATE TABLE IF NOT EXISTS hema.protocol_drugs (
   id               uuid    PRIMARY KEY DEFAULT gen_random_uuid(),
   protocol_id      uuid    NOT NULL REFERENCES hema.protocols(id)  ON DELETE CASCADE,
   drug_id          uuid    NOT NULL REFERENCES hema.drugs(id),

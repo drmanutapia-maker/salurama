@@ -3,7 +3,7 @@
 -- Reversión: DROP TABLE hema.lab_values CASCADE;
 --            DROP TABLE hema.lab_panels CASCADE;
 
-CREATE TABLE hema.lab_panels (
+CREATE TABLE IF NOT EXISTS hema.lab_panels (
   id                        uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   patient_id                uuid        NOT NULL REFERENCES hema.patients(id),
   tenant_id                 uuid        NOT NULL REFERENCES hema.tenants(id),
@@ -39,7 +39,7 @@ COMMENT ON COLUMN hema.lab_panels.fhir_diagnostic_report_id IS
 -- Valores individuales de cada analito
 -- ─────────────────────────────────────────
 
-CREATE TABLE hema.lab_values (
+CREATE TABLE IF NOT EXISTS hema.lab_values (
   id              uuid    PRIMARY KEY DEFAULT gen_random_uuid(),
   panel_id        uuid    NOT NULL REFERENCES hema.lab_panels(id) ON DELETE CASCADE,
   loinc           text,

@@ -6,14 +6,14 @@
 -- (huérfana, con 5 entradas sin respaldo oficial) ni el diccionario
 -- hardcodeado del registro.
 
-CREATE TABLE public.conacem_councils (
+CREATE TABLE IF NOT EXISTS public.conacem_councils (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   specialty_name text NOT NULL UNIQUE,
   council_name  text NOT NULL,
   created_at    timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE TABLE public.specialty_granular_mapping (
+CREATE TABLE IF NOT EXISTS public.specialty_granular_mapping (
   id                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   granular_name      text NOT NULL UNIQUE,
   conacem_council_id uuid REFERENCES public.conacem_councils(id),
@@ -23,7 +23,7 @@ CREATE TABLE public.specialty_granular_mapping (
     CHECK (conacem_council_id IS NOT NULL OR exclusion_reason IS NOT NULL)
 );
 
-CREATE TABLE public.doctor_specialty_credentials (
+CREATE TABLE IF NOT EXISTS public.doctor_specialty_credentials (
   id                       uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   doctor_id                uuid NOT NULL REFERENCES public.doctors(id) ON DELETE CASCADE,
   specialty_mapping_id     uuid NOT NULL REFERENCES public.specialty_granular_mapping(id),
@@ -48,8 +48,10 @@ ALTER TABLE public.doctor_specialty_credentials ENABLE ROW LEVEL SECURITY;
 
 -- Catálogos: lectura pública (no son datos sensibles, son el mapeo de
 -- especialidad -> consejo, necesarios para el registro y editar-perfil).
+DROP POLICY IF EXISTS "conacem_councils_public_read" ON public.conacem_councils;
 CREATE POLICY "conacem_councils_public_read" ON public.conacem_councils
   FOR SELECT USING (true);
+DROP POLICY IF EXISTS "specialty_granular_mapping_public_read" ON public.specialty_granular_mapping;
 CREATE POLICY "specialty_granular_mapping_public_read" ON public.specialty_granular_mapping
   FOR SELECT USING (true);
 
@@ -58,14 +60,17 @@ CREATE POLICY "specialty_granular_mapping_public_read" ON public.specialty_granu
 -- estado, vigencia y certificación. Lectura pública solo si el médico dueño
 -- está activo (mismo criterio que la política pública de doctors) — así el
 -- perfil público puede filtrar por credentials_status sin necesitar sesión.
+DROP POLICY IF EXISTS "doctor_specialty_credentials_public_read" ON public.doctor_specialty_credentials;
 CREATE POLICY "doctor_specialty_credentials_public_read" ON public.doctor_specialty_credentials
   FOR SELECT USING (
     EXISTS (SELECT 1 FROM public.doctors WHERE doctors.id = doctor_specialty_credentials.doctor_id AND doctors.is_active = true)
   );
+DROP POLICY IF EXISTS "doctor_specialty_credentials_own_insert" ON public.doctor_specialty_credentials;
 CREATE POLICY "doctor_specialty_credentials_own_insert" ON public.doctor_specialty_credentials
   FOR INSERT WITH CHECK (
     EXISTS (SELECT 1 FROM public.doctors WHERE doctors.id = doctor_specialty_credentials.doctor_id AND doctors.email = auth.email())
   );
+DROP POLICY IF EXISTS "doctor_specialty_credentials_admin_all" ON public.doctor_specialty_credentials;
 CREATE POLICY "doctor_specialty_credentials_admin_all" ON public.doctor_specialty_credentials
   FOR ALL USING (
     EXISTS (SELECT 1 FROM public.admins WHERE admins.user_id = auth.uid())
@@ -121,7 +126,8 @@ INSERT INTO public.conacem_councils (specialty_name, council_name) VALUES
   ('Radioterapia', 'Consejo Mexicano de Certificación en Radioterapia'),
   ('Reumatología', 'Consejo Mexicano de Reumatología'),
   ('Salud Pública', 'Consejo Nacional de Salud Pública'),
-  ('Urología', 'Consejo Nacional Mexicano de Urología');
+  ('Urología', 'Consejo Nacional Mexicano de Urología')
+ON CONFLICT (specialty_name) DO NOTHING;
 
 -- ── Datos: mapeo de 112 especialidades granulares -> consejo CONACEM ────────
 -- (111 = 108 actuales del registro + 3 nuevas; +1 "Medicina General", que no
@@ -243,15 +249,16 @@ FROM (VALUES
   ('Salud Pública', 'Salud Pública', NULL),
   ('Medicina General', NULL, 'Sin consejo certificador reconocido por CONACEM')
 ) AS v(granular_name, council_specialty_name, exclusion_reason)
-LEFT JOIN public.conacem_councils cc ON cc.specialty_name = v.council_specialty_name;
+LEFT JOIN public.conacem_councils cc ON cc.specialty_name = v.council_specialty_name
+ON CONFLICT (granular_name) DO NOTHING;
 
 -- ── Retira de doctors los campos de visibilidad a nivel-médico ─────────────
 -- (su rol lo cumple ahora doctor_specialty_credentials, por especialidad)
 ALTER TABLE public.doctors
-  DROP COLUMN credentials_status,
-  DROP COLUMN credentials_verified_at,
-  DROP COLUMN specialty_verification_status,
-  DROP COLUMN specialty_council;
+  DROP COLUMN IF EXISTS credentials_status,
+  DROP COLUMN IF EXISTS credentials_verified_at,
+  DROP COLUMN IF EXISTS specialty_verification_status,
+  DROP COLUMN IF EXISTS specialty_council;
 
 -- ── Simplifica doctor_constancia_audit_log ──────────────────────────────────
 -- estado y specialty_vigencia_hasta ya no aplican a nivel de documento (un
@@ -259,5 +266,5 @@ ALTER TABLE public.doctors
 -- doctor_specialty_credentials (credentials_status, vigencia_hasta), que
 -- referencia de vuelta al documento vía source_constancia_id.
 ALTER TABLE public.doctor_constancia_audit_log
-  DROP COLUMN estado,
-  DROP COLUMN specialty_vigencia_hasta;
+  DROP COLUMN IF EXISTS estado,
+  DROP COLUMN IF EXISTS specialty_vigencia_hasta;

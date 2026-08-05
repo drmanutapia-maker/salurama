@@ -2,7 +2,7 @@
 -- Afecta schema: hema
 -- Reversión: DROP TABLE hema.signatures CASCADE;
 
-CREATE TABLE hema.signatures (
+CREATE TABLE IF NOT EXISTS hema.signatures (
   id                         uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   order_id                   uuid        NOT NULL REFERENCES hema.orders(id),
   user_id                    uuid        NOT NULL REFERENCES hema.users(id),

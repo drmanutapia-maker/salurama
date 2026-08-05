@@ -2,7 +2,7 @@
 -- Afecta schema: hema
 -- Reversión: DROP TABLE hema.patient_measurements CASCADE;
 
-CREATE TABLE hema.patient_measurements (
+CREATE TABLE IF NOT EXISTS hema.patient_measurements (
   id          uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   patient_id  uuid        NOT NULL REFERENCES hema.patients(id),
   measured_at timestamptz NOT NULL,

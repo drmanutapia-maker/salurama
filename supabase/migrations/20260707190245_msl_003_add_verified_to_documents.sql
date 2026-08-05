@@ -3,4 +3,4 @@
 -- solo faltaba el archivo local. Ver diagnóstico de desincronización de migraciones.
 -- Contenido extraído tal cual de supabase_migrations.schema_migrations.statements.
 
-ALTER TABLE msl_documents ADD COLUMN verified BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE msl_documents ADD COLUMN IF NOT EXISTS verified BOOLEAN NOT NULL DEFAULT false;

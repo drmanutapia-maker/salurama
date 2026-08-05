@@ -14,7 +14,7 @@
 --   DROP TABLE pacientes;
 
 -- ── pacientes ──────────────────────────────────────────────────────────────
-CREATE TABLE pacientes (
+CREATE TABLE IF NOT EXISTS pacientes (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   email text NOT NULL,
   telefono text,                    -- normalizado a 10 dígitos, NULL si no se dio o no es confiable
@@ -28,8 +28,8 @@ COMMENT ON TABLE pacientes IS
   'Base del chat médico-paciente (Paso 1 de 8).';
 
 -- ── columnas nuevas en citas ──────────────────────────────────────────────
-ALTER TABLE citas ADD COLUMN paciente_id uuid REFERENCES pacientes(id);
-ALTER TABLE citas ADD COLUMN completed_at timestamptz;
+ALTER TABLE citas ADD COLUMN IF NOT EXISTS paciente_id uuid REFERENCES pacientes(id);
+ALTER TABLE citas ADD COLUMN IF NOT EXISTS completed_at timestamptz;
 
 COMMENT ON COLUMN citas.paciente_id IS
   'Vínculo al paciente deducido por email/teléfono al agendar. NULL en citas anteriores a este cambio (sin backfill).';
