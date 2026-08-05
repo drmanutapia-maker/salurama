@@ -2,7 +2,6 @@
 
 import { Suspense, useState, useEffect, useCallback } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabaseClient'
 import { CheckCircle2, XCircle, Star, Loader2, ShieldCheck, Calendar, User, Sparkles, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 
@@ -56,43 +55,35 @@ function VerifyReviewContent() {
     e.preventDefault()
     if (!appointment || submitting) return
 
+    const token = searchParams.get('token')
+    if (!token) {
+      setErrorMsg('Token no proporcionado')
+      return
+    }
+
     setSubmitting(true)
     setErrorMsg('')
 
     try {
-      await supabase.from('reviews').insert({
-        doctor_id: appointment.medico_id,
-        rating,
-        comment: comment.trim() || null,
-        is_visible: true,
-        cita_id: appointment.id
+      const res = await fetch('/api/verify-review/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, rating, comment: comment.trim() || undefined }),
       })
+      const json = await res.json()
 
-      // Actualizar rating del médico
-      const { data: ratingData } = await supabase
-        .from('reviews')
-        .select('rating')
-        .eq('doctor_id', appointment.medico_id)
-
-      if (ratingData && ratingData.length > 0) {
-        const avg = ratingData.reduce((sum: number, r: any) => sum + r.rating, 0) / ratingData.length
-        await supabase
-          .from('doctors')
-          .update({ 
-            rating_avg: Math.round(avg * 10) / 10, 
-            rating_count: ratingData.length 
-          })
-          .eq('id', appointment.medico_id)
+      if (!res.ok) {
+        throw new Error(json.error || 'Error al guardar')
       }
 
       setStatus('submitted')
       setTimeout(() => router.replace(`/doctor/${appointment.medico_id}?review=thanks`), 2000)
     } catch (error: any) {
-      setErrorMsg(error.message?.includes('duplicate') ? 'Ya enviaste una reseña' : 'Error al guardar')
+      setErrorMsg(error.message || 'Error al guardar')
     } finally {
       setSubmitting(false)
     }
-  }, [appointment, rating, comment, submitting, router])
+  }, [appointment, rating, comment, submitting, router, searchParams])
 
   const doctorName = appointment?.doctorName || ''
   const formattedDate = appointment?.fecha
