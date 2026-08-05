@@ -2,8 +2,20 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
+import { Redis } from '@upstash/redis'
 
 export const dynamic = 'force-dynamic'
+
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+})
+
+function getClientIp(request: NextRequest): string {
+  const forwarded = request.headers.get('x-forwarded-for')
+  const realIp = request.headers.get('x-real-ip')
+  return forwarded?.split(',')[0].trim() || realIp || 'unknown'
+}
 
 async function getAnonSupabase() {
   const cookieStore = await cookies()
@@ -47,6 +59,28 @@ export async function POST(request: NextRequest) {
   const doctorId = typeof body.doctorId === 'string' ? body.doctorId : ''
   if (!UUID_RE.test(doctorId)) {
     return NextResponse.json({ ok: false }, { status: 400 })
+  }
+
+  const ip = getClientIp(request)
+
+  try {
+    const rateKey = `track_visit:${ip}`
+    const count = await redis.incr(rateKey)
+    if (count === 1) await redis.expire(rateKey, 600)
+    if (count > 60) {
+      return NextResponse.json({ ok: false }, { status: 429, headers: { 'Retry-After': '600' } })
+    }
+
+    // Evita que la misma IP infle el contador de un médico refrescando o
+    // repitiendo la solicitud — solo cuenta una visita real por (ip, doctor)
+    // cada 5 minutos.
+    const dedupeKey = `track_visit_dedupe:${ip}:${doctorId}`
+    const isNew = await redis.set(dedupeKey, '1', { nx: true, ex: 300 })
+    if (!isNew) {
+      return NextResponse.json({ ok: true, skipped: true }, { status: 200 })
+    }
+  } catch (redisError) {
+    console.error('[track-visit] Redis error:', redisError)
   }
 
   const anonClient = await getAnonSupabase()

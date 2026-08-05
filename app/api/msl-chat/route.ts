@@ -4,10 +4,23 @@ import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import OpenAI from 'openai'
 import Anthropic from '@anthropic-ai/sdk'
+import { Redis } from '@upstash/redis'
 import { PLAN_TO_TIER_CODE } from '@/lib/pricingTiers'
 import { isManuelEmail } from '@/lib/manuelOnly'
 
 export const dynamic = 'force-dynamic'
+
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+})
+
+// Throttle de ráfaga — independiente de la cuota diaria de abajo. Cada
+// mensaje cuesta dinero real (embedding + posible Haiku + Claude), así que
+// esto protege contra un script o un bug de reintento del cliente antes de
+// que la cuota diaria alcance a detenerlo.
+const BURST_LIMIT_PER_MINUTE = 5
+const BURST_LIMIT_PER_HOUR   = 30
 
 const EMBEDDING_MODEL = 'text-embedding-3-small'
 const CLAUDE_MODEL    = 'claude-sonnet-4-6'
@@ -284,6 +297,25 @@ export async function POST(request: NextRequest) {
   // mieloma) es insuficiente para uso general. Ver lib/manuelOnly.ts.
   if (!isManuelEmail(user.email)) {
     return err('MSL Virtual no está disponible por ahora.', 403)
+  }
+
+  try {
+    const minuteKey = `msl_chat_burst_min:${user.id}`
+    const hourKey    = `msl_chat_burst_hour:${user.id}`
+
+    const minuteCount = await redis.incr(minuteKey)
+    if (minuteCount === 1) await redis.expire(minuteKey, 60)
+    if (minuteCount > BURST_LIMIT_PER_MINUTE) {
+      return err('Demasiadas preguntas seguidas. Espera un minuto e intenta de nuevo.', 429, { 'Retry-After': '60' })
+    }
+
+    const hourCount = await redis.incr(hourKey)
+    if (hourCount === 1) await redis.expire(hourKey, 3600)
+    if (hourCount > BURST_LIMIT_PER_HOUR) {
+      return err('Demasiadas preguntas en la última hora. Intenta más tarde.', 429, { 'Retry-After': '3600' })
+    }
+  } catch (redisError) {
+    console.error(`[msl-chat:${requestId}] Redis error:`, redisError)
   }
 
   const db = getServiceSupabase()

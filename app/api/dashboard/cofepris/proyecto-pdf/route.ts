@@ -2,10 +2,16 @@ import { NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
+import { Redis } from '@upstash/redis'
 import { buildAvisoPublicidadPdf } from '@/lib/avisoPublicidadPdf'
 import { isManuelEmail } from '@/lib/manuelOnly'
 
 export const dynamic = 'force-dynamic'
+
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+})
 
 async function getAnonSupabase() {
   const cookieStore = await cookies()
@@ -42,6 +48,20 @@ export async function GET() {
   // Aviso de Publicidad COFEPRIS: excepción de cuenta, no de plan — ver lib/manuelOnly.ts
   if (!isManuelEmail(user.email)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+  }
+
+  try {
+    const rateKey = `cofepris_proyecto_pdf:${user.id}`
+    const count = await redis.incr(rateKey)
+    if (count === 1) await redis.expire(rateKey, 600)
+    if (count > 20) {
+      return NextResponse.json(
+        { error: 'Demasiadas solicitudes. Intenta en unos minutos.' },
+        { status: 429, headers: { 'Retry-After': '600' } }
+      )
+    }
+  } catch (redisError) {
+    console.error('[cofepris/proyecto-pdf] Redis error:', redisError)
   }
 
   const db = getServiceSupabase()
