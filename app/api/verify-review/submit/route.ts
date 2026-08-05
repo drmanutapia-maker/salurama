@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { Redis } from '@upstash/redis'
 import { z } from 'zod'
+import { verifyTurnstile } from '@/lib/security'
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL!,
@@ -12,6 +13,7 @@ const bodySchema = z.object({
   token: z.string().min(1).max(200),
   rating: z.number().int().min(1).max(5),
   comment: z.string().trim().max(500).optional(),
+  turnstileToken: z.string().min(1),
 })
 
 function getClientIp(request: NextRequest): string {
@@ -59,7 +61,11 @@ export async function POST(request: NextRequest) {
     if (!validation.success) {
       return NextResponse.json({ error: 'Datos inválidos' }, { status: 400, headers: securityHeaders })
     }
-    const { token, rating, comment } = validation.data
+    const { token, rating, comment, turnstileToken } = validation.data
+
+    if (!(await verifyTurnstile(turnstileToken, ip))) {
+      return NextResponse.json({ error: 'Verificación fallida' }, { status: 400, headers: securityHeaders })
+    }
 
     // Mismo query que /api/verify-review/lookup — el token se revalida aquí,
     // en el momento de insertar, en vez de confiar en que el cliente ya lo

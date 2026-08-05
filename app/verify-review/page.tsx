@@ -2,6 +2,7 @@
 
 import { Suspense, useState, useEffect, useCallback } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
+import { Turnstile } from '@marsidev/react-turnstile'
 import { CheckCircle2, XCircle, Star, Loader2, ShieldCheck, Calendar, User, Sparkles, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 
@@ -16,6 +17,7 @@ function VerifyReviewContent() {
   const [comment, setComment] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
+  const [turnstileToken, setTurnstileToken] = useState('')
 
   useEffect(() => {
     const token = searchParams.get('token')
@@ -60,6 +62,10 @@ function VerifyReviewContent() {
       setErrorMsg('Token no proporcionado')
       return
     }
+    if (!turnstileToken) {
+      setErrorMsg('Completa la verificación antes de enviar')
+      return
+    }
 
     setSubmitting(true)
     setErrorMsg('')
@@ -68,7 +74,7 @@ function VerifyReviewContent() {
       const res = await fetch('/api/verify-review/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, rating, comment: comment.trim() || undefined }),
+        body: JSON.stringify({ token, rating, comment: comment.trim() || undefined, turnstileToken }),
       })
       const json = await res.json()
 
@@ -83,7 +89,7 @@ function VerifyReviewContent() {
     } finally {
       setSubmitting(false)
     }
-  }, [appointment, rating, comment, submitting, router, searchParams])
+  }, [appointment, rating, comment, submitting, router, searchParams, turnstileToken])
 
   const doctorName = appointment?.doctorName || ''
   const formattedDate = appointment?.fecha
@@ -194,7 +200,11 @@ function VerifyReviewContent() {
               <textarea value={comment} onChange={(e) => setComment(e.target.value.slice(0, 500))} rows={4} placeholder="¿Qué te gustó de la consulta?" className="w-full px-4 py-3.5 border border-[#E2E8F0] rounded-2xl text-sm outline-none focus:ring-2 focus:ring-[#1E3A5F]/20 focus:border-[#1E3A5F] resize-none" />
             </div>
 
-            <button type="submit" disabled={submitting} className="w-full h-12 bg-[#0F172A] text-white rounded-2xl font-medium hover:bg-[#1E293B] disabled:opacity-60 flex items-center justify-center gap-2">
+            <div className="mb-8 flex justify-center">
+              <Turnstile siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!} onSuccess={setTurnstileToken} options={{ theme: 'light' }} />
+            </div>
+
+            <button type="submit" disabled={submitting || !turnstileToken} className="w-full h-12 bg-[#0F172A] text-white rounded-2xl font-medium hover:bg-[#1E293B] disabled:opacity-60 flex items-center justify-center gap-2">
               {submitting ? <><Loader2 size={18} className="animate-spin" />Enviando...</> : <><ShieldCheck size={18} />Publicar reseña verificada</>}
             </button>
           </form>

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { Turnstile } from '@marsidev/react-turnstile'
 import { Database, Quote, ShieldCheck, Send, Check } from 'lucide-react'
 
 type FormState = 'idle' | 'sending' | 'sent' | 'error'
@@ -9,6 +10,7 @@ type FormState = 'idle' | 'sending' | 'sent' | 'error'
 export default function ParaEmpresas() {
   const [form, setForm] = useState({ nombre: '', empresa: '', correo: '', mensaje: '' })
   const [state, setState] = useState<FormState>('idle')
+  const [turnstileToken, setTurnstileToken] = useState('')
 
   const handleChange = (field: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setForm(prev => ({ ...prev, [field]: e.target.value }))
@@ -22,13 +24,14 @@ export default function ParaEmpresas() {
       const res = await fetch('/api/contacto-empresas', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify(form),
+        body:    JSON.stringify({ ...form, turnstileToken }),
       })
 
       if (!res.ok) throw new Error('request failed')
 
       setState('sent')
       setForm({ nombre: '', empresa: '', correo: '', mensaje: '' })
+      setTurnstileToken('')
     } catch {
       setState('error')
     }
@@ -220,6 +223,10 @@ export default function ParaEmpresas() {
                 <textarea className="pe-input" required rows={4} style={{ resize: 'vertical' }} value={form.mensaje} onChange={handleChange('mensaje')} />
               </div>
 
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <Turnstile siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!} onSuccess={setTurnstileToken} options={{ theme: 'light' }} />
+              </div>
+
               {state === 'error' && (
                 <p style={{ fontSize: 13, color: '#DC2626' }}>
                   No se pudo enviar el mensaje. Intenta de nuevo o escríbenos directo a contacto@salurama.com.
@@ -228,11 +235,11 @@ export default function ParaEmpresas() {
 
               <button
                 type="submit"
-                disabled={state === 'sending'}
+                disabled={state === 'sending' || !turnstileToken}
                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                   background: '#1E3A5F', color: '#fff', border: 'none', borderRadius: 50, padding: '13px 20px',
-                  fontSize: 14, fontWeight: 700, cursor: state === 'sending' ? 'default' : 'pointer',
-                  opacity: state === 'sending' ? 0.6 : 1, fontFamily: "'DM Sans', sans-serif" }}
+                  fontSize: 14, fontWeight: 700, cursor: (state === 'sending' || !turnstileToken) ? 'default' : 'pointer',
+                  opacity: (state === 'sending' || !turnstileToken) ? 0.6 : 1, fontFamily: "'DM Sans', sans-serif" }}
               >
                 <Send size={15} />
                 {state === 'sending' ? 'Enviando...' : 'Enviar mensaje'}

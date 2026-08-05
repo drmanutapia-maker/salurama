@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import { z } from 'zod'
 import { sendB2BContactEmail } from '@/lib/email'
 import { isManuelEmail } from '@/lib/manuelOnly'
+import { verifyTurnstile } from '@/lib/security'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,7 +13,12 @@ const schema = z.object({
   empresa: z.string().min(1).max(200),
   correo:  z.string().email(),
   mensaje: z.string().min(1).max(5000),
+  turnstileToken: z.string().min(1),
 })
+
+function getClientIp(request: NextRequest): string {
+  return request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown'
+}
 
 async function getAnonSupabase() {
   const cookieStore = await cookies()
@@ -43,7 +49,12 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { nombre, empresa, correo, mensaje } = schema.parse(await request.json())
+    const { nombre, empresa, correo, mensaje, turnstileToken } = schema.parse(await request.json())
+
+    const ip = getClientIp(request)
+    if (!(await verifyTurnstile(turnstileToken, ip))) {
+      return NextResponse.json({ error: 'Verificación fallida' }, { status: 400 })
+    }
 
     if (!process.env.RESEND_API_KEY) {
       return NextResponse.json({ error: 'Email no configurado' }, { status: 503 })
