@@ -9,23 +9,35 @@ function toBase64(bytes: Uint8Array): string {
   return btoa(binary)
 }
 
-Deno.serve(async (req) => {
-  // Verificar que el request viene del cron (service_role JWT ya validado por el runtime)
-  const authHeader = req.headers.get('Authorization')
-  if (!authHeader) {
-    return new Response('Unauthorized', { status: 401 })
-  }
-
-  // Decodificar el JWT payload sin verificar firma (el runtime ya lo verificó)
+// Acepta tanto JWT clásico (payload.role === 'service_role') como el formato
+// nuevo de llaves de Supabase (sb_secret_.../sb_publishable_...), que no son
+// JWT — decodificarlas con atob(token.split('.')[1]) truena sin capturar
+// (mismo bug ya corregido en citas-reminder el 2026-08-04). Nunca lanza: un
+// token con formato inesperado simplemente no cuenta como service_role.
+function isServiceRoleToken(authHeader: string): boolean {
   const token = authHeader.replace('Bearer ', '')
-  const payload = JSON.parse(atob(token.split('.')[1]))
-  if (payload.role !== 'service_role') {
+
+  if (token.startsWith('sb_secret_')) return true
+  if (token.startsWith('sb_publishable_')) return false
+
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]))
+    return payload.role === 'service_role'
+  } catch {
+    return false
+  }
+}
+
+Deno.serve(async (req) => {
+  // Verificar que el request viene del cron (service_role ya validado por el runtime)
+  const authHeader = req.headers.get('Authorization')
+  if (!authHeader || !isServiceRoleToken(authHeader)) {
     return new Response('Unauthorized', { status: 401 })
   }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  const dbUrl = Deno.env.get('SUPABASE_DB_URL')!
+  const dbUrl = Deno.env.get('DB_POOLER_URL')!
 
   // Anchor covers yesterday's entries — cron fires at 00:01 UTC so "yesterday"
   // is unambiguous and all prior day's writes are already committed.
@@ -33,7 +45,19 @@ Deno.serve(async (req) => {
   const yesterday = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - 1))
   const anchorDate = yesterday.toISOString().slice(0, 10)
 
-  const sql = postgres(dbUrl, { max: 1 })
+  // prepare: false — requisito del modo transacción del pooler (Supavisor):
+  // no soporta prepared statements, cada conexión puede caer en un backend
+  // de Postgres distinto entre queries.
+  let sql: ReturnType<typeof postgres>
+  try {
+    sql = postgres(dbUrl, { max: 1, prepare: false })
+  } catch (err) {
+    console.error('hema-audit-anchor: error creando conexión:', err)
+    return new Response(
+      JSON.stringify({ ok: false, error: 'db_connect_failed', detail: String(err) }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    )
+  }
   try {
     // Idempotent: pg_cron could retry on transient failure
     const [existing] = await sql`
@@ -147,6 +171,12 @@ Deno.serve(async (req) => {
         otsAnchored: otsProofB64 !== null,
       }),
       { headers: { 'Content-Type': 'application/json' } }
+    )
+  } catch (err) {
+    console.error('hema-audit-anchor: error fatal:', err)
+    return new Response(
+      JSON.stringify({ ok: false, error: String(err) }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
     )
   } finally {
     await sql.end()

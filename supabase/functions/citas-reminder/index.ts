@@ -82,7 +82,7 @@ Deno.serve(async (req) => {
     return new Response('Unauthorized', { status: 401 })
   }
 
-  const dbUrl = Deno.env.get('SUPABASE_DB_URL')
+  const dbUrl = Deno.env.get('DB_POOLER_URL')
   const resendApiKey = Deno.env.get('RESEND_API_KEY')
   if (!dbUrl || !resendApiKey) {
     return new Response(
@@ -90,7 +90,19 @@ Deno.serve(async (req) => {
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     )
   }
-  const sql = postgres(dbUrl, { max: 1 })
+  // prepare: false — requisito del modo transacción del pooler (Supavisor):
+  // no soporta prepared statements, cada conexión puede caer en un backend
+  // de Postgres distinto entre queries.
+  let sql: ReturnType<typeof postgres>
+  try {
+    sql = postgres(dbUrl, { max: 1, prepare: false })
+  } catch (err) {
+    console.error('citas-reminder: error creando conexión:', err)
+    return new Response(
+      JSON.stringify({ ok: false, error: 'db_connect_failed', detail: String(err) }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    )
+  }
   try {
     // Ventana de 2h (23-25h) para tolerar granularidad horaria del cron sin duplicar
     // ni saltarse citas. reminder_sent_at IS NULL evita reenvíos si el cron reintenta.
