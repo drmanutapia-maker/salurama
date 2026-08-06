@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
 
     const { data: salas, error: salasError } = await supabase
       .from('chat_salas')
-      .select('id, medico_id, cita_actual_id')
+      .select('id, medico_id, paciente_id, cita_actual_id')
       .in('paciente_id', pacientes.map(p => p.id))
       .not('token_hash', 'is', null)
 
@@ -149,42 +149,67 @@ export async function POST(request: NextRequest) {
 
     const nombrePorMedicoId = new Map((doctors || []).map(d => [d.id, d.full_name]))
 
-    const chatsParaEnviar: { medicoNombre: string; chatUrl: string }[] = []
+    // Evaluación de "sesión cerrada" batcheada (mismo criterio exacto que la
+    // función SQL sesion_cerrada()) en vez de un rpc por sala.
+    const citaIds = [...new Set(salas.map(s => s.cita_actual_id))]
+    const { data: citasRows, error: citasError } = await supabase
+      .from('citas')
+      .select('id, estado, completed_at')
+      .in('id', citaIds)
 
-    for (const sala of salas) {
-      const { data: cerrada, error: cerradaError } = await supabase
-        .rpc('sesion_cerrada', { p_cita_id: sala.cita_actual_id })
-
-      if (cerradaError) {
-        console.error(`[${requestId}] Error evaluando sesion_cerrada para sala ${sala.id}:`, cerradaError)
-        continue
-      }
-      if (cerrada) continue
-
-      // Rotación intencional: a diferencia de emitirTokenSiFalta (Paso 5), aquí
-      // sí se pisa un token_hash existente — el link anterior queda invalidado.
-      const token = generarToken()
-      const hash = hashToken(token)
-
-      const { error: updateError } = await supabase
-        .from('chat_salas')
-        .update({ token_hash: hash })
-        .eq('id', sala.id)
-
-      if (updateError) {
-        console.error(`[${requestId}] Error rotando token de sala ${sala.id}:`, updateError)
-        continue
-      }
-
-      chatsParaEnviar.push({
-        medicoNombre: nombrePorMedicoId.get(sala.medico_id) || 'tu médico',
-        chatUrl: `${process.env.NEXT_PUBLIC_URL || 'https://salurama.com'}/chat/${token}`,
-      })
+    if (citasError) {
+      console.error(`[${requestId}] Error evaluando estado de citas:`, citasError)
+      return NextResponse.json({ error: 'Error al procesar la solicitud' }, { status: 500, headers: { ...securityHeaders, 'X-Request-ID': requestId } })
     }
 
-    if (chatsParaEnviar.length === 0) {
+    const citaById = new Map((citasRows || []).map(c => [c.id, c]))
+
+    function estaCerrada(cita: { estado: string; completed_at: string | null } | undefined): boolean {
+      if (!cita) return true // sin cita real = tratar como cerrada
+      if (cita.estado === 'cancelled') return true
+      if (cita.estado === 'completed') {
+        if (!cita.completed_at) return true // sin completed_at = cerrada, mismo criterio que sesion_cerrada()
+        return Date.now() > new Date(cita.completed_at).getTime() + 72 * 60 * 60 * 1000
+      }
+      return false
+    }
+
+    const salasAbiertas = salas.filter(sala => !estaCerrada(citaById.get(sala.cita_actual_id)))
+
+    if (salasAbiertas.length === 0) {
       return respuestaGenerica(requestId)
     }
+
+    // Rotación intencional: a diferencia de emitirTokenSiFalta (Paso 5), aquí
+    // sí se pisa un token_hash existente — el link anterior queda invalidado.
+    const rotaciones = salasAbiertas.map(sala => {
+      const token = generarToken()
+      return { sala, token, hash: hashToken(token) }
+    })
+
+    // Un solo upsert batcheado en vez de N updates secuenciales. Incluye las
+    // columnas NOT NULL sin cambio (medico_id, paciente_id, cita_actual_id)
+    // para que el conflicto por id solo actualice token_hash sin tocar el
+    // resto.
+    const { error: updateError } = await supabase
+      .from('chat_salas')
+      .upsert(rotaciones.map(({ sala, hash }) => ({
+        id: sala.id,
+        medico_id: sala.medico_id,
+        paciente_id: sala.paciente_id,
+        cita_actual_id: sala.cita_actual_id,
+        token_hash: hash,
+      })))
+
+    if (updateError) {
+      console.error(`[${requestId}] Error rotando tokens:`, updateError)
+      return NextResponse.json({ error: 'Error al procesar la solicitud' }, { status: 500, headers: { ...securityHeaders, 'X-Request-ID': requestId } })
+    }
+
+    const chatsParaEnviar = rotaciones.map(({ sala, token }) => ({
+      medicoNombre: nombrePorMedicoId.get(sala.medico_id) || 'tu médico',
+      chatUrl: `${process.env.NEXT_PUBLIC_URL || 'https://salurama.com'}/chat/${token}`,
+    }))
 
     try {
       await sendChatLinkReenvioEmail(email, chatsParaEnviar)

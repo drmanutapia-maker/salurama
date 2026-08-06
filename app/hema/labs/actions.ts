@@ -104,18 +104,18 @@ export async function createLabPanel(formData: FormData): Promise<CreateLabPanel
     return { success: false, error: `Error al crear panel de laboratorio: ${panelError.message}` }
   }
 
-  for (const v of values) {
-    const { error: valueError } = await supabase.rpc('hema_add_lab_value', {
-      p_panel_id:        panelId as string,
-      p_analyte:         v.analyte,
-      p_value:           v.value,
-      p_unit:            v.unit ?? null,
-      p_reference_low:   v.reference_low ?? null,
-      p_reference_high:  v.reference_high ?? null,
-    })
-    if (valueError) {
-      return { success: false, error: `Error al guardar ${v.analyte}: ${valueError.message}` }
-    }
+  const { error: valuesError } = await supabase.rpc('hema_add_lab_values', {
+    p_panel_id: panelId as string,
+    p_values: values.map(v => ({
+      analyte:        v.analyte,
+      value:          v.value,
+      unit:           v.unit ?? null,
+      reference_low:  v.reference_low ?? null,
+      reference_high: v.reference_high ?? null,
+    })),
+  })
+  if (valuesError) {
+    return { success: false, error: `Error al guardar los valores de laboratorio: ${valuesError.message}` }
   }
 
   return { success: true, panelId: panelId as string }
