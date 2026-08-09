@@ -33,6 +33,26 @@ export async function emitirTokenSiFalta(
   return token
 }
 
+/**
+ * A diferencia de emitirTokenSiFalta, esta SIEMPRE pisa el token_hash actual
+ * (exista o no) — mismo patrón que ya usaba /api/chat/reenviar-link. Cualquier
+ * link de chat que el paciente tuviera guardado de antes queda invalidado.
+ */
+export async function rotarToken(
+  supabase: SupabaseClient,
+  salaId: string
+): Promise<string> {
+  const token = generarToken()
+  const hash = hashToken(token)
+
+  await supabase
+    .from('chat_salas')
+    .update({ token_hash: hash })
+    .eq('id', salaId)
+
+  return token
+}
+
 export interface SesionChatVerificada {
   salaId: string
   medicoId: string

@@ -1,10 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { SupabaseClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
-import { enviarLinkChatSiPrimeraVez } from '@/lib/chat/enviarLinkChat'
+import { rotarToken } from '@/lib/chat/token'
 
 function sanitize(str: string): string {
   return str.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]!))
+}
+
+// Resuelve la chat_sala de este par médico+paciente y rota su token — mismo
+// patrón que /api/chat/reenviar-link. Se llama tanto si la cita se acaba de
+// confirmar como si ya estaba confirmada de antes (ver comentario en el
+// handler): cualquier clic en el link de verificación debe poder llevar al
+// paciente a un chat con token válido, sin importar quién confirmó primero.
+async function resolverTokenDeChat(
+  supabase: SupabaseClient,
+  medicoId: string,
+  pacienteId: string | null
+): Promise<string | null> {
+  if (!pacienteId) return null
+
+  const { data: sala, error } = await supabase
+    .from('chat_salas')
+    .select('id')
+    .eq('medico_id', medicoId)
+    .eq('paciente_id', pacienteId)
+    .maybeSingle()
+
+  if (error || !sala) {
+    console.warn('[verificar-cita] chat_sala no encontrada para', { medicoId, pacienteId, error })
+    return null
+  }
+
+  return rotarToken(supabase, sala.id)
 }
 
 export async function POST(request: NextRequest) {
@@ -36,8 +64,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Este enlace no es válido o ya expiró.' }, { status: 404 })
   }
 
+  // Ya estaba confirmada (por ejemplo, el médico la confirmó primero desde su
+  // dashboard) — no hay nada que actualizar ni al médico que notificar, pero
+  // igual se rota el token y se manda al paciente a su chat, en vez de
+  // dejarlo en una pantalla que no lleva a ningún lado.
   if (cita.estado === 'confirmed') {
-    return NextResponse.json({ alreadyConfirmed: true })
+    const chatToken = await resolverTokenDeChat(supabase, cita.medico_id, cita.paciente_id)
+    return NextResponse.json({ alreadyConfirmed: true, chatToken })
   }
 
   if (cita.expires_at && new Date(cita.expires_at) < new Date()) {
@@ -54,27 +87,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Error al confirmar la cita. Intenta de nuevo.' }, { status: 500 })
   }
 
+  if (!cita.paciente_id) {
+    console.warn('[verificar-cita] Cita sin paciente_id, se omite el link de chat:', cita.id)
+  }
+  const chatToken = await resolverTokenDeChat(supabase, cita.medico_id, cita.paciente_id)
+
   // Notificar al médico — service_role bypassa RLS, sin restricciones
   const { data: medico } = await supabase
     .from('doctors')
     .select('email, full_name')
     .eq('id', cita.medico_id)
     .single()
-
-  if (cita.paciente_id && cita.paciente_email && medico?.full_name) {
-    try {
-      await enviarLinkChatSiPrimeraVez(supabase, {
-        medicoId: cita.medico_id,
-        pacienteId: cita.paciente_id,
-        pacienteEmail: cita.paciente_email,
-        medicoNombre: medico.full_name,
-      })
-    } catch (chatLinkError) {
-      console.error('[verificar-cita] Error al procesar el link de chat:', chatLinkError)
-    }
-  } else if (!cita.paciente_id) {
-    console.warn('[verificar-cita] Cita sin paciente_id, se omite el link de chat:', cita.id)
-  }
 
   if (medico?.email && process.env.RESEND_API_KEY) {
     const resend = new Resend(process.env.RESEND_API_KEY)
@@ -127,5 +150,5 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({ success: true })
+  return NextResponse.json({ success: true, chatToken })
 }

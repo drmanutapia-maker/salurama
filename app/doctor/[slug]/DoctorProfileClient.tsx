@@ -948,7 +948,12 @@ export default function DoctorProfileClient({
   }
 
   return (
-    <div className={`${fraunces.variable} ${dmSans.variable}`} style={{ minHeight: '100vh', background: '#F9FAFB', fontFamily: 'var(--font-dm-sans), sans-serif', color: '#111827', paddingBottom: 100 }}>
+    // paddingBottom reserva espacio para la barra sticky de "Agendar Cita" de
+    // abajo — 120 (no 100) porque incluye la leyenda de recuperación de
+    // acceso agregada debajo del botón; con 100 el texto de arriba quedaba
+    // tapado al hacer scroll hasta el fondo. La leyenda es de una sola línea
+    // (antes eran 2, con 140), así que necesita menos espacio extra que antes.
+    <div className={`${fraunces.variable} ${dmSans.variable}`} style={{ minHeight: '100vh', background: '#F9FAFB', fontFamily: 'var(--font-dm-sans), sans-serif', color: '#111827', paddingBottom: 120 }}>
 
             {doctorSchema && (
         <script
@@ -1468,16 +1473,21 @@ export default function DoctorProfileClient({
 
       {/* Sticky bottom bar */}
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: 'rgba(255, 255, 255, 0.98)', backdropFilter: 'blur(12px)', padding: '16px 20px', zIndex: 1000, borderTop: '1px solid #E5E7EB', boxShadow: '0 -4px 20px rgba(0,0,0,0.05)' }}>
-        <div style={{ maxWidth: 600, margin: '0 auto', display: 'flex', gap: 12, alignItems: 'center' }}>
-          {(precioPrimera || precioSubsecuente) && (
-            <div style={{ flex: '0 0 auto', textAlign: 'center', minWidth: 80 }}>
-              <p style={{ fontSize: 10, color: '#9CA3AF', textTransform: 'uppercase', fontWeight: 600 }}>Desde</p>
-              <p style={{ fontFamily: 'var(--font-fraunces), serif', fontSize: 18, fontWeight: 900, color: '#1E3A5F' }}>${precioSubsecuente || precioPrimera}</p>
-            </div>
-          )}
-          <button onClick={() => setShowAppointmentModal(true)} style={{ flex: 1, background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)', color: '#fff', border: 'none', borderRadius: 12, padding: '14px 24px', fontSize: 14, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: '0 4px 14px rgba(139, 92, 246, 0.3)' }}>
-            <Calendar size={16} /> Agendar Cita
-          </button>
+        <div style={{ maxWidth: 600, margin: '0 auto' }}>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            {(precioPrimera || precioSubsecuente) && (
+              <div style={{ flex: '0 0 auto', textAlign: 'center', minWidth: 80 }}>
+                <p style={{ fontSize: 10, color: '#9CA3AF', textTransform: 'uppercase', fontWeight: 600 }}>Desde</p>
+                <p style={{ fontFamily: 'var(--font-fraunces), serif', fontSize: 18, fontWeight: 900, color: '#1E3A5F' }}>${precioSubsecuente || precioPrimera}</p>
+              </div>
+            )}
+            <button onClick={() => setShowAppointmentModal(true)} style={{ flex: 1, background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)', color: '#fff', border: 'none', borderRadius: 12, padding: '14px 24px', fontSize: 14, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: '0 4px 14px rgba(139, 92, 246, 0.3)' }}>
+              <Calendar size={16} /> Agendar Cita
+            </button>
+          </div>
+          <Link href="/chat/recuperar" style={{ display: 'block', textAlign: 'center', marginTop: 8, fontSize: 12, color: '#6B7280', textDecoration: 'none' }}>
+            ¿Ya tienes cita? Chatea con tu médico aquí
+          </Link>
         </div>
       </div>
 

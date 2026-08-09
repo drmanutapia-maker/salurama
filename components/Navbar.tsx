@@ -36,11 +36,15 @@ export default function Navbar() {
     { href: '/buscar', label: 'Especialidades' },
     { href: '/como-elegir-medico', label: '¿Cómo elegir médico?' },
     { href: '/nosotros', label: 'Nosotros' },
+    { href: '/chat/recuperar', label: '¿Ya agendaste una cita?' },
   ]
 
   // El chat del paciente (/chat/[token]) es una pantalla aislada sin sesión:
-  // el paciente nunca debe ver el logo ni el menú de Salurama ahí.
-  if (pathname?.startsWith('/chat/')) return null
+  // el paciente nunca debe ver el logo ni el menú de Salurama ahí. OJO:
+  // /chat/recuperar es una página pública normal (aparece arriba en
+  // navLinks) — un startsWith('/chat/') sin más también la ocultaba a ella,
+  // dejándola sin Navbar cuando sí debe tenerlo.
+  if (pathname?.startsWith('/chat/') && pathname !== '/chat/recuperar') return null
 
   return (
     <nav data-version="v5-unificado" style={{ position: 'fixed', top: 0, left: 0, right: 0, background: '#fff', borderBottom: '1px solid #E5E7EB', zIndex: 1000, height: 72 }}>

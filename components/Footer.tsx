@@ -10,8 +10,14 @@ export default function Footer() {
   // el Footer haría que el documento exceda el viewport y el navegador
   // arranque con scroll de window desplazado hacia abajo. En /hema/educacion
   // el disclaimer NOM-004 de HemaLayout sí se mantiene (es de cumplimiento,
-  // no de marketing) — solo este Footer se oculta.
-  if (pathname?.startsWith('/dashboard/msl-virtual') || pathname?.startsWith('/hema/educacion') || pathname?.startsWith('/chat/')) return null
+  // no de marketing) — solo este Footer se oculta. /chat/recuperar es una
+  // página pública normal (no una pantalla de chat aislada) — sí debe llevar
+  // Footer, un startsWith('/chat/') sin más también se lo quitaba.
+  if (
+    pathname?.startsWith('/dashboard/msl-virtual') ||
+    pathname?.startsWith('/hema/educacion') ||
+    (pathname?.startsWith('/chat/') && pathname !== '/chat/recuperar')
+  ) return null
 
   return (
     <footer

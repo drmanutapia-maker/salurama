@@ -6,14 +6,29 @@ import { generarToken, hashToken } from '@/lib/chat/token'
 import { sendChatLinkReenvioEmail } from '@/lib/email'
 
 const bodySchema = z.object({
-  email: z.string().trim().toLowerCase().email().max(254),
+  email: z.string().trim().toLowerCase().email().max(254).optional(),
+  telefono: z.string().trim().min(1).max(20).optional(),
   turnstileToken: z.string().min(1),
+}).refine(data => !!data.email !== !!data.telefono, {
+  message: 'Proporciona correo o teléfono, no ambos',
 })
 
 function getClientIp(request: NextRequest): string {
   const forwarded = request.headers.get('x-forwarded-for')
   const realIp = request.headers.get('x-real-ip')
   return forwarded?.split(',')[0].trim() || realIp || 'unknown'
+}
+
+// Mismo criterio de normalización que el trigger vincular_paciente_cita()
+// (10 dígitos, sin lada de país 52/521/1) — así el teléfono que escribe el
+// paciente aquí coincide con el que quedó guardado en pacientes.telefono al
+// agendar, sin importar el formato en que lo haya tecleado.
+function normalizarTelefono(raw: string): string | null {
+  let digitos = raw.replace(/\D/g, '')
+  if (digitos.length === 12 && digitos.startsWith('52')) digitos = digitos.slice(2)
+  else if (digitos.length === 13 && digitos.startsWith('521')) digitos = digitos.slice(3)
+  else if (digitos.length === 11 && digitos.startsWith('1')) digitos = digitos.slice(1)
+  return digitos.length === 10 ? digitos : null
 }
 
 const securityHeaders = {
@@ -23,11 +38,13 @@ const securityHeaders = {
   'Referrer-Policy': 'strict-origin-when-cross-origin',
 }
 
-// Mismo mensaje exista o no el correo en el sistema — nunca revela si un
-// email tiene chats activos (mismo principio que /api/citas/buscar-paciente).
+// Mismo mensaje exista o no el dato en el sistema — nunca revela si un
+// correo/teléfono tiene chats activos (mismo principio que
+// /api/citas/buscar-paciente). No distingue si se buscó por correo o
+// teléfono, por la misma razón.
 function respuestaGenerica(requestId: string) {
   return NextResponse.json(
-    { success: true, message: 'Si ese correo tiene chats activos, te llegará un correo con el link.' },
+    { success: true, message: 'Si esos datos tienen chats activos, te llegará un correo con el link.' },
     { headers: { ...securityHeaders, 'X-Request-ID': requestId } }
   )
 }
@@ -76,10 +93,11 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validation = bodySchema.safeParse(body)
     if (!validation.success) {
-      return NextResponse.json({ error: 'Correo inválido' }, { status: 400, headers: securityHeaders })
+      return NextResponse.json({ error: 'Correo o teléfono inválido' }, { status: 400, headers: securityHeaders })
     }
 
-    const { email, turnstileToken } = validation.data
+    const { email, telefono, turnstileToken } = validation.data
+    const telefonoNormalizado = telefono ? normalizarTelefono(telefono) : null
 
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 5000)
@@ -108,10 +126,35 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Error de verificación' }, { status: 400, headers: securityHeaders })
     }
 
-    const { data: pacientes, error: pacientesError } = await supabase
-      .from('pacientes')
-      .select('id')
-      .eq('email', email)
+    // Teléfono con formato irreconocible: se trata igual que "no encontrado"
+    // (misma respuesta genérica) — ya se validó Turnstile arriba, así que
+    // esto no le ahorra a un bot el costo de resolver el challenge.
+    if (telefono && !telefonoNormalizado) {
+      return respuestaGenerica(requestId)
+    }
+
+    // Segundo límite, por contacto (no por IP): el mismo correo/teléfono
+    // buscado solo puede rotar un token cada 15 min, sin importar desde qué
+    // IP se pida. Evita que alguien invalide repetidamente el link de otra
+    // persona cambiando de red. Bloqueo silencioso — misma respuesta
+    // genérica de siempre, para no revelar que ese contacto existe ni que
+    // se alcanzó este límite.
+    const contactoKey = `reenviar_link_contacto:${email || telefonoNormalizado}`
+    try {
+      const contactoCount = await redis.incr(contactoKey)
+      if (contactoCount === 1) await redis.expire(contactoKey, 900)
+      if (contactoCount > 1) {
+        console.warn(`[${requestId}] Contact rate limit exceeded (silent)`)
+        return respuestaGenerica(requestId)
+      }
+    } catch (redisError) {
+      console.error(`[${requestId}] Redis error (contact rate limit):`, redisError)
+    }
+
+    const pacientesQuery = supabase.from('pacientes').select('id, email')
+    const { data: pacientes, error: pacientesError } = email
+      ? await pacientesQuery.eq('email', email)
+      : await pacientesQuery.eq('telefono', telefonoNormalizado!)
 
     if (pacientesError) {
       console.error(`[${requestId}] Error buscando pacientes:`, pacientesError)
@@ -121,6 +164,11 @@ export async function POST(request: NextRequest) {
     if (!pacientes || pacientes.length === 0) {
       return respuestaGenerica(requestId)
     }
+
+    // El destino del correo siempre es pacientes.email — si se buscó por
+    // teléfono, el link nunca se manda al teléfono (no hay canal SMS), se
+    // manda a la dirección ya registrada para ese paciente.
+    const emailPorPacienteId = new Map(pacientes.map(p => [p.id, p.email]))
 
     const { data: salas, error: salasError } = await supabase
       .from('chat_salas')
@@ -166,7 +214,7 @@ export async function POST(request: NextRequest) {
 
     function estaCerrada(cita: { estado: string; completed_at: string | null } | undefined): boolean {
       if (!cita) return true // sin cita real = tratar como cerrada
-      if (cita.estado === 'cancelled') return true
+      if (cita.estado === 'cancelled' || cita.estado === 'cancelada_paciente') return true
       if (cita.estado === 'completed') {
         if (!cita.completed_at) return true // sin completed_at = cerrada, mismo criterio que sesion_cerrada()
         return Date.now() > new Date(cita.completed_at).getTime() + 72 * 60 * 60 * 1000
@@ -206,16 +254,29 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Error al procesar la solicitud' }, { status: 500, headers: { ...securityHeaders, 'X-Request-ID': requestId } })
     }
 
-    const chatsParaEnviar = rotaciones.map(({ sala, token }) => ({
-      medicoNombre: nombrePorMedicoId.get(sala.medico_id) || 'tu médico',
-      chatUrl: `${process.env.NEXT_PUBLIC_URL || 'https://salurama.com'}/chat/${token}`,
-    }))
-
-    try {
-      await sendChatLinkReenvioEmail(email, chatsParaEnviar)
-    } catch (emailError) {
-      console.error(`[${requestId}] Error enviando correo de reenvío:`, emailError)
+    // Agrupado por email destino (no por el dato que se buscó): si la
+    // búsqueda fue por teléfono, o si ese teléfono resultó ligado a más de
+    // un paciente con correos distintos, cada quien recibe solo sus chats.
+    const chatsPorEmail = new Map<string, { medicoNombre: string; chatUrl: string }[]>()
+    for (const { sala, token } of rotaciones) {
+      const destino = emailPorPacienteId.get(sala.paciente_id)
+      if (!destino) continue
+      const chat = {
+        medicoNombre: nombrePorMedicoId.get(sala.medico_id) || 'tu médico',
+        chatUrl: `${process.env.NEXT_PUBLIC_URL || 'https://salurama.com'}/chat/${token}`,
+      }
+      chatsPorEmail.set(destino, [...(chatsPorEmail.get(destino) || []), chat])
     }
+
+    await Promise.all(
+      Array.from(chatsPorEmail.entries()).map(async ([destino, chats]) => {
+        try {
+          await sendChatLinkReenvioEmail(destino, chats)
+        } catch (emailError) {
+          console.error(`[${requestId}] Error enviando correo de reenvío:`, emailError)
+        }
+      })
+    )
 
     return respuestaGenerica(requestId)
   } catch (error) {

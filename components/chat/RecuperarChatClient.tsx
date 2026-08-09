@@ -1,26 +1,33 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
 import { Turnstile } from '@marsidev/react-turnstile'
+import BackButton from '@/components/BackButton'
 
 type Estado = 'idle' | 'enviando' | 'enviado' | 'limite' | 'error'
+type Modo = 'email' | 'telefono'
 
 export default function RecuperarChatClient() {
-  const [email, setEmail] = useState('')
+  const [modo, setModo] = useState<Modo>('email')
+  const [valor, setValor] = useState('')
   const [turnstileToken, setTurnstileToken] = useState('')
   const [estado, setEstado] = useState<Estado>('idle')
   const [minutosEspera, setMinutosEspera] = useState(60)
 
+  const cambiarModo = (nuevoModo: Modo) => {
+    setModo(nuevoModo)
+    setValor('')
+  }
+
   const enviar = async () => {
-    if (!email.trim() || !turnstileToken || estado === 'enviando') return
+    if (!valor.trim() || !turnstileToken || estado === 'enviando') return
     setEstado('enviando')
 
     try {
       const res = await fetch('/api/chat/reenviar-link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), turnstileToken }),
+        body: JSON.stringify({ [modo]: valor.trim(), turnstileToken }),
       })
 
       if (res.status === 429) {
@@ -43,11 +50,11 @@ export default function RecuperarChatClient() {
 
   if (estado === 'enviado') {
     return (
-      <div className="flex items-center justify-center bg-neutral-50 px-6" style={{ height: '100svh' }}>
+      <div className="flex items-center justify-center bg-neutral-50 px-6" style={{ minHeight: '100svh' }}>
         <div className="max-w-sm text-center">
           <p className="font-body font-semibold text-base text-neutral-700 mb-2">Listo</p>
           <p className="font-body text-sm text-neutral-500 leading-relaxed">
-            Si ese correo tiene chats activos, te llegará un correo en unos minutos con el link. Revisa también spam.
+            Si esos datos tienen chats activos, te llegará un correo en unos minutos con el link. Revisa también spam.
           </p>
         </div>
       </div>
@@ -57,19 +64,45 @@ export default function RecuperarChatClient() {
   return (
     <div className="flex items-center justify-center bg-neutral-50 px-6" style={{ minHeight: '100svh' }}>
       <div className="w-full max-w-sm py-10">
+        <div className="mb-6">
+          <BackButton />
+        </div>
         <h1 className="font-body font-semibold text-xl text-neutral-900 mb-2 text-center">
           ¿Perdiste el acceso a tu chat?
         </h1>
         <p className="font-body text-sm text-neutral-500 leading-relaxed text-center mb-6">
-          Escribe el correo con el que agendaste tu cita y te reenviamos el link.
+          Indica el correo o el teléfono con el que agendaste tu cita y te enviaremos el enlace a tu correo.
         </p>
 
         <div className="flex flex-col gap-4">
+          <div className="flex rounded-xl bg-neutral-100 p-1">
+            <button
+              type="button"
+              onClick={() => cambiarModo('email')}
+              disabled={estado === 'enviando'}
+              className={`flex-1 rounded-lg py-2 font-body text-sm font-semibold transition-colors disabled:opacity-50 ${
+                modo === 'email' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500'
+              }`}
+            >
+              Correo
+            </button>
+            <button
+              type="button"
+              onClick={() => cambiarModo('telefono')}
+              disabled={estado === 'enviando'}
+              className={`flex-1 rounded-lg py-2 font-body text-sm font-semibold transition-colors disabled:opacity-50 ${
+                modo === 'telefono' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500'
+              }`}
+            >
+              Teléfono
+            </button>
+          </div>
+
           <input
-            type="email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            placeholder="correo@ejemplo.com"
+            type={modo === 'email' ? 'email' : 'tel'}
+            value={valor}
+            onChange={e => setValor(e.target.value)}
+            placeholder={modo === 'email' ? 'correo@ejemplo.com' : '55 1234 5678'}
             disabled={estado === 'enviando'}
             className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 font-body text-sm text-neutral-800 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary-300 disabled:opacity-50 transition-colors"
           />
@@ -92,15 +125,11 @@ export default function RecuperarChatClient() {
 
           <button
             onClick={enviar}
-            disabled={estado === 'enviando' || !email.trim() || !turnstileToken}
+            disabled={estado === 'enviando' || !valor.trim() || !turnstileToken}
             className="w-full flex items-center justify-center rounded-xl bg-primary-500 text-white font-body font-semibold text-sm py-3 disabled:opacity-40 hover:bg-primary-600 active:bg-primary-700 transition-colors"
           >
             {estado === 'enviando' ? 'Enviando...' : 'Enviar'}
           </button>
-
-          <Link href="/" className="font-body text-xs text-neutral-400 text-center hover:text-neutral-600 transition-colors">
-            Volver al inicio
-          </Link>
         </div>
       </div>
     </div>

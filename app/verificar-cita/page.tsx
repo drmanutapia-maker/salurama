@@ -32,6 +32,15 @@ function VerificarCitaContent() {
           return
         }
 
+        // Camino feliz: directo al chat, sin pantalla de éxito intermedia.
+        // Se queda en 'loading' hasta que la navegación reemplace la página.
+        if (data.chatToken) {
+          router.replace(`/chat/${data.chatToken}`)
+          return
+        }
+
+        // Sin chatToken (caso raro, ej. cita sin paciente_id vinculado) —
+        // mostramos el mensaje genérico como red de seguridad.
         setStatus('success')
         setMessage(data.alreadyConfirmed ? 'Esta cita ya estaba confirmada.' : '¡Cita confirmada con éxito!')
       } catch {
