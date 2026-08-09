@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -785,6 +785,12 @@ export default function DoctorProfileClient({
   const [copiedToast, setCopiedToast] = useState(false)
   const touchStartRef = useRef<{ x: number; y: number } | null>(null)
   const badgeRef = useRef<HTMLSpanElement>(null)
+  const tooltipRef = useRef<HTMLSpanElement>(null)
+  // Offset del tooltip relativo al badge (no "left: 50%" fijo) — se
+  // recalcula cada vez que se abre para que nunca quede cortado por el
+  // borde de la pantalla, sin importar en qué parte de la línea cayó el
+  // badge cuando el nombre se envolvió a dos líneas.
+  const [tooltipOffsetPx, setTooltipOffsetPx] = useState(0)
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768)
@@ -813,6 +819,20 @@ export default function DoctorProfileClient({
     }
     document.addEventListener('mousedown', cerrar)
     return () => document.removeEventListener('mousedown', cerrar)
+  }, [mostrarTooltipBadge])
+
+  // Centra el tooltip sobre el badge, pero recorta (clamp) contra los bordes
+  // de la ventana — antes usaba left:50%/translateX(-50%) fijo, que se salía
+  // de la pantalla cuando el badge caía cerca del borde derecho en móvil.
+  useLayoutEffect(() => {
+    if (!mostrarTooltipBadge || !badgeRef.current || !tooltipRef.current) return
+    const margen = 8
+    const badgeRect = badgeRef.current.getBoundingClientRect()
+    const tooltipWidth = tooltipRef.current.offsetWidth
+    const idealLeftEnViewport = badgeRect.left + badgeRect.width / 2 - tooltipWidth / 2
+    const maxLeft = window.innerWidth - tooltipWidth - margen
+    const clampedLeftEnViewport = Math.min(Math.max(idealLeftEnViewport, margen), Math.max(margen, maxLeft))
+    setTooltipOffsetPx(clampedLeftEnViewport - badgeRect.left)
   }, [mostrarTooltipBadge])
 
   useEffect(() => {
@@ -1061,21 +1081,32 @@ export default function DoctorProfileClient({
             )}
           </div>
           <div>
-            <h1 style={{ fontFamily: 'var(--font-fraunces), serif', fontSize: isMobile ? 28 : 40, fontWeight: 900, color: '#1E3A5F', marginBottom: 4, lineHeight: 1.1, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span>{titlePrefix}{displayName}</span>
+            <h1 style={{ fontFamily: 'var(--font-fraunces), serif', fontSize: isMobile ? 28 : 40, fontWeight: 900, color: '#1E3A5F', marginBottom: 4, lineHeight: 1.1 }}>
+              {titlePrefix}{displayName}
               {mostrarBadgePerfilCompleto && (
+                // inline-flex (no un hijo flex del h1) a propósito: así el
+                // badge fluye con el texto del nombre y se envuelve junto a
+                // la última palabra si el nombre se parte en dos líneas, en
+                // vez de quedar centrado verticalmente sobre las dos líneas.
                 <span
                   ref={badgeRef}
                   role="img"
                   aria-label="Perfil completo, con consultas reales atendidas en Salurama."
-                  style={{ position: 'relative', display: 'inline-flex', cursor: 'pointer', flexShrink: 0 }}
+                  style={{ position: 'relative', display: 'inline-flex', verticalAlign: 'middle', marginLeft: 8, cursor: 'pointer' }}
                   onMouseEnter={() => setMostrarTooltipBadge(true)}
                   onMouseLeave={() => setMostrarTooltipBadge(false)}
-                  onClick={() => setMostrarTooltipBadge(v => !v)}
+                  // Solo abre (no alterna): con onMouseEnter ya abriéndolo,
+                  // un toggle aquí hacía que un clic sobre el badge ya en
+                  // hover lo cerrara de inmediato. Cerrar en móvil lo cubre
+                  // el listener de "tocar fuera" de abajo.
+                  onClick={() => setMostrarTooltipBadge(true)}
                 >
                   <BaculoEsculapio size={isMobile ? 16 : 20} color="#2A9D8F" />
                   {mostrarTooltipBadge && (
-                    <span style={{ position: 'absolute', bottom: '130%', left: '50%', transform: 'translateX(-50%)', background: '#1E3A5F', color: '#fff', fontSize: 11, fontWeight: 600, padding: '8px 12px', borderRadius: 8, width: 200, maxWidth: '70vw', textAlign: 'center', lineHeight: 1.4, zIndex: 20, boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
+                    <span
+                      ref={tooltipRef}
+                      style={{ position: 'absolute', bottom: '130%', left: tooltipOffsetPx, background: '#1E3A5F', color: '#fff', fontSize: 11, fontWeight: 600, padding: '8px 12px', borderRadius: 8, width: 200, maxWidth: 'calc(100vw - 32px)', textAlign: 'center', lineHeight: 1.4, zIndex: 20, boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}
+                    >
                       Perfil completo, con consultas reales atendidas en Salurama.
                     </span>
                   )}
@@ -1083,6 +1114,12 @@ export default function DoctorProfileClient({
               )}
             </h1>
             <p style={{ fontSize: 15, color: '#6B7280', marginBottom: 12 }}>{medico.specialty}{medico.sub_specialty && ` · ${medico.sub_specialty}`}</p>
+            {(medico.ciudad || medico.estado) && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#6B7280', fontSize: 13, marginBottom: 16 }}>
+                <MapPin size={14} />
+                {medico.ciudad}{medico.estado ? `, ${getStateLabel(medico.estado)}` : ''}
+              </div>
+            )}
 
             {(tieneRedes || true) && (
               <div style={{ display: 'flex', gap: 10, marginBottom: 16, alignItems: 'center' }}>
@@ -1160,12 +1197,6 @@ export default function DoctorProfileClient({
                     )}
                   </div>
                 </div>
-              </div>
-            )}
-            {(medico.ciudad || medico.estado) && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#6B7280', fontSize: 13 }}>
-                <MapPin size={14} />
-                {medico.ciudad}{medico.estado ? `, ${getStateLabel(medico.estado)}` : ''}
               </div>
             )}
           </div>
