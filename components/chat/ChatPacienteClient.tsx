@@ -40,6 +40,7 @@ type SesionData = {
   medicoFotoUrl: string | null
   citaFecha: string | null
   citaHora: string | null
+  citaEstado: string | null
   citas: Map<string, CitaInfo>
 }
 
@@ -58,6 +59,29 @@ function formatFecha(fecha: string | null, hora: string | null): string {
   return hora ? `${fechaFmt} · ${hora.slice(0, 5)}` : fechaFmt
 }
 
+// Hora de envío de un mensaje/archivo (createdAt, timestamp ISO) — formato
+// corto tipo "10:32 am", independiente de formatFecha() que es para el par
+// fecha/hora de una cita, no para un timestamp.
+function formatHoraEnvio(iso: string): string {
+  const d = new Date(iso)
+  const minutos = d.getMinutes().toString().padStart(2, '0')
+  const sufijo = d.getHours() >= 12 ? 'pm' : 'am'
+  const horas12 = d.getHours() % 12 || 12
+  return `${horas12}:${minutos} ${sufijo}`
+}
+
+// Separador de fecha por día calendario real de envío — mismo patrón "Hoy /
+// Ayer / fecha corta" que ya usa ConversacionesLista.tsx para "última
+// actividad". Reemplaza el agrupado anterior por citaId.
+function formatSeparadorFecha(iso: string): string {
+  const d = new Date(iso)
+  const hoy = new Date()
+  if (d.toDateString() === hoy.toDateString()) return 'Hoy'
+  const ayer = new Date(Date.now() - 86400000)
+  if (d.toDateString() === ayer.toDateString()) return 'Ayer'
+  return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'long' })
+}
+
 export default function ChatPacienteClient({ token }: { token: string }) {
   const [pagina, setPagina] = useState<EstadoPagina>('cargando')
   const [tipoError, setTipoError] = useState<TipoError>('temporal')
@@ -68,6 +92,9 @@ export default function ChatPacienteClient({ token }: { token: string }) {
   const [subiendoArchivo, setSubiendoArchivo] = useState(false)
   const [errorArchivo, setErrorArchivo] = useState<string | null>(null)
   const [abriendoArchivoId, setAbriendoArchivoId] = useState<string | null>(null)
+  const [confirmandoCancelar, setConfirmandoCancelar] = useState(false)
+  const [cancelando, setCancelando] = useState(false)
+  const [errorCancelar, setErrorCancelar] = useState<string | null>(null)
 
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -112,6 +139,7 @@ export default function ChatPacienteClient({ token }: { token: string }) {
         medicoFotoUrl: data.medicoFotoUrl,
         citaFecha: data.citaFecha,
         citaHora: data.citaHora,
+        citaEstado: data.citaEstado,
         citas: new Map((data.citas || []).map((c: CitaInfo) => [c.id, c])),
       })
       setPagina('ok')
@@ -124,6 +152,30 @@ export default function ChatPacienteClient({ token }: { token: string }) {
       primeraCarga.current = false
     }
   }, [token])
+
+  const cancelarCita = async () => {
+    if (cancelando) return
+    setCancelando(true)
+    setErrorCancelar(null)
+    try {
+      const res = await fetch('/api/chat/paciente/cancelar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) {
+        setErrorCancelar(data?.error || 'No se pudo cancelar la cita. Intenta de nuevo.')
+        return
+      }
+      setConfirmandoCancelar(false)
+      await cargarSesion()
+    } catch {
+      setErrorCancelar('No se pudo cancelar la cita. Intenta de nuevo.')
+    } finally {
+      setCancelando(false)
+    }
+  }
 
   useEffect(() => {
     cargarSesion()
@@ -312,7 +364,7 @@ export default function ChatPacienteClient({ token }: { token: string }) {
 
   if (!sesion) return null
 
-  let ultimaCitaMostrada: string | null = null
+  let ultimoDiaMostrado: string | null = null
 
   return (
     <div className="flex flex-col bg-white" style={{ height: '100svh' }}>
@@ -327,31 +379,67 @@ export default function ChatPacienteClient({ token }: { token: string }) {
         <div className="min-w-0">
           <p className="font-body font-semibold text-sm text-neutral-900 truncate">{sesion.medicoNombre || 'Tu médico'}</p>
           {(sesion.citaFecha) && (
-            <p className="font-body text-xs text-neutral-500 truncate">{formatFecha(sesion.citaFecha, sesion.citaHora)}</p>
+            <p className="font-body text-xs text-neutral-500 truncate">Próxima cita: {formatFecha(sesion.citaFecha, sesion.citaHora)}</p>
           )}
         </div>
+        {(sesion.citaEstado === 'pending_verification' || sesion.citaEstado === 'confirmed') && !confirmandoCancelar && (
+          <button
+            onClick={() => { setConfirmandoCancelar(true); setErrorCancelar(null) }}
+            className="shrink-0 font-body text-xs font-semibold text-error-600 hover:text-error-700 transition-colors"
+          >
+            Cancelar cita
+          </button>
+        )}
+        {sesion.citaEstado === 'cancelada_paciente' && (
+          <p className="shrink-0 font-body text-xs text-neutral-400">Cancelaste esta cita</p>
+        )}
       </div>
+
+      {confirmandoCancelar && (
+        <div className="shrink-0 border-b border-neutral-200 bg-neutral-50 px-4 py-3">
+          <p className="font-body text-sm text-neutral-700 mb-2">¿Seguro que quieres cancelar tu cita?</p>
+          {errorCancelar && (
+            <p className="font-body text-xs text-error-600 mb-2">{errorCancelar}</p>
+          )}
+          <div className="flex gap-2">
+            <button
+              onClick={cancelarCita}
+              disabled={cancelando}
+              className="font-body text-xs font-semibold text-white bg-error-600 hover:bg-error-700 disabled:opacity-50 rounded-lg px-3 py-2 transition-colors"
+            >
+              {cancelando ? 'Cancelando...' : 'Sí, cancelar cita'}
+            </button>
+            <button
+              onClick={() => { setConfirmandoCancelar(false); setErrorCancelar(null) }}
+              disabled={cancelando}
+              className="font-body text-xs font-semibold text-neutral-600 hover:text-neutral-800 disabled:opacity-50 rounded-lg px-3 py-2 transition-colors"
+            >
+              No, mantener cita
+            </button>
+          </div>
+        </div>
+      )}
 
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 pt-4">
         {sesion.items.length === 0 ? (
           <p className="text-center text-sm text-neutral-400 pt-8">Aún no hay mensajes en esta conversación</p>
         ) : (
           sesion.items.map(item => {
-            const mostrarSeparador = item.citaId !== ultimaCitaMostrada
-            ultimaCitaMostrada = item.citaId
+            const diaItem = new Date(item.createdAt).toDateString()
+            const mostrarSeparador = diaItem !== ultimoDiaMostrado
+            ultimoDiaMostrado = diaItem
             const isPaciente = item.remitente === 'paciente'
-            const citaItem = sesion.citas.get(item.citaId)
 
             return (
               <div key={`${item.tipo}-${item.id}`}>
                 {mostrarSeparador && (
                   <div className="flex items-center justify-center my-4">
                     <div className="px-3 py-1.5 rounded-full bg-neutral-100 text-xs text-neutral-500 text-center">
-                      {citaItem ? formatFecha(citaItem.fecha, citaItem.hora) : 'Conversación'}
+                      {formatSeparadorFecha(item.createdAt)}
                     </div>
                   </div>
                 )}
-                <div className={`flex mb-3 ${isPaciente ? 'justify-end' : 'justify-start'}`}>
+                <div className={`flex flex-col mb-3 ${isPaciente ? 'items-end' : 'items-start'}`}>
                   {item.tipo === 'mensaje' ? (
                     <div
                       className={[
@@ -377,6 +465,7 @@ export default function ChatPacienteClient({ token }: { token: string }) {
                       <span className="truncate">{item.nombreOriginal}</span>
                     </button>
                   )}
+                  <span className="font-body text-[10px] text-neutral-400 mt-1 px-1">{formatHoraEnvio(item.createdAt)}</span>
                 </div>
               </div>
             )
@@ -386,6 +475,9 @@ export default function ChatPacienteClient({ token }: { token: string }) {
 
       {sesion.puedeEscribir ? (
         <div className="shrink-0 border-t border-neutral-200 bg-white px-4 pt-3 pb-3">
+          <p className="font-body text-xs text-neutral-400 mb-2">
+            Chatea con tu médico — disponible hasta 72 horas después de que se marque tu consulta como atendida.
+          </p>
           {avisoEnvio && <p className="font-body text-xs text-error-600 mb-2">{avisoEnvio}</p>}
           {errorArchivo && <p className="font-body text-xs text-error-600 mb-2">{errorArchivo}</p>}
           <div className="flex items-end gap-2">

@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
     ]))
     const { data: citasData } = await supabase
       .from('citas')
-      .select('id, fecha, hora')
+      .select('id, fecha, hora, estado')
       .in('id', citaIds)
 
     const citaVigente = citasData?.find(c => c.id === sesion.citaActualId)
@@ -137,6 +137,7 @@ export async function POST(request: NextRequest) {
         medicoFotoUrl: medicoRes.data?.photo_url || null,
         citaFecha: citaVigente?.fecha || null,
         citaHora: citaVigente?.hora || null,
+        citaEstado: citaVigente?.estado || null,
         citas: citasData || [],
       },
       { headers: { ...securityHeaders, 'X-Request-ID': requestId } }

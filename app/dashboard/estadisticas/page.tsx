@@ -9,7 +9,7 @@ import type { Benchmark, BenchmarkGrupo } from '@/lib/estadisticasData'
 
 interface Cita {
   id: string
-  estado: 'pending_verification' | 'confirmed' | 'completed' | 'cancelled'
+  estado: 'pending_verification' | 'confirmed' | 'completed' | 'cancelled' | 'cancelada_paciente'
   fecha: string
 }
 

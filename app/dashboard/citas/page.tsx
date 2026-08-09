@@ -1,38 +1,17 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { getUserSafe } from '@/lib/getUserSafe'
-import {
-  ArrowLeft, MessageCircle, Calendar, Phone, Mail, MapPin,
-  FileText, Send, CheckCircle, XCircle, Check
-} from 'lucide-react'
-import ConversacionesLista, { ConversacionResumen } from '@/components/chat/ConversacionesLista'
-import ConversacionChat from '@/components/chat/ConversacionChat'
+import { Calendar, X, CheckCircle, XCircle } from 'lucide-react'
+import CitaCard from '@/components/citas/CitaCard'
+import CalendarioMensual from '@/components/citas/CalendarioMensual'
+import { Cita, MedicoData } from '@/lib/citas/types'
+import { formatFecha } from '@/lib/citas/fechas'
 
-interface Cita {
-  id: string
-  paciente_nombre: string
-  paciente_email: string
-  paciente_telefono: string
-  fecha: string
-  hora: string
-  motivo: string | null
-  estado: 'pending_verification' | 'confirmed' | 'completed' | 'cancelled'
-  created_at: string
-  review_token?: string | null
-}
+type Tab = 'todas' | 'pending_verification' | 'confirmed' | 'completed' | 'cancelled'
 
-interface MedicoData {
-  id: string
-  full_name: string
-  specialty: string
-  clinic_lat: number | null
-  clinic_lng: number | null
-  clinic_phone: string | null
-}
-
-type Tab = 'todas' | 'pending_verification' | 'confirmed' | 'completed' | 'mensajes'
+const citaWord = (n: number) => n === 1 ? 'cita' : 'citas'
 
 export default function CitasPage() {
   const router = useRouter()
@@ -43,7 +22,38 @@ export default function CitasPage() {
   const [tab, setTab] = useState<Tab>('todas')
   const [procesando, setProcesando] = useState<string | null>(null)
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
-  const [conversacionSeleccionada, setConversacionSeleccionada] = useState<ConversacionResumen | null>(null)
+  const [rechazando, setRechazando] = useState<string | null>(null)
+  const [motivoRechazo, setMotivoRechazo] = useState('')
+  const [enviandoRechazo, setEnviandoRechazo] = useState(false)
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const [isMobile, setIsMobile] = useState(false)
+  const listaRef = useRef<HTMLDivElement>(null)
+  const [listaMaxHeight, setListaMaxHeight] = useState<number | null>(null)
+
+  // Mismo patrón que DoctorProfileClient.tsx — misma página, sin ruta aparte.
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+
+  // Alto disponible medido en vivo (no un número fijo adivinado): el
+  // calendario y la lista deben caber en pantalla sin scroll de página, y la
+  // altura del encabezado de arriba (tabs, nombre del médico, etc.) puede
+  // variar. Se mide la posición real de la lista y se le resta a la altura
+  // de la ventana, dejando un margen chico abajo.
+  useLayoutEffect(() => {
+    if (isMobile) return
+    function medir() {
+      if (!listaRef.current) return
+      const top = listaRef.current.getBoundingClientRect().top
+      setListaMaxHeight(Math.max(200, window.innerHeight - top - 24))
+    }
+    medir()
+    window.addEventListener('resize', medir)
+    return () => window.removeEventListener('resize', medir)
+  }, [isMobile, tab, selectedDate, citas.length])
 
   const showToast = (msg: string, type: 'success' | 'error') => {
     setToast({ msg, type })
@@ -160,85 +170,136 @@ export default function CitasPage() {
     }
   }
 
-  const getWhatsAppLink = (phone: string, fecha: string, hora: string, nombre: string) => {
-    const clean = phone.replace(/\D/g, '')
-    const d = new Date(fecha + 'T00:00:00')
-    const fechaFormateada = d.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })
-    
-    const nombreMedico = medico?.full_name || 'el médico'
-    
-    // Convertir especialidad a profesión
-    const esp = medico?.specialty?.toLowerCase() || ''
-    let profesion = ''
-    
-    if (esp.includes('alergolog')) profesion = 'alergólogo'
-    else if (esp.includes('anestesiolog')) profesion = 'anestesiólogo'
-    else if (esp.includes('angiolog')) profesion = 'angiólogo'
-    else if (esp.includes('cardiolog')) profesion = 'cardiólogo'
-    else if (esp.includes('cirug')) profesion = 'cirujano'
-    else if (esp.includes('dermatolog')) profesion = 'dermatólogo'
-    else if (esp.includes('endocrinolog')) profesion = 'endocrinólogo'
-    else if (esp.includes('gastroenterolog')) profesion = 'gastroenterólogo'
-    else if (esp.includes('geriatr')) profesion = 'geriatra'
-    else if (esp.includes('hematolog')) profesion = 'hematólogo'
-    else if (esp.includes('infectolog')) profesion = 'infectólogo'
-    else if (esp.includes('medicina crítica')) profesion = 'intensivista'
-    else if (esp.includes('medicina familiar')) profesion = 'médico familiar'
-    else if (esp.includes('medicina física')) profesion = 'médico de rehabilitación'
-    else if (esp.includes('medicina interna')) profesion = 'internista'
-    else if (esp.includes('medicina general')) profesion = 'médico general'
-    else if (esp.includes('nefrolog')) profesion = 'nefrólogo'
-    else if (esp.includes('neonatolog')) profesion = 'neonatólogo'
-    else if (esp.includes('neumolog')) profesion = 'neumólogo'
-    else if (esp.includes('neurocirug')) profesion = 'neurocirujano'
-    else if (esp.includes('neurolog')) profesion = 'neurólogo'
-    else if (esp.includes('nutric')) profesion = 'nutriólogo'
-    else if (esp.includes('oncolog')) profesion = 'oncólogo'
-    else if (esp.includes('oftalmolog')) profesion = 'oftalmólogo'
-    else if (esp.includes('ortopedia') || esp.includes('traumatolog')) profesion = 'traumatólogo'
-    else if (esp.includes('otorrinolaringolog')) profesion = 'otorrinolaringólogo'
-    else if (esp.includes('patolog')) profesion = 'patólogo'
-    else if (esp.includes('pediatr')) profesion = 'pediatra'
-    else if (esp.includes('psiquiatr')) profesion = 'psiquiatra'
-    else if (esp.includes('radiolog')) profesion = 'radiólogo'
-    else if (esp.includes('reumatolog')) profesion = 'reumatólogo'
-    else if (esp.includes('urolog')) profesion = 'urólogo'
-    else if (esp.includes('ginecolog') || esp.includes('obstetric')) profesion = 'ginecólogo'
-    else profesion = medico?.specialty || ''
-    
-    let msg = `Hola ${nombre}, soy el Dr. ${nombreMedico}`
-    if (profesion) msg += `, ${profesion}`
-    msg += `.%0ATe espero en tu cita el ${fechaFormateada} a las ${hora?.slice(0, 5)}.`
-    
-    if (medico?.clinic_lat && medico?.clinic_lng) {
-      msg += `%0A📍 Cómo llegar: https://maps.google.com/?q=${medico.clinic_lat},${medico.clinic_lng}`
+  const confirmarRechazo = async (citaId: string) => {
+    const motivo = motivoRechazo.trim()
+    if (!motivo || enviandoRechazo) return
+
+    setEnviandoRechazo(true)
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.access_token) {
+      showToast('Error al rechazar la cita', 'error')
+      setEnviandoRechazo(false)
+      return
     }
-    
-    msg += `%0A¿Tienes alguna duda? Confírmame por favor.`
-    
-    return `https://wa.me/52${clean}?text=${msg}`
+
+    try {
+      const res = await fetch('/api/citas/rechazar', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ citaId, motivo }),
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) {
+        showToast(data?.error || 'Error al rechazar la cita', 'error')
+        return
+      }
+
+      setCitas(prev => prev.map(c => c.id === citaId ? { ...c, estado: 'cancelled', rejection_reason: motivo } : c))
+      setRechazando(null)
+      setMotivoRechazo('')
+      showToast('Cita rechazada', 'success')
+    } catch {
+      showToast('Error al rechazar la cita', 'error')
+    } finally {
+      setEnviandoRechazo(false)
+    }
   }
 
-  const formatFecha = (fechaStr: string) => {
-    const d = new Date(fechaStr + 'T00:00:00')
-    const hoy = new Date().toISOString().split('T')[0]
-    const ayer = new Date(Date.now() - 86400000).toISOString().split('T')[0]
-    if (fechaStr === hoy) return 'Hoy'
-    if (fechaStr === ayer) return 'Ayer'
-    return d.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })
-  }
+  // Sin fecha seleccionada: el tab de estado manda, como antes. Con fecha
+  // seleccionada (clic en el calendario): manda la fecha, se ven todos los
+  // estados de ese día — es más útil ver "qué tengo el día X" completo que
+  // cruzarlo con el tab activo.
+  const esCancelada = (c: Cita) => c.estado === 'cancelled' || c.estado === 'cancelada_paciente'
 
-  const isFutura = (fechaStr: string) => new Date(fechaStr + 'T00:00') > new Date()
-
-  const statusColors: Record<string, { bg: string; text: string; label: string }> = {
-    pending_verification: { bg: '#FEF3C7', text: '#92400E', label: 'Pendiente' },
-    confirmed: { bg: '#DCFCE7', text: '#059669', label: 'Confirmada' },
-    cancelled: { bg: '#FEE2E2', text: '#DC2626', label: 'Cancelada' },
-    completed: { bg: '#E0E7FF', text: '#3730A3', label: 'Completada' },
-  }
-
-  const citasFiltradas = tab === 'todas' ? citas : citas.filter(c => c.estado === tab)
+  const citasFiltradas = selectedDate
+    ? citas.filter(c => c.fecha === selectedDate)
+    : tab === 'todas' ? citas
+    : tab === 'cancelled' ? citas.filter(esCancelada)
+    : citas.filter(c => c.estado === tab)
   const countPorEstado = (s: string) => citas.filter(c => c.estado === s).length
+  const countCanceladas = citas.filter(esCancelada).length
+
+  const gruposPorFecha = useMemo(() => {
+    const mapa = new Map<string, Cita[]>()
+    for (const cita of citasFiltradas) {
+      const grupo = mapa.get(cita.fecha)
+      if (grupo) grupo.push(cita)
+      else mapa.set(cita.fecha, [cita])
+    }
+    return Array.from(mapa.entries())
+  }, [citasFiltradas])
+
+  const listaCitas = citasFiltradas.length === 0 ? (
+    <div style={{ background: '#fff', borderRadius: 16, padding: '60px 20px', border: '1px solid #E5E7EB', textAlign: 'center' }}>
+      <Calendar size={48} color="#D1D5DB" style={{ margin: '0 auto 16px' }} />
+      <p style={{ fontSize: 16, color: '#374151', fontWeight: 700, marginBottom: 8 }}>
+        {selectedDate ? 'Sin citas ese día' : tab === 'pending_verification' ? 'Sin citas pendientes' : tab === 'confirmed' ? 'Sin citas confirmadas' : tab === 'completed' ? 'Sin citas completadas' : tab === 'cancelled' ? 'Sin citas canceladas' : 'Aún no tienes citas'}
+      </p>
+      <p style={{ fontSize: 14, color: '#9CA3AF' }}>
+        {selectedDate ? 'Elige otro día en el calendario.' : tab === 'todas' ? 'Cuando los pacientes soliciten citas, aparecerán aquí' : 'Cambia el filtro de arriba para ver otras citas'}
+      </p>
+    </div>
+  ) : isMobile ? (
+    // Vista de agenda: agrupada por fecha con encabezado, en vez de la
+    // cuadrícula de calendario (que no cabe bien en una pantalla chica).
+    gruposPorFecha.map(([fecha, citasDelDia]) => (
+      <div key={fecha}>
+        <p style={{ fontSize: 12, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '8px 0 10px' }}>
+          {formatFecha(fecha)}
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {citasDelDia.map(cita => (
+            <CitaCard
+              key={cita.id}
+              cita={cita}
+              medico={medico}
+              procesando={procesando}
+              rechazando={rechazando}
+              motivoRechazo={motivoRechazo}
+              enviandoRechazo={enviandoRechazo}
+              setRechazando={setRechazando}
+              setMotivoRechazo={setMotivoRechazo}
+              cambiarEstado={cambiarEstado}
+              confirmarRechazo={confirmarRechazo}
+            />
+          ))}
+        </div>
+      </div>
+    ))
+  ) : (
+    citasFiltradas.map(cita => (
+      <CitaCard
+        key={cita.id}
+        cita={cita}
+        medico={medico}
+        procesando={procesando}
+        rechazando={rechazando}
+        motivoRechazo={motivoRechazo}
+        enviandoRechazo={enviandoRechazo}
+        setRechazando={setRechazando}
+        setMotivoRechazo={setMotivoRechazo}
+        cambiarEstado={cambiarEstado}
+        confirmarRechazo={confirmarRechazo}
+      />
+    ))
+  )
+
+  const chipFecha = selectedDate && (
+    <div className="fade-up" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+      <span style={{ fontSize: 13, color: '#6B7280' }}>
+        Mostrando citas del <strong style={{ color: '#111827' }}>{formatFecha(selectedDate)}</strong>
+      </span>
+      <button
+        onClick={() => setSelectedDate(null)}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#F3F4F6', color: '#6B7280', border: 'none', borderRadius: 50, padding: '4px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+      >
+        <X size={12} /> Ver todas las fechas
+      </button>
+    </div>
+  )
 
   if (loadError) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif" }}>
@@ -286,7 +347,7 @@ export default function CitasPage() {
         </div>
       )}
 
-      <div style={{ maxWidth: 900, margin: '0 auto', padding: '24px 16px 80px' }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 16px 80px' }}>
         <div className="fade-up" style={{ marginBottom: 24 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 12 }}>
             <div>
@@ -296,146 +357,98 @@ export default function CitasPage() {
           </div>
         </div>
 
-        <div className="fade-up" style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
-          {([
-            { id: 'todas', label: 'Todas', count: citas.length },
-            { id: 'pending_verification', label: 'Pendientes', count: countPorEstado('pending_verification') },
-            { id: 'confirmed', label: 'Confirmadas', count: countPorEstado('confirmed') },
-            { id: 'completed', label: 'Completadas', count: countPorEstado('completed') },
-            { id: 'mensajes', label: 'Mensajes', count: 0 },
-          ] as { id: Tab; label: string; count: number }[]).map(t => (
+        {isMobile ? (
+          <div className="fade-up" style={{ marginBottom: 20 }}>
             <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className="tab-btn"
+              onClick={() => { setTab('todas'); setSelectedDate(null) }}
               style={{
-                background: tab === t.id ? '#1E3A5F' : '#fff',
-                color: tab === t.id ? '#fff' : '#6B7280',
-                border: `1px solid ${tab === t.id ? '#1E3A5F' : '#E5E7EB'}`,
+                width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                background: tab === 'todas' ? '#1E3A5F' : '#fff',
+                color: tab === 'todas' ? '#fff' : '#111827',
+                border: `1.5px solid ${tab === 'todas' ? '#1E3A5F' : '#E5E7EB'}`,
+                borderRadius: 14, padding: '14px 16px', marginBottom: 8, cursor: 'pointer',
+                fontFamily: "'DM Sans', sans-serif",
               }}
             >
-              {t.label}
-              {t.count > 0 && (
-                <span style={{ marginLeft: 6, background: tab === t.id ? 'rgba(255,255,255,0.2)' : '#F3F4F6', borderRadius: 20, padding: '1px 7px', fontSize: 11 }}>
-                  {t.count}
-                </span>
-              )}
+              <span style={{ fontSize: 15, fontWeight: 700 }}>Todas</span>
+              <span style={{ fontSize: 13, fontWeight: 600, opacity: 0.85 }}>{citas.length} {citaWord(citas.length)}</span>
             </button>
-          ))}
-        </div>
-
-        {tab === 'mensajes' ? (
-          <div className="fade-up">
-            {conversacionSeleccionada ? (
-              <ConversacionChat
-                conversacion={conversacionSeleccionada}
-                onVolver={() => setConversacionSeleccionada(null)}
-                onError={(msg) => showToast(msg, 'error')}
-              />
-            ) : (
-              <ConversacionesLista medicoId={medico!.id} onSeleccionar={setConversacionSeleccionada} />
-            )}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              {([
+                { id: 'pending_verification', label: 'Pendientes', count: countPorEstado('pending_verification') },
+                { id: 'confirmed', label: 'Confirmadas', count: countPorEstado('confirmed') },
+                { id: 'completed', label: 'Completadas', count: countPorEstado('completed') },
+                { id: 'cancelled', label: 'Canceladas', count: countCanceladas },
+              ] as { id: Tab; label: string; count: number }[]).map(f => (
+                <button
+                  key={f.id}
+                  onClick={() => { setTab(f.id); setSelectedDate(null) }}
+                  style={{
+                    textAlign: 'left',
+                    background: tab === f.id ? '#1E3A5F' : '#fff',
+                    color: tab === f.id ? '#fff' : '#111827',
+                    border: `1.5px solid ${tab === f.id ? '#1E3A5F' : '#E5E7EB'}`,
+                    borderRadius: 14, padding: '14px 16px', cursor: 'pointer',
+                    fontFamily: "'DM Sans', sans-serif",
+                  }}
+                >
+                  <p style={{ fontSize: 14, fontWeight: 700, marginBottom: 2 }}>{f.label}</p>
+                  <p style={{ fontSize: 12, fontWeight: 600, opacity: 0.85 }}>{f.count} {citaWord(f.count)}</p>
+                </button>
+              ))}
+            </div>
           </div>
         ) : (
-        <div className="fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {citasFiltradas.length === 0 ? (
-            <div style={{ background: '#fff', borderRadius: 16, padding: '60px 20px', border: '1px solid #E5E7EB', textAlign: 'center' }}>
-              <Calendar size={48} color="#D1D5DB" style={{ margin: '0 auto 16px' }} />
-              <p style={{ fontSize: 16, color: '#374151', fontWeight: 700, marginBottom: 8 }}>
-                {tab === 'pending_verification' ? 'Sin citas pendientes' : tab === 'confirmed' ? 'Sin citas confirmadas' : tab === 'completed' ? 'Sin citas completadas' : 'Aún no tienes citas'}
-              </p>
-              <p style={{ fontSize: 14, color: '#9CA3AF' }}>
-                {tab === 'todas' ? 'Cuando los pacientes soliciten citas, aparecerán aquí' : 'Cambia el filtro de arriba para ver otras citas'}
-              </p>
-            </div>
-          ) : (
-            citasFiltradas.map(cita => {
-              const sc = statusColors[cita.estado] || statusColors.pending_verification
-              const esProc = (suffix: string) => procesando === cita.id + suffix
-              const futura = isFutura(cita.fecha)
-              const horaMostrada = cita.hora?.slice(0, 5) || ''
+          <div className="fade-up" style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
+            {([
+              { id: 'todas', label: 'Todas', count: citas.length },
+              { id: 'pending_verification', label: 'Pendientes', count: countPorEstado('pending_verification') },
+              { id: 'confirmed', label: 'Confirmadas', count: countPorEstado('confirmed') },
+              { id: 'completed', label: 'Completadas', count: countPorEstado('completed') },
+            ] as { id: Tab; label: string; count: number }[]).map(t => (
+              <button
+                key={t.id}
+                onClick={() => { setTab(t.id); setSelectedDate(null) }}
+                className="tab-btn"
+                style={{
+                  background: tab === t.id ? '#1E3A5F' : '#fff',
+                  color: tab === t.id ? '#fff' : '#6B7280',
+                  border: `1px solid ${tab === t.id ? '#1E3A5F' : '#E5E7EB'}`,
+                }}
+              >
+                {t.label}
+                {t.count > 0 && (
+                  <span style={{ marginLeft: 6, background: tab === t.id ? 'rgba(255,255,255,0.2)' : '#F3F4F6', borderRadius: 20, padding: '1px 7px', fontSize: 11 }}>
+                    {t.count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
 
-              return (
-                <div key={cita.id} style={{ background: '#fff', borderRadius: 14, border: '1.5px solid #E5E7EB', padding: '20px', opacity: cita.estado === 'cancelled' ? 0.65 : 1 }}>
-                  <div className="cita-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'linear-gradient(135deg,#1E3A5F,#2A9D8F)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 18, color: '#fff', flexShrink: 0 }}>
-                        {cita.paciente_nombre.charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <p style={{ fontSize: 16, fontWeight: 700, color: '#111827', marginBottom: 4 }}>{cita.paciente_nombre}</p>
-                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                          <span style={{ background: sc.bg, color: sc.text, padding: '2px 10px', borderRadius: 12, fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>
-                            {sc.label}
-                          </span>
-                          {futura && cita.estado !== 'cancelled' && (
-                            <span style={{ background: '#EEF2FF', color: '#1E3A5F', padding: '2px 10px', borderRadius: 12, fontSize: 11, fontWeight: 600 }}>
-                              Futura
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      <p style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>{formatFecha(cita.fecha)}</p>
-                      <p style={{ fontSize: 13, color: '#6B7280' }}>{horaMostrada}</p>
-                    </div>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px,1fr))', gap: 12, padding: '14px 0', borderTop: '1px solid #F3F4F6', borderBottom: '1px solid #F3F4F6', marginBottom: 16 }}>
-                    {cita.paciente_telefono && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <Phone size={13} color="#9CA3AF" />
-                        <a href={`tel:${cita.paciente_telefono}`} style={{ fontSize: 13, color: '#111827', textDecoration: 'none' }}>{cita.paciente_telefono}</a>
-                      </div>
-                    )}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <Mail size={13} color="#9CA3AF" />
-                      <span style={{ fontSize: 13, color: '#6B7280' }}>{cita.paciente_email}</span>
-                    </div>
-                    {cita.motivo && (
-                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, gridColumn: '1 / -1' }}>
-                        <FileText size={13} color="#9CA3AF" style={{ marginTop: 2, flexShrink: 0 }} />
-                        <span style={{ fontSize: 13, color: '#6B7280' }}>{cita.motivo}</span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="cita-actions" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    {cita.estado === 'pending_verification' && (
-                      <>
-                        <button className="action-btn" onClick={() => cambiarEstado(cita.id, 'confirmed')} disabled={!!esProc('confirmed')} style={{ background: '#DCFCE7', color: '#059669' }}>
-                          {esProc('confirmed') ? <span style={{ width: 13, height: 13, border: '2px solid #05966944', borderTopColor: '#059669', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> : <Check size={14} />}
-                          Confirmar
-                        </button>
-                        <button className="action-btn" onClick={() => cambiarEstado(cita.id, 'cancelled')} disabled={!!esProc('cancelled')} style={{ background: '#FEE2E2', color: '#DC2626' }}>
-                          {esProc('cancelled') ? <span style={{ width: 13, height: 13, border: '2px solid #DC262644', borderTopColor: '#DC2626', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> : <XCircle size={14} />}
-                          Rechazar
-                        </button>
-                      </>
-                    )}
-                    {cita.estado === 'confirmed' && (
-                      <>
-                        <button className="action-btn" onClick={() => cambiarEstado(cita.id, 'completed')} disabled={!!esProc('completed')} style={{ background: '#E0E7FF', color: '#3730A3' }}>
-                          {esProc('completed') ? <span style={{ width: 13, height: 13, border: '2px solid #3730A344', borderTopColor: '#3730A3', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> : <CheckCircle size={14} />}
-                          Marcar completada
-                        </button>
-                        <button className="action-btn" onClick={() => cambiarEstado(cita.id, 'cancelled')} disabled={!!esProc('cancelled')} style={{ background: '#FEE2E2', color: '#DC2626' }}>
-                          {esProc('cancelled') ? <span style={{ width: 13, height: 13, border: '2px solid #DC262644', borderTopColor: '#DC2626', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> : <XCircle size={14} />}
-                          Cancelar
-                        </button>
-                      </>
-                    )}
-                    {cita.estado !== 'cancelled' && cita.paciente_telefono && (
-                      <a href={getWhatsAppLink(cita.paciente_telefono, cita.fecha, cita.hora, cita.paciente_nombre)} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#25D366', color: '#fff', borderRadius: 50, padding: '8px 14px', fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>
-                        <MessageCircle size={14} />
-                        WhatsApp
-                      </a>
-                    )}
-                  </div>
-                </div>
-              )
-            })
-          )}
-        </div>
+        {isMobile ? (
+          <div className="fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {chipFecha}
+            {listaCitas}
+          </div>
+        ) : (
+          <div className="fade-up" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.15fr)', gap: 20, alignItems: 'start' }}>
+            <div style={{ position: 'sticky', top: 20 }}>
+              <CalendarioMensual citas={citas} selectedDate={selectedDate} onSelectDate={setSelectedDate} />
+            </div>
+            <div
+              ref={listaRef}
+              style={{
+                display: 'flex', flexDirection: 'column', gap: 12, minHeight: 0,
+                maxHeight: listaMaxHeight ? `${listaMaxHeight}px` : undefined,
+                overflowY: 'auto', paddingRight: 4,
+              }}
+            >
+              {chipFecha}
+              {listaCitas}
+            </div>
+          </div>
         )}
       </div>
     </div>
