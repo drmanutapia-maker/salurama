@@ -212,13 +212,19 @@ export async function POST(request: NextRequest) {
        .eq('medico_id', medicoId)
        .eq('estado', 'pending_verification')
        .gte('created_at', oneHourAgo),
+      // Chequeo previo solo para dar un mensaje amable rápido — no es la
+      // protección real contra doble reserva (ver índice único parcial
+      // citas_medico_fecha_hora_activa_unique en la migración 20260808000002,
+      // que es la fuente de verdad porque este SELECT-antes-de-INSERT es una
+      // condición de carrera: dos solicitudes casi simultáneas pueden pasar
+      // ambas este chequeo antes de que cualquiera inserte).
       supabase
        .from('citas')
        .select('id', { count: 'exact', head: true })
        .eq('medico_id', medicoId)
        .eq('fecha', fecha)
        .eq('hora', hora)
-       .in('estado', ['confirmed', 'pending_doctor']),
+       .in('estado', ['pending_verification', 'confirmed']),
     ])
 
     if (existing.count && existing.count > 0) {
@@ -254,7 +260,19 @@ export async function POST(request: NextRequest) {
       .select('id')
       .single()
 
-    if (error) throw error
+    if (error) {
+      // 23505 = violación del índice único parcial (misma pareja médico+
+      // fecha+hora con una cita ya viva). Es el desenlace esperado cuando
+      // dos solicitudes casi simultáneas pasan el chequeo previo y solo una
+      // logra insertar — no es un error inesperado del servidor.
+      if (error.code === '23505') {
+        return NextResponse.json(
+          { error: 'Ese horario ya no está disponible, por favor elige otro' },
+          { status: 409 }
+        )
+      }
+      throw error
+    }
 
     try {
       await sendVerificationEmail(

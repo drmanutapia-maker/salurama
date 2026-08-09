@@ -203,6 +203,23 @@ function AppointmentModal({
   const [verificandoCodigo, setVerificandoCodigo] = useState(false)
   const [pacienteId, setPacienteId] = useState<string | null>(null)
   const [actualizarDatos, setActualizarDatos] = useState(false)
+  const [ocupadas, setOcupadas] = useState<string[]>([])
+
+  // Los horarios que arma getTimeSlotsForDate salen solo de la agenda
+  // general del médico — no sabían nada de las citas ya existentes. Esto
+  // los cruza contra las que ya están vivas (pending_verification o
+  // confirmed) para no ofrecer como "disponible" un horario ya tomado. El
+  // índice único en la base de datos es la protección real contra doble
+  // reserva; esto es solo para que el paciente casi nunca choque contra
+  // ese error en el flujo normal.
+  useEffect(() => {
+    let cancelado = false
+    fetch(`/api/citas/disponibilidad?medicoId=${medico.id}&fecha=${formData.requested_date}`)
+      .then(res => res.ok ? res.json() : { ocupadas: [] })
+      .then(data => { if (!cancelado) setOcupadas(data.ocupadas || []) })
+      .catch(() => { if (!cancelado) setOcupadas([]) })
+    return () => { cancelado = true }
+  }, [medico.id, formData.requested_date])
 
   const campoIdentidadBloqueado = resultadoBusqueda === 'encontrado' && !actualizarDatos
 
@@ -348,7 +365,7 @@ function AppointmentModal({
     return slots
   }
 
-  const timeSlots = getTimeSlotsForDate(formData.requested_date)
+  const timeSlots = getTimeSlotsForDate(formData.requested_date).filter(t => !ocupadas.includes(t))
   const selectedDate = new Date(formData.requested_date + 'T00:00:00')
   const dayName = DIAS_LABELS[selectedDate.getDay()]
   const isDayClosed = timeSlots.length === 0
@@ -489,8 +506,7 @@ function AppointmentModal({
               </label>
               {modoPaciente === 'primera' && (
                 <p style={identAvisoStyle}>
-                  Usamos tu correo y teléfono para mantener la continuidad de tu conversación con el médico entre citas.
-                  Si alguno ya está registrado, tu cita se vinculará automáticamente a ese historial.
+                  Usaremos tu correo y teléfono para vincular tus futuras citas con este médico.
                 </p>
               )}
 

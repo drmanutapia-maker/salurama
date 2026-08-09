@@ -1,6 +1,7 @@
 'use client'
 import { useState, useRef } from 'react'
 import { Turnstile } from '@marsidev/react-turnstile'
+import { fechaISOLocal } from '@/lib/citas/fechas'
 
 export default function CitaForm({ medicoId, medicoNombre }: { medicoId: string, medicoNombre: string }) {
   const [formLoadTime] = useState(Date.now())
@@ -57,7 +58,7 @@ export default function CitaForm({ medicoId, medicoNombre }: { medicoId: string,
       <input name="nombre" required placeholder="Tu nombre completo" style={inputStyle} />
       <input name="email" type="email" required placeholder="tu@email.com" style={inputStyle} />
       <input name="telefono" required placeholder="55 1234 5678" style={inputStyle} />
-      <input name="fecha" type="date" required style={inputStyle} min={new Date().toISOString().split('T')[0]} />
+      <input name="fecha" type="date" required style={inputStyle} min={fechaISOLocal(new Date())} />
       <input name="hora" type="time" required style={inputStyle} />
       <textarea name="motivo" placeholder="Motivo de consulta (opcional)" rows={3} style={inputStyle} />
       <Turnstile siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!} onSuccess={setTurnstileToken} options={{ theme: 'light' }} />
