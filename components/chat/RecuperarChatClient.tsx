@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { Turnstile } from '@marsidev/react-turnstile'
 import BackButton from '@/components/BackButton'
 
@@ -65,7 +65,13 @@ export default function RecuperarChatClient() {
     <div className="flex items-center justify-center bg-neutral-50 px-6" style={{ minHeight: '100svh' }}>
       <div className="w-full max-w-sm py-10">
         <div className="mb-6">
-          <BackButton />
+          {/* BackButton usa useSearchParams() — Next.js exige un límite
+              Suspense alrededor durante el prerenderizado estático, o el
+              build falla con "useSearchParams() should be wrapped in a
+              suspense boundary". */}
+          <Suspense fallback={null}>
+            <BackButton />
+          </Suspense>
         </div>
         <h1 className="font-body font-semibold text-xl text-neutral-900 mb-2 text-center">
           ¿Perdiste el acceso a tu chat?
