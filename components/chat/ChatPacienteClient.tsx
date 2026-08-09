@@ -5,6 +5,7 @@ import type { ChangeEvent, KeyboardEvent } from 'react'
 import Link from 'next/link'
 import { Send, FileText, Paperclip, Image as ImageIcon, Loader2 } from 'lucide-react'
 import imageCompression from 'browser-image-compression'
+import AvisoNotificaciones from './AvisoNotificaciones'
 
 const TIPOS_MIME_PERMITIDOS = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'] as const
 const TAMANO_MAXIMO_BYTES = 15728640 // 15 MB — mismo límite que el bucket chat-archivos
@@ -366,6 +367,13 @@ export default function ChatPacienteClient({ token }: { token: string }) {
 
   let ultimoDiaMostrado: string | null = null
 
+  // Momento de ofrecer notificaciones: justo después del primer mensaje del
+  // médico, o al confirmarse la cita — lo que ocurra primero. Nunca en una
+  // conversación ya cerrada.
+  const hayMensajeMedico = sesion.items.some(item => item.tipo === 'mensaje' && item.remitente === 'medico')
+  const citaConfirmadaOMas = sesion.citaEstado === 'confirmed' || sesion.citaEstado === 'completed'
+  const ofrecerNotificaciones = sesion.puedeEscribir && (hayMensajeMedico || citaConfirmadaOMas)
+
   return (
     <div className="flex flex-col bg-white" style={{ height: '100svh' }}>
       <div className="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-neutral-200">
@@ -394,6 +402,8 @@ export default function ChatPacienteClient({ token }: { token: string }) {
           <p className="shrink-0 font-body text-xs text-neutral-400">Cancelaste esta cita</p>
         )}
       </div>
+
+      <AvisoNotificaciones token={token} activo={ofrecerNotificaciones} />
 
       {confirmandoCancelar && (
         <div className="shrink-0 border-b border-neutral-200 bg-neutral-50 px-4 py-3">
