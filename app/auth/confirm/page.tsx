@@ -43,7 +43,7 @@ export default function ConfirmPage() {
         setMessage('¡Email confirmado! Activando tu perfil...')
 
         setTimeout(() => {
-          router.push('/dashboard/editar-perfil?welcome=true')
+          router.push('/dashboard/plan?justConfirmed=true')
         }, 1500)
 
       } catch (err: any) {

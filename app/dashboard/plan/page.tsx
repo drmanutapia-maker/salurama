@@ -32,12 +32,17 @@ function PlanContent() {
     }
   }, [searchParams])
 
+  // Recién confirmada la cuenta el perfil todavía está incompleto (solo
+  // trae lo capturado en el registro) — no tiene caso invitar a ver un
+  // perfil público que apenas se va a empezar a llenar.
+  const justConfirmed = searchParams.get('justConfirmed') === 'true'
+
   return (
     <>
       <Toaster richColors position="top-center" />
       <BeneficiosCarousel
         primaryCta={{ label: 'Completa tu perfil ahora', href: '/dashboard/editar-perfil' }}
-        secondaryCta={slug ? { label: 'Ver mi perfil público', href: `/doctor/${slug}` } : undefined}
+        secondaryCta={!justConfirmed && slug ? { label: 'Ver mi perfil público', href: `/doctor/${slug}` } : undefined}
       />
     </>
   )
