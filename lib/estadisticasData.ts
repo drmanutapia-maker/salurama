@@ -12,8 +12,7 @@ function getServiceSupabase() {
   )
 }
 
-// Tendencia mensual (beneficio de plan Premium, ver isPlusTier en
-// lib/planGates.ts). `cambioPct` es null cuando no hay base real de
+// Tendencia mensual. `cambioPct` es null cuando no hay base real de
 // comparación (mes anterior en 0, o sin reseñas ese mes) — un porcentaje
 // contra cero da infinito, así que ese caso se marca como 'nuevo' en vez
 // de inventar un número.
@@ -24,8 +23,7 @@ export interface TrendMetric {
   direccion: 'up' | 'down' | 'flat' | 'nuevo'
 }
 
-// Benchmark de especialidad (beneficio Premium, ver isPremiumTier en
-// lib/planGates.ts) — compara al médico contra sus pares, nunca expone
+// Benchmark de especialidad — compara al médico contra sus pares, nunca expone
 // datos de un médico específico, solo agregados. `null` en ratingPromedio/
 // tasaConfirmacion significa "sin suficientes pares" (umbral: 3 médicos
 // más aportando ese dato), no que el valor sea cero.
