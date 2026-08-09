@@ -36,7 +36,7 @@ type CitaInfo = {
   fecha: string
   hora: string
   motivo: string | null
-  estado: 'pending_verification' | 'confirmed' | 'completed' | 'cancelled'
+  estado: 'pending_verification' | 'confirmed' | 'completed' | 'cancelled' | 'cancelada_paciente'
   completed_at: string | null
 }
 
@@ -45,11 +45,36 @@ function formatFechaCorta(fechaStr: string) {
   return d.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })
 }
 
+// Hora de envío de un mensaje/archivo (createdAt) — mismo formato corto que
+// ChatPacienteClient.tsx ("10:32 am"), independiente de formatFechaCorta()
+// que es para citas.fecha, no para un timestamp de envío.
+function formatHoraEnvio(iso: string): string {
+  const d = new Date(iso)
+  const minutos = d.getMinutes().toString().padStart(2, '0')
+  const sufijo = d.getHours() >= 12 ? 'pm' : 'am'
+  const horas12 = d.getHours() % 12 || 12
+  return `${horas12}:${minutos} ${sufijo}`
+}
+
+// Separador de fecha por día calendario real de envío — mismo patrón "Hoy /
+// Ayer / fecha corta" que ChatPacienteClient.tsx. Reemplaza el agrupado
+// anterior por citaId para la fecha (el motivo/estado de la cita se sigue
+// mostrando aparte, ligado al cambio de cita, no al de día).
+function formatSeparadorFecha(iso: string): string {
+  const d = new Date(iso)
+  const hoy = new Date()
+  if (d.toDateString() === hoy.toDateString()) return 'Hoy'
+  const ayer = new Date(Date.now() - 86400000)
+  if (d.toDateString() === ayer.toDateString()) return 'Ayer'
+  return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'long' })
+}
+
 const estadoLabels: Record<string, string> = {
   pending_verification: 'Pendiente',
   confirmed: 'Confirmada',
   completed: 'Completada',
   cancelled: 'Cancelada',
+  cancelada_paciente: 'Cancelada por el paciente',
 }
 
 export default function ConversacionChat({
@@ -64,7 +89,11 @@ export default function ConversacionChat({
   const [items, setItems] = useState<Item[]>([])
   const [citasInfo, setCitasInfo] = useState<Map<string, CitaInfo>>(new Map())
   const [citaActualId, setCitaActualId] = useState(conversacion.citaActualId)
-  const [puedeEscribir, setPuedeEscribir] = useState(false)
+  // null = todavía no sabemos (fetch en camino); true/false = respuesta real
+  // del servidor. Arrancar en false hacía que el banner "Conversación
+  // cerrada" apareciera de entrada en CUALQUIER chat mientras cargaba, antes
+  // de que /api/chat/medico/sesion confirmara el estado real.
+  const [puedeEscribir, setPuedeEscribir] = useState<boolean | null>(null)
   const [loading, setLoading] = useState(true)
   const [input, setInput] = useState('')
   const [enviando, setEnviando] = useState(false)
@@ -251,12 +280,13 @@ export default function ConversacionChat({
     ta.style.height = `${Math.min(ta.scrollHeight, 120)}px`
   }
 
+  let ultimoDiaMostrado: string | null = null
   let ultimaCitaMostrada: string | null = null
 
   return (
     <div className="flex flex-col border border-neutral-200 rounded-2xl overflow-hidden bg-white" style={{ height: 'calc(100vh - 280px)', minHeight: 420 }}>
       <div className="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-neutral-200">
-        <button onClick={onVolver} className="text-primary-500 shrink-0">
+        <button onClick={onVolver} aria-label="Volver a la lista de conversaciones" className="text-primary-500 shrink-0">
           <ArrowLeft size={18} />
         </button>
         <p className="font-body font-semibold text-sm text-neutral-900 truncate">{conversacion.pacienteNombre}</p>
@@ -269,22 +299,32 @@ export default function ConversacionChat({
           <p className="text-center text-sm text-neutral-400 pt-8">Aún no hay mensajes en esta conversación</p>
         ) : (
           items.map(item => {
-            const mostrarSeparador = item.citaId !== ultimaCitaMostrada
+            const diaItem = new Date(item.createdAt).toDateString()
+            const mostrarSeparadorDia = diaItem !== ultimoDiaMostrado
+            ultimoDiaMostrado = diaItem
+            const mostrarInfoCita = item.citaId !== ultimaCitaMostrada
             ultimaCitaMostrada = item.citaId
             const cita = citasInfo.get(item.citaId)
             const isMedico = item.remitente === 'medico'
 
             return (
               <div key={`${item.tipo}-${item.id}`}>
-                {mostrarSeparador && cita && (
+                {mostrarSeparadorDia && (
                   <div className="flex items-center justify-center my-4">
                     <div className="px-3 py-1.5 rounded-full bg-neutral-100 text-xs text-neutral-500 text-center">
-                      {formatFechaCorta(cita.fecha)} · {cita.hora?.slice(0, 5)}
+                      {formatSeparadorFecha(item.createdAt)}
+                    </div>
+                  </div>
+                )}
+                {mostrarInfoCita && cita && (
+                  <div className="flex items-center justify-center mb-3">
+                    <div className="px-3 py-1 rounded-full bg-neutral-50 border border-neutral-200 text-[11px] text-neutral-500 text-center">
+                      Cita del {formatFechaCorta(cita.fecha)} · {cita.hora?.slice(0, 5)}
                       {cita.motivo ? ` · ${cita.motivo}` : ''} · {estadoLabels[cita.estado]}
                     </div>
                   </div>
                 )}
-                <div className={`flex mb-3 ${isMedico ? 'justify-end' : 'justify-start'}`}>
+                <div className={`flex flex-col mb-3 ${isMedico ? 'items-end' : 'items-start'}`}>
                   {item.tipo === 'mensaje' ? (
                     <div
                       className={[
@@ -310,6 +350,7 @@ export default function ConversacionChat({
                       <span className="truncate">{item.nombreOriginal}</span>
                     </button>
                   )}
+                  <span className="font-body text-[10px] text-neutral-400 mt-1 px-1">{formatHoraEnvio(item.createdAt)}</span>
                 </div>
               </div>
             )
@@ -317,7 +358,12 @@ export default function ConversacionChat({
         )}
       </div>
 
-      {puedeEscribir ? (
+      {puedeEscribir === null ? (
+        <div className="shrink-0 border-t border-neutral-200 bg-neutral-50 px-4 py-4 flex items-center gap-2">
+          <Loader2 size={14} className="animate-spin text-neutral-400" />
+          <p className="font-body text-xs text-neutral-400">Verificando disponibilidad...</p>
+        </div>
+      ) : puedeEscribir ? (
         <div className="shrink-0 border-t border-neutral-200 bg-white px-4 pt-3 pb-3">
           {errorArchivo && <p className="font-body text-xs text-error-600 mb-2">{errorArchivo}</p>}
           <div className="flex items-end gap-2">
