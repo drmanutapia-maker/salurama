@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { getUserSafe } from '@/lib/getUserSafe'
 import { isManuelEmail } from '@/lib/manuelOnly'
-import { contarMensajesSinLeerTotal } from '@/lib/chat/sinLeer'
+import { contarMensajesSinLeerTotal, EVENTO_CHAT_LEIDO } from '@/lib/chat/sinLeer'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -34,9 +34,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
     load()
 
-    // Refrescar cada 60 segundos
+    // Refrescar cada 60 segundos (respaldo, por si llegan mensajes nuevos
+    // mientras el médico no interactúa con nada) y también justo cuando abre
+    // una conversación y se marca como leída (ver ConversacionChat.tsx) —
+    // así el badge no se queda con el número viejo hasta que caiga el reloj.
     const interval = setInterval(load, 60000)
-    return () => clearInterval(interval)
+    window.addEventListener(EVENTO_CHAT_LEIDO, load)
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener(EVENTO_CHAT_LEIDO, load)
+    }
   }, [])
 
   const links = [

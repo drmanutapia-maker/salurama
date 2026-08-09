@@ -1,5 +1,12 @@
 import { supabase } from '@/lib/supabaseClient'
 
+// Evento global disparado cada vez que el médico marca una sala como leída
+// (ConversacionChat.tsx, al abrir o refrescar una conversación) — lo escuchan
+// los badges de "sin leer" de la navegación (app/dashboard/layout.tsx y
+// components/BottomNav.tsx) para refrescarse al instante, en vez de esperar
+// a su propio temporizador de 60 segundos.
+export const EVENTO_CHAT_LEIDO = 'salurama:chat-leido'
+
 type MensajeMin = { sala_id: string; remitente_tipo: string; created_at: string }
 type SalaMin = { id: string; created_at: string; medico_leido_at: string | null }
 

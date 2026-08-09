@@ -22,11 +22,17 @@ self.addEventListener('push', (event) => {
   const title = data.title || 'Salurama'
   const options = {
     body: data.body || '',
-    // Un solo ícono para cualquier plataforma — apple-touch-icon.png trae
-    // las esquinas ya redondeadas al estilo iOS "horneadas" en la imagen, lo
-    // que se ve incorrecto en Android (que aplica su propia máscara circular
-    // sobre un logo cuadrado). favicon.png es el logo cuadrado sin recorte.
-    icon: '/favicon.png',
+    // Un solo ícono para cualquier plataforma — mismo criterio que antes con
+    // favicon.png (logo cuadrado sin recorte, para que Android aplique su
+    // propia máscara circular), pero en notification-icon.png: una versión
+    // ligera (192x192, ~19 KB en vez de los 173 KB de favicon.png a 512x512).
+    // Un ícono tan pesado corre el riesgo de no llegar a descargarse a
+    // tiempo en la primera notificación de una sesión nueva, y el sistema
+    // operativo cae de vuelta a un ícono genérico.
+    icon: '/notification-icon.png',
+    // Ícono chico monocromático que Android muestra en la barra de estado —
+    // silueta blanca sobre fondo transparente; Android la recolorea solo.
+    badge: '/notification-badge.png',
     data: { url: data.url || '/' },
   }
 

@@ -5,6 +5,7 @@ import type { ChangeEvent, KeyboardEvent } from 'react'
 import { ArrowLeft, Send, FileText, Paperclip, Image as ImageIcon, Loader2 } from 'lucide-react'
 import imageCompression from 'browser-image-compression'
 import type { ConversacionResumen } from './ConversacionesLista'
+import { EVENTO_CHAT_LEIDO } from '@/lib/chat/sinLeer'
 
 const TIPOS_MIME_PERMITIDOS = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'] as const
 const TAMANO_MAXIMO_BYTES = 15728640 // 15 MB — mismo límite que el bucket chat-archivos
@@ -130,6 +131,11 @@ export default function ConversacionChat({
       setCitasInfo(new Map(((data.citas || []) as CitaInfo[]).map(c => [c.id, c])))
       setCitaActualId(data.citaActualId)
       setPuedeEscribir(!!data.puedeEscribir)
+
+      // El backend ya marcó la sala como leída (medico_leido_at) — avisa a
+      // los badges de la navegación para que se refresquen ahora mismo, en
+      // vez de quedarse con el número viejo hasta su propio temporizador.
+      window.dispatchEvent(new Event(EVENTO_CHAT_LEIDO))
     } catch (err) {
       console.error('Error cargando conversación:', err)
       if (primeraCarga.current) onError('No se pudo cargar la conversación')

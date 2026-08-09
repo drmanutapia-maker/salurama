@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { isManuelEmail } from '@/lib/manuelOnly'
-import { contarMensajesSinLeerTotal } from '@/lib/chat/sinLeer'
+import { contarMensajesSinLeerTotal, EVENTO_CHAT_LEIDO } from '@/lib/chat/sinLeer'
 import {
   Search, Heart, Calendar, User,
   Home, Clock, MessageCircle, MessageCircleQuestion
@@ -55,13 +55,17 @@ export default function BottomNav() {
       }
     })
 
-    // Refrescar el contador de mensajes cada 60 segundos
+    // Refrescar el contador de mensajes cada 60 segundos (respaldo) y también
+    // justo cuando el médico abre una conversación y se marca como leída
+    // (ver ConversacionChat.tsx) — mismo criterio que app/dashboard/layout.tsx.
     const interval = setInterval(checkRole, 60000)
+    window.addEventListener(EVENTO_CHAT_LEIDO, checkRole)
 
     return () => {
       mounted = false
       subscription.unsubscribe()
       clearInterval(interval)
+      window.removeEventListener(EVENTO_CHAT_LEIDO, checkRole)
     }
   }, [])
 
