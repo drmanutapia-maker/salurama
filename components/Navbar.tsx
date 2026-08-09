@@ -13,6 +13,8 @@ export default function Navbar() {
   const [showDropdown, setShowDropdown] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const mobileMenuRef = useRef<HTMLDivElement>(null)
+  const mobileToggleRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user))
@@ -25,6 +27,18 @@ export default function Navbar() {
     document.addEventListener('mousedown', close)
     return () => document.removeEventListener('mousedown', close)
   }, [])
+
+  useEffect(() => {
+    if (!mobileOpen) return
+    const close = (e: MouseEvent) => {
+      const target = e.target as Node
+      if (mobileMenuRef.current?.contains(target)) return
+      if (mobileToggleRef.current?.contains(target)) return
+      setMobileOpen(false)
+    }
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [mobileOpen])
 
   const handleLogout = async () => {
     localStorage.removeItem('salurama_remember')
@@ -89,12 +103,12 @@ export default function Navbar() {
               </div>
             )}
           </div>
-          <button className="mobile-only" onClick={() => setMobileOpen(!mobileOpen)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8 }}>{mobileOpen ? <X size={24}/> : <Menu size={24}/>}</button>
+          <button ref={mobileToggleRef} className="mobile-only" onClick={() => setMobileOpen(!mobileOpen)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8 }}>{mobileOpen ? <X size={24}/> : <Menu size={24}/>}</button>
         </div>
       </div>
 
       {mobileOpen && (
-        <div className="mobile-only" style={{ position: 'absolute', top: 72, left: 0, right: 0, background: 'white', borderBottom: '1px solid #E5E7EB', boxShadow: '0 4px 12px rgba(0,0,0.08)', maxHeight: 'calc(100vh - 72px)', overflowY: 'auto' }}>
+        <div ref={mobileMenuRef} className="mobile-only" style={{ position: 'absolute', top: 72, left: 0, right: 0, background: 'white', borderBottom: '1px solid #E5E7EB', boxShadow: '0 4px 12px rgba(0,0,0.08)', maxHeight: 'calc(100vh - 72px)', overflowY: 'auto' }}>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             {navLinks.map(l => (
               <Link key={l.href} href={l.href} onClick={() => setMobileOpen(false)} style={{ display: 'block', padding: '16px 24px', color: '#374151', textDecoration: 'none', fontSize: 16, fontWeight: 500, borderBottom: '1px solid #F3F4F6' }}>{l.label}</Link>

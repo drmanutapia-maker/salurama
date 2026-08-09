@@ -22,7 +22,11 @@ self.addEventListener('push', (event) => {
   const title = data.title || 'Salurama'
   const options = {
     body: data.body || '',
-    icon: '/apple-touch-icon.png',
+    // Un solo ícono para cualquier plataforma — apple-touch-icon.png trae
+    // las esquinas ya redondeadas al estilo iOS "horneadas" en la imagen, lo
+    // que se ve incorrecto en Android (que aplica su propia máscara circular
+    // sobre un logo cuadrado). favicon.png es el logo cuadrado sin recorte.
+    icon: '/favicon.png',
     data: { url: data.url || '/' },
   }
 

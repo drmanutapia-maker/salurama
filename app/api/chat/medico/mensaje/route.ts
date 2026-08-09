@@ -125,17 +125,18 @@ export async function POST(request: NextRequest) {
 
       if (totalSuscripciones && totalSuscripciones > 0) {
         const [{ data: doctor }, token] = await Promise.all([
-          supabase.from('doctors').select('display_name, full_name').eq('id', sesion.medicoId).maybeSingle(),
+          supabase.from('doctors').select('display_name, full_name, professional_title').eq('id', sesion.medicoId).maybeSingle(),
           rotarToken(supabase, sesion.salaId),
         ])
-        // Sin prefijo "Dr./Dra." agregado a mano — mismo criterio que el
-        // resto de los correos de chat (lib/email.ts), que usan el nombre
-        // del médico tal cual.
+        // Mismo criterio que DoctorProfileClient.tsx (titlePrefix): el
+        // título viene de doctors.professional_title, capturado en el
+        // registro — no se adivina por el nombre.
         const medicoNombre = doctor?.display_name || doctor?.full_name || 'tu médico'
+        const titlePrefix = doctor?.professional_title ? `${doctor.professional_title} ` : ''
         const chatUrl = `${process.env.NEXT_PUBLIC_URL || 'https://salurama.com'}/chat/${token}`
 
         await notificarPacientePush(supabase, sesion.pacienteId, {
-          title: medicoNombre,
+          title: `${titlePrefix}${medicoNombre}`,
           body: 'Tienes un mensaje nuevo en tu chat.',
           url: chatUrl,
         })

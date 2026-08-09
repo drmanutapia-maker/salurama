@@ -374,6 +374,11 @@ export default function ChatPacienteClient({ token }: { token: string }) {
   const citaConfirmadaOMas = sesion.citaEstado === 'confirmed' || sesion.citaEstado === 'completed'
   const ofrecerNotificaciones = sesion.puedeEscribir && (hayMensajeMedico || citaConfirmadaOMas)
 
+  // El botón "Cancelar cita" no debe ofrecerse para una cita que ya ocurrió
+  // — el servidor de todos modos lo rechaza (menos de 24h para la consulta),
+  // pero mostrarlo igual invita a un clic que solo termina en un error.
+  const citaEsFutura = !!(sesion.citaFecha && sesion.citaHora && new Date(`${sesion.citaFecha}T${sesion.citaHora}`) > new Date())
+
   return (
     <div className="flex flex-col bg-white" style={{ height: '100svh' }}>
       <div className="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-neutral-200">
@@ -390,7 +395,7 @@ export default function ChatPacienteClient({ token }: { token: string }) {
             <p className="font-body text-xs text-neutral-500 truncate">Próxima cita: {formatFecha(sesion.citaFecha, sesion.citaHora)}</p>
           )}
         </div>
-        {(sesion.citaEstado === 'pending_verification' || sesion.citaEstado === 'confirmed') && !confirmandoCancelar && (
+        {(sesion.citaEstado === 'pending_verification' || sesion.citaEstado === 'confirmed') && citaEsFutura && !confirmandoCancelar && (
           <button
             onClick={() => { setConfirmandoCancelar(true); setErrorCancelar(null) }}
             className="shrink-0 font-body text-xs font-semibold text-error-600 hover:text-error-700 transition-colors"

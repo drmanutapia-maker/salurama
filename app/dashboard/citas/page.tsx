@@ -405,6 +405,7 @@ export default function CitasPage() {
               { id: 'pending_verification', label: 'Pendientes', count: countPorEstado('pending_verification') },
               { id: 'confirmed', label: 'Confirmadas', count: countPorEstado('confirmed') },
               { id: 'completed', label: 'Completadas', count: countPorEstado('completed') },
+              { id: 'cancelled', label: 'Canceladas', count: countCanceladas },
             ] as { id: Tab; label: string; count: number }[]).map(t => (
               <button
                 key={t.id}
