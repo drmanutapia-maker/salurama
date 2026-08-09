@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import Link from 'next/link'
 import Image from 'next/image'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Turnstile } from '@marsidev/react-turnstile'
 import { fraunces, dmSans } from '@/lib/fonts'
 import {
@@ -13,6 +13,8 @@ import {
 } from 'lucide-react'
 import BackButton from '@/components/BackButton'
 import { getStateLabel } from '@/lib/locations'
+import { calculateProfileCompletion } from '@/hooks/useProfileCompletion'
+import BaculoEsculapio from '@/components/icons/BaculoEsculapio'
 
 export interface Medico {
   id: string
@@ -747,6 +749,7 @@ export default function DoctorProfileClient({
   conditions,
   reviews,
   galleryPhotos,
+  tieneConsultaCompletada,
 }: {
   medico: Medico
   licenses: License[]
@@ -756,19 +759,32 @@ export default function DoctorProfileClient({
   conditions: Condition[]
   reviews: Review[]
   galleryPhotos: GalleryPhoto[]
+  tieneConsultaCompletada: boolean
 }) {
   const id = medico.id
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const reviewDestacadaId = searchParams.get('review')
   const [lightboxPhoto, setLightboxPhoto] = useState<GalleryPhoto | null>(null)
   const [showAllPhotosModal, setShowAllPhotosModal] = useState(false)
+  // Arranca ya expandida si el link trae ?review= apuntando a una reseña
+  // que no está entre las 5 iniciales — si no, el ancla no existiría en el
+  // DOM y el scroll de más abajo no tendría a dónde llegar.
+  const [mostrarTodasResenas, setMostrarTodasResenas] = useState(() => {
+    if (!reviewDestacadaId) return false
+    const idx = reviews.findIndex(r => r.id === reviewDestacadaId)
+    return idx >= 5
+  })
   const [isMobile, setIsMobile] = useState(false)
   const [showAppointmentModal, setShowAppointmentModal] = useState(false)
   const [showVerificationModal, setShowVerificationModal] = useState(false)
   const [showConacemModal, setShowConacemModal] = useState(false)
   const [showPhotoModal, setShowPhotoModal] = useState(false)
   const [isOwner, setIsOwner] = useState(false)
+  const [mostrarTooltipBadge, setMostrarTooltipBadge] = useState(false)
   const [copiedToast, setCopiedToast] = useState(false)
   const touchStartRef = useRef<{ x: number; y: number } | null>(null)
+  const badgeRef = useRef<HTMLSpanElement>(null)
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768)
@@ -776,6 +792,28 @@ export default function DoctorProfileClient({
     window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
   }, [])
+
+  // Scroll explícito por JS en vez de depender del salto nativo del
+  // navegador a #hash — un fragmento se pierde si algún filtro de seguridad
+  // de correo reescribe el link (nunca llega al servidor). rAF espera al
+  // siguiente frame para que, si mostrarTodasResenas se acaba de activar
+  // arriba, la reseña ya exista en el DOM antes de intentar el scroll.
+  useEffect(() => {
+    if (!reviewDestacadaId) return
+    const frame = requestAnimationFrame(() => {
+      document.getElementById(`review-${reviewDestacadaId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [reviewDestacadaId, mostrarTodasResenas])
+
+  useEffect(() => {
+    if (!mostrarTooltipBadge) return
+    const cerrar = (e: MouseEvent) => {
+      if (badgeRef.current && !badgeRef.current.contains(e.target as Node)) setMostrarTooltipBadge(false)
+    }
+    document.addEventListener('mousedown', cerrar)
+    return () => document.removeEventListener('mousedown', cerrar)
+  }, [mostrarTooltipBadge])
 
   useEffect(() => {
     fetch('/api/track-visit', {
@@ -794,6 +832,19 @@ export default function DoctorProfileClient({
   const precioSubsecuente = medico?.consultation_price_general || null
   const displayName = medico?.display_name || medico?.full_name || ''
   const titlePrefix = medico?.professional_title ? `${medico.professional_title} ` : ''
+  // Mismo cálculo que el checklist de completitud del dashboard del médico
+  // (hooks/useProfileCompletion.ts) — reutilizado tal cual, sin ajustes: los
+  // datos que necesita ya llegan como props en este perfil público.
+  const perfilCompleto = calculateProfileCompletion({
+    // languages en Medico admite string | string[] | null (el dato en DB no
+    // siempre es un array) — parseLangs ya normaliza eso mismo para el resto
+    // de este componente, se reutiliza aquí en vez de duplicar la lógica.
+    medico: { ...medico, languages: langs },
+    experienceCount: experience.length,
+    educationCount: education.length,
+    conditionsCount: conditions.length,
+  }).percentage === 100
+  const mostrarBadgePerfilCompleto = perfilCompleto && tieneConsultaCompletada
   // Determinística (no window.location.href): el JSON-LD ahora se sirve en
   // el HTML inicial, y usar window.location causaba un mismatch de
   // hidratación (servidor no tiene window, cliente sí). Coincide con el
@@ -912,7 +963,7 @@ export default function DoctorProfileClient({
     } : undefined,
     review: reviews.slice(0, 3).map((r: any) => ({
       '@type': 'Review',
-      author: { '@type': 'Person', name: r.user_name || 'Paciente verificado' },
+      author: { '@type': 'Person', name: r.user_name || 'Paciente' },
       reviewBody: r.comment || '',
       reviewRating: {
         '@type': 'Rating',
@@ -1010,8 +1061,26 @@ export default function DoctorProfileClient({
             )}
           </div>
           <div>
-            <h1 style={{ fontFamily: 'var(--font-fraunces), serif', fontSize: isMobile ? 28 : 40, fontWeight: 900, color: '#1E3A5F', marginBottom: 4, lineHeight: 1.1 }}>
-              {titlePrefix}{displayName}
+            <h1 style={{ fontFamily: 'var(--font-fraunces), serif', fontSize: isMobile ? 28 : 40, fontWeight: 900, color: '#1E3A5F', marginBottom: 4, lineHeight: 1.1, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span>{titlePrefix}{displayName}</span>
+              {mostrarBadgePerfilCompleto && (
+                <span
+                  ref={badgeRef}
+                  role="img"
+                  aria-label="Perfil completo, con consultas reales atendidas en Salurama."
+                  style={{ position: 'relative', display: 'inline-flex', cursor: 'pointer', flexShrink: 0 }}
+                  onMouseEnter={() => setMostrarTooltipBadge(true)}
+                  onMouseLeave={() => setMostrarTooltipBadge(false)}
+                  onClick={() => setMostrarTooltipBadge(v => !v)}
+                >
+                  <BaculoEsculapio size={isMobile ? 16 : 20} color="#2A9D8F" />
+                  {mostrarTooltipBadge && (
+                    <span style={{ position: 'absolute', bottom: '130%', left: '50%', transform: 'translateX(-50%)', background: '#1E3A5F', color: '#fff', fontSize: 11, fontWeight: 600, padding: '8px 12px', borderRadius: 8, width: 200, maxWidth: '70vw', textAlign: 'center', lineHeight: 1.4, zIndex: 20, boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
+                      Perfil completo, con consultas reales atendidas en Salurama.
+                    </span>
+                  )}
+                </span>
+              )}
             </h1>
             <p style={{ fontSize: 15, color: '#6B7280', marginBottom: 12 }}>{medico.specialty}{medico.sub_specialty && ` · ${medico.sub_specialty}`}</p>
 
@@ -1428,12 +1497,13 @@ export default function DoctorProfileClient({
       Reseñas de pacientes ({reviews.length})
     </h2>
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {reviews.map((r: any) => (
-        // scroll-margin-top libra el Navbar fijo (72px) cuando se llega por
-        // ancla (#review-{id}), ej. desde el link del correo de aviso de respuesta.
+      {(mostrarTodasResenas ? reviews : reviews.slice(0, 5)).map((r: any) => (
+        // scroll-margin-top libra el Navbar fijo (72px) al hacer scroll por
+        // JS hasta acá, ej. desde el link del correo de aviso de respuesta
+        // (?review=, ver el useEffect de reviewDestacadaId más arriba).
         <div key={r.id} id={`review-${r.id}`} style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #E5E7EB', scrollMarginTop: 90 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>Paciente verificado</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>Paciente</span>
             <div style={{ display: 'flex', gap: 2 }}>
               {[1, 2, 3, 4, 5].map(i => (
                 <Star key={i} size={16} color="#F59E0B" fill={i <= r.rating ? '#F59E0B' : 'none'} />
@@ -1459,8 +1529,16 @@ export default function DoctorProfileClient({
         </div>
       ))}
     </div>
+    {!mostrarTodasResenas && reviews.length > 5 && (
+      <button
+        onClick={() => setMostrarTodasResenas(true)}
+        style={{ display: 'block', margin: '20px auto 0', background: '#fff', color: '#1E3A5F', border: '1px solid #E5E7EB', borderRadius: 50, padding: '10px 24px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+      >
+        Ver más ({reviews.length - 5})
+      </button>
+    )}
   </section>
-)}  
+)}
       </main>
 
       {/* Toast: Link copiado */}

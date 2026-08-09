@@ -21,6 +21,20 @@ function getSupabase() {
   )
 }
 
+// Service role, solo para el chequeo de "¿tiene al menos una cita
+// completada?" — citas no tiene (ni debe tener) una política RLS pública de
+// lectura para anon, a diferencia de doctors/reviews/gallery, porque guarda
+// PII del paciente (nombre, correo, teléfono). Este chequeo corre en el
+// servidor (Server Component, nunca llega al cliente) y solo expone un
+// booleano derivado, no las citas mismas.
+function getSupabaseServiceRole() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false } }
+  )
+}
+
 // select('*') porque este mismo lookup alimenta tanto generateMetadata como
 // el perfil completo (envuelto en cache() de React para que, aunque Next
 // invoque esta función por separado en cada uno, solo se ejecute una query
@@ -43,7 +57,7 @@ const resolveDoctor = cache(async (slugParam: string): Promise<Medico | null> =>
 // de depender de un useEffect del lado del cliente.
 async function getDoctorProfileData(doctorId: string) {
   const supabase = getSupabase()
-  const [licRes, eduRes, expRes, condRes, revRes, credRes, galRes] = await Promise.all([
+  const [licRes, eduRes, expRes, condRes, revRes, credRes, galRes, citaCompletadaRes] = await Promise.all([
     supabase.from('doctor_licenses').select('*').eq('doctor_id', doctorId),
     supabase.from('doctor_education').select('*').eq('doctor_id', doctorId).order('graduation_year', { ascending: false }),
     supabase.from('doctor_experience').select('*').eq('doctor_id', doctorId).order('is_current', { ascending: false }),
@@ -51,12 +65,22 @@ async function getDoctorProfileData(doctorId: string) {
     // Columnas explícitas (no '*'): moderation_reason/moderation_flagged_by
     // son solo para la bandeja interna del admin, nunca deben llegar al HTML
     // público de esta página.
-    supabase.from('reviews').select('id, rating, comment, created_at, review_responses(id, respuesta)').eq('doctor_id', doctorId).eq('is_visible', true).order('created_at', { ascending: false }).limit(20),
+    // Sin límite: el perfil solo muestra 5 reseñas de entrada (ver
+    // DoctorProfileClient, botón "Ver más"), pero eso es paginación de UI,
+    // no debe recortar qué reseñas existen para el paciente que llega desde
+    // el link de una respuesta (?review=) a una reseña antigua.
+    supabase.from('reviews').select('id, rating, comment, created_at, review_responses(id, respuesta)').eq('doctor_id', doctorId).eq('is_visible', true).order('created_at', { ascending: false }),
     supabase.from('doctor_specialty_credentials').select('id, credentials_status, specialty_granular_mapping(granular_name, conacem_councils(council_name))').eq('doctor_id', doctorId),
     supabase.from('doctor_gallery_photos').select('id, photo_url, caption').eq('doctor_id', doctorId).order('position'),
+    // Solo existencia (head:true) — para el badge de "perfil completo y con
+    // consultas reales", no hace falta traer las citas mismas. Service role
+    // porque citas no tiene política RLS pública para anon (ver comentario
+    // en getSupabaseServiceRole).
+    getSupabaseServiceRole().from('citas').select('id', { count: 'exact', head: true }).eq('medico_id', doctorId).eq('estado', 'completed'),
   ])
 
   return {
+    tieneConsultaCompletada: (citaCompletadaRes.count ?? 0) > 0,
     licenses: (licRes.data ?? []) as License[],
     education: (eduRes.data ?? []) as EducationItem[],
     experience: (expRes.data ?? []) as ExperienceItem[],
@@ -72,7 +96,7 @@ async function getDoctorProfileData(doctorId: string) {
       const resp = Array.isArray(r.review_responses) ? (r.review_responses[0] ?? null) : (r.review_responses ?? null)
       return {
         id: r.id,
-        user_name: 'Paciente verificado',
+        user_name: 'Paciente',
         rating: r.rating,
         comment: r.comment,
         created_at: r.created_at,

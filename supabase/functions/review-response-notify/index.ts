@@ -113,7 +113,10 @@ Deno.serve(async (req) => {
           html: buildNotifyHtml({
             pacienteNombre: row.paciente_nombre,
             doctorNombre: row.doctor_nombre,
-            reviewUrl: `https://salurama.com/doctor/${row.doctor_slug}#review-${row.review_id}`,
+            // Parámetro de consulta, no fragmento (#) — el fragmento nunca
+            // llega al servidor y algunos filtros de seguridad de correo lo
+            // pierden al reescribir el link.
+            reviewUrl: `https://salurama.com/doctor/${row.doctor_slug}?review=${row.review_id}`,
           }),
         })
 
