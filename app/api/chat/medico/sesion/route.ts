@@ -85,6 +85,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Sala no encontrada' }, { status: 404, headers: securityHeaders })
     }
 
+    // Marca la sala como leída por el médico — limpia el badge de "sin leer"
+    // (lib/chat/sinLeer.ts) aunque el médico solo lea sin responder. Se espera
+    // el resultado: en un runtime serverless, una promesa sin await puede
+    // cortarse antes de completar en cuanto la respuesta sale.
+    const { error: leidoError } = await supabase
+      .from('chat_salas')
+      .update({ medico_leido_at: new Date().toISOString() })
+      .eq('id', sesion.salaId)
+    if (leidoError) console.error(`[${requestId}] Error marcando leído:`, leidoError)
+
     const [mensajesRes, archivosRes] = await Promise.all([
       supabase
         .from('chat_mensajes')

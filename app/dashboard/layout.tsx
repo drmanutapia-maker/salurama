@@ -5,10 +5,12 @@ import { usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { getUserSafe } from '@/lib/getUserSafe'
 import { isManuelEmail } from '@/lib/manuelOnly'
+import { contarMensajesSinLeerTotal } from '@/lib/chat/sinLeer'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [pendientes, setPendientes] = useState(0)
+  const [sinLeer, setSinLeer] = useState(0)
   const [isManuel, setIsManuel] = useState(false)
 
   useEffect(() => {
@@ -28,6 +30,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         .eq('estado', 'pending_verification')
         .gte('expires_at', new Date().toISOString())
       setPendientes(count || 0)
+      setSinLeer(await contarMensajesSinLeerTotal(medico.id))
     }
     load()
 
@@ -37,16 +40,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [])
 
   const links = [
-    { href: '/dashboard', label: 'Inicio', exact: true },
-    { href: '/dashboard/horario', label: 'Horarios' },
-    { href: '/dashboard/citas', label: 'Citas', badge: pendientes },
-    { href: '/dashboard/estadisticas', label: 'Estadísticas' },
+    { href: '/dashboard', label: 'Inicio', active: pathname === '/dashboard' },
+    { href: '/dashboard/horario', label: 'Horarios', active: pathname.startsWith('/dashboard/horario') },
+    { href: '/dashboard/citas', label: 'Citas', badge: pendientes, active: pathname.startsWith('/dashboard/citas') },
+    { href: '/dashboard/chat', label: 'Chat', badge: sinLeer, active: pathname.startsWith('/dashboard/chat') },
     // MSL Virtual: oculto salvo para la cuenta de Manuel — ver lib/manuelOnly.ts
-    ...(isManuel ? [{ href: '/dashboard/msl-virtual', label: 'MSL Virtual' }] : []),
+    ...(isManuel ? [{ href: '/dashboard/msl-virtual', label: 'MSL Virtual', active: pathname.startsWith('/dashboard/msl-virtual') }] : []),
   ]
-
-  const isActive = (href: string, exact?: boolean) =>
-    exact ? pathname === href : pathname.startsWith(href)
 
   // El chat MSL Virtual ocupa el viewport completo con scroll interno propio;
   // este nav (sticky, ocupa espacio en el flujo del documento) no aplica a esas
@@ -64,7 +64,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               href={link.href}
               prefetch
               className={`py-3.5 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors flex items-center gap-2 ${
-                isActive(link.href, link.exact)
+                link.active
                   ? 'text-primary-500 border-primary-500'
                   : 'text-neutral-500 border-transparent hover:text-primary-700'
               }`}

@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
+import { sinLeerPorSala } from '@/lib/chat/sinLeer'
 
 export type ConversacionResumen = {
   salaId: string
@@ -10,7 +11,7 @@ export type ConversacionResumen = {
   motivo: string | null
   fecha: string
   hora: string
-  estado: 'pending_verification' | 'confirmed' | 'completed' | 'cancelled'
+  estado: 'pending_verification' | 'confirmed' | 'completed' | 'cancelled' | 'cancelada_paciente'
   ultimaActividad: string
   sinLeer: number
 }
@@ -41,7 +42,7 @@ export default function ConversacionesLista({
     async function cargar() {
       const { data: salas } = await supabase
         .from('chat_salas')
-        .select('id, paciente_id, cita_actual_id, created_at')
+        .select('id, paciente_id, cita_actual_id, created_at, medico_leido_at')
         .eq('medico_id', medicoId)
 
       if (!salas || salas.length === 0) {
@@ -62,26 +63,18 @@ export default function ConversacionesLista({
       ])
 
       const citasPorId = new Map((citasRes.data || []).map((c: any) => [c.id, c]))
-      const ultimoMedicoPorSala = new Map<string, string>()
       const ultimaActividadPorSala = new Map<string, string>()
-      const mensajesPorSala = new Map<string, { remitente_tipo: string; created_at: string }[]>()
+      const mensajes = (mensajesRes.data || []) as { sala_id: string; remitente_tipo: string; created_at: string }[]
 
-      for (const m of (mensajesRes.data || []) as { sala_id: string; remitente_tipo: string; created_at: string }[]) {
+      for (const m of mensajes) {
         ultimaActividadPorSala.set(m.sala_id, m.created_at)
-        if (m.remitente_tipo === 'medico') ultimoMedicoPorSala.set(m.sala_id, m.created_at)
-        const arr = mensajesPorSala.get(m.sala_id) || []
-        arr.push(m)
-        mensajesPorSala.set(m.sala_id, arr)
       }
+
+      const sinLeerPorSalaMap = sinLeerPorSala(salas, mensajes)
 
       const lista: ConversacionResumen[] = salas.map((s: any) => {
         const cita = citasPorId.get(s.cita_actual_id)
-        // Heurística de "no leído" (aprobada, sin migración ni columna nueva):
-        // mensajes del paciente posteriores al último mensaje del médico en
-        // esa sala, o desde que se creó la sala si el médico nunca escribió.
-        const umbral = ultimoMedicoPorSala.get(s.id) || s.created_at
-        const mensajesSala = mensajesPorSala.get(s.id) || []
-        const sinLeer = mensajesSala.filter(m => m.remitente_tipo === 'paciente' && m.created_at > umbral).length
+        const sinLeer = sinLeerPorSalaMap.get(s.id) || 0
 
         return {
           salaId: s.id,

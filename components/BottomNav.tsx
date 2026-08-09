@@ -4,19 +4,21 @@ import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { isManuelEmail } from '@/lib/manuelOnly'
+import { contarMensajesSinLeerTotal } from '@/lib/chat/sinLeer'
 import {
   Search, Heart, Calendar, User,
-  Home, Clock, BarChart3, MessageCircleQuestion
+  Home, Clock, MessageCircle, MessageCircleQuestion
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 type Role = 'doctor' | 'patient' | null
-type NavItem = { href: string; label: string; icon: LucideIcon; exact?: boolean }
+type NavItem = { href: string; label: string; icon: LucideIcon; exact?: boolean; badge?: number }
 
 export default function BottomNav() {
   const pathname = usePathname()
   const [role, setRole] = useState<Role>(null)
   const [isManuel, setIsManuel] = useState(false)
+  const [sinLeer, setSinLeer] = useState(0)
 
   useEffect(() => {
     let mounted = true
@@ -39,6 +41,7 @@ export default function BottomNav() {
         .maybeSingle()
 
       if (mounted) setRole(data ? 'doctor' : 'patient')
+      if (mounted && data) setSinLeer(await contarMensajesSinLeerTotal(data.id))
     }
 
     checkRole()
@@ -52,9 +55,13 @@ export default function BottomNav() {
       }
     })
 
+    // Refrescar el contador de mensajes cada 60 segundos
+    const interval = setInterval(checkRole, 60000)
+
     return () => {
       mounted = false
       subscription.unsubscribe()
+      clearInterval(interval)
     }
   }, [])
 
@@ -65,7 +72,7 @@ export default function BottomNav() {
     { href: '/dashboard', label: 'Inicio', icon: Home, exact: true },
     { href: '/dashboard/horario', label: 'Horarios', icon: Clock },
     { href: '/dashboard/citas', label: 'Citas', icon: Calendar },
-    { href: '/dashboard/estadisticas', label: 'Stats', icon: BarChart3 },
+    { href: '/dashboard/chat', label: 'Chat', icon: MessageCircle, badge: sinLeer },
     // MSL Virtual: oculto salvo para la cuenta de Manuel — ver lib/manuelOnly.ts
     ...(isManuel ? [{ href: '/dashboard/msl-virtual', label: 'MSL', icon: MessageCircleQuestion }] : []),
   ]
@@ -78,22 +85,32 @@ export default function BottomNav() {
 
   const items = role === 'doctor' ? doctorNav : patientNav
   const activeColor = role === 'doctor' ? 'text-primary-500' : 'text-secondary-500'
-  const isActive = (href: string, exact?: boolean) => exact ? pathname === href : pathname.startsWith(href)
+  const isActive = (item: NavItem) => (item.exact ? pathname === item.href : pathname.startsWith(item.href))
 
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-neutral-200 pb-[env(safe-area-inset-bottom)] shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
       <div className="flex justify-around">
         {items.map((item) => {
           const Icon = item.icon
-          const active = isActive(item.href, item.exact)
+          const active = isActive(item)
           return (
             <Link
               key={item.href}
               href={item.href}
               prefetch
-              className={`flex flex-col items-center justify-center py-2.5 px-3 min-w- transition-colors ${active ? activeColor : 'text-neutral-500'}`}
+              className={`relative flex flex-col items-center justify-center py-2.5 px-3 min-w- transition-colors ${active ? activeColor : 'text-neutral-500'}`}
             >
-              <Icon size={22} strokeWidth={active ? 2.5 : 2} />
+              <span className="relative inline-flex">
+                <Icon size={22} strokeWidth={active ? 2.5 : 2} />
+                {!!item.badge && item.badge > 0 && (
+                  <span
+                    className="absolute -top-1.5 -right-2 flex items-center justify-center rounded-full bg-red-600 text-white font-bold"
+                    style={{ minWidth: 16, height: 16, fontSize: 10, padding: '0 4px', lineHeight: '16px' }}
+                  >
+                    {item.badge}
+                  </span>
+                )}
+              </span>
               <span className={`text- mt-1 ${active ? 'font-bold' : 'font-medium'}`}>
                 {item.label}
               </span>
