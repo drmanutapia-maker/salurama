@@ -4,7 +4,9 @@ import useEmblaCarousel from 'embla-carousel-react'
 import {
   UserCircle, ShieldCheck, Image as ImageIcon, CalendarCheck, MessageCircle,
   Star, BarChart2, Award, ChevronLeft, ChevronRight, CheckCircle,
+  Bell, Lock, Smartphone, LogOut,
 } from 'lucide-react'
+import BaculoEsculapio from '@/components/icons/BaculoEsculapio'
 
 // Microinteracciones de cada tarjeta: reciben `active` (true solo cuando esa
 // tarjeta está centrada en el carrusel) y usan `key` para forzar un remount
@@ -19,38 +21,16 @@ function DemoPerfil({ active }: { active: boolean }) {
       <div style={{ display: 'flex', gap: 2, opacity: active ? 1 : 0, animation: active ? 'fadeUp 0.4s ease-out both' : undefined, animationDelay: '320ms' }}>
         {[1, 2, 3, 4, 5].map(i => <Star key={i} size={12} color="#F59E0B" fill="#F59E0B" />)}
       </div>
-    </div>
-  )
-}
-
-function DemoVerificacion({ active }: { active: boolean }) {
-  return (
-    <div key={active ? 'on' : 'off'} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 110 }}>
-      <div style={{ width: 62, height: 62, borderRadius: '50%', background: 'linear-gradient(135deg,#2A9D8F,#1E7A6F)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
-          <path
-            d="M4 12l5 5L20 6" stroke="#fff" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"
-            strokeDasharray={32} strokeDashoffset={active ? 0 : 32}
-            style={{ transition: active ? 'stroke-dashoffset 0.7s ease-out 0.15s' : 'none' }}
-          />
-        </svg>
+      <div
+        style={{
+          display: 'flex', alignItems: 'center', gap: 4, marginTop: 2, padding: '3px 9px 3px 7px', borderRadius: 99,
+          background: '#2A9D8F', opacity: active ? 1 : 0,
+          animation: active ? 'popIn 0.4s ease-out 520ms both, pulseRing 1.4s ease-out 920ms' : undefined,
+        }}
+      >
+        <BaculoEsculapio size={11} color="#fff" />
+        <span style={{ fontSize: 9, fontWeight: 700, color: '#fff' }}>Perfil completo</span>
       </div>
-    </div>
-  )
-}
-
-function DemoGaleria({ active }: { active: boolean }) {
-  return (
-    <div key={active ? 'on' : 'off'} style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 6, padding: '14px 6px' }}>
-      {['#FDE68A', '#A7F3D0', '#BFDBFE', '#FBCFE8'].map((c, i) => (
-        <div
-          key={c}
-          style={{
-            aspectRatio: '1/1', borderRadius: 8, background: c,
-            opacity: active ? 1 : 0, animation: active ? 'popIn 0.35s ease-out both' : undefined, animationDelay: `${i * 90}ms`,
-          }}
-        />
-      ))}
     </div>
   )
 }
@@ -78,6 +58,39 @@ function DemoAgenda({ active }: { active: boolean }) {
   )
 }
 
+function DemoVerificacion({ active }: { active: boolean }) {
+  return (
+    <div key={active ? 'on' : 'off'} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 110 }}>
+      <div style={{ width: 62, height: 62, borderRadius: '50%', background: 'linear-gradient(135deg,#2A9D8F,#1E7A6F)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+          <path
+            d="M4 12l5 5L20 6" stroke="#fff" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"
+            strokeDasharray={32} strokeDashoffset={active ? 0 : 32}
+            style={{ transition: active ? 'stroke-dashoffset 0.7s ease-out 0.15s' : 'none' }}
+          />
+        </svg>
+      </div>
+    </div>
+  )
+}
+
+function DemoMerito({ active }: { active: boolean }) {
+  const items = ['Perfil completo', 'Cédula verificable', 'Buenas reseñas']
+  return (
+    <div key={active ? 'on' : 'off'} style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '14px 16px' }}>
+      <div style={{ height: 8, borderRadius: 4, background: '#F3F4F6', overflow: 'hidden' }}>
+        <div style={{ height: '100%', borderRadius: 4, background: 'linear-gradient(90deg,#2A9D8F,#1E3A5F)', width: active ? '100%' : '0%', transition: 'width 0.9s ease-out' }} />
+      </div>
+      {items.map((label, i) => (
+        <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6, opacity: active ? 1 : 0, transition: `opacity .3s ${300 + i * 180}ms` }}>
+          <CheckCircle size={13} color="#2A9D8F" />
+          <span style={{ fontSize: 11, color: '#374151' }}>{label}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function DemoChat({ active }: { active: boolean }) {
   return (
     <div key={active ? 'on' : 'off'} style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '10px 12px' }}>
@@ -91,6 +104,42 @@ function DemoChat({ active }: { active: boolean }) {
         {[0, 1, 2].map(i => (
           <span key={i} style={{ width: 5, height: 5, borderRadius: '50%', background: '#9CA3AF', animation: active ? 'dotBounce 1.2s ease-in-out infinite' : undefined, animationDelay: `${i * 150}ms` }} />
         ))}
+      </div>
+    </div>
+  )
+}
+
+function DemoNotificaciones({ active }: { active: boolean }) {
+  return (
+    <div key={active ? 'on' : 'off'} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '16px 0' }}>
+      <div style={{ position: 'relative' }}>
+        <Bell
+          size={30} color="#8B5CF6"
+          style={{ opacity: active ? 1 : 0, animation: active ? 'popIn 0.35s ease-out both, bellRing 0.6s ease-in-out 0.55s' : undefined }}
+        />
+        <span
+          style={{
+            position: 'absolute', top: -2, right: -2, width: 9, height: 9, borderRadius: '50%', background: '#DC2626',
+            opacity: active ? 1 : 0, animation: active ? 'popIn 0.3s ease-out 0.55s both' : undefined,
+          }}
+        />
+      </div>
+      {/* Silueta de celular recibiendo una notificacion, en vez de la
+          palabra "push" (jerga tecnica que un medico comun no reconoce) —
+          es el elemento visual protagonista de la tarjeta, sin etiqueta de
+          texto debajo (el correo ya se menciona en el cuerpo de la tarjeta). */}
+      <div style={{ position: 'relative', width: 56, height: 92, borderRadius: 12, border: '2.5px solid #C7C9D1', background: '#fff', opacity: active ? 1 : 0, animation: active ? 'fadeUp 0.4s ease-out 0.9s both' : undefined }}>
+        <div style={{ position: 'absolute', top: 5, left: '50%', transform: 'translateX(-50%)', width: 16, height: 3, borderRadius: 2, background: '#D1D5DB' }} />
+        <div
+          style={{
+            position: 'absolute', left: 5, right: 5, top: 18,
+            display: 'flex', alignItems: 'center', gap: 5, background: '#F5F3FF', borderRadius: 7, padding: '5px 6px',
+            opacity: active ? 1 : 0, animation: active ? 'notifDrop 0.4s ease-out 1.2s both' : undefined,
+          }}
+        >
+          <Bell size={12} color="#8B5CF6" />
+          <div style={{ flex: 1, height: 4, borderRadius: 2, background: '#DDD6FE' }} />
+        </div>
       </div>
     </div>
   )
@@ -110,7 +159,7 @@ function DemoResenas({ active }: { active: boolean }) {
           />
         ))}
       </div>
-      <span style={{ fontSize: 12, color: '#9CA3AF', opacity: active ? 1 : 0, transition: 'opacity .3s 600ms' }}>Reseñas verificadas</span>
+      <span style={{ fontSize: 12, color: '#9CA3AF', opacity: active ? 1 : 0, transition: 'opacity .3s 600ms' }}>Reseñas reales</span>
     </div>
   )
 }
@@ -133,19 +182,37 @@ function DemoEstadisticas({ active }: { active: boolean }) {
   )
 }
 
-function DemoMerito({ active }: { active: boolean }) {
-  const items = ['Perfil completo', 'Cédula verificable', 'Buenas reseñas']
+function DemoGaleria({ active }: { active: boolean }) {
   return (
-    <div key={active ? 'on' : 'off'} style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '14px 16px' }}>
-      <div style={{ height: 8, borderRadius: 4, background: '#F3F4F6', overflow: 'hidden' }}>
-        <div style={{ height: '100%', borderRadius: 4, background: 'linear-gradient(90deg,#2A9D8F,#1E3A5F)', width: active ? '100%' : '0%', transition: 'width 0.9s ease-out' }} />
-      </div>
-      {items.map((label, i) => (
-        <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6, opacity: active ? 1 : 0, transition: `opacity .3s ${300 + i * 180}ms` }}>
-          <CheckCircle size={13} color="#2A9D8F" />
-          <span style={{ fontSize: 11, color: '#374151' }}>{label}</span>
-        </div>
+    <div key={active ? 'on' : 'off'} style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 6, padding: '14px 6px' }}>
+      {['#FDE68A', '#A7F3D0', '#BFDBFE', '#FBCFE8'].map((c, i) => (
+        <div
+          key={c}
+          style={{
+            aspectRatio: '1/1', borderRadius: 8, background: c,
+            opacity: active ? 1 : 0, animation: active ? 'popIn 0.35s ease-out both' : undefined, animationDelay: `${i * 90}ms`,
+          }}
+        />
       ))}
+    </div>
+  )
+}
+
+function DemoSeguridad({ active }: { active: boolean }) {
+  return (
+    <div key={active ? 'on' : 'off'} style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '18px 16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, opacity: active ? 1 : 0, animation: active ? 'fadeUp 0.35s ease-out both' : undefined, animationDelay: '0ms' }}>
+        <Smartphone size={14} color="#1E3A5F" />
+        <span style={{ fontSize: 11, color: '#374151' }}>Este dispositivo</span>
+        <CheckCircle size={12} color="#2A9D8F" style={{ marginLeft: 'auto' }} />
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, opacity: active ? 1 : 0, animation: active ? 'fadeUp 0.35s ease-out both' : undefined, animationDelay: '220ms' }}>
+        <Smartphone size={14} color="#D1D5DB" />
+        <span style={{ fontSize: 11, color: '#D1D5DB', textDecoration: 'line-through' }}>Dispositivo desconocido</span>
+        <LogOut
+          size={12} color="#DC2626" style={{ marginLeft: 'auto', opacity: active ? 1 : 0, animation: active ? 'popIn 0.3s ease-out 500ms both' : undefined }}
+        />
+      </div>
     </div>
   )
 }
@@ -155,18 +222,71 @@ interface Benefit {
   bg: string
   title: string
   body: string
+  boldLine: string
   Demo: (props: { active: boolean }) => React.ReactElement
 }
 
 const BENEFITS: Benefit[] = [
-  { icon: <UserCircle size={22} color="#8B5CF6" />, bg: '#F5F3FF', title: 'Tu perfil, siempre visible', body: 'Foto, especialidad, horarios, mapa de ubicación, seguros que aceptas y tus tarifas. Todo lo que un paciente necesita para decidir agendar contigo.', Demo: DemoPerfil },
-  { icon: <ShieldCheck size={22} color="#2A9D8F" />, bg: '#E8F7F5', title: 'Cédula y especialidad verificables', body: 'Tu perfil incluye botones directos a la SEP y al consejo de tu especialidad (CONACEM), para que tus pacientes verifiquen tu cédula y certificación ellos mismos, en fuentes oficiales.', Demo: DemoVerificacion },
-  { icon: <ImageIcon size={22} color="#D97706" />, bg: '#FFFBEB', title: 'Galería de tu consultorio', body: 'Sube hasta 10 fotos de tu consultorio o equipo. Los pacientes eligen con más confianza cuando pueden ver dónde los vas a atender.', Demo: DemoGaleria },
-  { icon: <CalendarCheck size={22} color="#1E3A5F" />, bg: '#E8ECF3', title: 'Agenda de citas en línea', body: 'Tus pacientes agendan directo desde tu perfil, sin llamadas ni mensajes de ida y vuelta. Tú confirmas con un clic.', Demo: DemoAgenda },
-  { icon: <MessageCircle size={22} color="#2A9D8F" />, bg: '#E8F7F5', title: 'Chat directo con tus pacientes', body: 'Una vez confirmada la cita, pueden platicar directo dentro de Salurama. Manda indicaciones, comparte documentos y resuelve dudas antes de la consulta.', Demo: DemoChat },
-  { icon: <Star size={22} color="#D97706" />, bg: '#FFFBEB', title: 'Reseñas verificadas y reportes', body: 'Solo pacientes que tuvieron una cita real pueden dejar reseña. Descarga tu historial completo en PDF o Excel cuando quieras.', Demo: DemoResenas },
-  { icon: <BarChart2 size={22} color="#8B5CF6" />, bg: '#F5F3FF', title: 'Estadísticas y comparativa de especialidad', body: 'Consulta tus vistas, tasa de confirmación y calificación mes a mes. Compárate contra médicos de tu misma especialidad, a nivel nacional y en tu ciudad.', Demo: DemoEstadisticas },
-  { icon: <Award size={22} color="#1E3A5F" />, bg: '#E8ECF3', title: 'Posicionamiento por mérito', body: 'Tu visibilidad se gana con tu actividad profesional, no con tu presupuesto.', Demo: DemoMerito },
+  {
+    icon: <UserCircle size={22} color="#8B5CF6" />, bg: '#F5F3FF', title: 'Tu perfil, siempre visible',
+    body: 'Foto, especialidad, ubicación, horarios, mapa, seguros, tarifas. Todo lo que un paciente necesita para decidir agendar contigo.',
+    boldLine: 'Cuando tu perfil esté completo y hayas atendido tu primera consulta, se mostrará una insignia que indica que eres un médico activo en Salurama.',
+    Demo: DemoPerfil,
+  },
+  {
+    icon: <CalendarCheck size={22} color="#1E3A5F" />, bg: '#E8ECF3', title: 'Agenda de citas en línea',
+    body: 'Tus pacientes agendan directo desde tu perfil, sin llamadas ni mensajes de ida y vuelta.',
+    boldLine: 'Tu agenda es inteligente: nunca se duplican citas, y te llega un aviso a tu correo en cuanto tu paciente confirma.',
+    Demo: DemoAgenda,
+  },
+  {
+    icon: <ShieldCheck size={22} color="#2A9D8F" />, bg: '#E8F7F5', title: 'Cédula y especialidad verificables',
+    body: 'Tu perfil incluye botones directos a la SEP y al consejo de tu especialidad (CONACEM).',
+    boldLine: 'Tus pacientes verifican tu cédula y certificación ellos mismos, en fuentes oficiales.',
+    Demo: DemoVerificacion,
+  },
+  {
+    icon: <Award size={22} color="#1E3A5F" />, bg: '#E8ECF3', title: 'Posicionamiento por mérito',
+    body: 'Entre más completo esté tu perfil, más consultas atiendas, y más activo estés en la plataforma, mejor se posiciona tu perfil frente a otros médicos de tu especialidad.',
+    boldLine: 'Tu visibilidad se gana con tu actividad profesional, no con tu presupuesto.',
+    Demo: DemoMerito,
+  },
+  {
+    icon: <MessageCircle size={22} color="#2A9D8F" />, bg: '#E8F7F5', title: 'Chat directo con tus pacientes',
+    body: 'Una vez confirmada la cita, pueden platicar directo dentro de Salurama. Manda indicaciones, comparte documentos y resuelve dudas antes de la consulta.',
+    boldLine: 'El chat se cierra automáticamente 72 horas después de marcar la consulta como atendida.',
+    Demo: DemoChat,
+  },
+  {
+    icon: <Bell size={22} color="#8B5CF6" />, bg: '#F5F3FF', title: 'Notificaciones',
+    body: 'Nunca te pierdas un mensaje. Recibe avisos por correo y notificaciones directo en tu celular cuando un paciente confirme su cita o te escriba en el chat.',
+    boldLine: 'Te enteras al instante, aunque no tengas Salurama abierto en ese momento.',
+    Demo: DemoNotificaciones,
+  },
+  {
+    icon: <Star size={22} color="#D97706" />, bg: '#FFFBEB', title: 'Reseñas reales',
+    body: 'Solo pacientes que tuvieron una cita real pueden dejar reseña.',
+    boldLine: 'Puedes responder públicamente a cada reseña, y nuestra IA vigila que todo el contenido cumpla nuestras políticas.',
+    Demo: DemoResenas,
+  },
+  {
+    icon: <BarChart2 size={22} color="#8B5CF6" />, bg: '#F5F3FF', title: 'Estadísticas y comparativa de especialidad',
+    body: 'Consulta tus vistas, tasa de confirmación y calificación mes a mes. Compárate contra médicos de tu misma especialidad, a nivel nacional y en tu ciudad.',
+    boldLine: 'Descarga tus reportes completos en PDF o Excel cuando quieras.',
+    Demo: DemoEstadisticas,
+  },
+  {
+    icon: <ImageIcon size={22} color="#D97706" />, bg: '#FFFBEB', title: 'Galería de tu consultorio',
+    body: 'Sube hasta 10 fotos de tu consultorio o equipo.',
+    boldLine: 'Los pacientes eligen con más confianza cuando pueden ver dónde los vas a atender.',
+    Demo: DemoGaleria,
+  },
+  {
+    icon: <Lock size={22} color="#1E3A5F" />, bg: '#E8ECF3', title: 'Seguridad de tu cuenta',
+    body: 'Tienes control total sobre quién accede a tu cuenta. Guarda tu inicio de sesión en tus dispositivos de confianza hasta por 7 días.',
+    boldLine: 'Cierra remotamente la sesión de cualquier dispositivo, en cuanto detectes un acceso que no reconoces.',
+    Demo: DemoSeguridad,
+  },
 ]
 
 interface CtaLink {
@@ -219,6 +339,8 @@ export default function BeneficiosCarousel({
         @keyframes popIn { from{opacity:0;transform:scale(0.6)} to{opacity:1;transform:scale(1)} }
         @keyframes dotBounce { 0%,80%,100%{transform:translateY(0);opacity:.4} 40%{transform:translateY(-4px);opacity:1} }
         @keyframes pulseRing { 0%{box-shadow:0 0 0 0 rgba(42,157,143,0.55)} 70%{box-shadow:0 0 0 9px rgba(42,157,143,0)} 100%{box-shadow:0 0 0 0 rgba(42,157,143,0)} }
+        @keyframes bellRing { 0%,100%{transform:rotate(0deg)} 20%{transform:rotate(-15deg)} 40%{transform:rotate(12deg)} 60%{transform:rotate(-8deg)} 80%{transform:rotate(4deg)} }
+        @keyframes notifDrop { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
         .fade-up { animation: fadeUp 0.4s ease-out; }
         .benefit-slide { flex: 0 0 86%; min-width: 0; padding: 0 6px; }
         @media (min-width: 768px) { .benefit-slide { flex: 0 0 60%; } }
@@ -258,6 +380,7 @@ export default function BeneficiosCarousel({
                       <div>
                         <p style={{ fontFamily: "'Fraunces', serif", fontSize: 17, fontWeight: 900, color: '#111827', marginBottom: 6 }}>{b.title}</p>
                         <p style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.6 }}>{b.body}</p>
+                        <p style={{ fontSize: 13, color: '#111827', lineHeight: 1.6, fontWeight: 700, marginTop: 8 }}>{b.boldLine}</p>
                       </div>
                       <div style={{ background: '#F9FAFB', borderRadius: 12, marginTop: 'auto' }}>
                         <Demo active={active} />

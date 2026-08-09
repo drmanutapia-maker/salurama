@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import type { ChangeEvent, KeyboardEvent } from 'react'
-import Link from 'next/link'
 import { Send, FileText, Paperclip, Image as ImageIcon, Loader2 } from 'lucide-react'
 import imageCompression from 'browser-image-compression'
 import AvisoNotificaciones from './AvisoNotificaciones'
+import RecuperarChatClient from './RecuperarChatClient'
 
 const TIPOS_MIME_PERMITIDOS = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'] as const
 const TAMANO_MAXIMO_BYTES = 15728640 // 15 MB — mismo límite que el bucket chat-archivos
@@ -339,25 +339,18 @@ export default function ChatPacienteClient({ token }: { token: string }) {
   }
 
   if (pagina === 'error') {
+    if (tipoError === 'no_encontrado') {
+      return <RecuperarChatClient aviso="Este enlace ya expiró." />
+    }
     return (
       <div className="flex items-center justify-center bg-neutral-50 px-6" style={{ height: '100svh' }}>
         <div className="max-w-sm text-center">
           <p className="font-body font-semibold text-base text-neutral-700 mb-2">
-            {tipoError === 'no_encontrado' ? 'Este enlace ya no está disponible' : 'No pudimos cargar la conversación'}
+            No pudimos cargar la conversación
           </p>
           <p className="font-body text-sm text-neutral-500 leading-relaxed">
-            {tipoError === 'no_encontrado'
-              ? 'Puede haber expirado o haberse copiado incompleto. Recupera el acceso a tu chat con tu correo.'
-              : 'Intenta de nuevo en unos momentos.'}
+            Intenta de nuevo en unos momentos.
           </p>
-          {tipoError === 'no_encontrado' && (
-            <Link
-              href="/chat/recuperar"
-              className="inline-block mt-3 font-body text-sm font-semibold text-primary-500 hover:text-primary-600 transition-colors"
-            >
-              Recuperar mi acceso
-            </Link>
-          )}
         </div>
       </div>
     )

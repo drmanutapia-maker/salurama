@@ -7,7 +7,7 @@ import BackButton from '@/components/BackButton'
 type Estado = 'idle' | 'enviando' | 'enviado' | 'limite' | 'error'
 type Modo = 'email' | 'telefono'
 
-export default function RecuperarChatClient() {
+export default function RecuperarChatClient({ aviso }: { aviso?: string } = {}) {
   const [modo, setModo] = useState<Modo>('email')
   const [valor, setValor] = useState('')
   const [turnstileToken, setTurnstileToken] = useState('')
@@ -73,6 +73,11 @@ export default function RecuperarChatClient() {
             <BackButton />
           </Suspense>
         </div>
+        {aviso && (
+          <p className="font-body text-sm font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 text-center mb-4">
+            {aviso}
+          </p>
+        )}
         <h1 className="font-body font-semibold text-xl text-neutral-900 mb-2 text-center">
           ¿Perdiste el acceso a tu chat?
         </h1>
