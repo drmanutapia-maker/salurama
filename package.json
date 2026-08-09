@@ -45,6 +45,7 @@
     "sonner": "^2.0.7",
     "stripe": "^22.3.1",
     "tailwind-merge": "^2.5.5",
+    "web-push": "^3.6.7",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -52,6 +53,7 @@
     "@types/node": "^22.10.2",
     "@types/react": "^19.0.1",
     "@types/react-dom": "^19.0.1",
+    "@types/web-push": "^3.6.4",
     "autoprefixer": "^10.4.20",
     "cross-env": "^10.1.0",
     "postcss": "^8.4.49",

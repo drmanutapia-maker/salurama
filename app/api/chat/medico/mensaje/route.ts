@@ -4,8 +4,9 @@ import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { Redis } from '@upstash/redis'
 import { z } from 'zod'
-import { verificarSalaMedico } from '@/lib/chat/token'
+import { verificarSalaMedico, rotarToken } from '@/lib/chat/token'
 import { cifrar } from '@/lib/chat/crypto'
+import { notificarPacientePush } from '@/lib/push/enviarPush'
 
 export const dynamic = 'force-dynamic'
 
@@ -110,6 +111,38 @@ export async function POST(request: NextRequest) {
     }
 
     console.info(`[${requestId}] Mensaje creado: ${mensaje.id}`)
+
+    // Notificar por push al paciente — nunca debe hacer fallar la respuesta
+    // (el mensaje ya se guardó). Solo se rota el link del chat (mismo patrón
+    // que /api/chat/reenviar-link, ver comentario ahí) si de verdad hay al
+    // menos una suscripción a la que avisar; si el paciente nunca aceptó
+    // notificaciones, no tiene sentido invalidar su link actual sin motivo.
+    try {
+      const { count: totalSuscripciones } = await supabase
+        .from('push_subscriptions')
+        .select('id', { count: 'exact', head: true })
+        .eq('paciente_id', sesion.pacienteId)
+
+      if (totalSuscripciones && totalSuscripciones > 0) {
+        const [{ data: doctor }, token] = await Promise.all([
+          supabase.from('doctors').select('display_name, full_name').eq('id', sesion.medicoId).maybeSingle(),
+          rotarToken(supabase, sesion.salaId),
+        ])
+        // Sin prefijo "Dr./Dra." agregado a mano — mismo criterio que el
+        // resto de los correos de chat (lib/email.ts), que usan el nombre
+        // del médico tal cual.
+        const medicoNombre = doctor?.display_name || doctor?.full_name || 'tu médico'
+        const chatUrl = `${process.env.NEXT_PUBLIC_URL || 'https://salurama.com'}/chat/${token}`
+
+        await notificarPacientePush(supabase, sesion.pacienteId, {
+          title: medicoNombre,
+          body: 'Tienes un mensaje nuevo en tu chat.',
+          url: chatUrl,
+        })
+      }
+    } catch (pushError) {
+      console.error(`[${requestId}] Error notificando por push:`, pushError)
+    }
 
     return NextResponse.json(
       { success: true, mensaje },
