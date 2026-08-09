@@ -6,11 +6,12 @@ import { useRouter } from 'next/navigation'
 import {
   X, ZoomIn, Calendar, Edit2, Eye, Share2,
   Star, Users, MoreVertical, Lightbulb,
-  CheckCircle, ArrowRight,
-  PartyPopper, Sparkles, Megaphone, AlertCircle
+  CheckCircle, ArrowRight, ArrowUp, ArrowDown, Minus,
+  PartyPopper, Sparkles, Megaphone, AlertCircle, BarChart3
 } from 'lucide-react'
 import { calculateProfileCompletion } from '@/hooks/useProfileCompletion'
 import { isManuelEmail } from '@/lib/manuelOnly'
+import { fechaISOLocal } from '@/lib/citas/fechas'
 
 interface Medico {
   id: string
@@ -45,9 +46,9 @@ interface Cita {
 
 interface StatsResumen {
   visitas_mes: number
-  citas_solicitadas_totales: number
-  citas_solicitadas_mes: number
-  citas_pendientes: number
+  citas_totales: number
+  citas_mes: number
+  citas_mes_anterior: number
   rating_promedio: number
   reseñas_count: number
 }
@@ -133,7 +134,7 @@ export default function DashboardMedico() {
         if (!mounted) return
         setMedico(doctor)
 
-        const hoy = new Date().toISOString().split('T')[0]
+        const hoy = fechaISOLocal(new Date())
         const inicioMes = new Date()
         inicioMes.setDate(1)
         const inicioMesStr = inicioMes.toISOString().split('T')[0]
@@ -142,7 +143,7 @@ export default function DashboardMedico() {
         inicioMesAnterior.setMonth(inicioMesAnterior.getMonth() - 1)
         const inicioMesAnteriorStr = inicioMesAnterior.toISOString().split('T')[0]
 
-        const [citasHoyRes, totalesRes, mesRes, mesAnteriorRes, pendientesRes, eduRes, expRes, condRes, visitasRes, specialtyCredRes] = await Promise.all([
+        const [citasHoyRes, totalesRes, mesRes, mesAnteriorRes, eduRes, expRes, condRes, visitasRes, specialtyCredRes] = await Promise.all([
           supabase.from('citas')
             .select('id, paciente_nombre, fecha, hora, estado')
             .eq('medico_id', doctor.id)
@@ -151,26 +152,21 @@ export default function DashboardMedico() {
             .order('fecha', { ascending: true })
             .order('hora', { ascending: true })
             .limit(1),
+          // Total histórico de citas, sin filtrar por estado — a diferencia
+          // del filtro anterior (solo 'pending_verification'), que hacía que
+          // el conteo bajara a 0 en cuanto una solicitud se confirmaba.
+          supabase.from('citas')
+            .select('*', { count: 'exact', head: true })
+            .eq('medico_id', doctor.id),
           supabase.from('citas')
             .select('*', { count: 'exact', head: true })
             .eq('medico_id', doctor.id)
-            .eq('estado', 'pending_verification'),
-          supabase.from('citas')
-            .select('*', { count: 'exact', head: true })
-            .eq('medico_id', doctor.id)
-            .eq('estado', 'pending_verification')
             .gte('fecha', inicioMesStr),
           supabase.from('citas')
             .select('*', { count: 'exact', head: true })
             .eq('medico_id', doctor.id)
-            .eq('estado', 'pending_verification')
             .gte('fecha', inicioMesAnteriorStr)
             .lt('fecha', inicioMesStr),
-          supabase.from('citas')
-            .select('*', { count: 'exact', head: true })
-            .eq('medico_id', doctor.id)
-            .in('estado', ['pending_verification', 'confirmed'])
-            .gte('fecha', hoy),
           supabase.from('doctor_education').select('id').eq('doctor_id', doctor.id),
           supabase.from('doctor_experience').select('id').eq('doctor_id', doctor.id),
           supabase.from('doctor_conditions').select('id').eq('doctor_id', doctor.id),
@@ -209,13 +205,15 @@ export default function DashboardMedico() {
         // / auth.email()=email en las políticas de UPDATE de doctors) — un
         // visitante real nunca pudo escribirlo. profile_views (tabla) sí
         // excluye auto-visitas correctamente vía app/api/track-visit.
+        // Total histórico (no mesActual): el desglose mensual ya vive en
+        // /dashboard/estadisticas, aquí no se duplica.
         const visitasMes = visitasRes.count || 0
 
         setStats({
           visitas_mes: visitasMes,
-          citas_solicitadas_totales: totalesRes.count || 0,
-          citas_solicitadas_mes: mesRes.count || 0,
-          citas_pendientes: pendientesRes.count || 0,
+          citas_totales: totalesRes.count || 0,
+          citas_mes: mesRes.count || 0,
+          citas_mes_anterior: mesAnteriorRes.count || 0,
           rating_promedio: parseFloat(Number(ratingData.promedio || 0).toFixed(1)),
           reseñas_count: ratingData.total || 0
         })
@@ -417,12 +415,24 @@ export default function DashboardMedico() {
   const fechaHoyLegible = new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })
 
   const formatProximaFecha = (fechaStr: string) => {
-    const hoy = new Date().toISOString().split('T')[0]
-    const manana = new Date(Date.now() + 86400000).toISOString().split('T')[0]
+    const hoy = fechaISOLocal(new Date())
+    const manana = fechaISOLocal(new Date(Date.now() + 86400000))
     if (fechaStr === hoy) return 'Hoy'
     if (fechaStr === manana) return 'Mañana'
     return new Date(fechaStr + 'T00:00:00').toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })
   }
+
+  // Tendencia simple del mes contra el mes anterior, para la tarjeta de
+  // Estadísticas — mismo criterio (dirección) que usa /dashboard/estadisticas,
+  // sin el detalle de porcentaje para mantener la tarjeta compacta.
+  const citasMes = stats?.citas_mes ?? 0
+  const citasMesAnterior = stats?.citas_mes_anterior ?? 0
+  const tendenciaDireccion: 'up' | 'down' | 'flat' =
+    citasMesAnterior === 0
+      ? (citasMes > 0 ? 'up' : 'flat')
+      : citasMes > citasMesAnterior ? 'up' : citasMes < citasMesAnterior ? 'down' : 'flat'
+  const TendenciaIcon = tendenciaDireccion === 'up' ? ArrowUp : tendenciaDireccion === 'down' ? ArrowDown : Minus
+  const tendenciaColor = tendenciaDireccion === 'up' ? '#059669' : tendenciaDireccion === 'down' ? '#DC2626' : '#9CA3AF'
 
   return (
     <div style={{ minHeight: '100vh', background: '#F9FAFB', fontFamily: "'DM Sans', sans-serif", paddingBottom: isMobile ? 80 : 0 }}>
@@ -738,7 +748,7 @@ export default function DashboardMedico() {
           {/* VISITAS */}
           <div style={{ background: '#fff', padding: 24, borderRadius: 16, border: '1px solid #E5E7EB' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-              <p style={{ fontSize: 11, color: '#9CA3AF', textTransform: 'uppercase', fontWeight: 700, margin: 0, letterSpacing: '0.05em' }}>Visitas</p>
+              <p style={{ fontSize: 11, color: '#9CA3AF', textTransform: 'uppercase', fontWeight: 700, margin: 0, letterSpacing: '0.05em' }}>Vistas totales</p>
               <Eye size={18} color="#8B5CF6" />
             </div>
             <p style={{ fontSize: 32, fontFamily: 'Fraunces', fontWeight: 900, color: '#1E3A5F', margin: '8px 0', lineHeight: 1 }}>
@@ -749,39 +759,26 @@ export default function DashboardMedico() {
             </p>
           </div>
 
-          {/* SOLICITUDES */}
+          {/* ESTADÍSTICAS */}
           <div style={{ background: '#fff', padding: 24, borderRadius: 16, border: '1px solid #E5E7EB' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-              <p style={{ fontSize: 11, color: '#9CA3AF', textTransform: 'uppercase', fontWeight: 700, margin: 0, letterSpacing: '0.05em' }}>Solicitudes</p>
-              <Calendar size={18} color="#2A9D8F" />
+              <p style={{ fontSize: 11, color: '#9CA3AF', textTransform: 'uppercase', fontWeight: 700, margin: 0, letterSpacing: '0.05em' }}>Estadísticas</p>
+              <BarChart3 size={18} color="#2A9D8F" />
             </div>
-            {(stats?.citas_solicitadas_totales ?? 0) === 0 ? (
-              <>
-                <p style={{ fontSize: 16, fontFamily: 'Fraunces', fontWeight: 900, color: '#1E3A5F', margin: '8px 0 4px', lineHeight: 1.3 }}>
-                  Aún no tienes solicitudes
-                </p>
-                <div style={{ color: '#6B7280', fontSize: 12 }}>
-                  Comparte tu perfil para conseguir la primera
-                </div>
-                <div
-                  onClick={handleShare}
-                  style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', gap: 4, color: '#2A9D8F', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-                >
-                  <Share2 size={14} /> Compartir perfil
-                </div>
-              </>
-            ) : (
-              <>
-                <p style={{ fontSize: 32, fontFamily: 'Fraunces', fontWeight: 900, color: '#1E3A5F', margin: '8px 0', lineHeight: 1 }}>
-                  {stats?.citas_pendientes || 0}
-                </p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#6B7280', fontSize: 12, marginTop: 8 }}>
-                  <Users size={14} />
-                  <span style={{ fontWeight: 600 }}>{stats?.citas_solicitadas_mes || 0}</span>
-                  <span style={{ color: '#9CA3AF', marginLeft: 4 }}>este mes</span>
-                </div>
-              </>
-            )}
+            <p style={{ fontSize: 32, fontFamily: 'Fraunces', fontWeight: 900, color: '#1E3A5F', margin: '8px 0', lineHeight: 1 }}>
+              {stats?.citas_totales || 0}
+            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#6B7280', fontSize: 12, marginTop: 8 }}>
+              <TendenciaIcon size={14} color={tendenciaColor} />
+              <span style={{ fontWeight: 600 }}>{citasMes}</span>
+              <span style={{ color: '#9CA3AF', marginLeft: 4 }}>citas este mes</span>
+            </div>
+            <div
+              onClick={() => router.push('/dashboard/estadisticas')}
+              style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', gap: 4, color: '#2A9D8F', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+            >
+              <ArrowRight size={14} /> Ver más
+            </div>
           </div>
 
           {/* CALIFICACIÓN */}
@@ -815,13 +812,10 @@ export default function DashboardMedico() {
       ═══════════════════════════════════════════════════════════ */}
       <div style={{ maxWidth: 1100, margin: '0 auto 20px', padding: '0 16px' }}>
         <div style={{ background: '#fff', padding: 24, borderRadius: 16, border: '1px solid #E5E7EB' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <div style={{ marginBottom: 20 }}>
             <h2 style={{ fontFamily: 'Fraunces', fontSize: 20, fontWeight: 900, color: '#1E3A5F', margin: 0 }}>
               Actividad Reciente
             </h2>
-            <Link href="/dashboard/estadisticas" style={{ color: '#1E3A5F', fontSize: 13, fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
-              Ver más <ArrowRight size={14} />
-            </Link>
           </div>
 
           {citasHoy.length > 0 ? (
