@@ -132,7 +132,7 @@ function VerifyReviewContent() {
             <CheckCircle2 className="w-8 h-8 text-[#10B981]" />
           </div>
           <h1 className="text-xl font-bold text-[#0F172A] mb-2">¡Gracias!</h1>
-          <p className="text-sm text-[#64748B]">Tu reseña verificada ayuda a otros pacientes.</p>
+          <p className="text-sm text-[#64748B]">Tu reseña ayuda a otros pacientes.</p>
         </div>
       </div>
     )
@@ -150,7 +150,7 @@ function VerifyReviewContent() {
           </Link>
           <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#F0FDF4] border border-[#BBF7D0] rounded-full">
             <ShieldCheck size={14} className="text-[#16A34A]" />
-            <span className="text-xs font-medium text-[#15803D]">Reseña verificada</span>
+            <span className="text-xs font-medium text-[#15803D]">Reseña</span>
           </div>
         </div>
 
@@ -205,7 +205,7 @@ function VerifyReviewContent() {
             </div>
 
             <button type="submit" disabled={submitting || !turnstileToken} className="w-full h-12 bg-[#0F172A] text-white rounded-2xl font-medium hover:bg-[#1E293B] disabled:opacity-60 flex items-center justify-center gap-2">
-              {submitting ? <><Loader2 size={18} className="animate-spin" />Enviando...</> : <><ShieldCheck size={18} />Publicar reseña verificada</>}
+              {submitting ? <><Loader2 size={18} className="animate-spin" />Enviando...</> : <><ShieldCheck size={18} />Publicar reseña</>}
             </button>
           </form>
         </div>

@@ -368,7 +368,7 @@ export default function EstadisticasPage() {
               <TrendBadge trend={tendencias.reseñas} />
             </p>
             {reviews.length === 0 ? (
-              <p style={{ fontSize: 14, color: '#9CA3AF', textAlign: 'center', padding: '20px 0' }}>Aún no tienes reseñas verificadas</p>
+              <p style={{ fontSize: 14, color: '#9CA3AF', textAlign: 'center', padding: '20px 0' }}>Aún no tienes reseñas</p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {ratingDist.map(({ stars, count, pct }) => (

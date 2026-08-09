@@ -278,7 +278,7 @@ export default function HomeClient({
               <div className="card-medico" style={{ background: '#fff', borderRadius: 16, padding: 32, textAlign: 'center' }}>
                 <div style={{ width: 64, height: 64, background: '#FEF3C7', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}><Star size={32} color="#F59E0B" /></div>
                 <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1E3A5F', marginBottom: 12 }}>Reseñas de pacientes reales</h3>
-                <p style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.6 }}>Solo pacientes que agendaron cita pueden dejar reseñas verificadas</p>
+                <p style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.6 }}>Solo pacientes que agendaron cita pueden dejar reseñas</p>
               </div>
               <div className="card-medico" style={{ background: '#fff', borderRadius: 16, padding: 32, textAlign: 'center' }}>
                 <div style={{ width: 64, height: 64, background: '#ECFDF5', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}><MessageCircle size={32} color="#059669" /></div>
@@ -297,7 +297,7 @@ export default function HomeClient({
                 ¿Eres médico y quieres estar aquí?
               </h2>
               <p style={{ fontSize: 15, color: '#C5D0E0', lineHeight: 1.7, maxWidth: 480, margin: '0 auto 24px' }}>
-                Perfil verificado, chat directo con tus pacientes, reseñas reales y estadísticas de tu especialidad. Descubre todo lo que Salurama hace por ti.
+                Perfil con cédula verificable, chat directo con tus pacientes, reseñas reales y estadísticas de tu especialidad. Descubre todo lo que Salurama hace por ti.
               </p>
               <Link
                 href="/beneficios"

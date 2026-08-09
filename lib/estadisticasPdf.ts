@@ -165,7 +165,7 @@ export async function buildEstadisticasPdf(data: EstadisticasData): Promise<Uint
   // ── Distribución de reseñas ─────────────────────────────────────────────
   sectionTitle('Distribución de reseñas')
   if (data.reviews.length === 0) {
-    text('Aún no hay reseñas verificadas.', { x: MARGIN, size: 10, color: COLOR_MUTED })
+    text('Aún no hay reseñas.', { x: MARGIN, size: 10, color: COLOR_MUTED })
     cursor.y -= 20
   } else {
     const maxRating = Math.max(...data.ratingDist.map((r) => r.count), 1)

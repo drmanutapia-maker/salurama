@@ -108,7 +108,7 @@ export async function buildResenasPdf(data: ResenasData): Promise<Uint8Array> {
   // ── Distribución por calificación ──────────────────────────────────────
   sectionTitle('Distribución por calificación')
   if (data.total === 0) {
-    text('Aún no hay reseñas verificadas.', { x: MARGIN, size: 10, color: COLOR_MUTED })
+    text('Aún no hay reseñas.', { x: MARGIN, size: 10, color: COLOR_MUTED })
     cursor.y -= 20
   } else {
     const maxRating = Math.max(...data.ratingDist.map((r) => r.count), 1)
@@ -120,7 +120,7 @@ export async function buildResenasPdf(data: ResenasData): Promise<Uint8Array> {
   // ── Todas las reseñas ───────────────────────────────────────────────────
   sectionTitle(`Todas las reseñas (${data.total})`)
   if (data.total === 0) {
-    text('Aún no hay reseñas verificadas.', { x: MARGIN, size: 10, color: COLOR_MUTED })
+    text('Aún no hay reseñas.', { x: MARGIN, size: 10, color: COLOR_MUTED })
   } else {
     const maxCommentWidth = PAGE_WIDTH - MARGIN * 2
     for (const r of data.reviews) {

@@ -111,8 +111,8 @@ export default function ResenasPage() {
           <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 28, fontWeight: 900, color: '#111827', marginBottom: 4 }}>Reseñas</h1>
           <p style={{ fontSize: 14, color: '#6B7280' }}>
             {reviews.length > 0
-              ? <>Promedio de <strong style={{ color: '#D97706' }}>{ratingPromedio.toFixed(1)} ★</strong> con {reviews.length} reseña{reviews.length !== 1 ? 's' : ''} verificada{reviews.length !== 1 ? 's' : ''}</>
-              : 'Aún no tienes reseñas verificadas'}
+              ? <>Promedio de <strong style={{ color: '#D97706' }}>{ratingPromedio.toFixed(1)} ★</strong> con {reviews.length} reseña{reviews.length !== 1 ? 's' : ''}</>
+              : 'Aún no tienes reseñas'}
           </p>
         </div>
 
@@ -160,7 +160,7 @@ export default function ResenasPage() {
         {reviewsFiltradas.length === 0 ? (
           <div className="card fade-up" style={{ textAlign: 'center', padding: '40px 24px' }}>
             <p style={{ fontSize: 14, color: '#9CA3AF' }}>
-              {reviews.length === 0 ? 'Cuando tus pacientes dejen reseñas verificadas, aparecerán aquí.' : 'No tienes reseñas con esa calificación.'}
+              {reviews.length === 0 ? 'Cuando tus pacientes dejen reseñas, aparecerán aquí.' : 'No tienes reseñas con esa calificación.'}
             </p>
           </div>
         ) : (
