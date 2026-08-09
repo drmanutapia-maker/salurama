@@ -48,7 +48,10 @@ async function getDoctorProfileData(doctorId: string) {
     supabase.from('doctor_education').select('*').eq('doctor_id', doctorId).order('graduation_year', { ascending: false }),
     supabase.from('doctor_experience').select('*').eq('doctor_id', doctorId).order('is_current', { ascending: false }),
     supabase.from('doctor_conditions').select('*').eq('doctor_id', doctorId).order('category'),
-    supabase.from('reviews').select('*').eq('doctor_id', doctorId).eq('is_visible', true).order('created_at', { ascending: false }).limit(20),
+    // Columnas explícitas (no '*'): moderation_reason/moderation_flagged_by
+    // son solo para la bandeja interna del admin, nunca deben llegar al HTML
+    // público de esta página.
+    supabase.from('reviews').select('id, rating, comment, created_at, review_responses(id, respuesta)').eq('doctor_id', doctorId).eq('is_visible', true).order('created_at', { ascending: false }).limit(20),
     supabase.from('doctor_specialty_credentials').select('id, credentials_status, specialty_granular_mapping(granular_name, conacem_councils(council_name))').eq('doctor_id', doctorId),
     supabase.from('doctor_gallery_photos').select('id, photo_url, caption').eq('doctor_id', doctorId).order('position'),
   ])
@@ -65,13 +68,18 @@ async function getDoctorProfileData(doctorId: string) {
       granular_name: r.specialty_granular_mapping?.granular_name,
       council_name: r.specialty_granular_mapping?.conacem_councils?.council_name ?? null,
     })) as SpecialtyCredential[],
-    reviews: (revRes.data ?? []).map((r: any) => ({
-      id: r.id,
-      user_name: 'Paciente verificado',
-      rating: r.rating,
-      comment: r.comment,
-      created_at: r.created_at,
-    })) as Review[],
+    reviews: (revRes.data ?? []).map((r: any) => {
+      const resp = Array.isArray(r.review_responses) ? (r.review_responses[0] ?? null) : (r.review_responses ?? null)
+      return {
+        id: r.id,
+        user_name: 'Paciente verificado',
+        rating: r.rating,
+        comment: r.comment,
+        created_at: r.created_at,
+        respuesta: resp?.respuesta ?? null,
+        respuestaId: resp?.id ?? null,
+      }
+    }) as Review[],
   }
 }
 

@@ -9,7 +9,7 @@ import { fraunces, dmSans } from '@/lib/fonts'
 import {
   MapPin, Star, ShieldCheck, Shield, ExternalLink, Copy, CheckCircle, X,
   ChevronDown, ChevronLeft, ChevronRight, Briefcase, GraduationCap, Heart, Calendar, DollarSign, Info,
-  Clock, Navigation, Phone, MessageCircle, Globe, Share2, Image as ImageIcon
+  Clock, Navigation, Phone, MessageCircle, Globe, Share2, Image as ImageIcon, Flag
 } from 'lucide-react'
 import BackButton from '@/components/BackButton'
 import { getStateLabel } from '@/lib/locations'
@@ -109,6 +109,8 @@ export interface Review {
   rating: number
   comment: string
   created_at: string
+  respuesta: string | null
+  respuestaId: string | null
 }
 
 export interface SpecialtyCredential {
@@ -673,6 +675,60 @@ function AppointmentModal({
         )}
       </div>
     </div>
+  )
+}
+
+// Reporte manual de una reseña o respuesta — visible para cualquier
+// visitante, sin sesión. No revela si el reporte "funcionó" más allá de
+// confirmar el envío; la decisión de qué hacer con el contenido señalado
+// vive solo en el panel de admin.
+function ReportarBoton({ tipo, id }: { tipo: 'review' | 'review_response'; id: string }) {
+  const [estado, setEstado] = useState<'idle' | 'confirmando' | 'enviando' | 'enviado' | 'error'>('idle')
+
+  async function reportar() {
+    setEstado('enviando')
+    try {
+      const res = await fetch('/api/resenas/reportar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tipo, id }),
+      })
+      if (!res.ok) throw new Error('respuesta no ok')
+      setEstado('enviado')
+    } catch {
+      setEstado('error')
+    }
+  }
+
+  if (estado === 'enviado') {
+    return <span style={{ fontSize: 11, color: '#059669', fontWeight: 600, flexShrink: 0 }}>Reportado, gracias</span>
+  }
+
+  if (estado === 'confirmando' || estado === 'enviando') {
+    return (
+      <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+        <span style={{ fontSize: 11, color: '#6B7280' }}>¿Reportar?</span>
+        <button onClick={reportar} disabled={estado === 'enviando'}
+          style={{ fontSize: 11, fontWeight: 700, color: '#DC2626', background: 'none', border: 'none', cursor: estado === 'enviando' ? 'default' : 'pointer', padding: 0 }}>
+          {estado === 'enviando' ? 'Enviando...' : 'Sí, reportar'}
+        </button>
+        <button onClick={() => setEstado('idle')} disabled={estado === 'enviando'}
+          style={{ fontSize: 11, color: '#9CA3AF', background: 'none', border: 'none', cursor: estado === 'enviando' ? 'default' : 'pointer', padding: 0 }}>
+          Cancelar
+        </button>
+      </span>
+    )
+  }
+
+  if (estado === 'error') {
+    return <span style={{ fontSize: 11, color: '#DC2626', flexShrink: 0 }}>Error al reportar</span>
+  }
+
+  return (
+    <button onClick={() => setEstado('confirmando')} title="Reportar este contenido"
+      style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', color: '#9CA3AF', fontSize: 11, cursor: 'pointer', padding: 0, flexShrink: 0 }}>
+      <Flag size={11} /> Reportar
+    </button>
   )
 }
 
@@ -1368,7 +1424,9 @@ export default function DoctorProfileClient({
     </h2>
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {reviews.map((r: any) => (
-        <div key={r.id} style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #E5E7EB' }}>
+        // scroll-margin-top libra el Navbar fijo (72px) cuando se llega por
+        // ancla (#review-{id}), ej. desde el link del correo de aviso de respuesta.
+        <div key={r.id} id={`review-${r.id}`} style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #E5E7EB', scrollMarginTop: 90 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
             <span style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>Paciente verificado</span>
             <div style={{ display: 'flex', gap: 2 }}>
@@ -1378,9 +1436,21 @@ export default function DoctorProfileClient({
             </div>
           </div>
           {r.comment && <p style={{ fontSize: 14, color: '#4A5568', lineHeight: 1.6 }}>{r.comment}</p>}
-          <p style={{ fontSize: 11, color: '#9CA3AF', marginTop: 8 }}>
-            {new Date(r.created_at).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}
-          </p>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, gap: 8 }}>
+            <p style={{ fontSize: 11, color: '#9CA3AF' }}>
+              {new Date(r.created_at).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}
+            </p>
+            <ReportarBoton tipo="review" id={r.id} />
+          </div>
+          {r.respuesta && (
+            <div style={{ marginTop: 12, padding: 14, background: '#F0F4F8', borderRadius: 12, borderLeft: '3px solid #1E3A5F' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, gap: 8 }}>
+                <p style={{ fontSize: 12, fontWeight: 700, color: '#1E3A5F' }}>Respuesta del médico</p>
+                {r.respuestaId && <ReportarBoton tipo="review_response" id={r.respuestaId} />}
+              </div>
+              <p style={{ fontSize: 14, color: '#374151', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{r.respuesta}</p>
+            </div>
+          )}
         </div>
       ))}
     </div>

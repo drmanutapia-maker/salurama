@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { Redis } from '@upstash/redis'
 import { z } from 'zod'
 import { verifyTurnstile } from '@/lib/security'
+import { moderarContenido } from '@/lib/moderacion'
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL!,
@@ -97,7 +98,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { error: insertError } = await supabase
+    const { data: nuevaReview, error: insertError } = await supabase
       .from('reviews')
       .insert({
         doctor_id: cita.medico_id,
@@ -106,6 +107,8 @@ export async function POST(request: NextRequest) {
         is_visible: true,
         cita_id: cita.id,
       })
+      .select('id')
+      .single()
 
     if (insertError) {
       // 23505 = unique_violation (reviews_cita_id_key) — respaldo ante una
@@ -121,6 +124,14 @@ export async function POST(request: NextRequest) {
     }
 
     console.info(`[${requestId}] Reseña creada para cita ${cita.id}`)
+
+    // Solo si hay texto que evaluar — un rating sin comentario no puede
+    // violar ninguna regla de contenido. Se espera aquí (no fire-and-forget)
+    // porque el proceso ya termina justo después; nunca bloquea ni revierte
+    // la publicación, solo escribe el veredicto para la bandeja del admin.
+    if (comment) {
+      await moderarContenido(supabase, 'review', nuevaReview.id, comment)
+    }
 
     return NextResponse.json(
       { success: true, medicoId: cita.medico_id },

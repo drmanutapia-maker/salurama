@@ -25,7 +25,7 @@ export default function PoliticaResenas() {
         <div style={{ maxWidth:820, margin:'0 auto' }}>
           <p style={{ fontSize:11, fontWeight:600, color:'#2A9D8F', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:10 }}>Comunidad y confianza</p>
           <h1 style={{ fontFamily:"'Fraunces',serif", fontSize:'clamp(26px,5vw,38px)', fontWeight:900, color:'#0D1829', marginBottom:12 }}>Política de Contenido y Reseñas</h1>
-          <p style={{ fontSize:14, color:'#6B7280' }}>Última actualización: 28 de julio de 2026 · SALURAMA S.A.S.</p>
+          <p style={{ fontSize:14, color:'#6B7280' }}>Última actualización: 7 de agosto de 2026 · SALURAMA S.A.S.</p>
         </div>
       </section>
 
@@ -65,6 +65,7 @@ export default function PoliticaResenas() {
             <li className="legal-li">Reseñas publicadas por el propio profesional o personas relacionadas con él.</li>
             <li className="legal-li">Reseñas publicadas por competidores con ánimo de dañar.</li>
           </ul>
+          <p className="legal-p">Estas reglas de contenido aplican por igual a las reseñas de los pacientes y a las respuestas públicas de los profesionales.</p>
         </div>
 
         <div className="section-block">
@@ -75,12 +76,21 @@ export default function PoliticaResenas() {
 
         <div className="section-block">
           <h2 className="legal-h2">5. Proceso de moderación y disputas</h2>
-          <h3 className="legal-h3">Reporte de reseñas</h3>
-          <p className="legal-p">Cualquier usuario o profesional puede reportar una reseña que considere que viola esta Política enviando un correo a <a href="mailto:hola@salurama.com" style={{ color:'#1E3A5F' }}>hola@salurama.com</a> indicando: URL del perfil, texto de la reseña reportada y motivo del reporte.</p>
+          <h3 className="legal-h3">Reporte de reseñas y respuestas</h3>
+          <p className="legal-p">Cualquier usuario o profesional puede reportar una reseña o una respuesta que considere que viola esta Política enviando un correo a <a href="mailto:hola@salurama.com" style={{ color:'#1E3A5F' }}>hola@salurama.com</a> indicando: URL del perfil, texto del contenido reportado y motivo del reporte.</p>
+          <p className="legal-p">Salurama podrá además utilizar herramientas automatizadas, incluyendo inteligencia artificial, para identificar posibles violaciones a esta Política en reseñas y respuestas. Estas herramientas únicamente señalan contenido para revisión humana; ninguna reseña o respuesta es eliminada de forma automática sin que Salurama la revise.</p>
           <h3 className="legal-h3">Resolución</h3>
-          <p className="legal-p">Salurama evaluará el reporte en un plazo de 10 días hábiles y notificará la resolución. Las decisiones de moderación son definitivas pero pueden ser apeladas una vez con nueva evidencia.</p>
+          <p className="legal-p">Salurama evaluará el reporte en un plazo de 10 días hábiles y notificará la resolución. Las decisiones de moderación son definitivas pero pueden ser apeladas una vez con nueva evidencia. Salurama puede eliminar, sin necesidad de reporte previo, cualquier reseña o respuesta que identifique como violatoria de esta Política.</p>
           <h3 className="legal-h3">Respuesta del profesional</h3>
-          <p className="legal-p">El profesional puede responder públicamente a cualquier reseña. Las respuestas deben ser profesionales, respetuosas y no incluir datos personales del paciente.</p>
+          <p className="legal-p">El profesional puede responder públicamente a cualquier reseña recibida, una sola vez por reseña. La respuesta está sujeta exactamente a las mismas reglas de contenido permitido y prohibido descritas en la Sección 3 de esta Política, y a las mismas consecuencias de moderación descritas en esta Sección — incluyendo reporte, revisión automatizada y eliminación por parte de Salurama.</p>
+          <p className="legal-p">En particular, la respuesta del profesional no debe:</p>
+          <ul className="legal-ul">
+            <li className="legal-li">Incluir datos personales ni información médica confidencial del paciente.</li>
+            <li className="legal-li">Usarse para presionar, intimidar o desincentivar al paciente de mantener, modificar o eliminar su reseña.</li>
+            <li className="legal-li">Contener publicidad, promociones, o enlaces a servicios ajenos a la atención descrita en la reseña.</li>
+            <li className="legal-li">Contener lenguaje ofensivo, discriminatorio o difamatorio hacia el paciente.</li>
+          </ul>
+          <p className="legal-p">El profesional puede editar o eliminar su respuesta en cualquier momento. Salurama conserva un registro interno de las versiones previas de cada respuesta, con fines de auditoría y cumplimiento; este registro no es público.</p>
         </div>
 
         <div className="section-block">

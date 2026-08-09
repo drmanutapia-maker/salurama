@@ -2,14 +2,24 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
-import { Star, ArrowLeft, FileText, FileSpreadsheet } from 'lucide-react'
+import { Star, ArrowLeft, FileText, FileSpreadsheet, Pencil, Trash2 } from 'lucide-react'
 import { getUserSafe } from '@/lib/getUserSafe'
+
+const RESPUESTA_MAX = 1000
+
+interface ReviewResponse {
+  id: string
+  respuesta: string
+  created_at: string
+  updated_at: string
+}
 
 interface Review {
   id: string
   rating: number
   comment: string | null
   created_at: string
+  respuesta: ReviewResponse | null
 }
 
 export default function ResenasPage() {
@@ -18,6 +28,7 @@ export default function ResenasPage() {
   const [loadError, setLoadError] = useState(false)
   const [reviews, setReviews] = useState<Review[]>([])
   const [filtro, setFiltro] = useState<number | null>(null)
+  const [doctorId, setDoctorId] = useState<string | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -31,15 +42,20 @@ export default function ResenasPage() {
         .eq('user_id', user.id)
         .single()
       if (!doc) { router.push('/dashboard'); return }
+      setDoctorId(doc.id)
 
       const { data } = await supabase
         .from('reviews')
-        .select('id, rating, comment, created_at')
+        .select('id, rating, comment, created_at, respuesta:review_responses(id, respuesta, created_at, updated_at)')
         .eq('doctor_id', doc.id)
         .eq('is_visible', true)
         .order('created_at', { ascending: false })
 
-      setReviews((data as Review[]) || [])
+      const normalizado = (data || []).map((r: any) => ({
+        ...r,
+        respuesta: Array.isArray(r.respuesta) ? (r.respuesta[0] ?? null) : (r.respuesta ?? null),
+      }))
+      setReviews(normalizado as Review[])
       setLoading(false)
     }
     load()
@@ -162,11 +178,146 @@ export default function ResenasPage() {
                   </span>
                 </div>
                 {r.comment && <p style={{ fontSize: 14, color: '#374151', lineHeight: 1.6 }}>{r.comment}</p>}
+                {doctorId && (
+                  <RespuestaMedico
+                    review={r}
+                    doctorId={doctorId}
+                    onChange={(respuesta) => {
+                      setReviews((prev) => prev.map((x) => (x.id === r.id ? { ...x, respuesta } : x)))
+                    }}
+                  />
+                )}
               </div>
             ))}
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+function RespuestaMedico({
+  review,
+  doctorId,
+  onChange,
+}: {
+  review: Review
+  doctorId: string
+  onChange: (respuesta: ReviewResponse | null) => void
+}) {
+  const [editando, setEditando] = useState(false)
+  const [borrando, setBorrando] = useState(false)
+  const [texto, setTexto] = useState(review.respuesta?.respuesta ?? '')
+  const [guardando, setGuardando] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function guardar() {
+    const limpio = texto.trim()
+    if (!limpio) { setError('Escribe una respuesta antes de publicar.'); return }
+    setGuardando(true)
+    setError(null)
+
+    if (review.respuesta) {
+      const { data, error: err } = await supabase
+        .from('review_responses')
+        .update({ respuesta: limpio, updated_at: new Date().toISOString() })
+        .eq('id', review.respuesta.id)
+        .select('id, respuesta, created_at, updated_at')
+        .single()
+      setGuardando(false)
+      if (err || !data) { setError('No se pudo guardar la edición. Intenta de nuevo.'); return }
+      onChange(data as ReviewResponse)
+      setEditando(false)
+    } else {
+      const { data, error: err } = await supabase
+        .from('review_responses')
+        .insert({ review_id: review.id, doctor_id: doctorId, respuesta: limpio })
+        .select('id, respuesta, created_at, updated_at')
+        .single()
+      setGuardando(false)
+      if (err || !data) { setError('No se pudo publicar la respuesta. Intenta de nuevo.'); return }
+      onChange(data as ReviewResponse)
+      setEditando(false)
+
+      // Solo al crear, nunca al editar. No se espera — la moderación nunca
+      // debe retrasar que el médico vea su respuesta publicada.
+      supabase.auth.getSession().then(({ data: sess }) => {
+        const token = sess.session?.access_token
+        if (!token) return
+        fetch('/api/dashboard/resenas/moderar-respuesta', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ responseId: data.id }),
+        }).catch(() => {})
+      })
+    }
+  }
+
+  async function eliminar() {
+    if (!review.respuesta) return
+    setBorrando(true)
+    const { error: err } = await supabase.from('review_responses').delete().eq('id', review.respuesta.id)
+    setBorrando(false)
+    if (err) { setError('No se pudo eliminar la respuesta. Intenta de nuevo.'); return }
+    onChange(null)
+    setTexto('')
+  }
+
+  if (review.respuesta && !editando) {
+    return (
+      <div style={{ marginTop: 12, padding: 14, background: '#F0F4F8', borderRadius: 12, borderLeft: '3px solid #1E3A5F' }}>
+        <p style={{ fontSize: 12, fontWeight: 700, color: '#1E3A5F', marginBottom: 6 }}>Tu respuesta</p>
+        <p style={{ fontSize: 14, color: '#374151', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{review.respuesta.respuesta}</p>
+        <div style={{ display: 'flex', gap: 14, marginTop: 10 }}>
+          <button
+            onClick={() => { setTexto(review.respuesta!.respuesta); setEditando(true) }}
+            style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', color: '#1E3A5F', fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 }}
+          >
+            <Pencil size={12} /> Editar
+          </button>
+          <button
+            onClick={eliminar}
+            disabled={borrando}
+            style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', color: '#DC2626', fontSize: 12, fontWeight: 600, cursor: borrando ? 'default' : 'pointer', padding: 0, opacity: borrando ? 0.6 : 1 }}
+          >
+            <Trash2 size={12} /> {borrando ? 'Eliminando...' : 'Eliminar'}
+          </button>
+        </div>
+        {error && <p style={{ fontSize: 12, color: '#DC2626', marginTop: 6 }}>{error}</p>}
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ marginTop: 12 }}>
+      <textarea
+        value={texto}
+        onChange={(e) => setTexto(e.target.value.slice(0, RESPUESTA_MAX))}
+        placeholder="Responde a esta reseña..."
+        rows={3}
+        style={{ width: '100%', border: '1px solid #E5E7EB', borderRadius: 10, padding: 10, fontSize: 14, fontFamily: 'inherit', resize: 'vertical' }}
+      />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
+        <span style={{ fontSize: 11, color: '#9CA3AF' }}>{texto.length}/{RESPUESTA_MAX}</span>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {editando && (
+            <button
+              onClick={() => { setEditando(false); setTexto(review.respuesta?.respuesta ?? ''); setError(null) }}
+              style={{ background: '#F3F4F6', color: '#4A5568', border: 'none', borderRadius: 50, padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+            >
+              Cancelar
+            </button>
+          )}
+          <button
+            onClick={guardar}
+            disabled={guardando || !texto.trim()}
+            style={{ background: '#1E3A5F', color: '#fff', border: 'none', borderRadius: 50, padding: '8px 18px', fontSize: 13, fontWeight: 600, cursor: guardando ? 'default' : 'pointer', opacity: guardando || !texto.trim() ? 0.6 : 1 }}
+          >
+            {guardando ? 'Guardando...' : editando ? 'Guardar cambios' : 'Responder'}
+          </button>
+        </div>
+      </div>
+      {error && <p style={{ fontSize: 12, color: '#DC2626', marginTop: 6 }}>{error}</p>}
     </div>
   )
 }

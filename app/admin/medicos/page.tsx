@@ -8,7 +8,7 @@ import {
   CheckCircle, XCircle, ToggleLeft, ToggleRight,
   Eye, EyeOff, AlertCircle, ChevronDown, ExternalLink, ArrowUp, ArrowDown,
   Users, UserCheck, UserX, Gauge, Clock3, Megaphone, TrendingUp, CalendarCheck,
-  Upload, FileText, X, Trash2,
+  Upload, FileText, X, Trash2, Star, MessageSquare,
 } from 'lucide-react'
 import { PLAN_NAME } from '@/lib/pricingTiers'
 import { resumenCredenciales, type CredResumen } from '@/lib/credenciales'
@@ -41,6 +41,26 @@ interface SpecialtyCredentialRow {
   numero_certificacion: string | null
   vigencia_hasta: string | null
   self_declared_not_current: boolean
+}
+
+interface FlaggedItem {
+  tipo: 'review' | 'review_response'
+  id: string
+  doctorId: string
+  doctorName: string
+  texto: string
+  reason: string | null
+  flaggedBy: 'ia' | 'usuario' | null
+  reviewedAt: string | null
+}
+
+interface ReviewAdminRow {
+  id: string
+  rating: number
+  comment: string | null
+  created_at: string
+  is_visible: boolean
+  respuesta: { id: string; respuesta: string; created_at: string; updated_at: string } | null
 }
 
 interface ConstanciaLog {
@@ -222,6 +242,19 @@ export default function AdminMedicos() {
   const [constanciaPdfUrls, setConstanciaPdfUrls]         = useState<Record<string, string>>({})
   const [extrayendo, setExtrayendo]                       = useState(false)
   const [extraccionAvisos, setExtraccionAvisos]           = useState<string[]>([])
+
+  // ── Reseñas y respuestas (moderación, Parte 3) ──────────────────────────────
+  const [resenasModalDoctor, setResenasModalDoctor]       = useState<Medico | null>(null)
+  const [resenasDelDoctor, setResenasDelDoctor]           = useState<ReviewAdminRow[]>([])
+  const [cargandoResenas, setCargandoResenas]             = useState(false)
+  const [eliminandoResenaId, setEliminandoResenaId]       = useState<string | null>(null)
+  const [eliminandoRespuestaId, setEliminandoRespuestaId] = useState<string | null>(null)
+
+  // ── Contenido señalado (IA + reportes de usuarios) ──────────────────────────
+  const [flaggedAbierta, setFlaggedAbierta]           = useState(false)
+  const [flaggedItems, setFlaggedItems]               = useState<FlaggedItem[]>([])
+  const [loadingFlagged, setLoadingFlagged]           = useState(false)
+  const [procesandoFlaggedId, setProcesandoFlaggedId] = useState<string | null>(null)
   const [eliminandoId, setEliminandoId]                   = useState<string | null>(null)
 
   useEffect(() => {
@@ -239,7 +272,7 @@ export default function AdminMedicos() {
     checkSession()
   }, [])
 
-  useEffect(() => { if (autenticado) { cargarMedicos(); cargarEstadisticas() } }, [autenticado])
+  useEffect(() => { if (autenticado) { cargarMedicos(); cargarEstadisticas(); cargarContenidoSenalado() } }, [autenticado])
 
   useEffect(() => {
     if (!toast) return
@@ -566,6 +599,154 @@ export default function AdminMedicos() {
       setToast({ msg: 'Error al eliminar el documento', type: 'error' })
     } finally {
       setEliminandoId(null)
+    }
+  }
+
+  // ── Reseñas y respuestas (moderación, Parte 3) ──────────────────────────────
+  // select('*') vía RLS de admin (reviews_admin_all) trae TODAS las reseñas,
+  // no solo is_visible=true — el admin necesita ver también las que ya están
+  // ocultas para poder moderarlas igual.
+  async function abrirResenasModal(m: Medico) {
+    setResenasModalDoctor(m)
+    setResenasDelDoctor([])
+    setCargandoResenas(true)
+    try {
+      const { data, error } = await supabase
+        .from('reviews')
+        .select('id, rating, comment, created_at, is_visible, review_responses(id, respuesta, created_at, updated_at)')
+        .eq('doctor_id', m.id)
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      const rows: ReviewAdminRow[] = (data || []).map((r: any) => ({
+        id: r.id,
+        rating: r.rating,
+        comment: r.comment,
+        created_at: r.created_at,
+        is_visible: r.is_visible,
+        respuesta: Array.isArray(r.review_responses) ? (r.review_responses[0] ?? null) : (r.review_responses ?? null),
+      }))
+      setResenasDelDoctor(rows)
+    } catch (e) {
+      console.error('[abrirResenasModal]', e)
+      setToast({ msg: 'Error al cargar las reseñas', type: 'error' })
+    } finally {
+      setCargandoResenas(false)
+    }
+  }
+
+  function cerrarResenasModal() {
+    setResenasModalDoctor(null)
+    setResenasDelDoctor([])
+  }
+
+  // Borra la reseña completa — review_responses tiene ON DELETE CASCADE hacia
+  // reviews, así que la respuesta del médico (si existe) se va con ella. No
+  // hace falta borrarla aparte.
+  async function eliminarResena(r: ReviewAdminRow) {
+    if (!confirm('¿Eliminar esta reseña de forma permanente? Si tiene una respuesta del médico, también se borrará. Esta acción no se puede deshacer.')) return
+    setEliminandoResenaId(r.id)
+    try {
+      const { error } = await supabase.from('reviews').delete().eq('id', r.id)
+      if (error) throw error
+      setResenasDelDoctor(prev => prev.filter(x => x.id !== r.id))
+      setToast({ msg: 'Reseña eliminada', type: 'success' })
+    } catch (e) {
+      console.error('[eliminarResena]', e)
+      setToast({ msg: 'Error al eliminar la reseña', type: 'error' })
+    } finally {
+      setEliminandoResenaId(null)
+    }
+  }
+
+  // Borra solo la respuesta del médico, la reseña del paciente se conserva.
+  async function eliminarRespuesta(r: ReviewAdminRow) {
+    if (!r.respuesta) return
+    if (!confirm('¿Eliminar solo la respuesta del médico a esta reseña? La reseña del paciente se conserva. Esta acción no se puede deshacer.')) return
+    setEliminandoRespuestaId(r.respuesta.id)
+    try {
+      const { error } = await supabase.from('review_responses').delete().eq('id', r.respuesta.id)
+      if (error) throw error
+      setResenasDelDoctor(prev => prev.map(x => x.id === r.id ? { ...x, respuesta: null } : x))
+      setToast({ msg: 'Respuesta eliminada', type: 'success' })
+    } catch (e) {
+      console.error('[eliminarRespuesta]', e)
+      setToast({ msg: 'Error al eliminar la respuesta', type: 'error' })
+    } finally {
+      setEliminandoRespuestaId(null)
+    }
+  }
+
+  // ── Contenido señalado (IA en la creación + reportes manuales) ─────────────
+  // Consulta transversal (no por médico, a diferencia del modal de Reseñas de
+  // la Parte 3) — junta reviews y review_responses con moderation_status =
+  // 'señalado' de CUALQUIER médico en una sola bandeja de trabajo.
+  async function cargarContenidoSenalado() {
+    setLoadingFlagged(true)
+    try {
+      const [revRes, respRes] = await Promise.all([
+        supabase.from('reviews')
+          .select('id, comment, doctor_id, moderation_reason, moderation_flagged_by, moderation_reviewed_at, doctors(full_name)')
+          .eq('moderation_status', 'señalado'),
+        supabase.from('review_responses')
+          .select('id, respuesta, doctor_id, moderation_reason, moderation_flagged_by, moderation_reviewed_at, doctors(full_name)')
+          .eq('moderation_status', 'señalado'),
+      ])
+      if (revRes.error) throw revRes.error
+      if (respRes.error) throw respRes.error
+
+      const items: FlaggedItem[] = [
+        ...(revRes.data || []).map((r: any) => ({
+          tipo: 'review' as const, id: r.id, doctorId: r.doctor_id,
+          doctorName: r.doctors?.full_name || '—', texto: r.comment || '(reseña sin texto)',
+          reason: r.moderation_reason, flaggedBy: r.moderation_flagged_by, reviewedAt: r.moderation_reviewed_at,
+        })),
+        ...(respRes.data || []).map((r: any) => ({
+          tipo: 'review_response' as const, id: r.id, doctorId: r.doctor_id,
+          doctorName: r.doctors?.full_name || '—', texto: r.respuesta,
+          reason: r.moderation_reason, flaggedBy: r.moderation_flagged_by, reviewedAt: r.moderation_reviewed_at,
+        })),
+      ].sort((a, b) => new Date(b.reviewedAt || 0).getTime() - new Date(a.reviewedAt || 0).getTime())
+
+      setFlaggedItems(items)
+    } catch (e) {
+      console.error('[cargarContenidoSenalado]', e)
+    } finally {
+      setLoadingFlagged(false)
+    }
+  }
+
+  // "Dejar" — descarta la bandera, el contenido se queda como está.
+  async function aprobarSenalado(item: FlaggedItem) {
+    setProcesandoFlaggedId(item.id)
+    try {
+      const tabla = item.tipo === 'review' ? 'reviews' : 'review_responses'
+      const { error } = await supabase.from(tabla).update({ moderation_status: 'aprobado' }).eq('id', item.id)
+      if (error) throw error
+      setFlaggedItems(prev => prev.filter(x => x.id !== item.id))
+      setToast({ msg: 'Contenido aprobado', type: 'success' })
+    } catch (e) {
+      console.error('[aprobarSenalado]', e)
+      setToast({ msg: 'Error al aprobar', type: 'error' })
+    } finally {
+      setProcesandoFlaggedId(null)
+    }
+  }
+
+  async function eliminarSenalado(item: FlaggedItem) {
+    const label = item.tipo === 'review' ? 'esta reseña' : 'esta respuesta'
+    if (!confirm(`¿Eliminar ${label} de forma permanente? ${item.tipo === 'review' ? 'Si tiene una respuesta del médico, también se borrará. ' : ''}Esta acción no se puede deshacer.`)) return
+    setProcesandoFlaggedId(item.id)
+    try {
+      const tabla = item.tipo === 'review' ? 'reviews' : 'review_responses'
+      const { error } = await supabase.from(tabla).delete().eq('id', item.id)
+      if (error) throw error
+      setFlaggedItems(prev => prev.filter(x => x.id !== item.id))
+      setToast({ msg: item.tipo === 'review' ? 'Reseña eliminada' : 'Respuesta eliminada', type: 'success' })
+    } catch (e) {
+      console.error('[eliminarSenalado]', e)
+      setToast({ msg: 'Error al eliminar', type: 'error' })
+    } finally {
+      setProcesandoFlaggedId(null)
     }
   }
 
@@ -998,6 +1179,72 @@ export default function AdminMedicos() {
             )}
           </div>
 
+          {/* Contenido señalado — IA en creación + reportes manuales, de cualquier médico */}
+          <div style={{ background:'#fff', border:'1px solid #E8ECF3', borderRadius:16, marginBottom:24, overflow:'hidden' }}>
+            <button onClick={() => setFlaggedAbierta(v => !v)}
+              style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 20px', background:'none', border:'none', cursor:'pointer', fontFamily:"'DM Sans',sans-serif" }}>
+              <span style={{ display:'flex', alignItems:'center', gap:8, fontFamily:"'Fraunces',serif", fontSize:16, fontWeight:900, color:'#1E3A5F' }}>
+                <AlertCircle size={18} color="#DC2626" /> Contenido señalado
+                {flaggedItems.length > 0 && (
+                  <span style={{ background:'#FEF2F2', color:'#DC2626', border:'1px solid #FEE2E2', borderRadius:20, padding:'2px 9px', fontSize:12, fontWeight:700 }}>
+                    {flaggedItems.length}
+                  </span>
+                )}
+              </span>
+              <ChevronDown size={16} color="#6B7280" style={{ transform: flaggedAbierta ? 'rotate(180deg)' : 'none', transition:'transform 0.15s' }} />
+            </button>
+
+            {flaggedAbierta && (
+              <div style={{ padding:'0 20px 20px' }}>
+                {loadingFlagged ? (
+                  <p style={{ fontSize:13, color:'#9CA3AF', padding:'12px 0' }}>Cargando...</p>
+                ) : flaggedItems.length === 0 ? (
+                  <p style={{ fontSize:13, color:'#9CA3AF', padding:'12px 0' }}>No hay contenido señalado por revisar.</p>
+                ) : (
+                  <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                    {flaggedItems.map(item => {
+                      const procesando = procesandoFlaggedId === item.id
+                      return (
+                        <div key={`${item.tipo}-${item.id}`} style={{ border:'1px solid #FEE2E2', background:'#FFFBFB', borderRadius:8, padding:12 }}>
+                          <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:8, marginBottom:6, flexWrap:'wrap' }}>
+                            <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+                              <span style={{ fontSize:12, fontWeight:700, color:'#1E3A5F' }}>{item.doctorName}</span>
+                              <span style={{ fontSize:10, fontWeight:700, color:'#6B7280', background:'#F3F4F6', border:'1px solid #E5E7EB', borderRadius:20, padding:'2px 8px' }}>
+                                {item.tipo === 'review' ? 'Reseña' : 'Respuesta del médico'}
+                              </span>
+                              <span style={{ fontSize:10, fontWeight:700, borderRadius:20, padding:'2px 8px', border:'1px solid', ...(item.flaggedBy === 'usuario'
+                                ? { color:'#D97706', background:'#FFFBEB', borderColor:'#FEF3C7' }
+                                : { color:'#7C3AED', background:'#F5F3FF', borderColor:'#DDD6FE' }) }}>
+                                {item.flaggedBy === 'usuario' ? 'Reportado por un usuario' : 'Señalado por IA'}
+                              </span>
+                            </div>
+                            <div style={{ display:'flex', gap:12, flexShrink:0 }}>
+                              <button onClick={() => aprobarSenalado(item)} disabled={procesando}
+                                style={{ background:'none', border:'none', cursor: procesando ? 'not-allowed' : 'pointer', color:'#059669', fontSize:12, fontWeight:700, padding:0, opacity: procesando ? 0.5 : 1 }}>
+                                Dejar
+                              </button>
+                              <button onClick={() => eliminarSenalado(item)} disabled={procesando}
+                                title="Eliminar"
+                                style={{ background:'none', border:'none', cursor: procesando ? 'not-allowed' : 'pointer', color:'#DC2626', padding:0, opacity: procesando ? 0.5 : 1 }}>
+                                {procesando
+                                  ? <span className="spin" style={{ width:13, height:13, border:'2px solid #DC262640', borderTopColor:'#DC2626', borderRadius:'50%', display:'inline-block' }} />
+                                  : <Trash2 size={14} />}
+                              </button>
+                            </div>
+                          </div>
+                          <p style={{ fontSize:13, color:'#374151', lineHeight:1.5, marginBottom:6, whiteSpace:'pre-wrap' }}>{item.texto}</p>
+                          {item.reason && (
+                            <p style={{ fontSize:11, color:'#9CA3AF', fontStyle:'italic' }}>Motivo: {item.reason}</p>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Filtros — Estado de cuenta */}
           <div style={{ display:'flex', gap:10, marginBottom:20, flexWrap:'wrap', alignItems:'center' }}>
             <span style={{ fontSize:12, fontWeight:700, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.06em' }}>
@@ -1121,6 +1368,14 @@ export default function AdminMedicos() {
                     <ExternalLink size={13} />
                     Ver perfil
                   </Link>
+                )})
+                acciones.push({ key:'resenas', node: (
+                  <button className="act-btn"
+                    onClick={() => abrirResenasModal(m)}
+                    style={{ width:'100%', justifyContent:'center', background:'#F9FAFB', color:'#6B7280', borderColor:'#E5E7EB' }}>
+                    <MessageSquare size={13} />
+                    Reseñas
+                  </button>
                 )})
 
                 return (
@@ -1359,6 +1614,79 @@ export default function AdminMedicos() {
                           Ver PDF
                         </button>
                       )
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal: reseñas y respuestas (Parte 3, moderación) */}
+      {resenasModalDoctor && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(13,24,41,0.55)', zIndex:5000, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}
+          onClick={cerrarResenasModal}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background:'#fff', borderRadius:16, padding:24, maxWidth:560, width:'100%', maxHeight:'88vh', overflowY:'auto', fontFamily:"'DM Sans',sans-serif" }}>
+            <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:16 }}>
+              <div>
+                <h2 style={{ fontFamily:"'Fraunces',serif", fontSize:19, fontWeight:900, color:'#1E3A5F' }}>Reseñas</h2>
+                <p style={{ fontSize:13, color:'#6B7280', marginTop:2 }}>{resenasModalDoctor.full_name}</p>
+              </div>
+              <button onClick={cerrarResenasModal} style={{ background:'none', border:'none', cursor:'pointer', color:'#9CA3AF' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            {cargandoResenas ? (
+              <p style={{ fontSize:13, color:'#9CA3AF' }}>Cargando...</p>
+            ) : resenasDelDoctor.length === 0 ? (
+              <p style={{ fontSize:13, color:'#9CA3AF' }}>Este médico no tiene reseñas.</p>
+            ) : (
+              <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+                {resenasDelDoctor.map(r => (
+                  <div key={r.id} style={{ border:'1px solid #E5E7EB', borderRadius:8, padding:12 }}>
+                    <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:8, marginBottom:6 }}>
+                      <div style={{ display:'flex', gap:2 }}>
+                        {[1, 2, 3, 4, 5].map(i => (
+                          <Star key={i} size={13} color="#F59E0B" fill={i <= r.rating ? '#F59E0B' : 'none'} />
+                        ))}
+                      </div>
+                      <div style={{ display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
+                        {!r.is_visible && (
+                          <span style={{ background:'#F3F4F6', color:'#9CA3AF', border:'1px solid #E5E7EB', borderRadius:20, padding:'2px 8px', fontSize:10, fontWeight:700 }}>Oculta</span>
+                        )}
+                        <button
+                          onClick={() => eliminarResena(r)}
+                          disabled={eliminandoResenaId === r.id}
+                          title="Eliminar esta reseña (y su respuesta, si tiene)"
+                          style={{ background:'none', border:'none', cursor: eliminandoResenaId === r.id ? 'not-allowed' : 'pointer', color:'#DC2626', padding:2, opacity: eliminandoResenaId === r.id ? 0.5 : 1 }}>
+                          {eliminandoResenaId === r.id
+                            ? <span className="spin" style={{ width:13, height:13, border:'2px solid #DC262640', borderTopColor:'#DC2626', borderRadius:'50%', display:'inline-block' }} />
+                            : <Trash2 size={14} />}
+                        </button>
+                      </div>
+                    </div>
+                    <p style={{ fontSize:11, color:'#6B7280', marginBottom:4 }}>{formatFecha(r.created_at)}</p>
+                    {r.comment && <p style={{ fontSize:13, color:'#374151', lineHeight:1.5, marginBottom:8 }}>{r.comment}</p>}
+
+                    {r.respuesta && (
+                      <div style={{ background:'#F0F4F8', borderRadius:8, padding:10, borderLeft:'3px solid #1E3A5F' }}>
+                        <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:8, marginBottom:4 }}>
+                          <span style={{ fontSize:10, fontWeight:700, color:'#1E3A5F', textTransform:'uppercase', letterSpacing:'0.04em' }}>Respuesta del médico</span>
+                          <button
+                            onClick={() => eliminarRespuesta(r)}
+                            disabled={eliminandoRespuestaId === r.respuesta.id}
+                            title="Eliminar solo la respuesta"
+                            style={{ background:'none', border:'none', cursor: eliminandoRespuestaId === r.respuesta.id ? 'not-allowed' : 'pointer', color:'#DC2626', padding:2, opacity: eliminandoRespuestaId === r.respuesta.id ? 0.5 : 1, flexShrink:0 }}>
+                            {eliminandoRespuestaId === r.respuesta.id
+                              ? <span className="spin" style={{ width:12, height:12, border:'2px solid #DC262640', borderTopColor:'#DC2626', borderRadius:'50%', display:'inline-block' }} />
+                              : <Trash2 size={12} />}
+                          </button>
+                        </div>
+                        <p style={{ fontSize:13, color:'#374151', lineHeight:1.5, whiteSpace:'pre-wrap' }}>{r.respuesta.respuesta}</p>
+                      </div>
                     )}
                   </div>
                 ))}
