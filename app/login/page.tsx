@@ -441,22 +441,22 @@ function LoginContent() {
               onClick={handleLoginBiometrico}
               disabled={iniciandoBiometrico}
               style={{
-                width: '100%', height: 50, background: '#fff', color: '#1E3A5F',
-                border: '1.5px solid #1E3A5F', borderRadius: 12, fontSize: 15, fontWeight: 600,
+                width: '100%', minHeight: 50, background: '#fff', color: '#1E3A5F',
+                border: '1.5px solid #1E3A5F', borderRadius: 12, fontSize: 14, fontWeight: 600,
                 fontFamily: "'DM Sans', sans-serif", cursor: iniciandoBiometrico ? 'not-allowed' : 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                opacity: iniciandoBiometrico ? 0.6 : 1,
+                padding: '12px 12px', opacity: iniciandoBiometrico ? 0.6 : 1,
               }}
             >
               {iniciandoBiometrico ? (
                 <>
-                  <Loader2 size={16} style={{ animation: 'spin 0.7s linear infinite' }} />
+                  <Loader2 size={16} style={{ flexShrink: 0, animation: 'spin 0.7s linear infinite' }} />
                   Verificando...
                 </>
               ) : (
                 <>
-                  <Fingerprint size={18} />
-                  Iniciar sesión con huella o Face ID
+                  <Fingerprint size={18} style={{ flexShrink: 0 }} />
+                  Entrar con huella o Face ID
                 </>
               )}
             </button>
