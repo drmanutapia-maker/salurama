@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
+import { getUserSafe } from '@/lib/getUserSafe'
 import { toast } from 'sonner'
 
 type DiaSemana = 'lunes' | 'martes' | 'miercoles' | 'jueves' | 'viernes' | 'sabado' | 'domingo'
@@ -42,27 +44,28 @@ const HORARIO_DEFAULT: Horario = DIAS.reduce((acc, { key }) => {
 }, {} as Horario)
 
 export default function HorarioDoctor() {
+  const router = useRouter()
   const [horario, setHorario] = useState<Horario>(HORARIO_DEFAULT)
   const [duracion, setDuracion] = useState(30)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [hasChanges, setHasChanges] = useState(false)
 
-  const loadHorario = useCallback(async () => {
-    setLoading(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setLoading(false); return }
-    
+  // Antes esta función no verificaba nada y se quedaba en blanco en
+  // silencio si no había sesión (sin redirigir a /login) — ver auditoría de
+  // esta página. Ahora recibe el userId ya confirmado por el efecto de
+  // abajo, que es quien decide si hay sesión o no.
+  const loadHorario = useCallback(async (userId: string) => {
     const { data: doctor } = await supabase
       .from('doctors')
       .select('horario, duracion_cita_minutos')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .single()
 
-        if (doctor?.horario && typeof doctor.horario === 'object') {
+    if (doctor?.horario && typeof doctor.horario === 'object') {
       const horarioCargado = { ...HORARIO_DEFAULT }
       const raw = doctor.horario as Record<string, any>
-      
+
       DIAS.forEach(({ key }) => {
         if (raw[key]) {
           horarioCargado[key] = {
@@ -74,15 +77,39 @@ export default function HorarioDoctor() {
           }
         }
       })
-      
+
       setHorario(horarioCargado)
     }
-    
+
     setDuracion(doctor?.duracion_cita_minutos || 30)
-    setLoading(false)
   }, [])
 
-  useEffect(() => { loadHorario() }, [loadHorario])
+  useEffect(() => {
+    let mounted = true
+    // Ignora el evento INITIAL_SESSION con session=null que puede llegar
+    // mientras el cliente todavía está leyendo la cookie (justo después de
+    // navegar aquí) — mismo criterio que app/dashboard/page.tsx, para no
+    // rebotar a /login por una sesión válida que solo tardó en confirmarse.
+    let initialCheckDone = false
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'INITIAL_SESSION') return
+      if (!initialCheckDone) return
+      if (!session && mounted) router.push('/login')
+    })
+
+    async function load() {
+      const { user, networkError } = await getUserSafe(supabase)
+      initialCheckDone = true
+      if (networkError) { if (mounted) setLoading(false); return }
+      if (!user) { if (mounted) router.push('/login'); return }
+
+      await loadHorario(user.id)
+      if (mounted) setLoading(false)
+    }
+    load()
+
+    return () => { mounted = false; subscription.unsubscribe() }
+  }, [router, loadHorario])
 
   const updateDia = (dia: DiaSemana, campo: keyof HorarioDia, valor: any) => {
     setHorario(prev => ({ ...prev, [dia]: { ...prev[dia], [campo]: valor } }))

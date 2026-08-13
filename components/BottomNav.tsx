@@ -22,9 +22,16 @@ export default function BottomNav() {
 
   useEffect(() => {
     let mounted = true
+    // Ignora el evento INITIAL_SESSION con session=null que puede llegar
+    // mientras el cliente todavía está leyendo la cookie (justo después de
+    // navegar) — mismo criterio que app/dashboard/page.tsx. Sin este guardia,
+    // ese evento prematuro ocultaba el nav de golpe (setRole(null)) aunque
+    // la sesión sí fuera válida.
+    let initialCheckDone = false
 
     const checkRole = async () => {
       const { data: { user } } = await supabase.auth.getUser()
+      initialCheckDone = true
 
       // OPCIÓN A: sin usuario = sin BottomNav
       if (!user) {
@@ -47,7 +54,9 @@ export default function BottomNav() {
     checkRole()
 
     // Escucha login/logout en tiempo real
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'INITIAL_SESSION') return
+      if (!initialCheckDone) return
       if (!session) {
         setRole(null) // logout → oculta inmediatamente
       } else {

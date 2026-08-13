@@ -41,7 +41,6 @@ export default function Navbar() {
   }, [mobileOpen])
 
   const handleLogout = async () => {
-    localStorage.removeItem('salurama_remember')
     await supabase.auth.signOut()
     setShowDropdown(false); setMobileOpen(false); router.push('/')
   }

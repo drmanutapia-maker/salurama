@@ -3,7 +3,6 @@ import "./globals.css";
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
 import CookieBanner from '@/components/CookieBanner'
-import SessionManager from '@/components/SessionManager'
 import BottomNav from '@/components/BottomNav'
 import MainContent from '@/components/MainContent'
 
@@ -43,7 +42,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <MainContent>{children}</MainContent>
         <Footer />
         <CookieBanner />
-        <SessionManager />
         <BottomNav />
       </body>
     </html>

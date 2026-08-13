@@ -21,10 +21,23 @@ export default function ChatPage() {
   }
 
   useEffect(() => {
+    let mounted = true
+    // Ignora el evento INITIAL_SESSION con session=null que puede llegar
+    // mientras el cliente todavía está leyendo la cookie (justo después de
+    // navegar aquí) — mismo criterio que app/dashboard/page.tsx, para no
+    // rebotar a /login por una sesión válida que solo tardó en confirmarse.
+    let initialCheckDone = false
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'INITIAL_SESSION') return
+      if (!initialCheckDone) return
+      if (!session && mounted) router.push('/login')
+    })
+
     async function load() {
       const { user, networkError } = await getUserSafe(supabase)
-      if (networkError) { setLoadError(true); setLoading(false); return }
-      if (!user) { await supabase.auth.signOut(); router.push('/login'); return }
+      initialCheckDone = true
+      if (networkError) { if (mounted) { setLoadError(true); setLoading(false) }; return }
+      if (!user) { if (mounted) router.push('/login'); return }
 
       const { data: medicoData } = await supabase
         .from('doctors')
@@ -32,12 +45,15 @@ export default function ChatPage() {
         .eq('user_id', user.id)
         .single()
 
-      if (!medicoData) { router.push('/dashboard'); return }
+      if (!medicoData) { if (mounted) router.push('/dashboard'); return }
 
+      if (!mounted) return
       setMedicoId(medicoData.id)
       setLoading(false)
     }
     load()
+
+    return () => { mounted = false; subscription.unsubscribe() }
   }, [router])
 
   if (loadError) return (

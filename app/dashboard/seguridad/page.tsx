@@ -3,7 +3,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { getUserSafe } from '@/lib/getUserSafe'
-import { ShieldCheck, Smartphone, LogOut } from 'lucide-react'
+import { ShieldCheck, Smartphone, LogOut, Fingerprint, CheckCircle } from 'lucide-react'
+import { startRegistration, browserSupportsWebAuthn } from '@simplewebauthn/browser'
 
 interface SessionRow {
   id: string
@@ -32,6 +33,9 @@ export default function SeguridadPage() {
   const [sessions, setSessions] = useState<SessionRow[]>([])
   const [revoking, setRevoking] = useState<string | null>(null)
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
+  const [webauthnSoportado, setWebauthnSoportado] = useState(false)
+  const [activandoBiometrico, setActivandoBiometrico] = useState(false)
+  const [biometricoActivado, setBiometricoActivado] = useState(false)
 
   const showToast = (msg: string, type: 'success' | 'error') => {
     setToast({ msg, type })
@@ -46,20 +50,66 @@ export default function SeguridadPage() {
   }, [])
 
   useEffect(() => {
+    let mounted = true
+    // Ignora el evento INITIAL_SESSION con session=null que puede llegar
+    // mientras el cliente todavía está leyendo la cookie (justo después de
+    // navegar aquí) — mismo criterio que app/dashboard/page.tsx, para no
+    // rebotar a /login por una sesión válida que solo tardó en confirmarse.
+    // Esta página en particular es donde se confirmó en vivo (Fase 2 del
+    // biométrico) que la carga se quedaba pegada por esta misma carrera.
+    let initialCheckDone = false
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'INITIAL_SESSION') return
+      if (!initialCheckDone) return
+      if (!session && mounted) router.push('/login')
+    })
+
     async function load() {
       const { user, networkError } = await getUserSafe(supabase)
-      if (networkError) { setLoadError(true); setLoading(false); return }
-      if (!user) { await supabase.auth.signOut(); router.push('/login'); return }
+      initialCheckDone = true
+      if (networkError) { if (mounted) { setLoadError(true); setLoading(false) }; return }
+      if (!user) { if (mounted) router.push('/login'); return }
 
       try {
         await cargarSesiones()
       } catch {
-        setLoadError(true)
+        if (mounted) setLoadError(true)
       }
-      setLoading(false)
+      if (mounted) setLoading(false)
     }
     load()
+    setWebauthnSoportado(browserSupportsWebAuthn())
+
+    return () => { mounted = false; subscription.unsubscribe() }
   }, [router, cargarSesiones])
+
+  const activarBiometrico = async () => {
+    setActivandoBiometrico(true)
+    try {
+      const resOpciones = await fetch('/api/webauthn/registro/opciones', { method: 'POST' })
+      if (!resOpciones.ok) throw new Error('opciones_failed')
+      const { options } = await resOpciones.json()
+
+      const credencial = await startRegistration({ optionsJSON: options })
+
+      const resVerificar = await fetch('/api/webauthn/registro/verificar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ response: credencial }),
+      })
+      if (!resVerificar.ok) throw new Error('verificar_failed')
+
+      setBiometricoActivado(true)
+      showToast('Biométrico activado en este dispositivo', 'success')
+    } catch (err: any) {
+      // El usuario cancelo el prompt del sistema operativo (huella/Face ID) --
+      // no es un error real, no hace falta un toast rojo por esto.
+      if (err?.name === 'NotAllowedError') return
+      showToast('No se pudo activar el biométrico. Intenta de nuevo.', 'error')
+    } finally {
+      setActivandoBiometrico(false)
+    }
+  }
 
   const revocar = async (sessionId: string, esActual: boolean) => {
     if (esActual && !window.confirm('¿Cerrar sesión en este dispositivo? Tendrás que iniciar sesión de nuevo.')) return
@@ -149,6 +199,37 @@ export default function SeguridadPage() {
         <p style={{ color: '#6B7280', fontSize: 14, marginBottom: 24 }}>
           Estos son los dispositivos con sesión activa en tu cuenta. Si no reconoces alguno, ciérralo de inmediato.
         </p>
+
+        {webauthnSoportado && (
+          <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #E5E7EB', padding: 20, marginBottom: 24, display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{ width: 40, height: 40, borderRadius: 10, background: '#E8F7F5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Fingerprint size={20} color="#2A9D8F" />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>Inicio de sesión con huella o Face ID</p>
+              <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>
+                Actívalo para entrar sin escribir tu contraseña en este dispositivo.
+              </p>
+            </div>
+            {biometricoActivado ? (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#059669', fontSize: 13, fontWeight: 600, flexShrink: 0 }}>
+                <CheckCircle size={16} /> Activado
+              </span>
+            ) : (
+              <button
+                onClick={activarBiometrico}
+                disabled={activandoBiometrico}
+                style={{
+                  background: '#1E3A5F', color: '#fff', border: 'none', borderRadius: 10,
+                  padding: '9px 16px', fontSize: 13, fontWeight: 600,
+                  cursor: activandoBiometrico ? 'not-allowed' : 'pointer', opacity: activandoBiometrico ? 0.6 : 1, flexShrink: 0,
+                }}
+              >
+                {activandoBiometrico ? 'Activando...' : 'Activar'}
+              </button>
+            )}
+          </div>
+        )}
 
         {otras.length > 0 && (
           <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-end' }}>

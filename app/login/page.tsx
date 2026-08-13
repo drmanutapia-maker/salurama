@@ -12,7 +12,9 @@ import {
   AlertCircle,
   Loader2,
   ArrowRight,
+  Fingerprint,
 } from 'lucide-react'
+import { startAuthentication, browserSupportsWebAuthn } from '@simplewebauthn/browser'
 
 // ─── Estilos fuera del componente ─────────────────────────────────────────────
 const PAGE_STYLES = `
@@ -98,11 +100,12 @@ function LoginContent() {
   const [password, setPassword] = useState('')
   const [showPass, setShowPass] = useState(false)
   const [loading,  setLoading]  = useState(false)
-  const [remember, setRemember] = useState(false)
   const [feedback, setFeedback] = useState<Feedback | null>(null)
 
   const redirectTo = searchParams.get('next') || searchParams.get('redirect') || '/dashboard'
   const [checking, setChecking] = useState(true)
+  const [webauthnSoportado, setWebauthnSoportado] = useState(false)
+  const [iniciandoBiometrico, setIniciandoBiometrico] = useState(false)
 
   // Corre solo una vez al montar. Deps vacías evitan que router.replace()
   // provoque una re-ejecución del effect (que flashearía el formulario).
@@ -116,6 +119,67 @@ function LoginContent() {
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    setWebauthnSoportado(browserSupportsWebAuthn())
+  }, [])
+
+  // Verifica que la cuenta ya autenticada (por contraseña o biometrico) sea
+  // un medico registrado y activo, y redirige -- mismo criterio para ambos
+  // metodos de login, para no duplicarlo.
+  const redirigirSegunDoctor = async (userId: string) => {
+    const { data: doctor, error: doctorError } = await supabase
+      .from('doctors')
+      .select('id, is_active')
+      .eq('user_id', userId)
+      .maybeSingle()
+
+    if (doctorError || !doctor) {
+      await supabase.auth.signOut()
+      throw new Error('Esta cuenta no está registrada como médico')
+    }
+
+    window.location.href = doctor.is_active ? redirectTo : '/dashboard?status=pending'
+  }
+
+  // ── Login biométrico ───────────────────────────────────────────────────────
+  const handleLoginBiometrico = async () => {
+    setFeedback(null)
+    setIniciandoBiometrico(true)
+
+    try {
+      const resOpciones = await fetch('/api/webauthn/login/opciones', { method: 'POST' })
+      if (!resOpciones.ok) throw new Error('No se pudo iniciar el login biométrico')
+      const { options, challengeId } = await resOpciones.json()
+
+      const credencial = await startAuthentication({ optionsJSON: options })
+
+      const resVerificar = await fetch('/api/webauthn/login/verificar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ challengeId, response: credencial }),
+      })
+      if (!resVerificar.ok) {
+        const data = await resVerificar.json().catch(() => null)
+        throw new Error(data?.error || 'No se pudo verificar la credencial')
+      }
+      const { tokenHash } = await resVerificar.json()
+
+      const { data, error: verifyError } = await supabase.auth.verifyOtp({
+        token_hash: tokenHash,
+        type: 'magiclink',
+      })
+      if (verifyError) throw verifyError
+      if (!data.user) throw new Error('No se pudo iniciar sesión')
+
+      await redirigirSegunDoctor(data.user.id)
+    } catch (err: any) {
+      // El usuario cancelo el prompt del sistema operativo -- no es un error real.
+      if (err?.name === 'NotAllowedError') { setIniciandoBiometrico(false); return }
+      setFeedback(parseAuthError(err))
+      setIniciandoBiometrico(false)
+    }
+  }
 
   // ── Login ──────────────────────────────────────────────────────────────────
   const handleLogin = async (e: React.FormEvent) => {
@@ -131,25 +195,7 @@ function LoginContent() {
       if (authError) throw authError
 
       if (data.user) {
-        const { data: doctor, error: doctorError } = await supabase
-          .from('doctors')
-          .select('id, is_active')
-          .eq('user_id', data.user.id)
-          .maybeSingle()
-
-        if (doctorError || !doctor) {
-          await supabase.auth.signOut()
-          throw new Error('Esta cuenta no está registrada como médico')
-        }
-
-        // ✅ Guarda preferencia de "recordar dispositivo"
-        if (remember) {
-          localStorage.setItem('salurama_remember', 'true')
-        } else {
-          localStorage.removeItem('salurama_remember')
-        }
-
-        window.location.href = doctor.is_active ? redirectTo : '/dashboard?status=pending'
+        await redirigirSegunDoctor(data.user.id)
       }
     } catch (err) {
       setFeedback(parseAuthError(err))
@@ -361,17 +407,6 @@ function LoginContent() {
             </div>
           </div>
 
-          {/* Recordar sesión */}
-          <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', userSelect: 'none' }}>
-            <input
-              type="checkbox"
-              checked={remember}
-              onChange={(e) => setRemember(e.target.checked)}
-              style={{ width: 16, height: 16, cursor: 'pointer', accentColor: '#1E3A5F' }}
-            />
-            <span style={{ fontSize: 14, color: '#4B5563' }}>Recordar este dispositivo (7 días)</span>
-          </label>
-
           {/* Botón ingresar */}
           <button type="submit" disabled={loading || !email || !password} className="btn-primary" style={{ marginTop: 4 }}>
             {loading ? (
@@ -387,6 +422,40 @@ function LoginContent() {
             )}
           </button>
         </form>
+
+        {webauthnSoportado && (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0' }}>
+              <div style={{ flex: 1, borderTop: '1px solid #E5E7EB' }} />
+              <span style={{ fontSize: 12, color: '#9CA3AF' }}>o</span>
+              <div style={{ flex: 1, borderTop: '1px solid #E5E7EB' }} />
+            </div>
+            <button
+              type="button"
+              onClick={handleLoginBiometrico}
+              disabled={iniciandoBiometrico}
+              style={{
+                width: '100%', height: 50, background: '#fff', color: '#1E3A5F',
+                border: '1.5px solid #1E3A5F', borderRadius: 12, fontSize: 15, fontWeight: 600,
+                fontFamily: "'DM Sans', sans-serif", cursor: iniciandoBiometrico ? 'not-allowed' : 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                opacity: iniciandoBiometrico ? 0.6 : 1,
+              }}
+            >
+              {iniciandoBiometrico ? (
+                <>
+                  <Loader2 size={16} style={{ animation: 'spin 0.7s linear infinite' }} />
+                  Verificando...
+                </>
+              ) : (
+                <>
+                  <Fingerprint size={18} />
+                  Iniciar sesión con huella o Face ID
+                </>
+              )}
+            </button>
+          </>
+        )}
 
         {/* Divisor */}
         <div style={{ borderTop: '1px solid #E5E7EB', margin: '28px 0' }} />

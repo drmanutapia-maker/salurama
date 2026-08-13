@@ -21,6 +21,8 @@
     "@salurama/hema-pdf": "workspace:*",
     "@salurama/hema-shared": "workspace:*",
     "@salurama/hema-validator": "workspace:*",
+    "@simplewebauthn/browser": "^13.3.0",
+    "@simplewebauthn/server": "^13.3.2",
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.47.0",
     "@upstash/ratelimit": "^2.0.8",
