@@ -174,8 +174,9 @@ function LoginContent() {
 
       await redirigirSegunDoctor(data.user.id)
     } catch (err: any) {
-      // El usuario cancelo el prompt del sistema operativo -- no es un error real.
-      if (err?.name === 'NotAllowedError') { setIniciandoBiometrico(false); return }
+      // El usuario cancelo el prompt del sistema operativo, o el flujo por QR
+      // (celular) se agoto esperando -- ninguno de los dos es un error real.
+      if (err?.name === 'NotAllowedError' || err?.name === 'AbortError') { setIniciandoBiometrico(false); return }
       setFeedback(parseAuthError(err))
       setIniciandoBiometrico(false)
     }
@@ -195,6 +196,11 @@ function LoginContent() {
       if (authError) throw authError
 
       if (data.user) {
+        // Marca de una sola lectura para el banner de invitacion al
+        // biometrico -- solo en login con contrasena (no en el biometrico,
+        // no tendria sentido invitar a activarlo a quien ya lo usa). El
+        // layout del dashboard la consume y borra al montar.
+        try { sessionStorage.setItem('salurama_mostrar_banner_biometrico', '1') } catch {}
         await redirigirSegunDoctor(data.user.id)
       }
     } catch (err) {

@@ -35,6 +35,7 @@ export default function SeguridadPage() {
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
   const [webauthnSoportado, setWebauthnSoportado] = useState(false)
   const [activandoBiometrico, setActivandoBiometrico] = useState(false)
+  const [desactivandoBiometrico, setDesactivandoBiometrico] = useState(false)
   const [biometricoActivado, setBiometricoActivado] = useState(false)
 
   const showToast = (msg: string, type: 'success' | 'error') => {
@@ -47,6 +48,13 @@ export default function SeguridadPage() {
     if (!res.ok) throw new Error('fetch_failed')
     const { sessions } = await res.json()
     setSessions(sessions || [])
+  }, [])
+
+  const cargarEstadoBiometrico = useCallback(async () => {
+    const res = await fetch('/api/webauthn/estado')
+    if (!res.ok) throw new Error('estado_failed')
+    const { activo } = await res.json()
+    setBiometricoActivado(!!activo)
   }, [])
 
   useEffect(() => {
@@ -75,13 +83,16 @@ export default function SeguridadPage() {
       } catch {
         if (mounted) setLoadError(true)
       }
+      // El estado del biométrico es secundario -- si falla, no bloquea la
+      // página (se queda mostrando "Activar" por defecto, sin romper nada).
+      await cargarEstadoBiometrico().catch(() => {})
       if (mounted) setLoading(false)
     }
     load()
     setWebauthnSoportado(browserSupportsWebAuthn())
 
     return () => { mounted = false; subscription.unsubscribe() }
-  }, [router, cargarSesiones])
+  }, [router, cargarSesiones, cargarEstadoBiometrico])
 
   const activarBiometrico = async () => {
     setActivandoBiometrico(true)
@@ -102,12 +113,37 @@ export default function SeguridadPage() {
       setBiometricoActivado(true)
       showToast('Biométrico activado en este dispositivo', 'success')
     } catch (err: any) {
-      // El usuario cancelo el prompt del sistema operativo (huella/Face ID) --
-      // no es un error real, no hace falta un toast rojo por esto.
-      if (err?.name === 'NotAllowedError') return
+      // El usuario cancelo el prompt del sistema operativo, o el flujo por QR
+      // se agoto esperando el celular -- ninguno de los dos es un error real,
+      // no hace falta un toast rojo por esto.
+      if (err?.name === 'NotAllowedError' || err?.name === 'AbortError') return
+      // El navegador ya sabe que este dispositivo tiene una credencial (por
+      // excludeCredentials) y rechaza crear otra -- pasa si el estado de la
+      // página quedó desactualizado (ej. dos pestañas abiertas).
+      if (err?.name === 'InvalidStateError') {
+        setBiometricoActivado(true)
+        showToast('Ya tienes el biométrico activado en este dispositivo', 'error')
+        return
+      }
       showToast('No se pudo activar el biométrico. Intenta de nuevo.', 'error')
     } finally {
       setActivandoBiometrico(false)
+    }
+  }
+
+  const desactivarBiometrico = async () => {
+    if (!window.confirm('¿Desactivar el inicio de sesión con huella o Face ID? Tendrás que activarlo de nuevo si quieres volver a usarlo.')) return
+
+    setDesactivandoBiometrico(true)
+    try {
+      const res = await fetch('/api/webauthn/desactivar', { method: 'POST' })
+      if (!res.ok) throw new Error('desactivar_failed')
+      setBiometricoActivado(false)
+      showToast('Biométrico desactivado', 'success')
+    } catch {
+      showToast('No se pudo desactivar el biométrico. Intenta de nuevo.', 'error')
+    } finally {
+      setDesactivandoBiometrico(false)
     }
   }
 
@@ -212,9 +248,22 @@ export default function SeguridadPage() {
               </p>
             </div>
             {biometricoActivado ? (
-              <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#059669', fontSize: 13, fontWeight: 600, flexShrink: 0 }}>
-                <CheckCircle size={16} /> Activado
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#059669', fontSize: 13, fontWeight: 600 }}>
+                  <CheckCircle size={16} /> Activado
+                </span>
+                <button
+                  onClick={desactivarBiometrico}
+                  disabled={desactivandoBiometrico}
+                  style={{
+                    background: '#fff', color: '#DC2626', border: '1.5px solid #FECACA', borderRadius: 10,
+                    padding: '9px 16px', fontSize: 13, fontWeight: 600,
+                    cursor: desactivandoBiometrico ? 'not-allowed' : 'pointer', opacity: desactivandoBiometrico ? 0.6 : 1,
+                  }}
+                >
+                  {desactivandoBiometrico ? 'Desactivando...' : 'Desactivar'}
+                </button>
+              </div>
             ) : (
               <button
                 onClick={activarBiometrico}

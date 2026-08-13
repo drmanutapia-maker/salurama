@@ -1,11 +1,89 @@
 'use client'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { getUserSafe } from '@/lib/getUserSafe'
 import { isManuelEmail } from '@/lib/manuelOnly'
 import { contarMensajesSinLeerTotal, EVENTO_CHAT_LEIDO } from '@/lib/chat/sinLeer'
+import { Fingerprint, X } from 'lucide-react'
+
+const BANNER_FLAG = 'salurama_mostrar_banner_biometrico'
+
+function BannerBiometrico() {
+  const router = useRouter()
+  const [visible, setVisible] = useState(false)
+
+  useEffect(() => {
+    let mostrarSolicitado = false
+    try {
+      mostrarSolicitado = sessionStorage.getItem(BANNER_FLAG) === '1'
+      sessionStorage.removeItem(BANNER_FLAG)
+    } catch {}
+    if (!mostrarSolicitado) return
+
+    let cancelado = false
+    async function revisar() {
+      const { user, networkError } = await getUserSafe(supabase)
+      if (networkError || !user) return
+
+      const { data: medico } = await supabase
+        .from('doctors')
+        .select('webauthn_banner_declined')
+        .eq('user_id', user.id)
+        .maybeSingle()
+      if (!medico || medico.webauthn_banner_declined) return
+
+      const res = await fetch('/api/webauthn/estado').catch(() => null)
+      if (!res?.ok) return
+      const { activo } = await res.json()
+      if (activo) return
+
+      if (!cancelado) setVisible(true)
+    }
+    revisar()
+    return () => { cancelado = true }
+  }, [])
+
+  const declinar = async () => {
+    setVisible(false)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    await supabase.from('doctors').update({ webauthn_banner_declined: true }).eq('user_id', user.id)
+  }
+
+  if (!visible) return null
+
+  return (
+    <div style={{ background: '#EEF6F5', borderBottom: '1px solid #CFE8E4' }}>
+      <div style={{ maxWidth: 1000, margin: '0 auto', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <Fingerprint size={18} color="#2A9D8F" style={{ flexShrink: 0 }} />
+        <p style={{ flex: 1, minWidth: 200, fontSize: 13, color: '#134E4A', margin: 0 }}>
+          Entra sin escribir tu contraseña la próxima vez: activa el inicio de sesión con huella o Face ID.
+        </p>
+        <button
+          onClick={() => router.push('/dashboard/seguridad')}
+          style={{ background: '#1E3A5F', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}
+        >
+          Activar ahora
+        </button>
+        <button
+          onClick={declinar}
+          style={{ background: 'none', color: '#134E4A', border: 'none', fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}
+        >
+          No, gracias
+        </button>
+        <button
+          onClick={() => setVisible(false)}
+          aria-label="Cerrar"
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#134E4A', flexShrink: 0, padding: 2 }}
+        >
+          <X size={16} />
+        </button>
+      </div>
+    </div>
+  )
+}
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -62,6 +140,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <>
+      {!isMslVirtual && <BannerBiometrico />}
       {!isMslVirtual && (
       <nav className="hidden md:block sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-neutral-200">
         <div className="max-w-6xl mx-auto px-4 flex gap-7">
