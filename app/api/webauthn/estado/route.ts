@@ -29,10 +29,16 @@ async function getAnonSupabase() {
   )
 }
 
-// Dice si el medico autenticado ya tiene una credencial biometrica guardada
-// -- la tabla webauthn_credentials no tiene politicas RLS a proposito (solo
-// service_role), asi que el cliente no puede saber esto directo.
-export async function GET() {
+// Dice si ESTE dispositivo (identificado por el credential_id que el propio
+// navegador guarda localmente, ver lib/webauthn/dispositivoLocal.ts) tiene
+// una credencial biometrica activa en la cuenta autenticada -- ya no basta
+// con que la cuenta tenga alguna credencial en cualquier otro aparato.
+export async function GET(request: NextRequest) {
+  const credentialId = request.nextUrl.searchParams.get('credential_id')
+  if (!credentialId) {
+    return NextResponse.json({ activo: false }, { headers: securityHeaders })
+  }
+
   const anonClient = await getAnonSupabase()
   const { data: { user }, error: authError } = await anonClient.auth.getUser()
   if (authError || !user) {
@@ -57,10 +63,9 @@ export async function GET() {
 
   const { data: credencial } = await supabase
     .from('webauthn_credentials')
-    .select('device_name, created_at')
+    .select('device_name')
     .eq('medico_id', doctor.id)
-    .order('created_at', { ascending: false })
-    .limit(1)
+    .eq('credential_id', credentialId)
     .maybeSingle()
 
   return NextResponse.json(

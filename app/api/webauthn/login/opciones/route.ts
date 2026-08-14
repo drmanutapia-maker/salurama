@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Redis } from '@upstash/redis'
 import { generateAuthenticationOptions } from '@simplewebauthn/server'
-import { rpID } from '@/lib/webauthn/config'
+import { rpID, TIMEOUT_MS_WEBAUTHN } from '@/lib/webauthn/config'
 import { guardarReto } from '@/lib/webauthn/challengeStore'
 
 export const dynamic = 'force-dynamic'
@@ -47,9 +47,20 @@ export async function POST(request: NextRequest) {
       console.error(`[${requestId}] Redis error:`, redisError)
     }
 
+    // El boton en /login ahora solo aparece cuando este navegador ya sabe
+    // (via localStorage, ver lib/webauthn/dispositivoLocal.ts) cual es su
+    // propia credencial -- se manda ese id para que el navegador vaya
+    // directo a ella, sin ambiguedad. Si no llega (llamada sin ese dato),
+    // se cae al modo "discoverable" anterior como respaldo.
+    const body = await request.json().catch(() => null)
+    const credentialId = body?.credentialId
+    const idValido = typeof credentialId === 'string' && /^[A-Za-z0-9_-]{16,256}$/.test(credentialId)
+
     const options = await generateAuthenticationOptions({
       rpID,
       userVerification: 'preferred',
+      timeout: TIMEOUT_MS_WEBAUTHN,
+      allowCredentials: idValido ? [{ id: credentialId }] : undefined,
     })
 
     const challengeId = crypto.randomUUID()

@@ -1,0 +1,11 @@
+-- El biométrico pasó de guardarse "por cuenta" a guardarse "por
+-- dispositivo" (ver lib/webauthn/dispositivoLocal.ts). Las cuentas que ya
+-- tenían una credencial activada bajo el diseño anterior necesitan una
+-- migración de una sola vez: el primer dispositivo que visite Seguridad
+-- adopta en silencio esa credencial preexistente (solo si es la única,
+-- sin ambigüedad). Esta bandera asegura que esa adopción ocurra como
+-- máximo una vez por cuenta -- sin ella, cualquier dispositivo nuevo que
+-- visitara Seguridad mientras la cuenta tuviera exactamente una
+-- credencial (aunque fuera de OTRO dispositivo recién activado) se
+-- adjudicaría esa credencial ajena por error.
+alter table doctors add column if not exists webauthn_migrado_dispositivo boolean not null default false;

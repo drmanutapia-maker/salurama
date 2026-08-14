@@ -13,3 +13,8 @@ export const rpID = isProd
 export const expectedOrigin = isProd
   ? [`https://${rpID}`]
   : ['http://localhost:3000']
+
+// El default de la libreria es 60s -- poco para el flujo por QR/celular
+// (desbloquear el telefono, abrir camara, escanear, confirmar). El reto en
+// Redis (ver challengeStore.ts) se guarda con mas margen que esto.
+export const TIMEOUT_MS_WEBAUTHN = 120000

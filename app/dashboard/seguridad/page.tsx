@@ -4,7 +4,8 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { getUserSafe } from '@/lib/getUserSafe'
 import { ShieldCheck, Smartphone, LogOut, Fingerprint, CheckCircle } from 'lucide-react'
-import { startRegistration, browserSupportsWebAuthn } from '@simplewebauthn/browser'
+import { startRegistration, browserSupportsWebAuthn, platformAuthenticatorIsAvailable } from '@simplewebauthn/browser'
+import { confirmarCredencialLocal, obtenerCredencialLocal, guardarCredencialLocal, borrarCredencialLocal } from '@/lib/webauthn/dispositivoLocal'
 
 interface SessionRow {
   id: string
@@ -51,10 +52,8 @@ export default function SeguridadPage() {
   }, [])
 
   const cargarEstadoBiometrico = useCallback(async () => {
-    const res = await fetch('/api/webauthn/estado')
-    if (!res.ok) throw new Error('estado_failed')
-    const { activo } = await res.json()
-    setBiometricoActivado(!!activo)
+    const activo = await confirmarCredencialLocal(true)
+    setBiometricoActivado(activo)
   }, [])
 
   useEffect(() => {
@@ -97,7 +96,17 @@ export default function SeguridadPage() {
   const activarBiometrico = async () => {
     setActivandoBiometrico(true)
     try {
-      const resOpciones = await fetch('/api/webauthn/registro/opciones', { method: 'POST' })
+      // Pregunta en silencio (sin ningún cuadro de diálogo) si esta
+      // computadora tiene su propia huella/Face ID -- si la tiene, el
+      // servidor va a pedirle al navegador que vaya directo a ella, sin
+      // ofrecer el menú con Gestor de contraseñas de Google / QR.
+      const preferirPlataforma = await platformAuthenticatorIsAvailable().catch(() => false)
+
+      const resOpciones = await fetch('/api/webauthn/registro/opciones', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ preferirPlataforma }),
+      })
       if (!resOpciones.ok) throw new Error('opciones_failed')
       const { options } = await resOpciones.json()
 
@@ -110,19 +119,21 @@ export default function SeguridadPage() {
       })
       if (!resVerificar.ok) throw new Error('verificar_failed')
 
+      guardarCredencialLocal(credencial.id)
       setBiometricoActivado(true)
       showToast('Biométrico activado en este dispositivo', 'success')
     } catch (err: any) {
-      // El usuario cancelo el prompt del sistema operativo, o el flujo por QR
-      // se agoto esperando el celular -- ninguno de los dos es un error real,
-      // no hace falta un toast rojo por esto.
+      // El usuario canceló el prompt del sistema operativo -- no es un
+      // error real.
       if (err?.name === 'NotAllowedError' || err?.name === 'AbortError') return
       // El navegador ya sabe que este dispositivo tiene una credencial (por
-      // excludeCredentials) y rechaza crear otra -- pasa si el estado de la
-      // página quedó desactualizado (ej. dos pestañas abiertas).
+      // excludeCredentials) y rechaza crear otra. La adopción silenciosa al
+      // cargar la página (ver dispositivoLocal.ts) ya cubre el caso normal
+      // de una sola credencial en la cuenta -- si de todos modos se llega
+      // aquí, es porque hay más de una y no se puede saber cuál es esta sin
+      // ambigüedad.
       if (err?.name === 'InvalidStateError') {
-        setBiometricoActivado(true)
-        showToast('Ya tienes el biométrico activado en este dispositivo', 'error')
+        showToast('Ya existe una credencial de este dispositivo. Recarga la página; si el problema sigue, desactiva desde el otro dispositivo y vuelve a intentar.', 'error')
         return
       }
       showToast('No se pudo activar el biométrico. Intenta de nuevo.', 'error')
@@ -132,14 +143,25 @@ export default function SeguridadPage() {
   }
 
   const desactivarBiometrico = async () => {
-    if (!window.confirm('¿Desactivar el inicio de sesión con huella o Face ID? Tendrás que activarlo de nuevo si quieres volver a usarlo.')) return
+    if (!window.confirm('¿Desactivar el inicio de sesión con huella o Face ID en este dispositivo? Tendrás que activarlo de nuevo si quieres volver a usarlo aquí.')) return
+
+    const credentialId = obtenerCredencialLocal()
+    if (!credentialId) {
+      showToast('No se pudo confirmar cuál es este dispositivo. Recarga la página e intenta de nuevo.', 'error')
+      return
+    }
 
     setDesactivandoBiometrico(true)
     try {
-      const res = await fetch('/api/webauthn/desactivar', { method: 'POST' })
+      const res = await fetch('/api/webauthn/desactivar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credentialId }),
+      })
       if (!res.ok) throw new Error('desactivar_failed')
+      borrarCredencialLocal()
       setBiometricoActivado(false)
-      showToast('Biométrico desactivado', 'success')
+      showToast('Biométrico desactivado en este dispositivo', 'success')
     } catch {
       showToast('No se pudo desactivar el biométrico. Intenta de nuevo.', 'error')
     } finally {
@@ -225,6 +247,11 @@ export default function SeguridadPage() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@600;900&family=DM+Sans:wght@400;500;700&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        .seg-fila { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+        .seg-fila-acciones { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        @media (max-width: 480px) {
+          .seg-fila-acciones { width: 100%; justify-content: flex-end; }
+        }
       `}</style>
 
       <div style={{ maxWidth: 720, margin: '0 auto', padding: '32px 16px 80px' }}>
@@ -235,50 +262,6 @@ export default function SeguridadPage() {
         <p style={{ color: '#6B7280', fontSize: 14, marginBottom: 24 }}>
           Estos son los dispositivos con sesión activa en tu cuenta. Si no reconoces alguno, ciérralo de inmediato.
         </p>
-
-        {webauthnSoportado && (
-          <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #E5E7EB', padding: 20, marginBottom: 24, display: 'flex', alignItems: 'center', gap: 14 }}>
-            <div style={{ width: 40, height: 40, borderRadius: 10, background: '#E8F7F5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <Fingerprint size={20} color="#2A9D8F" />
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>Inicio de sesión con huella o Face ID</p>
-              <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>
-                Actívalo para entrar sin escribir tu contraseña en este dispositivo.
-              </p>
-            </div>
-            {biometricoActivado ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#059669', fontSize: 13, fontWeight: 600 }}>
-                  <CheckCircle size={16} /> Activado
-                </span>
-                <button
-                  onClick={desactivarBiometrico}
-                  disabled={desactivandoBiometrico}
-                  style={{
-                    background: '#fff', color: '#DC2626', border: '1.5px solid #FECACA', borderRadius: 10,
-                    padding: '9px 16px', fontSize: 13, fontWeight: 600,
-                    cursor: desactivandoBiometrico ? 'not-allowed' : 'pointer', opacity: desactivandoBiometrico ? 0.6 : 1,
-                  }}
-                >
-                  {desactivandoBiometrico ? 'Desactivando...' : 'Desactivar'}
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={activarBiometrico}
-                disabled={activandoBiometrico}
-                style={{
-                  background: '#1E3A5F', color: '#fff', border: 'none', borderRadius: 10,
-                  padding: '9px 16px', fontSize: 13, fontWeight: 600,
-                  cursor: activandoBiometrico ? 'not-allowed' : 'pointer', opacity: activandoBiometrico ? 0.6 : 1, flexShrink: 0,
-                }}
-              >
-                {activandoBiometrico ? 'Activando...' : 'Activar'}
-              </button>
-            )}
-          </div>
-        )}
 
         {otras.length > 0 && (
           <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-end' }}>
@@ -299,8 +282,8 @@ export default function SeguridadPage() {
           {sessions.map((s, i) => (
             <div
               key={s.id}
+              className="seg-fila"
               style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
                 padding: '16px 20px', borderTop: i === 0 ? 'none' : '1px solid #F3F4F6',
               }}
             >
@@ -322,20 +305,56 @@ export default function SeguridadPage() {
                   </p>
                 </div>
               </div>
-              <button
-                onClick={() => revocar(s.id, s.isCurrent)}
-                disabled={revoking !== null}
-                title={s.isCurrent ? 'Cerrar esta sesión' : 'Cerrar esta sesión'}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 6, background: 'none',
-                  border: '1.5px solid #E5E7EB', borderRadius: 10, padding: '8px 12px',
-                  fontSize: 13, fontWeight: 600, color: '#6B7280',
-                  cursor: revoking ? 'not-allowed' : 'pointer', opacity: revoking ? 0.6 : 1, flexShrink: 0,
-                }}
-              >
-                <LogOut size={14} />
-                {revoking === s.id ? 'Cerrando...' : 'Cerrar sesión'}
-              </button>
+              <div className="seg-fila-acciones">
+                {s.isCurrent && webauthnSoportado && (
+                  biometricoActivado ? (
+                    <>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#059669', fontSize: 13, fontWeight: 600 }}>
+                        <CheckCircle size={16} /> Activado
+                      </span>
+                      <button
+                        onClick={desactivarBiometrico}
+                        disabled={desactivandoBiometrico}
+                        style={{
+                          background: '#fff', color: '#DC2626', border: '1.5px solid #FECACA', borderRadius: 10,
+                          padding: '8px 12px', fontSize: 13, fontWeight: 600,
+                          cursor: desactivandoBiometrico ? 'not-allowed' : 'pointer', opacity: desactivandoBiometrico ? 0.6 : 1, flexShrink: 0,
+                        }}
+                      >
+                        {desactivandoBiometrico ? 'Desactivando...' : 'Desactivar'}
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={activarBiometrico}
+                      disabled={activandoBiometrico}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 6,
+                        background: '#1E3A5F', color: '#fff', border: 'none', borderRadius: 10,
+                        padding: '8px 12px', fontSize: 13, fontWeight: 600,
+                        cursor: activandoBiometrico ? 'not-allowed' : 'pointer', opacity: activandoBiometrico ? 0.6 : 1, flexShrink: 0,
+                      }}
+                    >
+                      <Fingerprint size={14} />
+                      {activandoBiometrico ? 'Activando...' : 'Activar en este navegador'}
+                    </button>
+                  )
+                )}
+                <button
+                  onClick={() => revocar(s.id, s.isCurrent)}
+                  disabled={revoking !== null}
+                  title={s.isCurrent ? 'Cerrar esta sesión' : 'Cerrar esta sesión'}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6, background: 'none',
+                    border: '1.5px solid #E5E7EB', borderRadius: 10, padding: '8px 12px',
+                    fontSize: 13, fontWeight: 600, color: '#6B7280',
+                    cursor: revoking ? 'not-allowed' : 'pointer', opacity: revoking ? 0.6 : 1, flexShrink: 0,
+                  }}
+                >
+                  <LogOut size={14} />
+                  {revoking === s.id ? 'Cerrando...' : 'Cerrar sesión'}
+                </button>
+              </div>
             </div>
           ))}
         </div>

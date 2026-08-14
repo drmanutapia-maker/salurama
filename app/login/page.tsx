@@ -15,6 +15,7 @@ import {
   Fingerprint,
 } from 'lucide-react'
 import { startAuthentication, browserSupportsWebAuthn } from '@simplewebauthn/browser'
+import { confirmarCredencialLocal, obtenerCredencialLocal, borrarCredencialLocal } from '@/lib/webauthn/dispositivoLocal'
 
 // ─── Estilos fuera del componente ─────────────────────────────────────────────
 const PAGE_STYLES = `
@@ -105,6 +106,7 @@ function LoginContent() {
   const redirectTo = searchParams.get('next') || searchParams.get('redirect') || '/dashboard'
   const [checking, setChecking] = useState(true)
   const [webauthnSoportado, setWebauthnSoportado] = useState(false)
+  const [credencialLocalActiva, setCredencialLocalActiva] = useState(false)
   const [iniciandoBiometrico, setIniciandoBiometrico] = useState(false)
 
   // Corre solo una vez al montar. Deps vacías evitan que router.replace()
@@ -121,7 +123,12 @@ function LoginContent() {
   }, [])
 
   useEffect(() => {
-    setWebauthnSoportado(browserSupportsWebAuthn())
+    if (!browserSupportsWebAuthn()) return
+    setWebauthnSoportado(true)
+    // El boton solo se muestra si ESTE navegador ya tiene una credencial
+    // propia guardada (y todavia existe en el servidor) -- si no, ni se
+    // ofrece, para no repetir el "no está registrada" que le pasó a Manuel.
+    confirmarCredencialLocal(false).then(setCredencialLocalActiva)
   }, [])
 
   // Verifica que la cuenta ya autenticada (por contraseña o biometrico) sea
@@ -143,12 +150,21 @@ function LoginContent() {
   }
 
   // ── Login biométrico ───────────────────────────────────────────────────────
+  // El botón solo aparece cuando ya sabemos que este dispositivo tiene una
+  // credencial propia (ver el efecto de arriba), así que se le pide al
+  // servidor las opciones apuntando directo a esa credencial -- un solo
+  // intento, sin ambigüedad de "cuál huella usar".
   const handleLoginBiometrico = async () => {
     setFeedback(null)
     setIniciandoBiometrico(true)
 
     try {
-      const resOpciones = await fetch('/api/webauthn/login/opciones', { method: 'POST' })
+      const credentialId = obtenerCredencialLocal()
+      const resOpciones = await fetch('/api/webauthn/login/opciones', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credentialId }),
+      })
       if (!resOpciones.ok) throw new Error('No se pudo iniciar el login biométrico')
       const { options, challengeId } = await resOpciones.json()
 
@@ -161,7 +177,9 @@ function LoginContent() {
       })
       if (!resVerificar.ok) {
         const data = await resVerificar.json().catch(() => null)
-        throw new Error(data?.error || 'No se pudo verificar la credencial')
+        const error: any = new Error(data?.error || 'No se pudo verificar la credencial')
+        error.status = resVerificar.status
+        throw error
       }
       const { tokenHash } = await resVerificar.json()
 
@@ -174,9 +192,16 @@ function LoginContent() {
 
       await redirigirSegunDoctor(data.user.id)
     } catch (err: any) {
-      // El usuario cancelo el prompt del sistema operativo, o el flujo por QR
-      // (celular) se agoto esperando -- ninguno de los dos es un error real.
+      // El usuario canceló el prompt del sistema operativo -- no es un
+      // error real.
       if (err?.name === 'NotAllowedError' || err?.name === 'AbortError') { setIniciandoBiometrico(false); return }
+      // El servidor ya no reconoce esta credencial (se desactivó desde otro
+      // lado, o algo quedó desincronizado) -- limpia el marcador local para
+      // que el botón deje de ofrecerse la próxima vez.
+      if (err?.status === 404) {
+        borrarCredencialLocal()
+        setCredencialLocalActiva(false)
+      }
       setFeedback(parseAuthError(err))
       setIniciandoBiometrico(false)
     }
@@ -429,7 +454,7 @@ function LoginContent() {
           </button>
         </form>
 
-        {webauthnSoportado && (
+        {webauthnSoportado && credencialLocalActiva && (
           <>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0' }}>
               <div style={{ flex: 1, borderTop: '1px solid #E5E7EB' }} />

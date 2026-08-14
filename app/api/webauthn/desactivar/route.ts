@@ -29,8 +29,11 @@ async function getAnonSupabase() {
   )
 }
 
-// Borra toda credencial biometrica del medico autenticado -- el feature se
-// presenta como un solo interruptor por cuenta, no una lista por dispositivo.
+// Borra SOLO la credencial biometrica de este dispositivo (identificado por
+// el credential_id que el propio navegador manda, ver
+// lib/webauthn/dispositivoLocal.ts) -- ahora puede haber varias credenciales
+// activas a la vez para la misma cuenta, una por dispositivo, y desactivar
+// en una no debe tocar las demas.
 export async function POST(request: NextRequest) {
   const requestId = crypto.randomUUID().slice(0, 8)
 
@@ -38,6 +41,12 @@ export async function POST(request: NextRequest) {
   const { data: { user }, error: authError } = await anonClient.auth.getUser()
   if (authError || !user) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401, headers: securityHeaders })
+  }
+
+  const body = await request.json().catch(() => null)
+  const credentialId = body?.credentialId
+  if (!credentialId || typeof credentialId !== 'string') {
+    return NextResponse.json({ error: 'Falta identificar el dispositivo' }, { status: 400, headers: securityHeaders })
   }
 
   const supabase = createClient(
@@ -60,6 +69,7 @@ export async function POST(request: NextRequest) {
     .from('webauthn_credentials')
     .delete()
     .eq('medico_id', doctor.id)
+    .eq('credential_id', credentialId)
 
   if (deleteError) {
     console.error(`[${requestId}] Error desactivando biométrico:`, deleteError)

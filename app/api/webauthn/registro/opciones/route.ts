@@ -3,7 +3,7 @@ import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { generateRegistrationOptions } from '@simplewebauthn/server'
-import { rpName, rpID } from '@/lib/webauthn/config'
+import { rpName, rpID, TIMEOUT_MS_WEBAUTHN } from '@/lib/webauthn/config'
 import { guardarReto } from '@/lib/webauthn/challengeStore'
 
 export const dynamic = 'force-dynamic'
@@ -66,6 +66,14 @@ export async function POST(request: NextRequest) {
       .select('credential_id, transports')
       .eq('medico_id', doctor.id)
 
+    // El navegador ya nos dice (sin mostrar ningún cuadro, ver
+    // platformAuthenticatorIsAvailable() en el cliente) si esta computadora
+    // tiene su propia huella/Face ID configurada. Si la tiene, vamos directo
+    // a ella -- si no, dejamos el menú completo para quien necesite usar su
+    // celular como llave.
+    const body = await request.json().catch(() => null)
+    const preferirPlataforma = body?.preferirPlataforma === true
+
     const options = await generateRegistrationOptions({
       rpName,
       rpID,
@@ -73,6 +81,7 @@ export async function POST(request: NextRequest) {
       userID: new TextEncoder().encode(doctor.id),
       userDisplayName: doctor.full_name || doctor.email,
       attestationType: 'none',
+      timeout: TIMEOUT_MS_WEBAUTHN,
       excludeCredentials: (existentes || []).map(c => ({
         id: c.credential_id,
         transports: (c.transports || undefined) as any,
@@ -80,6 +89,7 @@ export async function POST(request: NextRequest) {
       authenticatorSelection: {
         residentKey: 'preferred',
         userVerification: 'preferred',
+        ...(preferirPlataforma ? { authenticatorAttachment: 'platform' as const } : {}),
       },
     })
 

@@ -101,6 +101,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No se pudo guardar la credencial' }, { status: 500, headers: securityHeaders })
     }
 
+    // Cualquier activación real (explícita, con huella/Face ID de verdad)
+    // cierra la ventana de la adopción silenciosa de /api/webauthn/mis-credenciales
+    // -- una vez que hay al menos una activación real, ya no tiene sentido
+    // que un dispositivo nuevo adopte una credencial ajena por adivinanza.
+    await supabase
+      .from('doctors')
+      .update({ webauthn_migrado_dispositivo: true })
+      .eq('id', doctor.id)
+      .eq('webauthn_migrado_dispositivo', false)
+
     return NextResponse.json({ success: true }, { headers: { ...securityHeaders, 'X-Request-ID': requestId } })
   } catch (error) {
     console.error(`[${requestId}] Error verificando registro:`, error)

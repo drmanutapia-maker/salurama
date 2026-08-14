@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabaseClient'
 import { getUserSafe } from '@/lib/getUserSafe'
 import { isManuelEmail } from '@/lib/manuelOnly'
 import { contarMensajesSinLeerTotal, EVENTO_CHAT_LEIDO } from '@/lib/chat/sinLeer'
+import { confirmarCredencialLocal } from '@/lib/webauthn/dispositivoLocal'
 import { Fingerprint, X } from 'lucide-react'
 
 const BANNER_FLAG = 'salurama_mostrar_banner_biometrico'
@@ -34,9 +35,10 @@ function BannerBiometrico() {
         .maybeSingle()
       if (!medico || medico.webauthn_banner_declined) return
 
-      const res = await fetch('/api/webauthn/estado').catch(() => null)
-      if (!res?.ok) return
-      const { activo } = await res.json()
+      // Pregunta por ESTE dispositivo, no por la cuenta -- el mismo mensaje
+      // aplica si nunca se activó en ningún lado o si se activó en otro
+      // aparato distinto a este.
+      const activo = await confirmarCredencialLocal(true)
       if (activo) return
 
       if (!cancelado) setVisible(true)
@@ -59,7 +61,7 @@ function BannerBiometrico() {
       <div style={{ maxWidth: 1000, margin: '0 auto', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <Fingerprint size={18} color="#2A9D8F" style={{ flexShrink: 0 }} />
         <p style={{ flex: 1, minWidth: 200, fontSize: 13, color: '#134E4A', margin: 0 }}>
-          Entra sin escribir tu contraseña la próxima vez: activa el inicio de sesión con huella o Face ID.
+          Entra sin escribir tu contraseña la próxima vez en este navegador: activa el inicio de sesión con huella o Face ID.
         </p>
         <button
           onClick={() => router.push('/dashboard/seguridad')}
