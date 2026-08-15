@@ -3,7 +3,7 @@ import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { verifyRegistrationResponse } from '@simplewebauthn/server'
-import { rpID, expectedOrigin } from '@/lib/webauthn/config'
+import { rpIDDesdeRequest, expectedOriginDesdeRequest } from '@/lib/webauthn/config'
 import { leerYBorrarReto } from '@/lib/webauthn/challengeStore'
 import { nombreDeDispositivo } from '@/lib/webauthn/deviceName'
 import { uint8ArrayAHex } from '@/lib/webauthn/bytea'
@@ -74,8 +74,8 @@ export async function POST(request: NextRequest) {
     const verificacion = await verifyRegistrationResponse({
       response,
       expectedChallenge,
-      expectedOrigin,
-      expectedRPID: rpID,
+      expectedOrigin: expectedOriginDesdeRequest(request),
+      expectedRPID: rpIDDesdeRequest(request),
     })
 
     if (!verificacion.verified || !verificacion.registrationInfo) {

@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { Redis } from '@upstash/redis'
 import { z } from 'zod'
 import { verifyAuthenticationResponse } from '@simplewebauthn/server'
-import { rpID, expectedOrigin } from '@/lib/webauthn/config'
+import { rpIDDesdeRequest, expectedOriginDesdeRequest } from '@/lib/webauthn/config'
 import { leerYBorrarReto } from '@/lib/webauthn/challengeStore'
 import { hexAUint8Array } from '@/lib/webauthn/bytea'
 
@@ -87,8 +87,8 @@ export async function POST(request: NextRequest) {
     const verificacion = await verifyAuthenticationResponse({
       response: response as any,
       expectedChallenge,
-      expectedOrigin,
-      expectedRPID: rpID,
+      expectedOrigin: expectedOriginDesdeRequest(request),
+      expectedRPID: rpIDDesdeRequest(request),
       credential: {
         id: credentialId,
         publicKey: hexAUint8Array(fila.public_key),

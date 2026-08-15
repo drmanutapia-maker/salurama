@@ -64,10 +64,10 @@ function BannerBiometrico() {
           Entra sin escribir tu contraseña la próxima vez en este navegador: activa el inicio de sesión con huella o Face ID.
         </p>
         <button
-          onClick={() => router.push('/dashboard/seguridad')}
+          onClick={() => { setVisible(false); router.push('/dashboard/seguridad') }}
           style={{ background: '#1E3A5F', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}
         >
-          Activar ahora
+          Ir a activar
         </button>
         <button
           onClick={declinar}

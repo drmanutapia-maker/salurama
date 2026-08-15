@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { getUserSafe } from '@/lib/getUserSafe'
 import { ShieldCheck, Smartphone, LogOut, Fingerprint, CheckCircle } from 'lucide-react'
-import { startRegistration, browserSupportsWebAuthn, platformAuthenticatorIsAvailable } from '@simplewebauthn/browser'
+import { startRegistration, startAuthentication, browserSupportsWebAuthn, platformAuthenticatorIsAvailable } from '@simplewebauthn/browser'
 import { confirmarCredencialLocal, obtenerCredencialLocal, guardarCredencialLocal, borrarCredencialLocal } from '@/lib/webauthn/dispositivoLocal'
 
 interface SessionRow {
@@ -93,6 +93,32 @@ export default function SeguridadPage() {
     return () => { mounted = false; subscription.unsubscribe() }
   }, [router, cargarSesiones, cargarEstadoBiometrico])
 
+  // Cuando el navegador rechaza crear una credencial nueva porque ya
+  // reconoce una de la cuenta (InvalidStateError), le pedimos que la use
+  // para iniciar sesión en vez de crear otra -- así el navegador nos dice
+  // exactamente cuál es, y la guardamos como la de este navegador. Evita
+  // el callejón sin salida de "ya existe" sin poder gestionarla.
+  const intentarRecuperarCredencialExistente = async (): Promise<boolean> => {
+    const resOpciones = await fetch('/api/webauthn/registro/recuperar-opciones', { method: 'POST' })
+    if (!resOpciones.ok) return false
+    const { options } = await resOpciones.json()
+    if (!options?.allowCredentials?.length) return false
+
+    const credencial = await startAuthentication({ optionsJSON: options })
+
+    const resVerificar = await fetch('/api/webauthn/registro/recuperar-verificar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ response: credencial }),
+    })
+    if (!resVerificar.ok) return false
+    const { credentialId } = await resVerificar.json()
+    if (!credentialId) return false
+
+    guardarCredencialLocal(credentialId)
+    return true
+  }
+
   const activarBiometrico = async () => {
     setActivandoBiometrico(true)
     try {
@@ -133,6 +159,14 @@ export default function SeguridadPage() {
       // aquí, es porque hay más de una y no se puede saber cuál es esta sin
       // ambigüedad.
       if (err?.name === 'InvalidStateError') {
+        try {
+          const recuperado = await intentarRecuperarCredencialExistente()
+          if (recuperado) {
+            setBiometricoActivado(true)
+            showToast('Ya tenías el biométrico activado en este navegador -- lo detectamos automáticamente', 'success')
+            return
+          }
+        } catch {}
         showToast('Ya existe una credencial de este dispositivo. Recarga la página; si el problema sigue, desactiva desde el otro dispositivo y vuelve a intentar.', 'error')
         return
       }

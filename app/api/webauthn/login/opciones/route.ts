@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Redis } from '@upstash/redis'
 import { generateAuthenticationOptions } from '@simplewebauthn/server'
-import { rpID, TIMEOUT_MS_WEBAUTHN } from '@/lib/webauthn/config'
+import { rpIDDesdeRequest, TIMEOUT_MS_WEBAUTHN } from '@/lib/webauthn/config'
 import { guardarReto } from '@/lib/webauthn/challengeStore'
 
 export const dynamic = 'force-dynamic'
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     const idValido = typeof credentialId === 'string' && /^[A-Za-z0-9_-]{16,256}$/.test(credentialId)
 
     const options = await generateAuthenticationOptions({
-      rpID,
+      rpID: rpIDDesdeRequest(request),
       userVerification: 'preferred',
       timeout: TIMEOUT_MS_WEBAUTHN,
       allowCredentials: idValido ? [{ id: credentialId }] : undefined,

@@ -3,7 +3,7 @@ import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { generateRegistrationOptions } from '@simplewebauthn/server'
-import { rpName, rpID, TIMEOUT_MS_WEBAUTHN } from '@/lib/webauthn/config'
+import { rpName, rpIDDesdeRequest, TIMEOUT_MS_WEBAUTHN } from '@/lib/webauthn/config'
 import { guardarReto } from '@/lib/webauthn/challengeStore'
 
 export const dynamic = 'force-dynamic'
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
 
     const options = await generateRegistrationOptions({
       rpName,
-      rpID,
+      rpID: rpIDDesdeRequest(request),
       userName: doctor.email,
       userID: new TextEncoder().encode(doctor.id),
       userDisplayName: doctor.full_name || doctor.email,
