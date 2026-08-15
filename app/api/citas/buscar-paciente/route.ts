@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { Redis } from '@upstash/redis'
 import { z } from 'zod'
@@ -114,9 +114,18 @@ export async function POST(request: NextRequest) {
       const { data: medico } = await supabase.from('doctors').select('full_name').eq('id', medicoId).single()
 
       // No se espera el envío — la respuesta al cliente no debe variar en
-      // tiempo según si hubo o no coincidencia.
-      sendPacienteOtpEmail(match.email, code, medico?.full_name || 'tu médico').catch((err) =>
-        console.error(`[${requestId}] Error enviando OTP:`, err)
+      // tiempo según si hubo o no coincidencia. Pero "no esperar" con un
+      // simple fire-and-forget es peligroso en edge runtime: en cuanto la
+      // función responde, la plataforma puede cortar la ejecución antes de
+      // que el envío a Resend termine, y el correo nunca llega -- sin que
+      // ni siquiera el catch de abajo alcance a registrar el error (falla
+      // en silencio). after() le garantiza a la plataforma que complete
+      // esta tarea en segundo plano ANTES de cortar, sin retrasar la
+      // respuesta que ya se le mandó al usuario.
+      after(() =>
+        sendPacienteOtpEmail(match.email, code, medico?.full_name || 'tu médico').catch((err) =>
+          console.error(`[${requestId}] Error enviando OTP:`, err)
+        )
       )
     }
 
