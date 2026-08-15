@@ -49,6 +49,7 @@ export default function Footer() {
               <Link href="/buscar" style={{ fontSize: 14, color: '#C5D0E0', textDecoration: 'none' }}>Buscar médico</Link>
               <Link href="/como-elegir-medico" style={{ fontSize: 14, color: '#C5D0E0', textDecoration: 'none' }}>¿Cómo elegir médico?</Link>
               <Link href="/registro" style={{ fontSize: 14, color: '#C5D0E0', textDecoration: 'none' }}>Soy Médico</Link>
+              <Link href="/chat/recuperar" style={{ fontSize: 14, color: '#C5D0E0', textDecoration: 'none' }}>¿Ya agendaste una cita?</Link>
             </nav>
           </div>
 
