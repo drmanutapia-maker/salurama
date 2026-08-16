@@ -134,6 +134,7 @@ const parseLangs = (raw: string[] | string | null): string[] => {
 
 const DIAS_SEMANA = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']
 const DIAS_LABELS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+const DIAS_LABELS_FULL = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 
 const identLabelStyle = { display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#374151', cursor: 'pointer' } as const
 const identAvisoStyle = { fontSize: 12, color: '#6B7280', background: '#F9FAFB', padding: '8px 12px', borderRadius: 8, margin: 0, lineHeight: 1.5 } as const
@@ -208,6 +209,11 @@ function AppointmentModal({
   const [pacienteId, setPacienteId] = useState<string | null>(null)
   const [actualizarDatos, setActualizarDatos] = useState(false)
   const [ocupadas, setOcupadas] = useState<string[]>([])
+  const [mesCalendario, setMesCalendario] = useState(() => {
+    const d = new Date(formData.requested_date + 'T00:00:00')
+    return new Date(d.getFullYear(), d.getMonth(), 1)
+  })
+  const [mostrarAyudaOtp, setMostrarAyudaOtp] = useState(false)
 
   // Los horarios que arma getTimeSlotsForDate salen solo de la agenda
   // general del médico — no sabían nada de las citas ya existentes. Esto
@@ -225,7 +231,29 @@ function AppointmentModal({
     return () => { cancelado = true }
   }, [medico.id, formData.requested_date])
 
+  // El mensaje de ayuda "¿no te llegó el código?" no puede depender de si
+  // hubo coincidencia real (eso filtraría la misma información que el
+  // diseño de seguridad ya decidió no revelar). Por eso aparece siempre
+  // igual tras un tiempo prudente de espera, sin importar si el contacto
+  // tenía o no una cita previa.
+  useEffect(() => {
+    if (resultadoBusqueda !== 'codigo_enviado') {
+      setMostrarAyudaOtp(false)
+      return
+    }
+    const timer = setTimeout(() => setMostrarAyudaOtp(true), 20000)
+    return () => clearTimeout(timer)
+  }, [resultadoBusqueda])
+
   const campoIdentidadBloqueado = resultadoBusqueda === 'encontrado' && !actualizarDatos
+
+  // "existente" (marcó "ya he tenido cita") usa el precio de subsecuente;
+  // "primera" o sin marcar (ambiguo, no se le puede negar el paso) usa el
+  // de primera vez. Ver bug reportado: el resumen mostraba siempre el
+  // precio de primera vez sin importar esta selección.
+  const precioMostrado = modoPaciente === 'existente'
+    ? (medico.consultation_price_general ?? medico.consultation_price_first_time)
+    : (medico.consultation_price_first_time ?? medico.consultation_price_general)
 
   const seleccionarModoPaciente = (nuevoModo: 'primera' | 'existente') => {
     setModoPaciente(actual => (actual === nuevoModo ? null : nuevoModo))
@@ -312,17 +340,90 @@ function AppointmentModal({
   const fmtDateMX = (d: string) =>
     new Date(d + 'T00:00:00').toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' })
 
+  // Única fuente de verdad de "¿el médico atiende este día de la semana?" —
+  // la usan tanto el cálculo de horarios como el calendario del paso 1,
+  // para que nunca queden desincronizados entre sí.
+  const diaEstaAbierto = (dayIndex: number) => {
+    if (!horarioParsed) return false
+    const horarioDia = horarioParsed[DIAS_SEMANA[dayIndex]]
+    if (!horarioDia) return false
+    const inicio = horarioDia.inicio || horarioDia.start
+    const fin = horarioDia.fin || horarioDia.end
+    const abierto = horarioDia.abierto ?? horarioDia.open ?? horarioDia.activo ?? !!(inicio && fin)
+    return !!(abierto && inicio && fin)
+  }
+
+  const diasAtencionTexto = (() => {
+    const abiertosIdx = DIAS_SEMANA.map((_, idx) => idx).filter(diaEstaAbierto)
+    if (abiertosIdx.length === 0) return 'Este médico todavía no tiene días de atención configurados.'
+    if (abiertosIdx.length === 1) return `Atiende: ${DIAS_LABELS_FULL[abiertosIdx[0]]}.`
+
+    // Para detectar si es un bloque continuo (ej. lunes a viernes) la
+    // semana se reordena empezando en lunes — es el criterio habitual al
+    // describir un horario médico, aunque DIAS_SEMANA empiece en domingo.
+    const ordenLunesPrimero = [1, 2, 3, 4, 5, 6, 0]
+    const posiciones = abiertosIdx.map(idx => ordenLunesPrimero.indexOf(idx)).sort((a, b) => a - b)
+    const esRangoContinuo = posiciones.every((pos, i) => i === 0 || pos === posiciones[i - 1] + 1)
+
+    if (esRangoContinuo) {
+      const inicio = DIAS_LABELS_FULL[ordenLunesPrimero[posiciones[0]]]
+      const fin = DIAS_LABELS_FULL[ordenLunesPrimero[posiciones[posiciones.length - 1]]]
+      return `Atiende de ${inicio} a ${fin}.`
+    }
+
+    const nombres = abiertosIdx.map(idx => DIAS_LABELS_FULL[idx])
+    return `Atiende: ${nombres.slice(0, -1).join(', ')} y ${nombres[nombres.length - 1]}.`
+  })()
+
+  const hoyISO = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' })
+  const mesActualInicio = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+  const puedeRetrocederMes = mesCalendario.getFullYear() > mesActualInicio.getFullYear() ||
+    (mesCalendario.getFullYear() === mesActualInicio.getFullYear() && mesCalendario.getMonth() > mesActualInicio.getMonth())
+  const diasEnMesCalendario = new Date(mesCalendario.getFullYear(), mesCalendario.getMonth() + 1, 0).getDate()
+  const celdasCalendario: (string | null)[] = [
+    ...Array(mesCalendario.getDay()).fill(null),
+    ...Array.from({ length: diasEnMesCalendario }, (_, i) => {
+      const y = mesCalendario.getFullYear()
+      const m = String(mesCalendario.getMonth() + 1).padStart(2, '0')
+      const d = String(i + 1).padStart(2, '0')
+      return `${y}-${m}-${d}`
+    }),
+  ]
+
+  // Si la fecha inicial (hoy) cae en un día que el médico tiene cerrado,
+  // no la dejamos como "seleccionada" sin más — eso era justo el bug: el
+  // paciente elegía sin saberlo un día inválido y se enteraba hasta después.
+  // Se adelanta sola a la primera fecha disponible.
+  useEffect(() => {
+    const actual = new Date(formData.requested_date + 'T00:00:00')
+    if (diaEstaAbierto(actual.getDay())) return
+    for (let i = 1; i <= 60; i++) {
+      const candidato = new Date(actual)
+      candidato.setDate(candidato.getDate() + i)
+      if (diaEstaAbierto(candidato.getDay())) {
+        const y = candidato.getFullYear()
+        const m = String(candidato.getMonth() + 1).padStart(2, '0')
+        const d = String(candidato.getDate()).padStart(2, '0')
+        setFormData(f => ({ ...f, requested_date: `${y}-${m}-${d}`, requested_time: '' }))
+        setMesCalendario(new Date(candidato.getFullYear(), candidato.getMonth(), 1))
+        break
+      }
+    }
+    // Solo debe correr una vez, al montar — no cada vez que el paciente
+    // elige una fecha nueva. medico.horario ya viene cargado como prop,
+    // no hay estado asíncrono que esperar.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const getTimeSlotsForDate = (dateStr: string) => {
     if (!horarioParsed) return []
     const date = new Date(dateStr + 'T00:00:00')
     const dayIndex = date.getDay()
     const diaNombre = DIAS_SEMANA[dayIndex]
+    if (!diaEstaAbierto(dayIndex)) return []
     const horarioDia = horarioParsed[diaNombre]
-    if (!horarioDia) return []
     const inicio = horarioDia.inicio || horarioDia.start
     const fin = horarioDia.fin || horarioDia.end
-    const abierto = horarioDia.abierto ?? horarioDia.open ?? horarioDia.activo ?? !!(inicio && fin)
-    if (!abierto || !inicio || !fin) return []
     const slots: string[] = []
     const [startH, startM] = inicio.split(':').map(Number)
     const [endH, endM] = fin.split(':').map(Number)
@@ -393,9 +494,9 @@ function AppointmentModal({
             <p style={{ fontSize: 13, fontWeight: 600, color: '#1E3A5F', marginBottom: 8 }}>{medico.display_name || medico.full_name}</p>
             <p style={{ fontSize: 13, color: '#6B7280' }}>{medico.specialty}</p>
             <p style={{ fontSize: 13, color: '#6B7280', marginTop: 8 }}>{fmtDateMX(formData.requested_date)} - {formData.requested_time}</p>
-            {(medico.consultation_price_first_time || medico.consultation_price_general) && (
+            {precioMostrado && (
               <p style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>
-                Costo: ${medico.consultation_price_first_time || medico.consultation_price_general} MXN
+                Costo: ${precioMostrado} MXN
               </p>
             )}
           </div>
@@ -467,13 +568,63 @@ function AppointmentModal({
         )}
         <input type="text" name="website" value={formData.honeypot} onChange={e => setFormData({ ...formData, honeypot: e.target.value })} style={{ position: 'absolute', left: '-9999px', opacity: 0, height: 0 }} tabIndex={-1} autoComplete="off" />
         {step === 1 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 8, color: '#1E3A5F' }}>Fecha</label>
-              <input type="date" value={formData.requested_date} onChange={e => setFormData({ ...formData, requested_date: e.target.value, requested_time: '' })} min={new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' })} style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: 12, fontSize: 14 }} />
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4, color: '#1E3A5F' }}>Fecha</label>
+              <p style={{ fontSize: 12, color: '#6B7280', marginBottom: 6 }}>{diasAtencionTexto}</p>
+              {/* maxWidth fija el tamaño de celda independiente del ancho del modal —
+                  sin esto, en escritorio (modal más ancho) las celdas se estiraban a
+                  llenar las 7 columnas y el calendario quedaba gigante; en móvil el
+                  modal ya es angosto así que este tope no cambia nada ahí. */}
+              <div style={{ maxWidth: 224, margin: '0 auto' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <button type="button" onClick={() => setMesCalendario(m => new Date(m.getFullYear(), m.getMonth() - 1, 1))} disabled={!puedeRetrocederMes} aria-label="Mes anterior" style={{ background: 'none', border: 'none', width: 24, height: 24, cursor: puedeRetrocederMes ? 'pointer' : 'not-allowed', color: puedeRetrocederMes ? '#1E3A5F' : '#D1D5DB', fontSize: 15, fontWeight: 700 }}>‹</button>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: '#1E3A5F', textTransform: 'capitalize' }}>
+                    {mesCalendario.toLocaleDateString('es-MX', { month: 'long' })} {mesCalendario.getFullYear()}
+                  </span>
+                  <button type="button" onClick={() => setMesCalendario(m => new Date(m.getFullYear(), m.getMonth() + 1, 1))} aria-label="Mes siguiente" style={{ background: 'none', border: 'none', width: 24, height: 24, cursor: 'pointer', color: '#1E3A5F', fontSize: 15, fontWeight: 700 }}>›</button>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 3, marginBottom: 2 }}>
+                  {DIAS_LABELS.map(l => (
+                    <div key={l} style={{ textAlign: 'center', fontSize: 10, fontWeight: 600, color: '#9CA3AF' }}>{l}</div>
+                  ))}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 3 }}>
+                  {celdasCalendario.map((dateStr, idx) => {
+                    if (!dateStr) return <div key={`vacio-${idx}`} />
+                    const dayIndex = new Date(dateStr + 'T00:00:00').getDay()
+                    const dia = Number(dateStr.slice(-2))
+                    const cerrado = !diaEstaAbierto(dayIndex)
+                    const esPasado = dateStr < hoyISO
+                    const deshabilitado = cerrado || esPasado
+                    const seleccionado = dateStr === formData.requested_date && !deshabilitado
+                    return (
+                      <button
+                        key={dateStr}
+                        type="button"
+                        disabled={deshabilitado}
+                        onClick={() => setFormData({ ...formData, requested_date: dateStr, requested_time: '' })}
+                        title={cerrado && !esPasado ? 'El médico no atiende este día' : undefined}
+                        style={{
+                          aspectRatio: '1',
+                          border: seleccionado ? '2px solid #8B5CF6' : '1px solid transparent',
+                          borderRadius: 8,
+                          background: seleccionado ? '#F5F3FF' : deshabilitado ? '#F9FAFB' : '#fff',
+                          color: seleccionado ? '#8B5CF6' : deshabilitado ? '#D1D5DB' : '#374151',
+                          fontSize: 13,
+                          fontWeight: seleccionado ? 700 : 500,
+                          cursor: deshabilitado ? 'not-allowed' : 'pointer',
+                        }}
+                      >
+                        {dia}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 8, color: '#1E3A5F' }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 5, color: '#1E3A5F' }}>
                 Hora disponible - {dayName}
                 {isDayClosed && <span style={{ color: '#DC2626', fontWeight: 400 }}> (cerrado)</span>}
               </label>
@@ -487,16 +638,16 @@ function AppointmentModal({
                   </p>
                 </div>
               ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
                   {timeSlots.map(time => (
-                    <button key={time} type="button" onClick={() => setFormData({ ...formData, requested_time: time })} style={{ padding: '10px 12px', border: formData.requested_time === time ? '2px solid #8B5CF6' : '1px solid #E5E7EB', borderRadius: 8, background: formData.requested_time === time ? '#F5F3FF' : '#fff', color: formData.requested_time === time ? '#8B5CF6' : '#4A5568', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                    <button key={time} type="button" onClick={() => setFormData({ ...formData, requested_time: time })} style={{ padding: '8px 6px', border: formData.requested_time === time ? '2px solid #8B5CF6' : '1px solid #E5E7EB', borderRadius: 8, background: formData.requested_time === time ? '#F5F3FF' : '#fff', color: formData.requested_time === time ? '#8B5CF6' : '#4A5568', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                       {time}
                     </button>
                   ))}
                 </div>
               )}
             </div>
-            <button onClick={() => setStep(2)} disabled={!formData.requested_time || isDayClosed} style={{ background: (!formData.requested_time || isDayClosed) ? '#9CA3AF' : '#8B5CF6', color: '#fff', border: 'none', borderRadius: 12, padding: 14, fontSize: 14, fontWeight: 600, cursor: (!formData.requested_time || isDayClosed) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            <button onClick={() => setStep(2)} disabled={!formData.requested_time || isDayClosed} style={{ background: (!formData.requested_time || isDayClosed) ? '#9CA3AF' : '#8B5CF6', color: '#fff', border: 'none', borderRadius: 12, padding: 11, fontSize: 14, fontWeight: 600, cursor: (!formData.requested_time || isDayClosed) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
               Continuar <ChevronDown size={16} />
             </button>
           </div>
@@ -547,6 +698,11 @@ function AppointmentModal({
                       {resultadoBusqueda === 'codigo_invalido' && (
                         <p style={{ ...identAvisoStyle, color: '#DC2626', background: '#FEF2F2' }}>
                           Código inválido o expirado. Puedes intentar de nuevo o pedir un código nuevo.
+                        </p>
+                      )}
+                      {(resultadoBusqueda === 'codigo_invalido' || mostrarAyudaOtp) && (
+                        <p style={identAvisoStyle}>
+                          ¿No te llegó el código? Verifica que sea el mismo correo o teléfono con el que registraste tu cita anterior.
                         </p>
                       )}
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -650,10 +806,10 @@ function AppointmentModal({
                   <span style={{ fontSize: 13, color: '#6B7280' }}>Hora</span>
                   <span style={{ fontSize: 13, fontWeight: 600, color: '#1E3A5F' }}>{formData.requested_time}</span>
                 </div>
-                {(medico.consultation_price_first_time || medico.consultation_price_general) && (
+                {precioMostrado && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 12, borderTop: '1px solid #E5E7EB', marginTop: 8 }}>
                     <span style={{ fontSize: 13, color: '#6B7280' }}>Costo estimado</span>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#1E3A5F' }}>${medico.consultation_price_first_time || medico.consultation_price_general} MXN</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#1E3A5F' }}>${precioMostrado} MXN</span>
                   </div>
                 )}
               </div>
