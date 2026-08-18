@@ -8,6 +8,8 @@ import CitaCard from '@/components/citas/CitaCard'
 import CalendarioMensual from '@/components/citas/CalendarioMensual'
 import { Cita, MedicoData } from '@/lib/citas/types'
 import { formatFecha } from '@/lib/citas/fechas'
+import { Skeleton } from '@/components/Skeleton'
+import { PageErrorState, classifyError, type PageErrorType } from '@/components/PageErrorState'
 
 type Tab = 'todas' | 'pending_verification' | 'confirmed' | 'completed' | 'cancelled'
 
@@ -18,7 +20,9 @@ export default function CitasPage() {
   const [citas, setCitas] = useState<Cita[]>([])
   const [medico, setMedico] = useState<MedicoData | null>(null)
   const [loading, setLoading] = useState(true)
-  const [loadError, setLoadError] = useState(false)
+  const [loadError, setLoadError] = useState<PageErrorType | null>(null)
+  const cancelRef = useRef(false)
+  const initialCheckDoneRef = useRef(false)
   const [tab, setTab] = useState<Tab>('todas')
   const [procesando, setProcesando] = useState<string | null>(null)
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
@@ -61,51 +65,62 @@ export default function CitasPage() {
   }
 
   const cargarCitas = useCallback(async (docId: string) => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('citas')
       .select('*')
       .eq('medico_id', docId)
       .order('fecha', { ascending: false })
       .order('hora', { ascending: true })
+    if (error) throw error
     setCitas((data as Cita[]) || [])
   }, [])
 
-  useEffect(() => {
-    let mounted = true
-    // Ignora el evento INITIAL_SESSION con session=null que puede llegar
-    // mientras el cliente todavía está leyendo la cookie (justo después de
-    // navegar aquí) — mismo criterio que app/dashboard/page.tsx, para no
-    // rebotar a /login por una sesión válida que solo tardó en confirmarse.
-    let initialCheckDone = false
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'INITIAL_SESSION') return
-      if (!initialCheckDone) return
-      if (!session && mounted) router.push('/login')
-    })
+  // Expuesta con useCallback (no solo dentro del useEffect) para que el
+  // botón "Reintentar" del estado de error pueda volver a llamarla.
+  const load = useCallback(async () => {
+    cancelRef.current = false
+    setLoading(true)
+    setLoadError(null)
+    const { user, networkError } = await getUserSafe(supabase)
+    initialCheckDoneRef.current = true
+    if (networkError) { if (!cancelRef.current) { setLoadError('network'); setLoading(false) }; return }
+    if (!user) { router.push('/login'); return }
 
-    async function load() {
-      const { user, networkError } = await getUserSafe(supabase)
-      initialCheckDone = true
-      if (networkError) { if (mounted) { setLoadError(true); setLoading(false) }; return }
-      if (!user) { if (mounted) router.push('/login'); return }
-
-      const { data: medicoData } = await supabase
+    try {
+      const { data: medicoData, error: medicoErr } = await supabase
         .from('doctors')
         .select('id, full_name, specialty, clinic_lat, clinic_lng, clinic_phone')
         .eq('user_id', user.id)
         .single()
+      if (medicoErr) throw medicoErr
 
-      if (!medicoData) { if (mounted) router.push('/dashboard'); return }
+      if (!medicoData) { router.push('/dashboard'); return }
 
-      if (!mounted) return
+      if (cancelRef.current) return
       setMedico(medicoData)
       await cargarCitas(medicoData.id)
-      if (mounted) setLoading(false)
+      if (!cancelRef.current) setLoading(false)
+    } catch (err) {
+      if (!cancelRef.current) { setLoadError(classifyError(err)); setLoading(false) }
     }
+  }, [router, cargarCitas])
+
+  useEffect(() => {
+    // Ignora el evento INITIAL_SESSION con session=null que puede llegar
+    // mientras el cliente todavía está leyendo la cookie (justo después de
+    // navegar aquí) — mismo criterio que app/dashboard/page.tsx, para no
+    // rebotar a /login por una sesión válida que solo tardó en confirmarse.
+    initialCheckDoneRef.current = false
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'INITIAL_SESSION') return
+      if (!initialCheckDoneRef.current) return
+      if (!session) router.push('/login')
+    })
+
     load()
 
-    return () => { mounted = false; subscription.unsubscribe() }
-  }, [router, cargarCitas])
+    return () => { cancelRef.current = true; subscription.unsubscribe() }
+  }, [load])
 
   const cambiarEstado = async (citaId: string, nuevoEstado: Cita['estado']) => {
     // Validar: no permitir completar citas futuras
@@ -250,11 +265,11 @@ export default function CitasPage() {
 
   const listaCitas = citasFiltradas.length === 0 ? (
     <div style={{ background: '#fff', borderRadius: 16, padding: '60px 20px', border: '1px solid #E5E7EB', textAlign: 'center' }}>
-      <Calendar size={48} color="#D1D5DB" style={{ margin: '0 auto 16px' }} />
+      <Calendar size={48} color="#D1D5DB" aria-hidden="true" style={{ margin: '0 auto 16px' }} />
       <p style={{ fontSize: 16, color: '#374151', fontWeight: 700, marginBottom: 8 }}>
         {selectedDate ? 'Sin citas ese día' : tab === 'pending_verification' ? 'Sin citas pendientes' : tab === 'confirmed' ? 'Sin citas confirmadas' : tab === 'completed' ? 'Sin citas completadas' : tab === 'cancelled' ? 'Sin citas canceladas' : 'Aún no tienes citas'}
       </p>
-      <p style={{ fontSize: 14, color: '#9CA3AF' }}>
+      <p style={{ fontSize: 14, color: '#6B7280' }}>
         {selectedDate ? 'Elige otro día en el calendario.' : tab === 'todas' ? 'Cuando los pacientes soliciten citas, aparecerán aquí' : 'Cambia el filtro de arriba para ver otras citas'}
       </p>
     </div>
@@ -312,35 +327,18 @@ export default function CitasPage() {
         onClick={() => setSelectedDate(null)}
         style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#F3F4F6', color: '#6B7280', border: 'none', borderRadius: 50, padding: '4px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
       >
-        <X size={12} /> Ver todas las fechas
+        <X size={12} aria-hidden="true" /> Ver todas las fechas
       </button>
     </div>
   )
 
   if (loadError) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif" }}>
-      <div style={{ textAlign: 'center', maxWidth: 320 }}>
-        <p style={{ color: '#111827', fontSize: 15, fontWeight: 600, marginBottom: 6 }}>No se pudo conectar</p>
-        <p style={{ color: '#9CA3AF', fontSize: 13, marginBottom: 16 }}>Revisa tu conexión a internet e inténtalo de nuevo.</p>
-        <button
-          onClick={() => window.location.reload()}
-          style={{ background: '#1E3A5F', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 20px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
-        >
-          Reintentar
-        </button>
-      </div>
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif", padding: 20 }}>
+      <PageErrorState type={loadError} onRetry={load} />
     </div>
   )
 
-  if (loading) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif" }}>
-      <div style={{ textAlign: 'center' }}>
-        <div style={{ width: 40, height: 40, border: '3px solid #EEF2FF', borderTopColor: '#1E3A5F', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
-        <p style={{ color: '#9CA3AF', fontSize: 14 }}>Cargando citas...</p>
-      </div>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-    </div>
-  )
+  if (loading) return <CitasSkeleton isMobile={isMobile} />
 
   return (
     <div style={{ minHeight: '100vh', background: '#F9FAFB', fontFamily: "'DM Sans', sans-serif", color: '#111827' }}>
@@ -357,8 +355,12 @@ export default function CitasPage() {
       `}</style>
 
       {toast && (
-        <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 9999, background: toast.type === 'success' ? '#DCFCE7' : '#FEF2F2', color: toast.type === 'success' ? '#059669' : '#DC2626', border: `1px solid ${toast.type === 'success' ? '#86EFAC' : '#FECACA'}`, borderRadius: 10, padding: '12px 18px', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-          {toast.type === 'success' ? <CheckCircle size={15} /> : <XCircle size={15} />}
+        <div
+          role="status"
+          aria-live="polite"
+          style={{ position: 'fixed', top: 20, right: 20, zIndex: 9999, background: toast.type === 'success' ? '#DCFCE7' : '#FEF2F2', color: toast.type === 'success' ? '#059669' : '#DC2626', border: `1px solid ${toast.type === 'success' ? '#86EFAC' : '#FECACA'}`, borderRadius: 10, padding: '12px 18px', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+        >
+          {toast.type === 'success' ? <CheckCircle size={15} aria-hidden="true" /> : <XCircle size={15} aria-hidden="true" />}
           {toast.msg}
         </div>
       )}
@@ -464,6 +466,71 @@ export default function CitasPage() {
             >
               {chipFecha}
               {listaCitas}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// Skeleton de Citas — encabezado, tabs, y calendario + lista (o lista sola
+// en móvil, donde el calendario se reemplaza por una vista de agenda) para
+// que la carga no cambie de layout entre el skeleton y los datos reales.
+function CitasSkeleton({ isMobile }: { isMobile: boolean }) {
+  const tarjetaCita = (i: number) => (
+    <div key={i} style={{ background: '#fff', borderRadius: 14, border: '1.5px solid #E5E7EB', padding: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <Skeleton width={44} height={44} radius={999} style={{ flexShrink: 0 }} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <Skeleton width={140} height={16} />
+          <Skeleton width={80} height={14} radius={12} />
+        </div>
+      </div>
+      <Skeleton width="100%" height={1} style={{ marginBottom: 16 }} />
+      <div style={{ display: 'flex', gap: 8 }}>
+        <Skeleton width={100} height={30} radius={50} />
+        <Skeleton width={100} height={30} radius={50} />
+      </div>
+    </div>
+  )
+
+  return (
+    <div style={{ minHeight: '100vh', background: '#F9FAFB', fontFamily: "'DM Sans', sans-serif" }} aria-busy="true">
+      <span style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0 }}>
+        Cargando tus citas…
+      </span>
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 16px 80px' }}>
+        <div style={{ marginBottom: 24 }}>
+          <Skeleton width={160} height={28} style={{ marginBottom: 8 }} />
+          <Skeleton width={110} height={16} />
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
+          {[90, 110, 110, 110, 110].map((w, i) => (
+            <Skeleton key={i} width={w} height={34} radius={50} />
+          ))}
+        </div>
+
+        {isMobile ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {[0, 1, 2].map(tarjetaCita)}
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.15fr)', gap: 20, alignItems: 'start' }}>
+            <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #E5E7EB', padding: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+                <Skeleton width={150} height={20} />
+                <Skeleton width={60} height={24} radius={50} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
+                {Array.from({ length: 35 }, (_, i) => (
+                  <Skeleton key={i} width="100%" height={40} radius={10} />
+                ))}
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {[0, 1, 2].map(tarjetaCita)}
             </div>
           </div>
         )}

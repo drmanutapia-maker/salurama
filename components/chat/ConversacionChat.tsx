@@ -6,6 +6,8 @@ import { ArrowLeft, Send, FileText, Paperclip, Image as ImageIcon, Loader2 } fro
 import imageCompression from 'browser-image-compression'
 import type { ConversacionResumen } from './ConversacionesLista'
 import { EVENTO_CHAT_LEIDO } from '@/lib/chat/sinLeer'
+import { PageErrorState, classifyError, type PageErrorType } from '@/components/PageErrorState'
+import { Skeleton } from '@/components/Skeleton'
 
 const TIPOS_MIME_PERMITIDOS = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'] as const
 const TAMANO_MAXIMO_BYTES = 15728640 // 15 MB — mismo límite que el bucket chat-archivos
@@ -96,6 +98,7 @@ export default function ConversacionChat({
   // de que /api/chat/medico/sesion confirmara el estado real.
   const [puedeEscribir, setPuedeEscribir] = useState<boolean | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<PageErrorType | null>(null)
   const [input, setInput] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [subiendoArchivo, setSubiendoArchivo] = useState(false)
@@ -107,6 +110,7 @@ export default function ConversacionChat({
   const primeraCarga = useRef(true)
 
   const cargarConversacion = useCallback(async () => {
+    if (primeraCarga.current) { setLoading(true); setError(null) }
     try {
       const res = await fetch('/api/chat/medico/sesion', {
         method: 'POST',
@@ -114,8 +118,9 @@ export default function ConversacionChat({
         body: JSON.stringify({ salaId: conversacion.salaId }),
       })
       if (!res.ok) {
-        if (primeraCarga.current) onError('No se pudo cargar la conversación')
-        return
+        const err: any = new Error(`sesion_failed_${res.status}`)
+        err.status = res.status
+        throw err
       }
 
       const data = await res.json()
@@ -131,6 +136,7 @@ export default function ConversacionChat({
       setCitasInfo(new Map(((data.citas || []) as CitaInfo[]).map(c => [c.id, c])))
       setCitaActualId(data.citaActualId)
       setPuedeEscribir(!!data.puedeEscribir)
+      setError(null)
 
       // El backend ya marcó la sala como leída (medico_leido_at) — avisa a
       // los badges de la navegación para que se refresquen ahora mismo, en
@@ -138,7 +144,14 @@ export default function ConversacionChat({
       window.dispatchEvent(new Event(EVENTO_CHAT_LEIDO))
     } catch (err) {
       console.error('Error cargando conversación:', err)
-      if (primeraCarga.current) onError('No se pudo cargar la conversación')
+      // Solo la primera carga bloquea la vista con un error persistente —
+      // antes, un fallo aquí dejaba `loading` en false igual y la pantalla
+      // mostraba "Aún no hay mensajes" (falso: nunca llegó a saberlo) en vez
+      // de un error real. Los refrescos de fondo (poll cada 6s) sí pueden
+      // fallar en silencio sin romper la conversación ya cargada — solo
+      // avisan con el toast existente.
+      if (primeraCarga.current) setError(classifyError(err))
+      else onError('No se pudo actualizar la conversación')
     } finally {
       setLoading(false)
       primeraCarga.current = false
@@ -293,16 +306,22 @@ export default function ConversacionChat({
     <div className="flex flex-col border border-neutral-200 rounded-2xl overflow-hidden bg-white" style={{ height: 'calc(100vh - 280px)', minHeight: 420 }}>
       <div className="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-neutral-200">
         <button onClick={onVolver} aria-label="Volver a la lista de conversaciones" className="text-primary-500 shrink-0">
-          <ArrowLeft size={18} />
+          <ArrowLeft size={18} aria-hidden="true" />
         </button>
         <p className="font-body font-semibold text-sm text-neutral-900 truncate">{conversacion.pacienteNombre}</p>
       </div>
 
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 pt-4">
         {loading ? (
-          <p className="text-center text-sm text-neutral-400 pt-8">Cargando conversación...</p>
+          <div role="status" aria-label="Cargando conversación" className="flex flex-col gap-3 pt-2">
+            <div className="flex"><Skeleton width="42%" height={36} radius={16} /></div>
+            <div className="flex justify-end"><Skeleton width="50%" height={36} radius={16} /></div>
+            <div className="flex"><Skeleton width="33%" height={36} radius={16} /></div>
+          </div>
+        ) : error ? (
+          <PageErrorState type={error} onRetry={cargarConversacion} compact />
         ) : items.length === 0 ? (
-          <p className="text-center text-sm text-neutral-400 pt-8">Aún no hay mensajes en esta conversación</p>
+          <p className="text-center text-sm text-neutral-500 pt-8">Aún no hay mensajes en esta conversación</p>
         ) : (
           items.map(item => {
             const diaItem = new Date(item.createdAt).toDateString()
@@ -347,16 +366,16 @@ export default function ConversacionChat({
                       className="max-w-[80%] rounded-2xl px-4 py-2.5 bg-neutral-100 text-neutral-700 flex items-center gap-2 text-sm hover:bg-neutral-200 active:bg-neutral-300 disabled:opacity-60 transition-colors text-left"
                     >
                       {abriendoArchivoId === item.id ? (
-                        <Loader2 size={14} className="animate-spin shrink-0" />
+                        <Loader2 size={14} className="animate-spin shrink-0" aria-hidden="true" />
                       ) : item.tipoMime.startsWith('image/') ? (
-                        <ImageIcon size={14} className="shrink-0" />
+                        <ImageIcon size={14} className="shrink-0" aria-hidden="true" />
                       ) : (
-                        <FileText size={14} className="shrink-0" />
+                        <FileText size={14} className="shrink-0" aria-hidden="true" />
                       )}
                       <span className="truncate">{item.nombreOriginal}</span>
                     </button>
                   )}
-                  <span className="font-body text-[10px] text-neutral-400 mt-1 px-1">{formatHoraEnvio(item.createdAt)}</span>
+                  <span className="font-body text-[10px] text-neutral-500 mt-1 px-1">{formatHoraEnvio(item.createdAt)}</span>
                 </div>
               </div>
             )
@@ -364,10 +383,10 @@ export default function ConversacionChat({
         )}
       </div>
 
-      {puedeEscribir === null ? (
+      {error ? null : puedeEscribir === null ? (
         <div className="shrink-0 border-t border-neutral-200 bg-neutral-50 px-4 py-4 flex items-center gap-2">
-          <Loader2 size={14} className="animate-spin text-neutral-400" />
-          <p className="font-body text-xs text-neutral-400">Verificando disponibilidad...</p>
+          <Loader2 size={14} className="animate-spin text-neutral-500" aria-hidden="true" />
+          <p className="font-body text-xs text-neutral-500">Verificando disponibilidad...</p>
         </div>
       ) : puedeEscribir ? (
         <div className="shrink-0 border-t border-neutral-200 bg-white px-4 pt-3 pb-3">
@@ -384,9 +403,10 @@ export default function ConversacionChat({
               onClick={handleAdjuntarClick}
               disabled={subiendoArchivo}
               title="Adjuntar imagen o PDF"
+              aria-label="Adjuntar imagen o PDF"
               className="shrink-0 flex items-center justify-center w-10 h-10 rounded-xl border border-neutral-200 text-neutral-500 disabled:opacity-40 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
             >
-              <Paperclip size={16} />
+              <Paperclip size={16} aria-hidden="true" />
             </button>
             <textarea
               ref={textareaRef}
@@ -402,9 +422,10 @@ export default function ConversacionChat({
             <button
               onClick={enviar}
               disabled={enviando || !input.trim()}
+              aria-label="Enviar mensaje"
               className="shrink-0 flex items-center justify-center w-10 h-10 rounded-xl bg-primary-500 text-white disabled:opacity-40 hover:bg-primary-600 active:bg-primary-700 transition-colors"
             >
-              <Send size={16} strokeWidth={2.5} />
+              <Send size={16} strokeWidth={2.5} aria-hidden="true" />
             </button>
           </div>
         </div>

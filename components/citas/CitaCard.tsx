@@ -95,7 +95,7 @@ export default function CitaCard({
     <div style={{ background: '#fff', borderRadius: 14, border: '1.5px solid #E5E7EB', padding: '20px', opacity: cita.estado === 'cancelled' ? 0.65 : 1 }}>
       <div className="cita-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'linear-gradient(135deg,#1E3A5F,#2A9D8F)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 18, color: '#fff', flexShrink: 0 }}>
+          <div aria-hidden="true" style={{ width: 44, height: 44, borderRadius: '50%', background: 'linear-gradient(135deg,#1E3A5F,#2A9D8F)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 18, color: '#fff', flexShrink: 0 }}>
             {cita.paciente_nombre.charAt(0).toUpperCase()}
           </div>
           <div>
@@ -120,17 +120,17 @@ export default function CitaCard({
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px,1fr))', gap: 12, padding: '14px 0', borderTop: '1px solid #F3F4F6', borderBottom: '1px solid #F3F4F6', marginBottom: 16 }}>
         {cita.paciente_telefono && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Phone size={13} color="#9CA3AF" />
+            <Phone size={13} color="#9CA3AF" aria-hidden="true" />
             <a href={`tel:${cita.paciente_telefono}`} style={{ fontSize: 13, color: '#111827', textDecoration: 'none' }}>{cita.paciente_telefono}</a>
           </div>
         )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Mail size={13} color="#9CA3AF" />
+          <Mail size={13} color="#9CA3AF" aria-hidden="true" />
           <span style={{ fontSize: 13, color: '#6B7280' }}>{cita.paciente_email}</span>
         </div>
         {cita.motivo && (
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, gridColumn: '1 / -1' }}>
-            <FileText size={13} color="#9CA3AF" style={{ marginTop: 2, flexShrink: 0 }} />
+            <FileText size={13} color="#9CA3AF" aria-hidden="true" style={{ marginTop: 2, flexShrink: 0 }} />
             <span style={{ fontSize: 13, color: '#6B7280' }}>{cita.motivo}</span>
           </div>
         )}
@@ -138,31 +138,31 @@ export default function CitaCard({
       <div className="cita-actions" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         {cita.estado === 'pending_verification' && (
           <>
-            <button className="action-btn" onClick={() => cambiarEstado(cita.id, 'confirmed')} disabled={!!esProc('confirmed')} style={{ background: '#DCFCE7', color: '#059669' }}>
-              {esProc('confirmed') ? <span style={{ width: 13, height: 13, border: '2px solid #05966944', borderTopColor: '#059669', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> : <Check size={14} />}
+            <button className="action-btn" onClick={() => cambiarEstado(cita.id, 'confirmed')} disabled={!!esProc('confirmed')} aria-busy={!!esProc('confirmed')} style={{ background: '#DCFCE7', color: '#059669' }}>
+              {esProc('confirmed') ? <span aria-hidden="true" style={{ width: 13, height: 13, border: '2px solid #05966944', borderTopColor: '#059669', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> : <Check size={14} aria-hidden="true" />}
               Confirmar
             </button>
             <button className="action-btn" onClick={() => { setRechazando(cita.id); setMotivoRechazo('') }} disabled={!!esProc('cancelled')} style={{ background: '#FEE2E2', color: '#DC2626' }}>
-              <XCircle size={14} />
+              <XCircle size={14} aria-hidden="true" />
               Rechazar
             </button>
           </>
         )}
         {cita.estado === 'confirmed' && (
           <>
-            <button className="action-btn" onClick={() => cambiarEstado(cita.id, 'completed')} disabled={!!esProc('completed')} style={{ background: '#E0E7FF', color: '#3730A3' }}>
-              {esProc('completed') ? <span style={{ width: 13, height: 13, border: '2px solid #3730A344', borderTopColor: '#3730A3', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> : <CheckCircle size={14} />}
+            <button className="action-btn" onClick={() => cambiarEstado(cita.id, 'completed')} disabled={!!esProc('completed')} aria-busy={!!esProc('completed')} style={{ background: '#E0E7FF', color: '#3730A3' }}>
+              {esProc('completed') ? <span aria-hidden="true" style={{ width: 13, height: 13, border: '2px solid #3730A344', borderTopColor: '#3730A3', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> : <CheckCircle size={14} aria-hidden="true" />}
               Marcar completada
             </button>
-            <button className="action-btn" onClick={() => cambiarEstado(cita.id, 'cancelled')} disabled={!!esProc('cancelled')} style={{ background: '#FEE2E2', color: '#DC2626' }}>
-              {esProc('cancelled') ? <span style={{ width: 13, height: 13, border: '2px solid #DC262644', borderTopColor: '#DC2626', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> : <XCircle size={14} />}
+            <button className="action-btn" onClick={() => cambiarEstado(cita.id, 'cancelled')} disabled={!!esProc('cancelled')} aria-busy={!!esProc('cancelled')} style={{ background: '#FEE2E2', color: '#DC2626' }}>
+              {esProc('cancelled') ? <span aria-hidden="true" style={{ width: 13, height: 13, border: '2px solid #DC262644', borderTopColor: '#DC2626', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> : <XCircle size={14} aria-hidden="true" />}
               Cancelar
             </button>
           </>
         )}
         {cita.estado !== 'cancelled' && cita.paciente_telefono && (
           <a href={getWhatsAppLink(medico, cita.paciente_telefono, cita.fecha, cita.hora, cita.paciente_nombre)} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#25D366', color: '#fff', borderRadius: 50, padding: '8px 14px', fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>
-            <MessageCircle size={14} />
+            <MessageCircle size={14} aria-hidden="true" />
             WhatsApp
           </a>
         )}

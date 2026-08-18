@@ -67,13 +67,13 @@ export default function CalendarioMensual({ citas, selectedDate, onSelectDate }:
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button onClick={() => cambiarMes(-1)} aria-label="Mes anterior" style={{ background: '#F3F4F6', border: 'none', borderRadius: 8, padding: 6, cursor: 'pointer', display: 'flex' }}>
-            <ChevronLeft size={16} color="#6B7280" />
+            <ChevronLeft size={16} color="#6B7280" aria-hidden="true" />
           </button>
           <p style={{ fontFamily: "'Fraunces', serif", fontSize: 17, fontWeight: 900, color: '#111827', minWidth: 150, textAlign: 'center', textTransform: 'capitalize' }}>
             {MESES[mesActual.getMonth()]} {mesActual.getFullYear()}
           </p>
           <button onClick={() => cambiarMes(1)} aria-label="Mes siguiente" style={{ background: '#F3F4F6', border: 'none', borderRadius: 8, padding: 6, cursor: 'pointer', display: 'flex' }}>
-            <ChevronRight size={16} color="#6B7280" />
+            <ChevronRight size={16} color="#6B7280" aria-hidden="true" />
           </button>
         </div>
         <button onClick={irAHoy} style={{ background: '#EEF2FF', color: '#1E3A5F', border: 'none', borderRadius: 50, padding: '6px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
@@ -83,7 +83,7 @@ export default function CalendarioMensual({ citas, selectedDate, onSelectDate }:
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 4 }}>
         {DIAS_SEMANA.map((d, i) => (
-          <div key={i} style={{ textAlign: 'center', fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', padding: '2px 0' }}>
+          <div key={i} style={{ textAlign: 'center', fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', padding: '2px 0' }}>
             {d}
           </div>
         ))}

@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -12,6 +12,8 @@ import {
 import { calculateProfileCompletion } from '@/hooks/useProfileCompletion'
 import { isManuelEmail } from '@/lib/manuelOnly'
 import { fechaISOLocal } from '@/lib/citas/fechas'
+import { Skeleton } from '@/components/Skeleton'
+import { PageErrorState, classifyError, type PageErrorType } from '@/components/PageErrorState'
 
 interface Medico {
   id: string
@@ -68,6 +70,8 @@ export default function DashboardMedico() {
   const router = useRouter()
   const [medico, setMedico] = useState<Medico | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<PageErrorType | null>(null)
+  const cancelRef = useRef(false)
   const [showPhotoModal, setShowPhotoModal] = useState(false)
   const [specialtyWarnings, setSpecialtyWarnings] = useState<string[]>([])
 
@@ -86,53 +90,61 @@ export default function DashboardMedico() {
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
-  // Carga principal de datos
+  // Permite cerrar el modal de foto con teclado (Escape) — antes solo se
+  // podía cerrar haciendo clic, sin forma de salir sin mouse.
   useEffect(() => {
-    let mounted = true
-    // El evento INITIAL_SESSION puede llegar con session=null mientras el
-    // cliente todavía está leyendo la cookie (justo después de un
-    // window.location.href), antes de que getUser() confirme la sesión real
-    // más abajo — eso causaba un rebote falso a /login. Se ignora ese evento
-    // y no se reacciona a ningún evento hasta que la carga inicial resuelva.
-    let initialCheckDone = false
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'INITIAL_SESSION') return
-      if (!initialCheckDone) return
-      if (!session && mounted) router.replace('/login')
-    })
+    if (!showPhotoModal) return
+    const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowPhotoModal(false) }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [showPhotoModal])
 
-    async function load() {
-      try {
-        const { data: { user } } = await supabase.auth.getUser()
-        initialCheckDone = true
-        if (!user) { router.replace('/login'); return }
+  // Se marca en true recién después de que getUser() resuelve la primera
+  // vez — antes de eso, un evento INITIAL_SESSION con session=null (llega
+  // mientras el cliente todavía está leyendo la cookie, justo después de un
+  // window.location.href) causaba un rebote falso a /login.
+  const initialCheckDoneRef = useRef(false)
 
-        let { data: doctor } = await supabase
+  // Carga principal de datos — expuesta como función con useCallback (no
+  // solo dentro del useEffect) para que el botón "Reintentar" del estado de
+  // error pueda volver a llamarla sin duplicar toda la lógica.
+  const load = useCallback(async () => {
+    cancelRef.current = false
+    setLoading(true)
+    setError(null)
+    try {
+      const { data: { user }, error: userErr } = await supabase.auth.getUser()
+      if (userErr) throw userErr
+      initialCheckDoneRef.current = true
+      if (!user) { router.replace('/login'); return }
+
+      let { data: doctor, error: doctorErr } = await supabase
+        .from('doctors')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle()
+      if (doctorErr) throw doctorErr
+
+      if (!doctor) {
+        const { data: byEmail } = await supabase
           .from('doctors')
           .select('*')
-          .eq('user_id', user.id)
+          .ilike('email', user.email || '')
           .maybeSingle()
 
-        if (!doctor) {
-          const { data: byEmail } = await supabase
-            .from('doctors')
-            .select('*')
-            .ilike('email', user.email || '')
-            .maybeSingle()
-
-          if (byEmail) {
-            await supabase.from('doctors').update({ user_id: user.id }).eq('id', byEmail.id)
-            doctor = { ...byEmail, user_id: user.id }
-          }
+        if (byEmail) {
+          await supabase.from('doctors').update({ user_id: user.id }).eq('id', byEmail.id)
+          doctor = { ...byEmail, user_id: user.id }
         }
+      }
 
-        if (!doctor) {
-          router.replace('/dashboard/editar-perfil?onboarding=1')
-          return
-        }
+      if (!doctor) {
+        router.replace('/dashboard/editar-perfil?onboarding=1')
+        return
+      }
 
-        if (!mounted) return
-        setMedico(doctor)
+      if (cancelRef.current) return
+      setMedico(doctor)
 
         const hoy = fechaISOLocal(new Date())
         const inicioMes = new Date()
@@ -356,15 +368,26 @@ export default function DashboardMedico() {
           })
         }
 
-      } catch (err) {
+    } catch (err) {
+      if (!cancelRef.current) {
         console.error(err)
-      } finally {
-        if (mounted) setLoading(false)
+        setError(classifyError(err))
       }
+    } finally {
+      if (!cancelRef.current) setLoading(false)
     }
-    load()
-    return () => { mounted = false; subscription.unsubscribe() }
   }, [router])
+
+  useEffect(() => {
+    initialCheckDoneRef.current = false
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'INITIAL_SESSION') return
+      if (!initialCheckDoneRef.current) return
+      if (!session) router.replace('/login')
+    })
+    load()
+    return () => { cancelRef.current = true; subscription.unsubscribe() }
+  }, [load, router])
 
   const saludo = () => {
     const h = new Date().getHours()
@@ -400,15 +423,17 @@ export default function DashboardMedico() {
     }
   }
 
-  if (loading) {
+  if (error) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <style>{`@keyframes s{to{transform:rotate(360deg)}}`}</style>
-        <div style={{ width: 40, height: 40, border: '3px solid #E5E7EB', borderTopColor: '#1E3A5F', borderRadius: '50%', animation: 's .8s linear infinite' }} />
+      <div style={{ minHeight: '100vh', background: '#F9FAFB', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+        <PageErrorState type={error} onRetry={load} />
       </div>
     )
   }
-  if (!medico) return null
+
+  if (loading || !medico) {
+    return <DashboardSkeleton isMobile={isMobile} />
+  }
 
   const esPerfilCompleto = consejo?.id === 'completo'
   const profileUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/doctor/${medico.id}`
@@ -466,14 +491,20 @@ export default function DashboardMedico() {
         ═══════════════════════════════════════════════════════════ */}
         <div className="fade-in" style={{ background: '#fff', borderRadius: 16, padding: 24, border: '1px solid #E5E7EB', display: 'flex', gap: 20, flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'center' : 'flex-start', textAlign: isMobile ? 'center' : 'left' }}>
           {medico.photo_url ? (
-            <img
+            <button
+              type="button"
               onClick={() => setShowPhotoModal(true)}
-              src={`${medico.photo_url}?t=${photoTs}`}
-              alt=""
-              style={{ width: 96, height: 96, borderRadius: '50%', objectFit: 'cover', cursor: 'pointer', border: '3px solid #E5E7EB', flexShrink: 0 }}
-            />
+              aria-label="Ver foto de perfil ampliada"
+              style={{ width: 96, height: 96, borderRadius: '50%', padding: 0, border: '3px solid #E5E7EB', background: 'none', cursor: 'pointer', flexShrink: 0, overflow: 'hidden' }}
+            >
+              <img
+                src={`${medico.photo_url}?t=${photoTs}`}
+                alt=""
+                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+              />
+            </button>
           ) : (
-            <div style={{ width: 96, height: 96, borderRadius: '50%', background: 'linear-gradient(135deg, #1E3A5F, #2A9D8F)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 36, fontFamily: 'Fraunces', fontWeight: 900, flexShrink: 0 }}>
+            <div aria-hidden="true" style={{ width: 96, height: 96, borderRadius: '50%', background: 'linear-gradient(135deg, #1E3A5F, #2A9D8F)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 36, fontFamily: 'Fraunces', fontWeight: 900, flexShrink: 0 }}>
               {medico.full_name[0]}
             </div>
           )}
@@ -507,6 +538,7 @@ export default function DashboardMedico() {
                   : { width: 36, height: 36, borderRadius: '50%', background: '#F5F3FF', border: '1.5px solid #DDD6FE', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#7C3AED', flexShrink: 0 }
                 }
                 title={copied ? '¡Link copiado!' : 'Compartir perfil'}
+                aria-label={copied ? 'Link copiado' : 'Compartir perfil'}
               >
                 {isMobile
                   ? <>{copied ? '¡Link copiado!' : <><Share2 size={16} /> Compartir</>}</>
@@ -748,13 +780,13 @@ export default function DashboardMedico() {
           {/* VISITAS */}
           <div style={{ background: '#fff', padding: 24, borderRadius: 16, border: '1px solid #E5E7EB' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-              <p style={{ fontSize: 11, color: '#9CA3AF', textTransform: 'uppercase', fontWeight: 700, margin: 0, letterSpacing: '0.05em' }}>Vistas totales</p>
+              <p style={{ fontSize: 11, color: '#6B7280', textTransform: 'uppercase', fontWeight: 700, margin: 0, letterSpacing: '0.05em' }}>Vistas totales</p>
               <Eye size={18} color="#8B5CF6" />
             </div>
             <p style={{ fontSize: 32, fontFamily: 'Fraunces', fontWeight: 900, color: '#1E3A5F', margin: '8px 0', lineHeight: 1 }}>
               {stats?.visitas_mes || 0}
             </p>
-            <p style={{ fontSize: 11, color: '#9CA3AF', lineHeight: 1.4, margin: 0 }}>
+            <p style={{ fontSize: 11, color: '#6B7280', lineHeight: 1.4, margin: 0 }}>
               Acumulando datos desde el {fechaHoyLegible}. La tendencia estará disponible próximamente
             </p>
           </div>
@@ -762,7 +794,7 @@ export default function DashboardMedico() {
           {/* ESTADÍSTICAS */}
           <div style={{ background: '#fff', padding: 24, borderRadius: 16, border: '1px solid #E5E7EB' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-              <p style={{ fontSize: 11, color: '#9CA3AF', textTransform: 'uppercase', fontWeight: 700, margin: 0, letterSpacing: '0.05em' }}>Estadísticas</p>
+              <p style={{ fontSize: 11, color: '#6B7280', textTransform: 'uppercase', fontWeight: 700, margin: 0, letterSpacing: '0.05em' }}>Estadísticas</p>
               <BarChart3 size={18} color="#2A9D8F" />
             </div>
             <p style={{ fontSize: 32, fontFamily: 'Fraunces', fontWeight: 900, color: '#1E3A5F', margin: '8px 0', lineHeight: 1 }}>
@@ -771,38 +803,38 @@ export default function DashboardMedico() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#6B7280', fontSize: 12, marginTop: 8 }}>
               <TendenciaIcon size={14} color={tendenciaColor} />
               <span style={{ fontWeight: 600 }}>{citasMes}</span>
-              <span style={{ color: '#9CA3AF', marginLeft: 4 }}>citas este mes</span>
+              <span style={{ color: '#6B7280', marginLeft: 4 }}>citas este mes</span>
             </div>
-            <div
-              onClick={() => router.push('/dashboard/estadisticas')}
-              style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', gap: 4, color: '#2A9D8F', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+            <Link
+              href="/dashboard/estadisticas"
+              style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', gap: 4, color: '#2A9D8F', fontSize: 13, fontWeight: 600, textDecoration: 'none' }}
             >
-              <ArrowRight size={14} /> Ver más
-            </div>
+              <ArrowRight size={14} aria-hidden="true" /> Ver más
+            </Link>
           </div>
 
           {/* CALIFICACIÓN */}
           <div style={{ background: '#fff', padding: 24, borderRadius: 16, border: '1px solid #E5E7EB' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-              <p style={{ fontSize: 11, color: '#9CA3AF', textTransform: 'uppercase', fontWeight: 700, margin: 0, letterSpacing: '0.05em' }}>Calificación</p>
+              <p style={{ fontSize: 11, color: '#6B7280', textTransform: 'uppercase', fontWeight: 700, margin: 0, letterSpacing: '0.05em' }}>Calificación</p>
               <Star size={18} color="#F59E0B" fill="#F59E0B" />
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, margin: '8px 0' }}>
               <p style={{ fontSize: 32, fontFamily: 'Fraunces', fontWeight: 900, color: '#1E3A5F', lineHeight: 1 }}>
                 {stats?.rating_promedio || '0.0'}
               </p>
-              <span style={{ color: '#9CA3AF', fontSize: 14 }}>/5</span>
+              <span style={{ color: '#6B7280', fontSize: 14 }}>/5</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#6B7280', fontSize: 12, marginTop: 8 }}>
               <Users size={14} />
               {stats?.reseñas_count ? `${stats.reseñas_count} reseñas` : 'Sin reseñas aún'}
             </div>
-            <div
-              onClick={() => router.push('/dashboard/resenas')}
-              style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', gap: 4, color: '#2A9D8F', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+            <Link
+              href="/dashboard/resenas"
+              style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', gap: 4, color: '#2A9D8F', fontSize: 13, fontWeight: 600, textDecoration: 'none' }}
             >
-              <ArrowRight size={14} /> Ver reseñas
-            </div>
+              <ArrowRight size={14} aria-hidden="true" /> Ver reseñas
+            </Link>
           </div>
         </div>
       </div>
@@ -841,7 +873,7 @@ export default function DashboardMedico() {
             <div style={{ textAlign: 'center', padding: 40, background: '#F9FAFB', borderRadius: 12 }}>
               <Calendar size={40} color="#9CA3AF" style={{ margin: '0 auto 12px', display: 'block' }} />
               <p style={{ color: '#6B7280', fontSize: 14, margin: 0 }}>Sin próximas citas</p>
-              <p style={{ color: '#9CA3AF', fontSize: 13, margin: '4px 0 0' }}>Las solicitudes aparecerán aquí</p>
+              <p style={{ color: '#6B7280', fontSize: 13, margin: '4px 0 0' }}>Las solicitudes aparecerán aquí</p>
             </div>
           )}
         </div>
@@ -853,12 +885,106 @@ export default function DashboardMedico() {
       {showPhotoModal && medico.photo_url && (
         <div
           onClick={() => setShowPhotoModal(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Foto de perfil ampliada"
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: 20 }}
         >
-          <X size={24} color="#fff" style={{ position: 'absolute', top: 20, right: 20, cursor: 'pointer' }} />
-          <img src={`${medico.photo_url}?t=${photoTs}`} style={{ maxWidth: '90%', maxHeight: '90%', borderRadius: 12 }} alt="" />
+          <button
+            type="button"
+            onClick={() => setShowPhotoModal(false)}
+            aria-label="Cerrar foto ampliada"
+            style={{ position: 'absolute', top: 20, right: 20, background: 'none', border: 'none', cursor: 'pointer', padding: 8, display: 'flex' }}
+          >
+            <X size={24} color="#fff" aria-hidden="true" />
+          </button>
+          <img src={`${medico.photo_url}?t=${photoTs}`} style={{ maxWidth: '90%', maxHeight: '90%', borderRadius: 12 }} alt={`Foto de perfil de ${medico.full_name}`} />
         </div>
       )}
+    </div>
+  )
+}
+
+// Skeleton del dashboard principal — refleja la misma estructura de
+// tarjetas que la página real (encabezado, progreso, tarjeta de consejo,
+// 3 métricas, actividad reciente) para que la transición a los datos
+// reales no salte ni cambie de layout.
+function DashboardSkeleton({ isMobile }: { isMobile: boolean }) {
+  return (
+    <div style={{ minHeight: '100vh', background: '#F9FAFB', paddingBottom: isMobile ? 80 : 0 }} aria-busy="true">
+      <span style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0 }}>
+        Cargando tu panel…
+      </span>
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 16px 20px' }}>
+        {/* Encabezado */}
+        <div style={{ background: '#fff', borderRadius: 16, padding: 24, border: '1px solid #E5E7EB', display: 'flex', gap: 20, flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'center' : 'flex-start' }}>
+          <Skeleton width={96} height={96} radius={999} style={{ flexShrink: 0 }} />
+          <div style={{ flex: 1, width: '100%', display: 'flex', flexDirection: 'column', gap: 10, alignItems: isMobile ? 'center' : 'flex-start' }}>
+            <Skeleton width={220} height={26} />
+            <Skeleton width={140} height={16} />
+            <div style={{ display: 'flex', gap: 12, marginTop: 10, width: isMobile ? '100%' : 'auto' }}>
+              <Skeleton width={isMobile ? '100%' : 150} height={44} radius={12} />
+              <Skeleton width={isMobile ? '100%' : 120} height={44} radius={12} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Progreso */}
+      <div style={{ maxWidth: 1100, margin: '0 auto 20px', padding: '0 16px' }}>
+        <div style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #E5E7EB' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+            <Skeleton width={140} height={16} />
+            <Skeleton width={36} height={16} />
+          </div>
+          <Skeleton width="100%" height={8} radius={99} />
+        </div>
+      </div>
+
+      {/* Tarjeta de consejo */}
+      <div style={{ maxWidth: 1100, margin: '0 auto 20px', padding: '0 16px' }}>
+        <div style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #E5E7EB', display: 'flex', gap: 14, alignItems: 'center', flexDirection: isMobile ? 'column' : 'row' }}>
+          <Skeleton width={44} height={44} radius={12} style={{ flexShrink: 0 }} />
+          <div style={{ flex: 1, width: '100%', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <Skeleton width={200} height={16} />
+            <Skeleton width="80%" height={14} />
+          </div>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div style={{ maxWidth: 1100, margin: '0 auto 20px', padding: '0 16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 16 }}>
+          {[0, 1, 2].map(i => (
+            <div key={i} style={{ background: '#fff', padding: 24, borderRadius: 16, border: '1px solid #E5E7EB' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+                <Skeleton width={80} height={11} />
+                <Skeleton width={18} height={18} radius={4} />
+              </div>
+              <Skeleton width={70} height={32} style={{ marginBottom: 10 }} />
+              <Skeleton width={110} height={12} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Actividad reciente */}
+      <div style={{ maxWidth: 1100, margin: '0 auto 20px', padding: '0 16px' }}>
+        <div style={{ background: '#fff', padding: 24, borderRadius: 16, border: '1px solid #E5E7EB' }}>
+          <Skeleton width={180} height={20} style={{ marginBottom: 20 }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {[0, 1].map(i => (
+              <div key={i} style={{ background: '#F9FAFB', padding: 16, borderRadius: 12, display: 'flex', gap: 12, alignItems: 'center' }}>
+                <Skeleton width={44} height={44} radius={999} style={{ flexShrink: 0 }} />
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <Skeleton width="50%" height={14} />
+                  <Skeleton width="70%" height={12} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

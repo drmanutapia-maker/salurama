@@ -201,6 +201,15 @@ input, select, textarea {
   to { transform: rotate(360deg); }
 }
 
+@keyframes skeletonShimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-block { animation: none !important; }
+}
+
 .fade-in {
   animation: fadeIn 0.3s ease-out;
 }

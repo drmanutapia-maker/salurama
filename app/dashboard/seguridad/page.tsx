@@ -1,11 +1,13 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { getUserSafe } from '@/lib/getUserSafe'
 import { ShieldCheck, Smartphone, LogOut, Fingerprint, CheckCircle } from 'lucide-react'
 import { startRegistration, startAuthentication, browserSupportsWebAuthn, platformAuthenticatorIsAvailable } from '@simplewebauthn/browser'
 import { confirmarCredencialLocal, obtenerCredencialLocal, guardarCredencialLocal, borrarCredencialLocal } from '@/lib/webauthn/dispositivoLocal'
+import { Skeleton } from '@/components/Skeleton'
+import { PageErrorState, classifyError, type PageErrorType } from '@/components/PageErrorState'
 
 interface SessionRow {
   id: string
@@ -30,7 +32,8 @@ function formatRelativo(iso: string): string {
 export default function SeguridadPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
-  const [loadError, setLoadError] = useState(false)
+  const [loadError, setLoadError] = useState<PageErrorType | null>(null)
+  const cancelRef = useRef(false)
   const [sessions, setSessions] = useState<SessionRow[]>([])
   const [revoking, setRevoking] = useState<string | null>(null)
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
@@ -46,7 +49,11 @@ export default function SeguridadPage() {
 
   const cargarSesiones = useCallback(async () => {
     const res = await fetch('/api/sessions')
-    if (!res.ok) throw new Error('fetch_failed')
+    if (!res.ok) {
+      const err: any = new Error(`fetch_failed_${res.status}`)
+      err.status = res.status
+      throw err
+    }
     const { sessions } = await res.json()
     setSessions(sessions || [])
   }, [])
@@ -56,42 +63,49 @@ export default function SeguridadPage() {
     setBiometricoActivado(activo)
   }, [])
 
+  const initialCheckDoneRef = useRef(false)
+
+  // Expuesta con useCallback (no solo dentro del useEffect) para que el
+  // botón "Reintentar" del estado de error pueda volver a llamarla.
+  const load = useCallback(async () => {
+    cancelRef.current = false
+    setLoading(true)
+    setLoadError(null)
+    const { user, networkError } = await getUserSafe(supabase)
+    initialCheckDoneRef.current = true
+    if (networkError) { if (!cancelRef.current) { setLoadError('network'); setLoading(false) }; return }
+    if (!user) { router.push('/login'); return }
+
+    try {
+      await cargarSesiones()
+    } catch (err) {
+      if (!cancelRef.current) setLoadError(classifyError(err))
+    }
+    // El estado del biométrico es secundario -- si falla, no bloquea la
+    // página (se queda mostrando "Activar" por defecto, sin romper nada).
+    await cargarEstadoBiometrico().catch(() => {})
+    if (!cancelRef.current) setLoading(false)
+  }, [router, cargarSesiones, cargarEstadoBiometrico])
+
   useEffect(() => {
-    let mounted = true
     // Ignora el evento INITIAL_SESSION con session=null que puede llegar
     // mientras el cliente todavía está leyendo la cookie (justo después de
     // navegar aquí) — mismo criterio que app/dashboard/page.tsx, para no
     // rebotar a /login por una sesión válida que solo tardó en confirmarse.
     // Esta página en particular es donde se confirmó en vivo (Fase 2 del
     // biométrico) que la carga se quedaba pegada por esta misma carrera.
-    let initialCheckDone = false
+    initialCheckDoneRef.current = false
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'INITIAL_SESSION') return
-      if (!initialCheckDone) return
-      if (!session && mounted) router.push('/login')
+      if (!initialCheckDoneRef.current) return
+      if (!session) router.push('/login')
     })
 
-    async function load() {
-      const { user, networkError } = await getUserSafe(supabase)
-      initialCheckDone = true
-      if (networkError) { if (mounted) { setLoadError(true); setLoading(false) }; return }
-      if (!user) { if (mounted) router.push('/login'); return }
-
-      try {
-        await cargarSesiones()
-      } catch {
-        if (mounted) setLoadError(true)
-      }
-      // El estado del biométrico es secundario -- si falla, no bloquea la
-      // página (se queda mostrando "Activar" por defecto, sin romper nada).
-      await cargarEstadoBiometrico().catch(() => {})
-      if (mounted) setLoading(false)
-    }
     load()
     setWebauthnSoportado(browserSupportsWebAuthn())
 
-    return () => { mounted = false; subscription.unsubscribe() }
-  }, [router, cargarSesiones, cargarEstadoBiometrico])
+    return () => { cancelRef.current = true; subscription.unsubscribe() }
+  }, [load])
 
   // Cuando el navegador rechaza crear una credencial nueva porque ya
   // reconoce una de la cuenta (InvalidStateError), le pedimos que la use
@@ -250,29 +264,12 @@ export default function SeguridadPage() {
   }
 
   if (loadError) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif" }}>
-      <div style={{ textAlign: 'center', maxWidth: 320 }}>
-        <p style={{ color: '#111827', fontSize: 15, fontWeight: 600, marginBottom: 6 }}>No se pudo conectar</p>
-        <p style={{ color: '#9CA3AF', fontSize: 13, marginBottom: 16 }}>Revisa tu conexión a internet e inténtalo de nuevo.</p>
-        <button
-          onClick={() => window.location.reload()}
-          style={{ background: '#1E3A5F', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 20px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
-        >
-          Reintentar
-        </button>
-      </div>
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif", padding: 20 }}>
+      <PageErrorState type={loadError} onRetry={load} />
     </div>
   )
 
-  if (loading) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif" }}>
-      <div style={{ textAlign: 'center' }}>
-        <div style={{ width: 40, height: 40, border: '3px solid #EEF2FF', borderTopColor: '#1E3A5F', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
-        <p style={{ color: '#9CA3AF', fontSize: 14 }}>Cargando sesiones...</p>
-      </div>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-    </div>
-  )
+  if (loading) return <SeguridadSkeleton />
 
   const otras = sessions.filter(s => !s.isCurrent)
 
@@ -290,7 +287,7 @@ export default function SeguridadPage() {
 
       <div style={{ maxWidth: 720, margin: '0 auto', padding: '32px 16px 80px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-          <ShieldCheck size={22} color="#1E3A5F" />
+          <ShieldCheck size={22} color="#1E3A5F" aria-hidden="true" />
           <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 22, fontWeight: 900, color: '#1E3A5F' }}>Seguridad</h1>
         </div>
         <p style={{ color: '#6B7280', fontSize: 14, marginBottom: 24 }}>
@@ -311,7 +308,7 @@ export default function SeguridadPage() {
 
         <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #E5E7EB', overflow: 'hidden' }}>
           {sessions.length === 0 && (
-            <p style={{ padding: 24, color: '#9CA3AF', fontSize: 14, textAlign: 'center' }}>No hay sesiones activas.</p>
+            <p style={{ padding: 24, color: '#6B7280', fontSize: 14, textAlign: 'center' }}>No hay sesiones activas.</p>
           )}
           {sessions.map((s, i) => (
             <div
@@ -323,7 +320,7 @@ export default function SeguridadPage() {
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
                 <div style={{ width: 38, height: 38, borderRadius: 10, background: '#F5F3FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <Smartphone size={18} color="#7C3AED" />
+                  <Smartphone size={18} color="#7C3AED" aria-hidden="true" />
                 </div>
                 <div style={{ minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -334,7 +331,7 @@ export default function SeguridadPage() {
                       </span>
                     )}
                   </div>
-                  <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>
+                  <p style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>
                     {s.ip ? `${s.ip} · ` : ''}Última actividad {formatRelativo(s.lastActiveAt)}
                   </p>
                 </div>
@@ -344,7 +341,7 @@ export default function SeguridadPage() {
                   biometricoActivado ? (
                     <>
                       <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#059669', fontSize: 13, fontWeight: 600 }}>
-                        <CheckCircle size={16} /> Activado
+                        <CheckCircle size={16} aria-hidden="true" /> Activado
                       </span>
                       <button
                         onClick={desactivarBiometrico}
@@ -369,7 +366,7 @@ export default function SeguridadPage() {
                         cursor: activandoBiometrico ? 'not-allowed' : 'pointer', opacity: activandoBiometrico ? 0.6 : 1, flexShrink: 0,
                       }}
                     >
-                      <Fingerprint size={14} />
+                      <Fingerprint size={14} aria-hidden="true" />
                       {activandoBiometrico ? 'Activando...' : 'Activar en este navegador'}
                     </button>
                   )
@@ -385,7 +382,7 @@ export default function SeguridadPage() {
                     cursor: revoking ? 'not-allowed' : 'pointer', opacity: revoking ? 0.6 : 1, flexShrink: 0,
                   }}
                 >
-                  <LogOut size={14} />
+                  <LogOut size={14} aria-hidden="true" />
                   {revoking === s.id ? 'Cerrando...' : 'Cerrar sesión'}
                 </button>
               </div>
@@ -395,13 +392,51 @@ export default function SeguridadPage() {
       </div>
 
       {toast && (
-        <div style={{
-          position: 'fixed', bottom: 20, right: 20, background: toast.type === 'success' ? '#1E3A5F' : '#DC2626',
-          color: '#fff', padding: '12px 20px', borderRadius: 12, fontSize: 14, boxShadow: '0 8px 24px rgba(0,0,0,0.2)', zIndex: 9999,
-        }}>
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: 'fixed', bottom: 20, right: 20, background: toast.type === 'success' ? '#1E3A5F' : '#DC2626',
+            color: '#fff', padding: '12px 20px', borderRadius: 12, fontSize: 14, boxShadow: '0 8px 24px rgba(0,0,0,0.2)', zIndex: 9999,
+          }}
+        >
           {toast.msg}
         </div>
       )}
+    </div>
+  )
+}
+
+// Skeleton de la página de Seguridad — misma estructura de lista de
+// sesiones (avatar + nombre + acciones) para que la carga no salte.
+function SeguridadSkeleton() {
+  return (
+    <div style={{ minHeight: '100vh', background: '#F9FAFB', fontFamily: "'DM Sans', sans-serif" }} aria-busy="true">
+      <span style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0 }}>
+        Cargando sesiones…
+      </span>
+      <div style={{ maxWidth: 720, margin: '0 auto', padding: '32px 16px 80px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+          <ShieldCheck size={22} color="#1E3A5F" aria-hidden="true" />
+          <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 22, fontWeight: 900, color: '#1E3A5F' }}>Seguridad</h1>
+        </div>
+        <Skeleton width={340} height={14} style={{ marginBottom: 24 }} />
+
+        <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #E5E7EB', overflow: 'hidden' }}>
+          {[0, 1].map(i => (
+            <div key={i} style={{ padding: '16px 20px', borderTop: i === 0 ? 'none' : '1px solid #F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <Skeleton width={38} height={38} radius={10} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <Skeleton width={160} height={14} />
+                  <Skeleton width={200} height={12} />
+                </div>
+              </div>
+              <Skeleton width={110} height={36} radius={10} />
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }

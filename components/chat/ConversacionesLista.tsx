@@ -1,7 +1,9 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { sinLeerPorSala } from '@/lib/chat/sinLeer'
+import { Skeleton } from '@/components/Skeleton'
+import { PageErrorState, classifyError, type PageErrorType } from '@/components/PageErrorState'
 
 export type ConversacionResumen = {
   salaId: string
@@ -36,17 +38,21 @@ export default function ConversacionesLista({
 }) {
   const [conversaciones, setConversaciones] = useState<ConversacionResumen[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<PageErrorType | null>(null)
 
-  useEffect(() => {
-    let activo = true
-    async function cargar() {
-      const { data: salas } = await supabase
+  const cargar = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const { data: salas, error: salasErr } = await supabase
         .from('chat_salas')
         .select('id, paciente_id, cita_actual_id, created_at, medico_leido_at')
         .eq('medico_id', medicoId)
+      if (salasErr) throw salasErr
 
       if (!salas || salas.length === 0) {
-        if (activo) { setConversaciones([]); setLoading(false) }
+        setConversaciones([])
+        setLoading(false)
         return
       }
 
@@ -61,6 +67,8 @@ export default function ConversacionesLista({
           .in('sala_id', salaIds)
           .order('created_at', { ascending: true }),
       ])
+      if (citasRes.error) throw citasRes.error
+      if (mensajesRes.error) throw mensajesRes.error
 
       const citasPorId = new Map((citasRes.data || []).map((c: any) => [c.id, c]))
       const ultimaActividadPorSala = new Map<string, string>()
@@ -92,21 +100,37 @@ export default function ConversacionesLista({
 
       lista.sort((a, b) => (a.ultimaActividad < b.ultimaActividad ? 1 : -1))
 
-      if (activo) { setConversaciones(lista); setLoading(false) }
+      setConversaciones(lista)
+      setLoading(false)
+    } catch (err) {
+      setError(classifyError(err))
+      setLoading(false)
     }
-    cargar()
-    return () => { activo = false }
   }, [medicoId])
 
+  useEffect(() => {
+    let activo = true
+    if (activo) cargar()
+    return () => { activo = false }
+  }, [cargar])
+
   if (loading) {
-    return <p style={{ textAlign: 'center', color: '#9CA3AF', fontSize: 14, padding: '40px 0' }}>Cargando conversaciones...</p>
+    return <ConversacionesListaSkeleton />
+  }
+
+  if (error) {
+    return (
+      <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #E5E7EB' }}>
+        <PageErrorState type={error} onRetry={cargar} compact />
+      </div>
+    )
   }
 
   if (conversaciones.length === 0) {
     return (
       <div style={{ background: '#fff', borderRadius: 16, padding: '60px 20px', border: '1px solid #E5E7EB', textAlign: 'center' }}>
         <p style={{ fontSize: 16, color: '#374151', fontWeight: 700, marginBottom: 8 }}>Sin conversaciones</p>
-        <p style={{ fontSize: 14, color: '#9CA3AF' }}>Cuando confirmes tu primera cita con un paciente, la conversación aparecerá aquí</p>
+        <p style={{ fontSize: 14, color: '#6B7280' }}>Cuando confirmes tu primera cita con un paciente, la conversación aparecerá aquí</p>
       </div>
     )
   }
@@ -123,7 +147,7 @@ export default function ConversacionesLista({
             textAlign: 'left', cursor: 'pointer', width: '100%', fontFamily: 'inherit',
           }}
         >
-          <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'linear-gradient(135deg,#1E3A5F,#2A9D8F)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 18, color: '#fff', flexShrink: 0 }}>
+          <div aria-hidden="true" style={{ width: 44, height: 44, borderRadius: '50%', background: 'linear-gradient(135deg,#1E3A5F,#2A9D8F)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 18, color: '#fff', flexShrink: 0 }}>
             {c.pacienteNombre.charAt(0).toUpperCase()}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -131,20 +155,40 @@ export default function ConversacionesLista({
               {c.pacienteNombre}
             </p>
             {c.motivo && (
-              <p style={{ fontSize: 13, color: '#9CA3AF', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <p style={{ fontSize: 13, color: '#6B7280', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {c.motivo}
               </p>
             )}
           </div>
           <div style={{ textAlign: 'right', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
-            <span style={{ fontSize: 12, color: '#9CA3AF' }}>{formatUltimaActividad(c.ultimaActividad)}</span>
+            <span style={{ fontSize: 12, color: '#6B7280' }}>{formatUltimaActividad(c.ultimaActividad)}</span>
             {c.sinLeer > 0 && (
-              <span style={{ background: '#DC2626', color: '#fff', borderRadius: 99, minWidth: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, padding: '0 6px' }}>
+              <span
+                aria-label={`${c.sinLeer} mensaje${c.sinLeer === 1 ? '' : 's'} sin leer`}
+                style={{ background: '#DC2626', color: '#fff', borderRadius: 99, minWidth: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, padding: '0 6px' }}
+              >
                 {c.sinLeer}
               </span>
             )}
           </div>
         </button>
+      ))}
+    </div>
+  )
+}
+
+function ConversacionesListaSkeleton() {
+  return (
+    <div role="status" aria-label="Cargando conversaciones" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {[0, 1, 2].map(i => (
+        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#fff', borderRadius: 14, border: '1.5px solid #E5E7EB', padding: '14px 16px' }}>
+          <Skeleton width={44} height={44} radius={999} style={{ flexShrink: 0 }} />
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <Skeleton width="40%" height={15} />
+            <Skeleton width="60%" height={13} />
+          </div>
+          <Skeleton width={30} height={12} />
+        </div>
       ))}
     </div>
   )
