@@ -6,8 +6,8 @@ import { useRouter } from 'next/navigation'
 import {
   X, ZoomIn, Calendar, Edit2, Eye, Share2,
   Star, Users, MoreVertical, Lightbulb,
-  CheckCircle, ArrowRight, ArrowUp, ArrowDown, Minus,
-  PartyPopper, Sparkles, Megaphone, AlertCircle, BarChart3
+  CheckCircle, ArrowRight,
+  PartyPopper, Sparkles, Megaphone, AlertCircle, Banknote
 } from 'lucide-react'
 import { calculateProfileCompletion } from '@/hooks/useProfileCompletion'
 import { isManuelEmail } from '@/lib/manuelOnly'
@@ -48,9 +48,8 @@ interface Cita {
 
 interface StatsResumen {
   visitas_mes: number
-  citas_totales: number
-  citas_mes: number
-  citas_mes_anterior: number
+  ingresos_mes: number
+  ingresos_total: number
   rating_promedio: number
   reseñas_count: number
 }
@@ -151,11 +150,7 @@ export default function DashboardMedico() {
         inicioMes.setDate(1)
         const inicioMesStr = inicioMes.toISOString().split('T')[0]
 
-        const inicioMesAnterior = new Date()
-        inicioMesAnterior.setMonth(inicioMesAnterior.getMonth() - 1)
-        const inicioMesAnteriorStr = inicioMesAnterior.toISOString().split('T')[0]
-
-        const [citasHoyRes, totalesRes, mesRes, mesAnteriorRes, eduRes, expRes, condRes, visitasRes, specialtyCredRes] = await Promise.all([
+        const [citasHoyRes, completadasRes, eduRes, expRes, condRes, visitasRes, specialtyCredRes] = await Promise.all([
           supabase.from('citas')
             .select('id, paciente_nombre, fecha, hora, estado')
             .eq('medico_id', doctor.id)
@@ -164,21 +159,17 @@ export default function DashboardMedico() {
             .order('fecha', { ascending: true })
             .order('hora', { ascending: true })
             .limit(1),
-          // Total histórico de citas, sin filtrar por estado — a diferencia
-          // del filtro anterior (solo 'pending_verification'), que hacía que
-          // el conteo bajara a 0 en cuanto una solicitud se confirmaba.
+          // Todas las citas completadas históricas -- de aquí se calculan los
+          // "ingresos estimados". No hay columna de precio ni de tipo de cita
+          // (primera vez / subsecuente) guardada en `citas`, así que se
+          // aproxima con el precio ACTUAL del perfil y clasificando cada cita
+          // como "primera vez" si es la primera completada de ese paciente
+          // con este médico (por paciente_id), igual que hace el flujo de
+          // agendar cuando el dato es ambiguo.
           supabase.from('citas')
-            .select('*', { count: 'exact', head: true })
-            .eq('medico_id', doctor.id),
-          supabase.from('citas')
-            .select('*', { count: 'exact', head: true })
+            .select('id, paciente_id, fecha')
             .eq('medico_id', doctor.id)
-            .gte('fecha', inicioMesStr),
-          supabase.from('citas')
-            .select('*', { count: 'exact', head: true })
-            .eq('medico_id', doctor.id)
-            .gte('fecha', inicioMesAnteriorStr)
-            .lt('fecha', inicioMesStr),
+            .eq('estado', 'completed'),
           supabase.from('doctor_education').select('id').eq('doctor_id', doctor.id),
           supabase.from('doctor_experience').select('id').eq('doctor_id', doctor.id),
           supabase.from('doctor_conditions').select('id').eq('doctor_id', doctor.id),
@@ -221,11 +212,32 @@ export default function DashboardMedico() {
         // /dashboard/estadisticas, aquí no se duplica.
         const visitasMes = visitasRes.count || 0
 
+        // Ingresos estimados: no hay precio ni tipo de cita (primera vez /
+        // subsecuente) guardado por cita, solo el precio ACTUAL del perfil.
+        // Se recorren las citas completadas en orden cronológico y, por
+        // paciente, la primera que aparece se cuenta como "primera vez" y el
+        // resto como "subsecuente" -- una aproximación, no el precio real
+        // que se cobró en su momento. Citas sin paciente_id (registros
+        // antiguos) se tratan como "primera vez" cada una, igual que el
+        // criterio ya usado al agendar cuando el dato es ambiguo.
+        const precioPrimera = doctor.consultation_price_first_time ?? doctor.consultation_price_general ?? 0
+        const precioSubsecuente = doctor.consultation_price_general ?? doctor.consultation_price_first_time ?? 0
+        const completadas = [...(completadasRes.data || [])].sort((a, b) => a.fecha.localeCompare(b.fecha))
+        const pacientesVistos = new Set<string>()
+        let ingresosMes = 0
+        let ingresosTotal = 0
+        for (const c of completadas) {
+          const esPrimeraVez = !c.paciente_id || !pacientesVistos.has(c.paciente_id)
+          if (c.paciente_id) pacientesVistos.add(c.paciente_id)
+          const precio = esPrimeraVez ? precioPrimera : precioSubsecuente
+          ingresosTotal += precio
+          if (c.fecha >= inicioMesStr) ingresosMes += precio
+        }
+
         setStats({
           visitas_mes: visitasMes,
-          citas_totales: totalesRes.count || 0,
-          citas_mes: mesRes.count || 0,
-          citas_mes_anterior: mesAnteriorRes.count || 0,
+          ingresos_mes: ingresosMes,
+          ingresos_total: ingresosTotal,
           rating_promedio: parseFloat(Number(ratingData.promedio || 0).toFixed(1)),
           reseñas_count: ratingData.total || 0
         })
@@ -447,17 +459,7 @@ export default function DashboardMedico() {
     return new Date(fechaStr + 'T00:00:00').toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })
   }
 
-  // Tendencia simple del mes contra el mes anterior, para la tarjeta de
-  // Estadísticas — mismo criterio (dirección) que usa /dashboard/estadisticas,
-  // sin el detalle de porcentaje para mantener la tarjeta compacta.
-  const citasMes = stats?.citas_mes ?? 0
-  const citasMesAnterior = stats?.citas_mes_anterior ?? 0
-  const tendenciaDireccion: 'up' | 'down' | 'flat' =
-    citasMesAnterior === 0
-      ? (citasMes > 0 ? 'up' : 'flat')
-      : citasMes > citasMesAnterior ? 'up' : citasMes < citasMesAnterior ? 'down' : 'flat'
-  const TendenciaIcon = tendenciaDireccion === 'up' ? ArrowUp : tendenciaDireccion === 'down' ? ArrowDown : Minus
-  const tendenciaColor = tendenciaDireccion === 'up' ? '#059669' : tendenciaDireccion === 'down' ? '#DC2626' : '#9CA3AF'
+  const formatMonto = (monto: number) => `$${monto.toLocaleString('es-MX', { maximumFractionDigits: 0 })}`
 
   return (
     <div style={{ minHeight: '100vh', background: '#F9FAFB', fontFamily: "'DM Sans', sans-serif", paddingBottom: isMobile ? 80 : 0 }}>
@@ -791,25 +793,29 @@ export default function DashboardMedico() {
             </p>
           </div>
 
-          {/* ESTADÍSTICAS */}
+          {/* INGRESOS ESTIMADOS */}
           <div style={{ background: '#fff', padding: 24, borderRadius: 16, border: '1px solid #E5E7EB' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-              <p style={{ fontSize: 11, color: '#6B7280', textTransform: 'uppercase', fontWeight: 700, margin: 0, letterSpacing: '0.05em' }}>Estadísticas</p>
-              <BarChart3 size={18} color="#2A9D8F" />
+              <p style={{ fontSize: 11, color: '#6B7280', textTransform: 'uppercase', fontWeight: 700, margin: 0, letterSpacing: '0.05em' }}>Ingresos estimados</p>
+              <Banknote size={18} color="#2A9D8F" />
             </div>
-            <p style={{ fontSize: 32, fontFamily: 'Fraunces', fontWeight: 900, color: '#1E3A5F', margin: '8px 0', lineHeight: 1 }}>
-              {stats?.citas_totales || 0}
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, margin: '8px 0' }}>
+              <p style={{ fontSize: 32, fontFamily: 'Fraunces', fontWeight: 900, color: '#1E3A5F', lineHeight: 1 }}>
+                {formatMonto(stats?.ingresos_mes || 0)}
+              </p>
+              <span style={{ color: '#6B7280', fontSize: 12 }}>este mes</span>
+            </div>
+            <p style={{ fontSize: 12, color: '#6B7280', marginTop: 8 }}>
+              <span style={{ fontWeight: 600, color: '#374151' }}>{formatMonto(stats?.ingresos_total || 0)}</span> acumulado desde siempre
             </p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#6B7280', fontSize: 12, marginTop: 8 }}>
-              <TendenciaIcon size={14} color={tendenciaColor} />
-              <span style={{ fontWeight: 600 }}>{citasMes}</span>
-              <span style={{ color: '#6B7280', marginLeft: 4 }}>citas este mes</span>
-            </div>
+            <p style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4 }}>
+              Calculado según citas marcadas como completadas
+            </p>
             <Link
               href="/dashboard/estadisticas"
               style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', gap: 4, color: '#2A9D8F', fontSize: 13, fontWeight: 600, textDecoration: 'none' }}
             >
-              <ArrowRight size={14} aria-hidden="true" /> Ver más
+              <ArrowRight size={14} aria-hidden="true" /> Ver estadísticas completas
             </Link>
           </div>
 
