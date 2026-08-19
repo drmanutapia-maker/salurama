@@ -283,8 +283,8 @@ const BENEFITS: Benefit[] = [
   },
   {
     icon: <Lock size={22} color="#1E3A5F" />, bg: '#E8ECF3', title: 'Seguridad de tu cuenta',
-    body: 'Tienes control total sobre quién accede a tu cuenta. Guarda tu inicio de sesión en tus dispositivos de confianza hasta por 7 días.',
-    boldLine: 'Cierra remotamente la sesión de cualquier dispositivo, en cuanto detectes un acceso que no reconoces.',
+    body: 'Tienes control total sobre quién accede a tu cuenta. Entra más rápido y seguro con tu huella digital o Face ID.',
+    boldLine: 'Cierra remotamente la sesión de cualquier dispositivo, cuando quieras.',
     Demo: DemoSeguridad,
   },
 ]

@@ -84,7 +84,6 @@ export async function GET() {
   const sessions = (data || []).map((s: { id: string; created_at: string; updated_at: string; user_agent: string | null; ip: string | null }) => ({
     id: s.id,
     device: parseUserAgent(s.user_agent),
-    ip: s.ip ? s.ip.split('/')[0] : null,
     createdAt: s.created_at,
     lastActiveAt: s.updated_at,
     isCurrent: s.id === currentSessionId,

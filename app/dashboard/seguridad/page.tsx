@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { getUserSafe } from '@/lib/getUserSafe'
-import { ShieldCheck, Smartphone, LogOut, Fingerprint, CheckCircle } from 'lucide-react'
+import { ShieldCheck, Smartphone, LogOut, Fingerprint } from 'lucide-react'
 import { startRegistration, startAuthentication, browserSupportsWebAuthn, platformAuthenticatorIsAvailable } from '@simplewebauthn/browser'
 import { confirmarCredencialLocal, obtenerCredencialLocal, guardarCredencialLocal, borrarCredencialLocal } from '@/lib/webauthn/dispositivoLocal'
 import { Skeleton } from '@/components/Skeleton'
@@ -12,7 +12,6 @@ import { PageErrorState, classifyError, type PageErrorType } from '@/components/
 interface SessionRow {
   id: string
   device: string
-  ip: string | null
   createdAt: string
   lastActiveAt: string
   isCurrent: boolean
@@ -332,7 +331,7 @@ export default function SeguridadPage() {
                     )}
                   </div>
                   <p style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>
-                    {s.ip ? `${s.ip} · ` : ''}Última actividad {formatRelativo(s.lastActiveAt)}
+                    Última actividad {formatRelativo(s.lastActiveAt)}
                   </p>
                 </div>
               </div>
@@ -340,8 +339,8 @@ export default function SeguridadPage() {
                 {s.isCurrent && webauthnSoportado && (
                   biometricoActivado ? (
                     <>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#059669', fontSize: 13, fontWeight: 600 }}>
-                        <CheckCircle size={16} aria-hidden="true" /> Activado
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#059669', fontSize: 13, fontWeight: 600 }} title="Ingreso con huella o Face ID en este dispositivo">
+                        <Fingerprint size={16} aria-hidden="true" /> Activado
                       </span>
                       <button
                         onClick={desactivarBiometrico}
