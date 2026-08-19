@@ -65,6 +65,7 @@ export interface Medico {
   min_patient_age: number | null
   max_patient_age: number | null
   horario: Record<string, any> | null
+  duracion_cita_minutos: number | null
   pricing_tier: string
 }
 
@@ -209,6 +210,7 @@ function AppointmentModal({
   const [pacienteId, setPacienteId] = useState<string | null>(null)
   const [actualizarDatos, setActualizarDatos] = useState(false)
   const [ocupadas, setOcupadas] = useState<string[]>([])
+  const [fechasBloqueadas, setFechasBloqueadas] = useState<Set<string>>(new Set())
   const [mesCalendario, setMesCalendario] = useState(() => {
     const d = new Date(formData.requested_date + 'T00:00:00')
     return new Date(d.getFullYear(), d.getMonth(), 1)
@@ -230,6 +232,22 @@ function AppointmentModal({
       .catch(() => { if (!cancelado) setOcupadas([]) })
     return () => { cancelado = true }
   }, [medico.id, formData.requested_date])
+
+  // Fechas puntuales que el médico bloqueó (ej. vacaciones) desde
+  // /dashboard/horario -- se piden todas de una vez (no por fecha, como
+  // `ocupadas`) porque también las necesita el calendario para deshabilitar
+  // esas celdas, no solo el día seleccionado.
+  useEffect(() => {
+    let cancelado = false
+    const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' })
+    supabase
+      .from('doctor_blocked_dates')
+      .select('fecha')
+      .eq('doctor_id', medico.id)
+      .gte('fecha', hoy)
+      .then(({ data }) => { if (!cancelado) setFechasBloqueadas(new Set((data || []).map(b => b.fecha))) })
+    return () => { cancelado = true }
+  }, [medico.id])
 
   // El mensaje de ayuda "¿no te llegó el código?" no puede depender de si
   // hubo coincidencia real (eso filtraría la misma información que el
@@ -390,37 +408,46 @@ function AppointmentModal({
     }),
   ]
 
-  // Si la fecha inicial (hoy) cae en un día que el médico tiene cerrado,
-  // no la dejamos como "seleccionada" sin más — eso era justo el bug: el
-  // paciente elegía sin saberlo un día inválido y se enteraba hasta después.
-  // Se adelanta sola a la primera fecha disponible.
+  // Si la fecha inicial (hoy) cae en un día que el médico tiene cerrado, o
+  // en una fecha que bloqueó puntualmente, no la dejamos como "seleccionada"
+  // sin más — eso era justo el bug: el paciente elegía sin saberlo un día
+  // inválido y se enteraba hasta después. Se adelanta sola a la primera
+  // fecha disponible.
   useEffect(() => {
     const actual = new Date(formData.requested_date + 'T00:00:00')
-    if (diaEstaAbierto(actual.getDay())) return
+    if (diaEstaAbierto(actual.getDay()) && !fechasBloqueadas.has(formData.requested_date)) return
     for (let i = 1; i <= 60; i++) {
       const candidato = new Date(actual)
       candidato.setDate(candidato.getDate() + i)
-      if (diaEstaAbierto(candidato.getDay())) {
-        const y = candidato.getFullYear()
-        const m = String(candidato.getMonth() + 1).padStart(2, '0')
-        const d = String(candidato.getDate()).padStart(2, '0')
-        setFormData(f => ({ ...f, requested_date: `${y}-${m}-${d}`, requested_time: '' }))
+      const y = candidato.getFullYear()
+      const m = String(candidato.getMonth() + 1).padStart(2, '0')
+      const d = String(candidato.getDate()).padStart(2, '0')
+      const candidatoISO = `${y}-${m}-${d}`
+      if (diaEstaAbierto(candidato.getDay()) && !fechasBloqueadas.has(candidatoISO)) {
+        setFormData(f => ({ ...f, requested_date: candidatoISO, requested_time: '' }))
         setMesCalendario(new Date(candidato.getFullYear(), candidato.getMonth(), 1))
         break
       }
     }
-    // Solo debe correr una vez, al montar — no cada vez que el paciente
-    // elige una fecha nueva. medico.horario ya viene cargado como prop,
-    // no hay estado asíncrono que esperar.
+    // Depende de fechasBloqueadas (no de formData.requested_date) a
+    // propósito: debe correr al montar y de nuevo cuando llegan los
+    // bloqueos (piden una consulta aparte, async), pero NO cada vez que el
+    // paciente elige una fecha nueva a mano.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [fechasBloqueadas])
+
+  // Antes el paso entre horarios estaba fijo en 30 min sin importar lo que
+  // el médico configuró en /dashboard/horario -- duracion_cita_minutos se
+  // guardaba pero nunca se leía aquí. Con valor no configurado (perfiles
+  // viejos) se conserva el mismo comportamiento de siempre (30 min).
+  const duracionSlot = medico.duracion_cita_minutos || 30
 
   const getTimeSlotsForDate = (dateStr: string) => {
     if (!horarioParsed) return []
     const date = new Date(dateStr + 'T00:00:00')
     const dayIndex = date.getDay()
     const diaNombre = DIAS_SEMANA[dayIndex]
-    if (!diaEstaAbierto(dayIndex)) return []
+    if (!diaEstaAbierto(dayIndex) || fechasBloqueadas.has(dateStr)) return []
     const horarioDia = horarioParsed[diaNombre]
     const inicio = horarioDia.inicio || horarioDia.start
     const fin = horarioDia.fin || horarioDia.end
@@ -448,9 +475,9 @@ function AppointmentModal({
       if (!enComida) {
         slots.push(timeStr)
       }
-      currentM += 30
-      if (currentM >= 60) {
-        currentM = 0
+      currentM += duracionSlot
+      while (currentM >= 60) {
+        currentM -= 60
         currentH += 1
       }
     }
@@ -596,7 +623,8 @@ function AppointmentModal({
                     const dia = Number(dateStr.slice(-2))
                     const cerrado = !diaEstaAbierto(dayIndex)
                     const esPasado = dateStr < hoyISO
-                    const deshabilitado = cerrado || esPasado
+                    const bloqueado = fechasBloqueadas.has(dateStr)
+                    const deshabilitado = cerrado || esPasado || bloqueado
                     const seleccionado = dateStr === formData.requested_date && !deshabilitado
                     return (
                       <button
@@ -604,7 +632,7 @@ function AppointmentModal({
                         type="button"
                         disabled={deshabilitado}
                         onClick={() => setFormData({ ...formData, requested_date: dateStr, requested_time: '' })}
-                        title={cerrado && !esPasado ? 'El médico no atiende este día' : undefined}
+                        title={esPasado ? undefined : bloqueado ? 'El médico bloqueó esta fecha' : cerrado ? 'El médico no atiende este día' : undefined}
                         style={{
                           aspectRatio: '1',
                           border: seleccionado ? '2px solid #8B5CF6' : '1px solid transparent',
