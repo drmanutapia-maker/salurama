@@ -4,6 +4,8 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { getUserSafe } from '@/lib/getUserSafe'
 import { Calendar, X, CheckCircle, XCircle } from 'lucide-react'
+import InstalarAppBanner from '@/components/InstalarAppBanner'
+import { useInstalarAppElegibilidad } from '@/hooks/useInstalarAppElegibilidad'
 import PacienteCard, { construirPacienteCard, chatActivoParaGrupo, type GrupoPaciente, type DeshacerInfo } from '@/components/citas/PacienteCard'
 import ConfirmarUnionModal, { type GrupoComparable } from '@/components/citas/ConfirmarUnionModal'
 import CalendarioMensual from '@/components/citas/CalendarioMensual'
@@ -44,6 +46,9 @@ export default function CitasPage() {
   const [confirmandoUnion, setConfirmandoUnion] = useState<{ origen: GrupoComparable; destino: GrupoComparable } | null>(null)
   const [uniendoModal, setUniendoModal] = useState(false)
   const [deshaciendoId, setDeshaciendoId] = useState<string | null>(null)
+  const [userId, setUserId] = useState<string | null>(null)
+  const [mostrarInstalarBanner, setMostrarInstalarBanner] = useState(false)
+  const { modo: modoInstalarApp, deferredPrompt: deferredInstalarApp } = useInstalarAppElegibilidad()
 
   // Mismo patrón que DoctorProfileClient.tsx — misma página, sin ruta aparte.
   useEffect(() => {
@@ -109,7 +114,7 @@ export default function CitasPage() {
     try {
       const { data: medicoData, error: medicoErr } = await supabase
         .from('doctors')
-        .select('id, full_name, specialty, clinic_lat, clinic_lng, clinic_phone')
+        .select('id, full_name, specialty, clinic_lat, clinic_lng, clinic_phone, pwa_banner_shown')
         .eq('user_id', user.id)
         .single()
       if (medicoErr) throw medicoErr
@@ -117,6 +122,7 @@ export default function CitasPage() {
       if (!medicoData) { router.push('/dashboard'); return }
 
       if (cancelRef.current) return
+      setUserId(user.id)
       setMedico(medicoData)
       await Promise.all([cargarCitas(medicoData.id), cargarFusiones(medicoData.id)])
       if (!cancelRef.current) setLoading(false)
@@ -171,6 +177,12 @@ export default function CitasPage() {
     }
     showToast(labels[nuevoEstado] || 'Cita actualizada', 'success')
     setProcesando(null)
+
+    // Invitación a instalar la app -- una sola vez en la vida de la cuenta,
+    // justo tras la primera cita que el médico confirma (ver InstalarAppBanner).
+    if (nuevoEstado === 'confirmed' && medico?.pwa_banner_shown === false) {
+      setMostrarInstalarBanner(true)
+    }
 
     // Si se confirmó manualmente, disparar el link de chat (idempotente en el servidor)
     if (nuevoEstado === 'confirmed') {
@@ -538,6 +550,16 @@ export default function CitasPage() {
     </div>
   )
 
+  // Se llama solo cuando InstalarAppBanner confirmó que SI hay algo que
+  // mostrar (Android con prompt nativo o iOS/Safari) -- recién ahí se
+  // "gasta" la única oportunidad de esta cuenta, atómico contra el flag
+  // actual para no pisar un cierre ya guardado desde otra pestaña.
+  const marcarBannerInstalarVisto = async () => {
+    if (!userId) return
+    setMedico(prev => prev ? { ...prev, pwa_banner_shown: true } : prev)
+    await supabase.from('doctors').update({ pwa_banner_shown: true }).eq('user_id', userId).eq('pwa_banner_shown', false)
+  }
+
   if (loading) return <CitasSkeleton isMobile={isMobile} />
 
   return (
@@ -576,6 +598,17 @@ export default function CitasPage() {
       )}
 
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 16px 80px' }}>
+        {mostrarInstalarBanner && (
+          <div className="fade-up" style={{ marginBottom: 20 }}>
+            <InstalarAppBanner
+              visible={mostrarInstalarBanner}
+              modo={modoInstalarApp}
+              deferredPrompt={deferredInstalarApp}
+              onShown={marcarBannerInstalarVisto}
+              onClose={() => setMostrarInstalarBanner(false)}
+            />
+          </div>
+        )}
         <div className="fade-up" style={{ marginBottom: 24 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 12 }}>
             <div>

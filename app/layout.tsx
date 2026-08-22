@@ -5,6 +5,7 @@ import Footer from '@/components/Footer'
 import CookieBanner from '@/components/CookieBanner'
 import BottomNav from '@/components/BottomNav'
 import MainContent from '@/components/MainContent'
+import RegistrarServiceWorker from '@/components/RegistrarServiceWorker'
 
 export const metadata: Metadata = {
   title: {
@@ -43,6 +44,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Footer />
         <CookieBanner />
         <BottomNav />
+        <RegistrarServiceWorker />
       </body>
     </html>
   );

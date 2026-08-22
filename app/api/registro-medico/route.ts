@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
       console.error('SEPOMEX lookup failed:', e)
     }
 
-    const slug = await generateUniqueDoctorSlug(supabaseAdmin, data.full_name, data.specialty)
+    const slug = await generateUniqueDoctorSlug(supabaseAdmin, data.full_name, data.specialty, data.professional_title)
 
     const { data: doctor, error: doctorError } = await supabaseAdmin
       .from('doctors')

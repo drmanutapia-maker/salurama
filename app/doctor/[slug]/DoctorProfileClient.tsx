@@ -12,6 +12,8 @@ import {
   Clock, Navigation, Phone, MessageCircle, Globe, Share2, Image as ImageIcon, Flag
 } from 'lucide-react'
 import BackButton from '@/components/BackButton'
+import InstalarAppBanner from '@/components/InstalarAppBanner'
+import { useInstalarAppElegibilidad } from '@/hooks/useInstalarAppElegibilidad'
 import { getStateLabel } from '@/lib/locations'
 import { calculateProfileCompletion } from '@/hooks/useProfileCompletion'
 import BaculoEsculapio from '@/components/icons/BaculoEsculapio'
@@ -184,6 +186,9 @@ function AppointmentModal({
   const [step, setStep] = useState(1)
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const [pacienteIdReserva, setPacienteIdReserva] = useState<string | null>(null)
+  const [mostrarInstalarBannerPaciente, setMostrarInstalarBannerPaciente] = useState(false)
+  const { modo: modoInstalarApp, deferredPrompt: deferredInstalarApp } = useInstalarAppElegibilidad()
   const [turnstileToken, setTurnstileToken] = useState('')
   const [formLoadTime] = useState(Date.now())
   const [error, setError] = useState('')
@@ -504,6 +509,15 @@ function AppointmentModal({
   const hoyStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' })
   const esHoy = formData.requested_date === hoyStr
 
+  const handleBannerInstalarShown = () => {
+    if (!pacienteIdReserva) return
+    fetch('/api/citas/marcar-banner-instalar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pacienteId: pacienteIdReserva }),
+    }).catch(() => {})
+  }
+
   if (submitted) {
     return (
       <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={onClose}>
@@ -527,6 +541,17 @@ function AppointmentModal({
               </p>
             )}
           </div>
+          {mostrarInstalarBannerPaciente && (
+            <div style={{ marginBottom: 24, textAlign: 'left' }}>
+              <InstalarAppBanner
+                visible={mostrarInstalarBannerPaciente}
+                modo={modoInstalarApp}
+                deferredPrompt={deferredInstalarApp}
+                onShown={handleBannerInstalarShown}
+                onClose={() => setMostrarInstalarBannerPaciente(false)}
+              />
+            </div>
+          )}
           <button onClick={onClose} style={{ width: '100%', background: '#1E3A5F', color: '#fff', border: 'none', borderRadius: 12, padding: 14, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
             Cerrar
           </button>
@@ -561,6 +586,8 @@ function AppointmentModal({
       if (!response.ok) {
         throw new Error(result.error || 'Error al agendar')
       }
+      setPacienteIdReserva(result.pacienteId || null)
+      setMostrarInstalarBannerPaciente(!result.pwaBannerShown && !!result.pacienteId)
       setSubmitted(true)
     } catch (error: any) {
       setError(error.message || 'Error al solicitar la cita. Intenta de nuevo.')

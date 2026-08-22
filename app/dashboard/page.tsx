@@ -7,7 +7,7 @@ import {
   X, ZoomIn, Calendar, Edit2, Eye, Share2,
   Star, Users, MoreVertical, Lightbulb,
   CheckCircle, ArrowRight,
-  PartyPopper, Sparkles, Megaphone, AlertCircle, Banknote
+  Megaphone, AlertCircle, Banknote
 } from 'lucide-react'
 import { calculateProfileCompletion } from '@/hooks/useProfileCompletion'
 import { isManuelEmail } from '@/lib/manuelOnly'
@@ -620,82 +620,78 @@ export default function DashboardMedico() {
       )}
 
       {/* ═══════════════════════════════════════════════════════════
-          TARJETA INTELIGENTE (consejo o festejo)
+          TARJETA INTELIGENTE (consejo) — al 100% colapsa a una línea
+          discreta: la tarjeta grande con confeti ya cumplió su propósito
+          la primera vez que se llegó a 100%, pero quedarse grande en cada
+          visita después de eso solo ocupa espacio, sobre todo en móvil.
       ═══════════════════════════════════════════════════════════ */}
       {consejo && (
         <div style={{ maxWidth: 1100, margin: '0 auto 20px', padding: '0 16px' }}>
-          <div className="fade-in" style={{
-            background: esPerfilCompleto
-              ? 'linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%)'
-              : 'linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 100%)',
-            border: `1.5px solid ${esPerfilCompleto ? '#A7F3D0' : '#DDD6FE'}`,
-            borderRadius: 16,
-            padding: 20,
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexDirection: isMobile ? 'column' : 'row',
-            gap: 16,
-            position: 'relative',
-            overflow: 'hidden'
-          }}>
-            {esPerfilCompleto && (
-              <div style={{ position: 'absolute', top: 10, right: 20, fontSize: 24, opacity: 0.3 }}>
-                🎉
-              </div>
-            )}
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, flex: 1, width: '100%' }}>
-              <div style={{
-                width: 44,
-                height: 44,
-                borderRadius: 12,
-                background: consejo.color,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0
-              }}>
-                {esPerfilCompleto ? <PartyPopper size={22} color="#fff" /> : <Lightbulb size={22} color="#fff" />}
-              </div>
-              <div style={{ flex: 1, textAlign: isMobile ? 'center' : 'left' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, justifyContent: isMobile ? 'center' : 'flex-start', flexWrap: 'wrap' }}>
-                  <p style={{ fontFamily: 'Fraunces', fontWeight: 900, fontSize: 16, color: esPerfilCompleto ? '#065F46' : '#1E3A5F', margin: 0 }}>
-                    {consejo.titulo}
-                  </p>
-                  {!esPerfilCompleto && consejo.impacto && (
-                    <span style={{
-                      fontSize: 11,
-                      fontWeight: 700,
-                      color: '#fff',
-                      background: consejo.color,
-                      padding: '3px 10px',
-                      borderRadius: 99
-                    }}>
-                      {consejo.impacto}
-                    </span>
-                  )}
-                  {esPerfilCompleto && (
-                    <span style={{
-                      fontSize: 11,
-                      fontWeight: 700,
-                      color: '#065F46',
-                      background: '#A7F3D0',
-                      padding: '3px 10px',
-                      borderRadius: 99,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 4
-                    }}>
-                      <Sparkles size={12} /> 100%
-                    </span>
-                  )}
-                </div>
-                <p style={{ fontSize: 14, color: esPerfilCompleto ? '#047857' : '#6B7280', margin: 0, lineHeight: 1.5 }}>
-                  {consejo.descripcion}
-                </p>
-              </div>
+          {esPerfilCompleto ? (
+            <div className="fade-in" style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              background: '#ECFDF5',
+              border: '1px solid #A7F3D0',
+              borderRadius: 10,
+              padding: '10px 14px',
+            }}>
+              <CheckCircle size={16} color="#059669" style={{ flexShrink: 0 }} />
+              <p style={{ fontSize: 13, fontWeight: 600, color: '#065F46', margin: 0 }}>
+                Perfil completo · Máxima visibilidad en búsquedas
+              </p>
             </div>
-            {!esPerfilCompleto && (
+          ) : (
+            <div className="fade-in" style={{
+              background: 'linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 100%)',
+              border: '1.5px solid #DDD6FE',
+              borderRadius: 16,
+              padding: 20,
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexDirection: isMobile ? 'column' : 'row',
+              gap: 16,
+              position: 'relative',
+              overflow: 'hidden'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, flex: 1, width: '100%' }}>
+                <div style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 12,
+                  background: consejo.color,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}>
+                  <Lightbulb size={22} color="#fff" />
+                </div>
+                <div style={{ flex: 1, textAlign: isMobile ? 'center' : 'left' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, justifyContent: isMobile ? 'center' : 'flex-start', flexWrap: 'wrap' }}>
+                    <p style={{ fontFamily: 'Fraunces', fontWeight: 900, fontSize: 16, color: '#1E3A5F', margin: 0 }}>
+                      {consejo.titulo}
+                    </p>
+                    {consejo.impacto && (
+                      <span style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: '#fff',
+                        background: consejo.color,
+                        padding: '3px 10px',
+                        borderRadius: 99
+                      }}>
+                        {consejo.impacto}
+                      </span>
+                    )}
+                  </div>
+                  <p style={{ fontSize: 14, color: '#6B7280', margin: 0, lineHeight: 1.5 }}>
+                    {consejo.descripcion}
+                  </p>
+                </div>
+              </div>
               <Link
                 href={consejo.link || '/dashboard'}
                 prefetch={true}
@@ -720,8 +716,8 @@ export default function DashboardMedico() {
                 {consejo.cta}
                 <ArrowRight size={16} />
               </Link>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       )}
 

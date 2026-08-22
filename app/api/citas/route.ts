@@ -257,7 +257,7 @@ export async function POST(request: NextRequest) {
         expires_at: new Date(Date.now() + 24 * 3600000).toISOString(),
         ip_address: ip,
       })
-      .select('id')
+      .select('id, paciente_id')
       .single()
 
     if (error) {
@@ -287,8 +287,28 @@ export async function POST(request: NextRequest) {
 
     console.info(`[${requestId}] Cita creada: ${cita.id} para ${medicoId}`)
 
+    // Invitación a instalar la app -- se informa si esta cuenta de paciente
+    // ya la vio antes, para que el cliente decida si ofrecerla (ver
+    // InstalarAppBanner + /api/citas/marcar-banner-instalar). Falla en
+    // silencio: no es motivo para que la cita ya creada se reporte como error.
+    let pwaBannerShown = true
+    if (cita.paciente_id) {
+      const { data: pacienteRow } = await supabase
+        .from('pacientes')
+        .select('pwa_banner_shown')
+        .eq('id', cita.paciente_id)
+        .maybeSingle()
+      pwaBannerShown = pacienteRow?.pwa_banner_shown ?? true
+    }
+
     return NextResponse.json(
-      { success: true, message: 'Revisa tu email para confirmar.', citaId: cita.id },
+      {
+        success: true,
+        message: 'Revisa tu email para confirmar.',
+        citaId: cita.id,
+        pacienteId: cita.paciente_id,
+        pwaBannerShown,
+      },
       {
         headers: {
           'X-Request-ID': requestId,

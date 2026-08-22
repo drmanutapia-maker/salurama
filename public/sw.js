@@ -11,6 +11,13 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim())
 })
 
+// Handler de fetch vacio (sin cache, sin respondWith) -- Chrome exige que
+// exista uno para ofrecer el banner nativo de instalacion ("beforeinstallprompt"),
+// aunque no implemente ninguna estrategia de cache. Sin esto, el navegador
+// nunca ofrece instalar la app sin importar que el resto del manifest sea
+// valido.
+self.addEventListener('fetch', () => {})
+
 self.addEventListener('push', (event) => {
   let data = {}
   try {
