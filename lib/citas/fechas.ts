@@ -1,4 +1,4 @@
-// Utilidades de fecha compartidas entre CitaCard, CalendarioMensual y la
+// Utilidades de fecha compartidas entre PacienteCard, CalendarioMensual y la
 // vista de agenda móvil — antes vivían solo dentro de app/dashboard/citas/page.tsx.
 
 export function formatFecha(fechaStr: string): string {

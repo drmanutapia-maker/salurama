@@ -1,5 +1,6 @@
 export interface Cita {
   id: string
+  paciente_id: string | null
   paciente_nombre: string
   paciente_email: string
   paciente_telefono: string
@@ -8,6 +9,7 @@ export interface Cita {
   motivo: string | null
   estado: 'pending_verification' | 'confirmed' | 'completed' | 'cancelled' | 'cancelada_paciente'
   created_at: string
+  completed_at?: string | null
   review_token?: string | null
   rejection_reason?: string | null
 }

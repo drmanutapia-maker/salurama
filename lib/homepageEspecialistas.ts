@@ -1,5 +1,5 @@
-import { createClient } from '@supabase/supabase-js'
-import { calculateProfileCompletion } from '@/hooks/useProfileCompletion'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { calculateProfileCompletion, type ProfileCompletionData } from '@/hooks/useProfileCompletion'
 
 export interface EspecialistaHomepage {
   id: string
@@ -15,7 +15,7 @@ export interface EspecialistaHomepage {
 }
 
 const UMBRAL_ELEGIBILIDAD = 30
-const MIN_RESENAS_PARA_DESEMPATE = 3
+export const MIN_RESENAS_PARA_DESEMPATE = 3
 const LIMITE = 50
 
 function getSupabase() {
@@ -30,6 +30,58 @@ function contarPorDoctor(rows: { doctor_id: string }[] | null): Map<string, numb
   const map = new Map<string, number>()
   for (const r of rows ?? []) map.set(r.doctor_id, (map.get(r.doctor_id) ?? 0) + 1)
   return map
+}
+
+// Criterio de "mérito" compartido -- completitud de perfil desc; empate ->
+// rating desc SOLO si ambos tienen MIN_RESENAS_PARA_DESEMPATE+ reseñas (si
+// no, el rating no participa); último desempate: alfabético. Antes vivía
+// solo aquí (usado por la home); ahora también lo usa /buscar cuando no hay
+// especialidad/estado en la URL, para que el orden por defecto sea
+// consistente en toda la plataforma en vez de "fecha de registro" ahí.
+export function compararPorMerito(
+  a: { full_name: string; rating_avg: number | null; rating_count: number | null; completitud: number },
+  b: { full_name: string; rating_avg: number | null; rating_count: number | null; completitud: number }
+): number {
+  if (b.completitud !== a.completitud) return b.completitud - a.completitud
+
+  const aCalifica = (a.rating_count ?? 0) >= MIN_RESENAS_PARA_DESEMPATE
+  const bCalifica = (b.rating_count ?? 0) >= MIN_RESENAS_PARA_DESEMPATE
+  if (aCalifica && bCalifica && a.rating_avg !== b.rating_avg) {
+    return (b.rating_avg ?? 0) - (a.rating_avg ?? 0)
+  }
+
+  return a.full_name.localeCompare(b.full_name, 'es')
+}
+
+// Completitud de perfil (0-100) por doctor -- misma fórmula que
+// calculateProfileCompletion(), reutilizada aquí y desde /buscar. Pide las
+// 3 tablas de conteo (experiencia/educación/enfermedades tratadas) en un
+// solo round-trip por tabla para todos los ids a la vez.
+export async function calcularCompletitudPorDoctor(
+  supabase: SupabaseClient,
+  doctors: (NonNullable<ProfileCompletionData['medico']> & { id: string })[]
+): Promise<Map<string, number>> {
+  const ids = doctors.map(d => d.id)
+  const [expRes, eduRes, condRes] = await Promise.all([
+    supabase.from('doctor_experience').select('doctor_id').in('doctor_id', ids),
+    supabase.from('doctor_education').select('doctor_id').in('doctor_id', ids),
+    supabase.from('doctor_conditions').select('doctor_id').in('doctor_id', ids),
+  ])
+  const expCount = contarPorDoctor(expRes.data as { doctor_id: string }[] | null)
+  const eduCount = contarPorDoctor(eduRes.data as { doctor_id: string }[] | null)
+  const condCount = contarPorDoctor(condRes.data as { doctor_id: string }[] | null)
+
+  const mapa = new Map<string, number>()
+  for (const d of doctors) {
+    const { percentage } = calculateProfileCompletion({
+      medico: d,
+      experienceCount: expCount.get(d.id) ?? 0,
+      educationCount: eduCount.get(d.id) ?? 0,
+      conditionsCount: condCount.get(d.id) ?? 0,
+    })
+    mapa.set(d.id, percentage)
+  }
+  return mapa
 }
 
 // Elegibilidad: perfil con completitud >= 30%. Por debajo de eso el médico
@@ -52,39 +104,12 @@ export async function getEspecialistasDestacados(): Promise<EspecialistaHomepage
 
   if (error || !doctors) return []
 
-  const ids = doctors.map(d => d.id)
-  const [expRes, eduRes, condRes] = await Promise.all([
-    supabase.from('doctor_experience').select('doctor_id').in('doctor_id', ids),
-    supabase.from('doctor_education').select('doctor_id').in('doctor_id', ids),
-    supabase.from('doctor_conditions').select('doctor_id').in('doctor_id', ids),
-  ])
-  const expCount = contarPorDoctor(expRes.data)
-  const eduCount = contarPorDoctor(eduRes.data)
-  const condCount = contarPorDoctor(condRes.data)
-
+  const completitudPorId = await calcularCompletitudPorDoctor(supabase, doctors)
   const elegibles = doctors
-    .map(d => {
-      const { percentage } = calculateProfileCompletion({
-        medico: d,
-        experienceCount: expCount.get(d.id) ?? 0,
-        educationCount: eduCount.get(d.id) ?? 0,
-        conditionsCount: condCount.get(d.id) ?? 0,
-      })
-      return { ...d, completitud: percentage }
-    })
+    .map(d => ({ ...d, completitud: completitudPorId.get(d.id) ?? 0 }))
     .filter(d => d.completitud >= UMBRAL_ELEGIBILIDAD)
 
-  elegibles.sort((a, b) => {
-    if (b.completitud !== a.completitud) return b.completitud - a.completitud
-
-    const aCalifica = a.rating_count >= MIN_RESENAS_PARA_DESEMPATE
-    const bCalifica = b.rating_count >= MIN_RESENAS_PARA_DESEMPATE
-    if (aCalifica && bCalifica && a.rating_avg !== b.rating_avg) {
-      return b.rating_avg - a.rating_avg
-    }
-
-    return a.full_name.localeCompare(b.full_name, 'es')
-  })
+  elegibles.sort(compararPorMerito)
 
   return elegibles.slice(0, LIMITE).map(d => ({
     id: d.id,

@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { getUserSafe } from '@/lib/getUserSafe'
 import { CheckCircle, XCircle } from 'lucide-react'
@@ -11,6 +11,7 @@ import { PageErrorState, classifyError, type PageErrorType } from '@/components/
 
 export default function ChatPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [medicoId, setMedicoId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<PageErrorType | null>(null)
@@ -65,6 +66,53 @@ export default function ChatPage() {
 
     return () => { cancelRef.current = true; subscription.unsubscribe() }
   }, [load])
+
+  // Deep-link desde /dashboard/citas ("Chatear con paciente", ?paciente=<id>)
+  // -- no existía ningún soporte de querystring en esta página, la selección
+  // de conversación era puro estado de React. Busca directo la sala de ese
+  // paciente con este médico (única por medico_id+paciente_id) y arma el
+  // mismo objeto ConversacionResumen que arma ConversacionesLista, sin
+  // esperar a que cargue la lista completa. Si el paciente no tiene sala
+  // todavía (nunca se le confirmó una cita), no hace nada -- se queda
+  // mostrando la lista normal.
+  useEffect(() => {
+    if (!medicoId) return
+    const pacienteParam = searchParams.get('paciente')
+    if (!pacienteParam) return
+
+    let cancelado = false
+    ;(async () => {
+      const { data: sala } = await supabase
+        .from('chat_salas')
+        .select('id, paciente_id, cita_actual_id, created_at')
+        .eq('medico_id', medicoId)
+        .eq('paciente_id', pacienteParam)
+        .maybeSingle()
+      if (!sala || cancelado) return
+
+      const { data: cita } = await supabase
+        .from('citas')
+        .select('paciente_nombre, motivo, fecha, hora, estado')
+        .eq('id', sala.cita_actual_id)
+        .maybeSingle()
+      if (cancelado) return
+
+      setConversacionSeleccionada({
+        salaId: sala.id,
+        pacienteId: sala.paciente_id,
+        citaActualId: sala.cita_actual_id,
+        pacienteNombre: cita?.paciente_nombre || 'Paciente',
+        motivo: cita?.motivo ?? null,
+        fecha: cita?.fecha || '',
+        hora: cita?.hora || '',
+        estado: (cita?.estado as ConversacionResumen['estado']) || 'confirmed',
+        ultimaActividad: sala.created_at,
+        sinLeer: 0,
+      })
+    })()
+
+    return () => { cancelado = true }
+  }, [medicoId, searchParams])
 
   if (loadError) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif", padding: 20 }}>

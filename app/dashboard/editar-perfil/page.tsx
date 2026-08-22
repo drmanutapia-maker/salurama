@@ -143,6 +143,9 @@ interface Medico {
   years_experience: number | null
   languages: string[]
   horario: Record<string, unknown> | null
+  atiende_ninos: boolean
+  min_patient_age: number | null
+  max_patient_age: number | null
 }
 
 interface SpecialtyWithLicense {
@@ -771,6 +774,14 @@ export default function EditarPerfilPage() {
   </div>
 )}
                   {medico.years_experience && <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>{medico.years_experience} años de experiencia</p>}
+                  {medico.atiende_ninos && (
+                    <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>
+                      Atiende pacientes pediátricos
+                      {(medico.min_patient_age != null || medico.max_patient_age != null) && (
+                        <> ({medico.min_patient_age ?? 0}–{medico.max_patient_age ?? 17} años)</>
+                      )}
+                    </p>
+                  )}
                 </div>
               </div>
             </Card>
@@ -1039,10 +1050,20 @@ function BasicInfoForm({ medico, onSave, saving }: any) {
     facebook_url: medico.facebook_url || '',
     instagram_url: medico.instagram_url || '',
     tiktok_url: medico.tiktok_url || '',
+    atiende_ninos: medico.atiende_ninos || false,
+    min_patient_age: medico.min_patient_age?.toString() ?? '',
+    max_patient_age: medico.max_patient_age?.toString() ?? '',
   })
+
+  // El rango es opcional -- min > max solo se valida cuando el médico llenó
+  // AMBOS cuadros (un solo cuadro lleno es válido: "de 5 años en adelante"
+  // o "hasta 12 años", sin límite del otro lado).
+  const rangoInvalido = form.atiende_ninos && form.min_patient_age !== '' && form.max_patient_age !== ''
+    && Number(form.min_patient_age) > Number(form.max_patient_age)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    if (rangoInvalido) return
     onSave({
       display_name: form.display_name,
       professional_title: form.professional_title,
@@ -1050,6 +1071,12 @@ function BasicInfoForm({ medico, onSave, saving }: any) {
       facebook_url: form.facebook_url || null,
       instagram_url: form.instagram_url || null,
       tiktok_url: form.tiktok_url || null,
+      atiende_ninos: form.atiende_ninos,
+      // Si desmarca el checkbox, el rango deja de tener sentido -- se
+      // limpia en vez de quedar guardado "fantasma" sin el checkbox que lo
+      // explique.
+      min_patient_age: form.atiende_ninos && form.min_patient_age !== '' ? parseInt(form.min_patient_age) : null,
+      max_patient_age: form.atiende_ninos && form.max_patient_age !== '' ? parseInt(form.max_patient_age) : null,
     })
   }
 
@@ -1066,6 +1093,49 @@ function BasicInfoForm({ medico, onSave, saving }: any) {
       <div>
         <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5, color: '#374151' }}>Años de experiencia</label>
         <input type="number" value={form.years_experience} onChange={e => setForm({...form, years_experience: e.target.value})} style={{ width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: 8, fontSize: 14 }} placeholder="10" />
+      </div>
+
+      <div style={{ borderTop: '1px solid #E5E7EB', paddingTop: 16, marginTop: 8 }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, cursor: 'pointer', color: '#374151' }}>
+          <input type="checkbox" checked={form.atiende_ninos} onChange={e => setForm({...form, atiende_ninos: e.target.checked})} style={{ accentColor: '#1E3A5F' }} />
+          Atiendo pacientes pediátricos
+        </label>
+        {form.atiende_ninos && (
+          <div style={{ marginTop: 12 }}>
+            <p style={{ fontSize: 12, color: '#6B7280', marginBottom: 8 }}>Rango de edad que atiendes (opcional)</p>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, color: '#6B7280', marginBottom: 4 }}>Desde</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={17}
+                  value={form.min_patient_age}
+                  onChange={e => setForm({...form, min_patient_age: e.target.value})}
+                  placeholder="0"
+                  style={{ padding: '8px 10px', border: '1.5px solid #E5E7EB', borderRadius: 8, fontSize: 13, fontFamily: "'DM Sans', sans-serif", width: 90 }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, color: '#6B7280', marginBottom: 4 }}>Hasta</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={17}
+                  value={form.max_patient_age}
+                  onChange={e => setForm({...form, max_patient_age: e.target.value})}
+                  placeholder="17"
+                  style={{ padding: '8px 10px', border: '1.5px solid #E5E7EB', borderRadius: 8, fontSize: 13, fontFamily: "'DM Sans', sans-serif", width: 90 }}
+                />
+              </div>
+            </div>
+            {rangoInvalido && (
+              <p role="alert" style={{ fontSize: 12, color: '#DC2626', fontWeight: 600, marginTop: 8 }}>
+                "Desde" no puede ser mayor que "Hasta".
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       <div style={{ borderTop: '1px solid #E5E7EB', paddingTop: 16, marginTop: 8 }}>
@@ -1087,7 +1157,7 @@ function BasicInfoForm({ medico, onSave, saving }: any) {
         </div>
       </div>
 
-      <button type="submit" disabled={saving} style={{...btnPrimary, opacity: saving? 0.6 : 1, marginTop: 8 }}><Save size={15} /> {saving? 'Guardando...' : 'Guardar'}</button>
+      <button type="submit" disabled={saving || rangoInvalido} style={{...btnPrimary, opacity: (saving || rangoInvalido)? 0.6 : 1, marginTop: 8 }}><Save size={15} /> {saving? 'Guardando...' : 'Guardar'}</button>
     </form>
   )
 }

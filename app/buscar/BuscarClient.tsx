@@ -33,7 +33,6 @@ const CHIPS_CONFIG = [
   { id: 'precio', label: 'Precio accesible', icon: <DollarSign size={15} />, tooltip: 'Ordena de menor a mayor costo de consulta' },
   { id: 'valorados', label: 'Mejor valorados', icon: <Star size={15} />, tooltip: 'Muestra primero a los médicos con mejores reseñas' },
   { id: 'ninos', label: 'Atiende niños', icon: <Baby size={15} />, tooltip: 'Muestra médicos que atienden pacientes pediátricos' },
-  { id: 'disponibilidad', label: 'Disponibilidad', icon: <Calendar size={15} />, tooltip: 'Muestra médicos con horarios disponibles' },
 ] as const
 
 type FiltroId = typeof CHIPS_CONFIG[number]['id']
@@ -52,14 +51,47 @@ export interface Medico {
   years_experience: number | null
   min_patient_age: number | null
   max_patient_age: number | null
+  atiende_ninos?: boolean
   clinic_lat: number | null
   clinic_lng: number | null
   distance?: number
   hospital_affiliation: string | null
-  languages: string | null
+  languages: string[] | string | null
   insurance_accepted: string | null
   professional_license: string | null
+  // Campos del rediseño de tarjeta (2026-08-21) -- opcionales porque el
+  // refresco de "cerca de mí" viene de la RPC nearby_doctors, que hoy no
+  // los devuelve (ver auditoría del chip de geolocalización).
+  professional_title?: string | null
+  rating_avg?: number | null
+  rating_count?: number | null
+  created_at?: string
+  proximaCita?: { fecha: string; horaInicio: string } | null
 }
+
+// Umbral del badge "Nuevo" -- antes se mostraba SIEMPRE (placeholder, sin
+// ninguna comparación de fecha real, ver bug reportado 2026-08-21). Ahora
+// compara created_at contra este umbral.
+const DIAS_UMBRAL_NUEVO = 30
+
+const esNuevo = (createdAt: string | undefined): boolean => {
+  if (!createdAt) return false
+  const dias = (Date.now() - new Date(createdAt).getTime()) / 86400000
+  return dias <= DIAS_UMBRAL_NUEVO
+}
+
+// "viernes, 22 ago, 9:00 a.m." -- fecha+hora de inicio del horario ese día
+// (aproximación a nivel día, no un hueco verificado -- ver
+// lib/proximaCitaDisponible.ts).
+const formatProximaCita = (fecha: string, horaInicio: string): string => {
+  const d = new Date(fecha + 'T00:00:00')
+  const fechaTxt = d.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'short' })
+  const [h, m] = horaInicio.split(':').map(Number)
+  const horaTxt = new Date(2000, 0, 1, h, m || 0).toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit', hour12: true })
+  return `${fechaTxt}, ${horaTxt}`
+}
+
+const tituloYNombre = (m: Medico): string => (m.professional_title ? `${m.professional_title} ${m.full_name}` : m.full_name)
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -329,6 +361,11 @@ function BuscarContent({ initialMedicos, heroTitulo, heroTexto, articulosRelacio
   const [filtros, setFiltros] = useState<FiltroId[]>([])
   const [userLocation, setUserLocation] = useState<{lat:number;lng:number}|null>(null)
   const [locating, setLocating] = useState(false)
+  // Antes se avisaba con alert() -- un diálogo nativo bloqueante que
+  // algunos navegadores/WebViews suprimen en silencio (no siempre se ve),
+  // así que un permiso denegado podía sentirse como "no pasó nada". Un
+  // mensaje visible en la propia página es más confiable.
+  const [geoError, setGeoError] = useState<string | null>(null)
 
   // UI
   const [activeTooltip, setActiveTooltip] = useState<string|null>(null)
@@ -352,6 +389,13 @@ function BuscarContent({ initialMedicos, heroTitulo, heroTexto, articulosRelacio
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
   }, [])
+
+  // ── Auto-ocultar el aviso de error de geolocalización ────────────────────────
+  useEffect(() => {
+    if (!geoError) return
+    const t = setTimeout(() => setGeoError(null), 8000)
+    return () => clearTimeout(t)
+  }, [geoError])
 
   // ── Params URL ───────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -405,7 +449,15 @@ function BuscarContent({ initialMedicos, heroTitulo, heroTexto, articulosRelacio
     if (filtros.includes('ninos')) {
       r = r.filter(m => {
         const s = norm(m.specialty)
-        return s.includes('pediatr') || s.includes('neonat') || s.includes('infantil') || (m.min_patient_age ?? 0) < 18
+        // Señal principal: el médico marcó "Atiendo pacientes pediátricos"
+        // en su perfil (atiende_ninos) -- antes este chip no tenía ningún
+        // dato real para leer, así que adivinaba con min_patient_age vacío
+        // tratado como 0 (bug ya corregido: eso calificaba a CUALQUIER
+        // médico sin el campo capturado, sin importar su especialidad). El
+        // nombre de la especialidad se mantiene como señal adicional -- un
+        // pediatra de especialidad ya califica aunque no haya marcado el
+        // checkbox aparte.
+        return m.atiende_ninos === true || s.includes('pediatr') || s.includes('neonat') || s.includes('infantil')
       })
     }
 
@@ -422,6 +474,11 @@ function BuscarContent({ initialMedicos, heroTitulo, heroTexto, articulosRelacio
       r.sort((a, b) => (b.years_experience ?? 0) - (a.years_experience ?? 0))
     } else if (filtros.includes('precio')) {
       r.sort((a, b) => (a.consultation_price_general ?? 99999) - (b.consultation_price_general ?? 99999))
+    } else if (filtros.includes('valorados')) {
+      // Antes era decorativo (el chip existía pero nada lo conectaba a
+      // ningún orden). Desempate por número de reseñas: a igual promedio,
+      // más reseñas es una señal más confiable que una sola calificación.
+      r.sort((a, b) => (b.rating_avg ?? 0) - (a.rating_avg ?? 0) || (b.rating_count ?? 0) - (a.rating_count ?? 0))
     }
 
     return r
@@ -436,8 +493,9 @@ function BuscarContent({ initialMedicos, heroTitulo, heroTexto, articulosRelacio
     }
 
     if (id === 'cerca') {
+      setGeoError(null)
       if (!navigator.geolocation) {
-        alert('Tu navegador no soporta geolocalización')
+        setGeoError('Tu navegador no soporta geolocalización.')
         return
       }
       setLocating(true)
@@ -472,8 +530,10 @@ function BuscarContent({ initialMedicos, heroTitulo, heroTexto, articulosRelacio
         (err) => {
           clearTimeout(timeoutId)
           setLocating(false)
-          const msg = err.code === 1 ? 'Permiso denegado. Activa la ubicación en tu navegador.' : 'No pudimos obtener tu ubicación'
-          alert(msg)
+          const msg = err.code === 1
+            ? 'Permiso de ubicación denegado. Actívalo en la configuración de tu navegador para usar "Cerca de mí".'
+            : 'No pudimos obtener tu ubicación. Intenta de nuevo.'
+          setGeoError(msg)
         },
         { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
       )
@@ -748,6 +808,23 @@ function BuscarContent({ initialMedicos, heroTitulo, heroTexto, articulosRelacio
               </div>
             )}
 
+            {/* Antes esto se avisaba con alert() -- ver comentario en el
+                estado geoError sobre por qué eso no es confiable */}
+            {geoError && (
+              <div
+                role="alert"
+                style={{
+                  textAlign: 'center', marginTop: 12, fontSize: 13, color: '#B91C1C',
+                  background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 12,
+                  padding: '10px 16px', maxWidth: 480, margin: '12px auto 0',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                }}
+              >
+                <Navigation size={13} style={{ flexShrink: 0 }} />
+                {geoError}
+              </div>
+            )}
+
             {/* Limpiar filtros — sólo visible si hay algo activo */}
             {hayFiltros && (
               <div style={{ textAlign: 'center', marginTop: 16 }}>
@@ -860,22 +937,35 @@ function BuscarContent({ initialMedicos, heroTitulo, heroTexto, articulosRelacio
                               marginBottom: 3, lineHeight: 1.2,
                               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                             }}>
-                              {medico.full_name}
+                              {tituloYNombre(medico)}
                             </h3>
-                            <p style={{ fontSize: 13.5, color: '#6B7280', marginBottom: 8 }}>
+                            <p style={{ fontSize: 13.5, color: '#6B7280', marginBottom: (medico.rating_count ?? 0) > 0 ? 4 : 8 }}>
                               {medico.specialty}
                             </p>
+                            {/* Calificación -- solo si tiene al menos 1 reseña real */}
+                            {(medico.rating_count ?? 0) > 0 && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 8 }}>
+                                <Star size={13} color="#F59E0B" fill="#F59E0B" />
+                                <span style={{ fontSize: 12.5, fontWeight: 700, color: '#374151' }}>
+                                  {(medico.rating_avg ?? 0).toFixed(1)}
+                                </span>
+                                <span style={{ fontSize: 12, color: '#9CA3AF' }}>
+                                  ({medico.rating_count} {medico.rating_count === 1 ? 'reseña' : 'reseñas'})
+                                </span>
+                              </div>
+                            )}
                           </div>
-                          {/* Rating placeholder */}
-                          <div style={{
-                            display: 'flex', alignItems: 'center', gap: 4,
-                            flexShrink: 0, background: '#FFFBEB',
-                            borderRadius: 8, padding: '4px 8px',
-                            border: '1px solid #FDE68A',
-                          }}>
-                            <Star size={13} color="#F59E0B" fill="#F59E0B" />
-                            <span style={{ fontSize: 12, fontWeight: 700, color: '#92400E' }}>Nuevo</span>
-                          </div>
+                          {esNuevo(medico.created_at) && (
+                            <div style={{
+                              display: 'flex', alignItems: 'center', gap: 4,
+                              flexShrink: 0, background: '#FFFBEB',
+                              borderRadius: 8, padding: '4px 8px',
+                              border: '1px solid #FDE68A',
+                            }}>
+                              <Star size={13} color="#F59E0B" fill="#F59E0B" />
+                              <span style={{ fontSize: 12, fontWeight: 700, color: '#92400E' }}>Nuevo</span>
+                            </div>
+                          )}
                         </div>
 
                         {/* Tags */}
@@ -885,12 +975,12 @@ function BuscarContent({ initialMedicos, heroTitulo, heroTexto, articulosRelacio
                               <Clock size={11} /> {medico.years_experience} años exp.
                             </span>
                           )}
-                          {medico.languages && (
+                          {medico.languages && (!Array.isArray(medico.languages) || medico.languages.length > 0) && (
                             <span className="tag-badge">
                               <Globe size={11} />
                               {Array.isArray(medico.languages)
-                                ? medico.languages[0]
-                                : String(medico.languages).split(',')[0].trim()
+                                ? medico.languages.join(', ')
+                                : String(medico.languages).split(',').map(l => l.trim()).filter(Boolean).join(', ')
                               }
                             </span>
                           )}
@@ -927,11 +1017,18 @@ function BuscarContent({ initialMedicos, heroTitulo, heroTexto, articulosRelacio
                     </div>
 
                     {/* Footer card */}
+                    <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid #F3F4F6' }}>
+                      {/* Próxima cita -- solo si hay disponibilidad calculable (horario
+                          configurado y un día abierto dentro de la ventana) */}
+                      {medico.proximaCita && (
+                        <p style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: '#2A9D8F', fontWeight: 600, marginBottom: 10 }}>
+                          <Calendar size={13} />
+                          Próxima cita disponible: {formatProximaCita(medico.proximaCita.fecha, medico.proximaCita.horaInicio)}
+                        </p>
+                      )}
                     <div style={{
                       display: 'flex', alignItems: 'center',
                       justifyContent: 'space-between',
-                      marginTop: 16, paddingTop: 14,
-                      borderTop: '1px solid #F3F4F6',
                       gap: 12, flexWrap: 'wrap',
                     }}>
                       <div>
@@ -965,6 +1062,7 @@ function BuscarContent({ initialMedicos, heroTitulo, heroTexto, articulosRelacio
                           Ver perfil
                         </Link>
                       </div>
+                    </div>
                     </div>
                   </article>
                 ))}

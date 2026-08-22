@@ -19,15 +19,18 @@ function getClientIp(request: NextRequest): string {
   return forwarded?.split(',')[0].trim() || realIp || 'unknown'
 }
 
-// Mismo criterio de normalización que el trigger vincular_paciente_cita()
-// (10 dígitos, sin lada de país 52/521/1) — así el teléfono que escribe el
-// paciente aquí coincide con el que quedó guardado en pacientes.telefono al
-// agendar, sin importar el formato en que lo haya tecleado.
+// Mismo criterio que normalizar_telefono() en la base de datos (10 dígitos,
+// sin lada de país 52/521 ni prefijo antiguo 044/045) — así el teléfono que
+// escribe el paciente aquí coincide con el que quedó guardado en
+// pacientes.telefono al agendar, sin importar el formato en que lo haya
+// tecleado. Ya NO recorta un 1 inicial en números de 11 dígitos: era una
+// rama ambigua (podía ser un número real de EE.UU./Canadá) que arriesgaba
+// fusionar a dos pacientes distintos por error.
 function normalizarTelefono(raw: string): string | null {
   let digitos = raw.replace(/\D/g, '')
   if (digitos.length === 12 && digitos.startsWith('52')) digitos = digitos.slice(2)
   else if (digitos.length === 13 && digitos.startsWith('521')) digitos = digitos.slice(3)
-  else if (digitos.length === 11 && digitos.startsWith('1')) digitos = digitos.slice(1)
+  else if (digitos.length === 13 && (digitos.startsWith('044') || digitos.startsWith('045'))) digitos = digitos.slice(3)
   return digitos.length === 10 ? digitos : null
 }
 

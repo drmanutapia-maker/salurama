@@ -4,7 +4,8 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { getUserSafe } from '@/lib/getUserSafe'
 import { Calendar, X, CheckCircle, XCircle } from 'lucide-react'
-import CitaCard from '@/components/citas/CitaCard'
+import PacienteCard, { construirPacienteCard, chatActivoParaGrupo, type GrupoPaciente, type DeshacerInfo } from '@/components/citas/PacienteCard'
+import ConfirmarUnionModal, { type GrupoComparable } from '@/components/citas/ConfirmarUnionModal'
 import CalendarioMensual from '@/components/citas/CalendarioMensual'
 import { Cita, MedicoData } from '@/lib/citas/types'
 import { formatFecha } from '@/lib/citas/fechas'
@@ -33,6 +34,16 @@ export default function CitasPage() {
   const [isMobile, setIsMobile] = useState(false)
   const listaRef = useRef<HTMLDivElement>(null)
   const [listaMaxHeight, setListaMaxHeight] = useState<number | null>(null)
+  // Decisiones de "unir pacientes" ya guardadas -- clave que se absorbe ->
+  // { id de la fila (para poder deshacer), clave que sobrevive, cuándo se
+  // unió (para la notita "Unida con... el...") }. Ver doctor_patient_merges
+  // (no toca `citas` ni la tabla global `pacientes`, ver migración).
+  const [fusiones, setFusiones] = useState<Map<string, { id: string; claveDestino: string; createdAt: string }>>(new Map())
+  // Ventana de comparación+confirmación antes de unir (nunca un clic único)
+  // -- null cuando está cerrada.
+  const [confirmandoUnion, setConfirmandoUnion] = useState<{ origen: GrupoComparable; destino: GrupoComparable } | null>(null)
+  const [uniendoModal, setUniendoModal] = useState(false)
+  const [deshaciendoId, setDeshaciendoId] = useState<string | null>(null)
 
   // Mismo patrón que DoctorProfileClient.tsx — misma página, sin ruta aparte.
   useEffect(() => {
@@ -75,6 +86,15 @@ export default function CitasPage() {
     setCitas((data as Cita[]) || [])
   }, [])
 
+  const cargarFusiones = useCallback(async (docId: string) => {
+    const { data, error } = await supabase
+      .from('doctor_patient_merges')
+      .select('id, clave_origen, clave_destino, created_at')
+      .eq('medico_id', docId)
+    if (error) throw error
+    setFusiones(new Map((data || []).map(f => [f.clave_origen, { id: f.id, claveDestino: f.clave_destino, createdAt: f.created_at }])))
+  }, [])
+
   // Expuesta con useCallback (no solo dentro del useEffect) para que el
   // botón "Reintentar" del estado de error pueda volver a llamarla.
   const load = useCallback(async () => {
@@ -98,12 +118,12 @@ export default function CitasPage() {
 
       if (cancelRef.current) return
       setMedico(medicoData)
-      await cargarCitas(medicoData.id)
+      await Promise.all([cargarCitas(medicoData.id), cargarFusiones(medicoData.id)])
       if (!cancelRef.current) setLoading(false)
     } catch (err) {
       if (!cancelRef.current) { setLoadError(classifyError(err)); setLoading(false) }
     }
-  }, [router, cargarCitas])
+  }, [router, cargarCitas, cargarFusiones])
 
   useEffect(() => {
     // Ignora el evento INITIAL_SESSION con session=null que puede llegar
@@ -253,15 +273,217 @@ export default function CitasPage() {
   const countPorEstado = (s: string) => citas.filter(c => c.estado === s).length
   const countCanceladas = citas.filter(esCancelada).length
 
-  const gruposPorFecha = useMemo(() => {
-    const mapa = new Map<string, Cita[]>()
-    for (const cita of citasFiltradas) {
-      const grupo = mapa.get(cita.fecha)
-      if (grupo) grupo.push(cita)
-      else mapa.set(cita.fecha, [cita])
+  // Resuelve una clave cruda (paciente_id o "email:...") a través de las
+  // fusiones ya guardadas -- si A se unió a B y luego B se unió a C, una
+  // cita con clave A debe terminar agrupada bajo C. El set `visitados` es
+  // solo defensivo (nunca debería haber ciclos, pero si los hubiera por
+  // algún dato corrupto, esto no se cuelga).
+  const resolverClave = useCallback((claveCruda: string): string => {
+    let clave = claveCruda
+    const visitados = new Set<string>()
+    while (fusiones.has(clave) && !visitados.has(clave)) {
+      visitados.add(clave)
+      clave = fusiones.get(clave)!.claveDestino
     }
-    return Array.from(mapa.entries())
-  }, [citasFiltradas])
+    return clave
+  }, [fusiones])
+
+  // Mismo criterio que normalizar_telefono() en la base de datos
+  // (supabase/migrations/20260820000001) -- así "misma persona" se evalúa
+  // igual en cliente y en DB. Deliberadamente NO recorta un 1 inicial en
+  // números de 11 dígitos (podría ser un número real de EE.UU./Canadá) --
+  // ver el comentario de esa migración.
+  const normalizarTelefono = (raw: string | null | undefined): string | null => {
+    if (!raw) return null
+    let v = raw.replace(/\D/g, '')
+    if (v.length === 12 && v.startsWith('52')) v = v.slice(-10)
+    else if (v.length === 13 && v.startsWith('521')) v = v.slice(-10)
+    else if (v.length === 13 && (v.startsWith('044') || v.startsWith('045'))) v = v.slice(-10)
+    return v.length === 10 ? v : null
+  }
+
+  // Todas las citas del médico agrupadas por su clave CRUDA (sin resolver
+  // fusiones) -- da el nombre/historial ORIGINAL de un paciente ya
+  // absorbido, para la notita "Unida con [nombre] el [fecha]" y el lado
+  // "origen" del comparador antes de unir.
+  const gruposCrudosPorClave = useMemo(() => {
+    const mapa = new Map<string, GrupoPaciente>()
+    for (const cita of citas) {
+      const claveCruda = cita.paciente_id || `email:${cita.paciente_email.trim().toLowerCase()}`
+      let g = mapa.get(claveCruda)
+      if (!g) { g = { clave: claveCruda, pacienteNombre: cita.paciente_nombre, citas: [] }; mapa.set(claveCruda, g) }
+      g.citas.push(cita)
+    }
+    return mapa
+  }, [citas])
+
+  // Todas las citas del médico agrupadas por paciente, ya resolviendo las
+  // fusiones -- a diferencia de gruposPorPaciente (más abajo), NO se filtra
+  // por el tab activo. Es la fuente de verdad para todo lo que debe
+  // reflejar "todas las citas de este paciente" sin importar qué pestaña
+  // esté abierta: el estado del chat, las sugerencias de "misma persona", y
+  // los dos lados del comparador al unir.
+  const gruposResueltosPorClave = useMemo(() => {
+    const mapa = new Map<string, GrupoPaciente>()
+    for (const cita of citas) {
+      const claveCruda = cita.paciente_id || `email:${cita.paciente_email.trim().toLowerCase()}`
+      const clave = resolverClave(claveCruda)
+      let g = mapa.get(clave)
+      if (!g) { g = { clave, pacienteNombre: cita.paciente_nombre, citas: [] }; mapa.set(clave, g) }
+      g.citas.push(cita)
+    }
+    return mapa
+  }, [citas, resolverClave])
+
+  // Estado real del canal de chat por paciente -- ver chatActivoParaGrupo()
+  // en PacienteCard.tsx. Sobre TODAS sus citas, no las del tab activo: es
+  // un hecho del paciente, no debería cambiar según el filtro abierto.
+  const chatActivoPorClave = useMemo(() => {
+    const mapa = new Map<string, boolean>()
+    for (const [clave, grupo] of gruposResueltosPorClave) mapa.set(clave, chatActivoParaGrupo(grupo.citas))
+    return mapa
+  }, [gruposResueltosPorClave])
+
+  // Sugerencias de "¿es la misma persona?" -- se calculan sobre TODAS las
+  // citas del médico (no solo las filtradas por el tab activo), para que la
+  // sugerencia no dependa de qué pestaña esté abierta. Compara cada par de
+  // tarjetas ya agrupadas (después de aplicar las fusiones existentes) y
+  // marca sospecha cuando comparten teléfono o correo normalizado pero
+  // quedaron en tarjetas distintas -- si compartieran ambos, la agrupación
+  // normal ya las habría unido solas. Cada tarjeta recibe como máximo una
+  // sugerencia, para no saturar.
+  const sugerenciasPorClave = useMemo(() => {
+    const grupos = Array.from(gruposResueltosPorClave.values()).map(g => ({
+      clave: g.clave,
+      pacienteNombre: g.pacienteNombre,
+      emails: new Set(g.citas.map(c => c.paciente_email.trim().toLowerCase())),
+      telefonos: new Set(g.citas.map(c => normalizarTelefono(c.paciente_telefono)).filter((t): t is string => !!t)),
+    }))
+    const sugerencias = new Map<string, { clave: string; nombre: string }>()
+    for (let i = 0; i < grupos.length; i++) {
+      if (sugerencias.has(grupos[i].clave)) continue
+      for (let j = i + 1; j < grupos.length; j++) {
+        if (sugerencias.has(grupos[j].clave)) continue
+        const a = grupos[i], b = grupos[j]
+        const compartenTelefono = [...a.telefonos].some(t => b.telefonos.has(t))
+        const compartenEmail = [...a.emails].some(e => b.emails.has(e))
+        if (compartenTelefono || compartenEmail) {
+          sugerencias.set(a.clave, { clave: b.clave, nombre: b.pacienteNombre })
+          sugerencias.set(b.clave, { clave: a.clave, nombre: a.pacienteNombre })
+          break
+        }
+      }
+    }
+    return sugerencias
+  }, [gruposResueltosPorClave])
+
+  // Fusiones ya confirmadas, indexadas por su clave FINAL (siguiendo la
+  // cadena) -- para la notita "Unida con [nombre] el [fecha]" en la tarjeta
+  // sobreviviente. Puede haber más de una por tarjeta.
+  const deshacerPorClave = useMemo(() => {
+    const mapa = new Map<string, DeshacerInfo[]>()
+    for (const [claveOrigen, info] of fusiones) {
+      const claveFinal = resolverClave(info.claveDestino)
+      const nombreOrigen = gruposCrudosPorClave.get(claveOrigen)?.pacienteNombre || claveOrigen
+      const lista = mapa.get(claveFinal) || []
+      lista.push({ fusionId: info.id, nombreOrigen, createdAt: info.createdAt })
+      mapa.set(claveFinal, lista)
+    }
+    return mapa
+  }, [fusiones, gruposCrudosPorClave, resolverClave])
+
+  // Abre la ventana de comparación+confirmación -- ya NO une con un clic.
+  // Busca el historial COMPLETO de ambas tarjetas (todas sus citas, sin
+  // filtrar por tab) para que el médico compare con la información real.
+  const solicitarUnion = (claveOrigen: string, claveDestino: string) => {
+    const origen = gruposResueltosPorClave.get(claveOrigen)
+    const destino = gruposResueltosPorClave.get(claveDestino)
+    if (!origen || !destino) return
+    setConfirmandoUnion({ origen, destino })
+  }
+
+  const confirmarUnionModal = async () => {
+    if (!confirmandoUnion || !medico) return
+    const { origen, destino } = confirmandoUnion
+    setUniendoModal(true)
+    try {
+      const { data, error } = await supabase
+        .from('doctor_patient_merges')
+        .upsert({ medico_id: medico.id, clave_origen: origen.clave, clave_destino: destino.clave }, { onConflict: 'medico_id,clave_origen' })
+        .select('id, created_at')
+        .single()
+      if (error) throw error
+      setFusiones(prev => new Map(prev).set(origen.clave, { id: data.id, claveDestino: destino.clave, createdAt: data.created_at }))
+      showToast('Pacientes unidos', 'success')
+      setConfirmandoUnion(null)
+    } catch {
+      showToast('No se pudo unir a los pacientes. Intenta de nuevo.', 'error')
+    } finally {
+      setUniendoModal(false)
+    }
+  }
+
+  // Deshacer una unión -- nunca tocó `citas` ni el expediente real, así que
+  // deshacer es instantáneo y sin ningún riesgo de pérdida de información:
+  // solo borra la fila que decía "estas dos claves son la misma persona".
+  const deshacerUnion = async (fusionId: string) => {
+    setDeshaciendoId(fusionId)
+    try {
+      const { error } = await supabase.from('doctor_patient_merges').delete().eq('id', fusionId)
+      if (error) throw error
+      setFusiones(prev => {
+        const siguiente = new Map(prev)
+        for (const [claveOrigen, info] of siguiente) {
+          if (info.id === fusionId) { siguiente.delete(claveOrigen); break }
+        }
+        return siguiente
+      })
+      showToast('Unión deshecha', 'success')
+    } catch {
+      showToast('No se pudo deshacer la unión. Intenta de nuevo.', 'error')
+    } finally {
+      setDeshaciendoId(null)
+    }
+  }
+
+  // Agrupa las citas ya filtradas (por tab o por fecha del calendario) por
+  // paciente -- una tarjeta por paciente en vez de una por cita. Clave:
+  // paciente_id cuando existe (lo llena un trigger de la base de datos
+  // desde 2026-07-23); las citas de antes de esa fecha no lo tienen, así
+  // que caen a paciente_email (normalizado) como respaldo, el mismo campo
+  // que usa ese trigger para identificar/crear al paciente. Después se
+  // resuelve la clave a través de las fusiones manuales del médico.
+  const gruposPorPaciente = useMemo(() => {
+    const mapa = new Map<string, GrupoPaciente & { pacienteId: string | null }>()
+    for (const cita of citasFiltradas) {
+      const claveCruda = cita.paciente_id || `email:${cita.paciente_email.trim().toLowerCase()}`
+      const clave = resolverClave(claveCruda)
+      const grupo = mapa.get(clave)
+      if (grupo) {
+        grupo.citas.push(cita)
+        if (!grupo.pacienteId && cita.paciente_id) grupo.pacienteId = cita.paciente_id
+      } else {
+        mapa.set(clave, { clave, pacienteNombre: cita.paciente_nombre, pacienteId: cita.paciente_id, citas: [cita] })
+      }
+    }
+
+    const tarjetas = Array.from(mapa.values()).map(g => construirPacienteCard(g, g.pacienteId))
+
+    // Con próxima cita primero (la más próxima arriba); sin próxima cita
+    // después, ordenados por su cita más reciente.
+    tarjetas.sort((a, b) => {
+      const proximaA = a.proximaCita ? new Date(`${a.proximaCita.fecha}T${a.proximaCita.hora || '00:00'}`).getTime() : null
+      const proximaB = b.proximaCita ? new Date(`${b.proximaCita.fecha}T${b.proximaCita.hora || '00:00'}`).getTime() : null
+      if (proximaA !== null && proximaB !== null) return proximaA - proximaB
+      if (proximaA !== null) return -1
+      if (proximaB !== null) return 1
+      const recienteA = a.historial[0] ? new Date(`${a.historial[0].fecha}T${a.historial[0].hora || '00:00'}`).getTime() : 0
+      const recienteB = b.historial[0] ? new Date(`${b.historial[0].fecha}T${b.historial[0].hora || '00:00'}`).getTime() : 0
+      return recienteB - recienteA
+    })
+
+    return tarjetas
+  }, [citasFiltradas, resolverClave])
 
   const listaCitas = citasFiltradas.length === 0 ? (
     <div style={{ background: '#fff', borderRadius: 16, padding: '60px 20px', border: '1px solid #E5E7EB', textAlign: 'center' }}>
@@ -273,39 +495,11 @@ export default function CitasPage() {
         {selectedDate ? 'Elige otro día en el calendario.' : tab === 'todas' ? 'Cuando los pacientes soliciten citas, aparecerán aquí' : 'Cambia el filtro de arriba para ver otras citas'}
       </p>
     </div>
-  ) : isMobile ? (
-    // Vista de agenda: agrupada por fecha con encabezado, en vez de la
-    // cuadrícula de calendario (que no cabe bien en una pantalla chica).
-    gruposPorFecha.map(([fecha, citasDelDia]) => (
-      <div key={fecha}>
-        <p style={{ fontSize: 12, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '8px 0 10px' }}>
-          {formatFecha(fecha)}
-        </p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {citasDelDia.map(cita => (
-            <CitaCard
-              key={cita.id}
-              cita={cita}
-              medico={medico}
-              procesando={procesando}
-              rechazando={rechazando}
-              motivoRechazo={motivoRechazo}
-              enviandoRechazo={enviandoRechazo}
-              setRechazando={setRechazando}
-              setMotivoRechazo={setMotivoRechazo}
-              cambiarEstado={cambiarEstado}
-              confirmarRechazo={confirmarRechazo}
-            />
-          ))}
-        </div>
-      </div>
-    ))
   ) : (
-    citasFiltradas.map(cita => (
-      <CitaCard
-        key={cita.id}
-        cita={cita}
-        medico={medico}
+    gruposPorPaciente.map(data => (
+      <PacienteCard
+        key={data.clave}
+        data={data}
         procesando={procesando}
         rechazando={rechazando}
         motivoRechazo={motivoRechazo}
@@ -314,6 +508,12 @@ export default function CitasPage() {
         setMotivoRechazo={setMotivoRechazo}
         cambiarEstado={cambiarEstado}
         confirmarRechazo={confirmarRechazo}
+        sugerencia={sugerenciasPorClave.get(data.clave) || null}
+        onSolicitarUnion={solicitarUnion}
+        deshacerInfo={deshacerPorClave.get(data.clave) || []}
+        deshaciendoId={deshaciendoId}
+        onDeshacerUnion={deshacerUnion}
+        chatActivo={chatActivoPorClave.get(data.clave) ?? true}
       />
     ))
   )
@@ -363,6 +563,16 @@ export default function CitasPage() {
           {toast.type === 'success' ? <CheckCircle size={15} aria-hidden="true" /> : <XCircle size={15} aria-hidden="true" />}
           {toast.msg}
         </div>
+      )}
+
+      {confirmandoUnion && (
+        <ConfirmarUnionModal
+          origen={confirmandoUnion.origen}
+          destino={confirmandoUnion.destino}
+          confirmando={uniendoModal}
+          onCancel={() => { if (!uniendoModal) setConfirmandoUnion(null) }}
+          onConfirm={confirmarUnionModal}
+        />
       )}
 
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 16px 80px' }}>
@@ -479,19 +689,17 @@ export default function CitasPage() {
 // que la carga no cambie de layout entre el skeleton y los datos reales.
 function CitasSkeleton({ isMobile }: { isMobile: boolean }) {
   const tarjetaCita = (i: number) => (
-    <div key={i} style={{ background: '#fff', borderRadius: 14, border: '1.5px solid #E5E7EB', padding: 20 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-        <Skeleton width={44} height={44} radius={999} style={{ flexShrink: 0 }} />
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <Skeleton width={140} height={16} />
-          <Skeleton width={80} height={14} radius={12} />
+    <div key={i} style={{ background: '#fff', borderRadius: 14, border: '1.5px solid #E5E7EB', padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <Skeleton width={44} height={44} radius={999} style={{ flexShrink: 0 }} />
+          <Skeleton width={140} height={17} />
         </div>
+        <Skeleton width={64} height={22} radius={12} />
       </div>
-      <Skeleton width="100%" height={1} style={{ marginBottom: 16 }} />
-      <div style={{ display: 'flex', gap: 8 }}>
-        <Skeleton width={100} height={30} radius={50} />
-        <Skeleton width={100} height={30} radius={50} />
-      </div>
+      <Skeleton width="100%" height={72} radius={12} />
+      <Skeleton width="100%" height={60} radius={12} />
+      <Skeleton width="100%" height={44} radius={10} />
     </div>
   )
 

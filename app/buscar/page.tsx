@@ -4,6 +4,8 @@ import BuscarClient, { type Medico } from './BuscarClient'
 import { getStateLabel } from '@/lib/locations'
 import { getArticulosPorEspecialidadTexto } from '@/lib/blog'
 import { esCombinacionCalificada, especialidadSlug, estadoSlug } from '@/lib/especialidadEstado'
+import { calcularCompletitudPorDoctor, compararPorMerito } from '@/lib/homepageEspecialistas'
+import { proximoDiaDisponible } from '@/lib/proximaCitaDisponible'
 
 function getSupabase() {
   return createClient(
@@ -135,20 +137,81 @@ export default async function BuscarPage({
 }) {
   const { especialidad, estado } = await searchParams
 
+  const supabase = getSupabase()
+
   // Lista inicial resuelta en el servidor para que el HTML traiga contenido
   // real desde el primer request (antes se pedía en un useEffect del
   // cliente). El filtro "cerca de mí" sigue reemplazando esta lista desde
   // el navegador porque depende de la geolocalización del usuario.
-  const { data } = await getSupabase()
+  //
+  // Se piden más columnas de las que la tarjeta pinta directamente: about_me,
+  // horario, consultation_price_first_time, phone, clinic_phone y
+  // whatsapp_phone solo se usan aquí, server-side, para calcular la
+  // completitud del perfil (mismo criterio que la home,
+  // lib/homepageEspecialistas.ts) y la "próxima cita disponible" -- nunca se
+  // mandan al cliente tal cual (ver el recorte al construir `medicos` más
+  // abajo), para no exponer de más en el payload público.
+  const { data } = await supabase
     .from('doctors')
     .select(`id, slug, full_name, specialty, photo_url, ciudad, estado,
-           consultation_price_general, years_experience, min_patient_age, max_patient_age,
-           clinic_lat, clinic_lng, hospital_affiliation, languages, insurance_accepted, professional_license`)
+           consultation_price_general, years_experience, min_patient_age, max_patient_age, atiende_ninos,
+           clinic_lat, clinic_lng, hospital_affiliation, languages, insurance_accepted, professional_license,
+           professional_title, rating_avg, rating_count, created_at,
+           about_me, horario, consultation_price_first_time, phone, clinic_phone, whatsapp_phone`)
     .eq('is_active', true)
-    .order('created_at', { ascending: false })
     .limit(100)
 
-  const medicos = (data ?? []) as Medico[]
+  const doctorsRaw = data ?? []
+  const doctorIds = doctorsRaw.map(d => d.id)
+
+  // Mismo criterio de mérito que ya usa la home (completitud de perfil →
+  // rating con mínimo de reseñas → alfabético) -- antes esta lista se
+  // ordenaba por fecha de registro más reciente primero, inconsistente con
+  // el resto de la plataforma.
+  const completitudPorId = await calcularCompletitudPorDoctor(supabase, doctorsRaw)
+  const doctorsOrdenados = doctorsRaw
+    .map(d => ({ ...d, completitud: completitudPorId.get(d.id) ?? 0 }))
+    .sort(compararPorMerito)
+
+  // Fechas bloqueadas de TODOS los médicos de esta lista en un solo
+  // round-trip (no una consulta por médico) -- misma tabla que usa el
+  // calendario de reserva en el perfil público, filtrada a partir de hoy.
+  const hoyMx = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' })
+  const { data: bloqueosData } = doctorIds.length > 0
+    ? await supabase.from('doctor_blocked_dates').select('doctor_id, fecha').in('doctor_id', doctorIds).gte('fecha', hoyMx)
+    : { data: [] as { doctor_id: string; fecha: string }[] }
+  const bloqueosPorDoctor = new Map<string, Set<string>>()
+  for (const b of bloqueosData ?? []) {
+    if (!bloqueosPorDoctor.has(b.doctor_id)) bloqueosPorDoctor.set(b.doctor_id, new Set())
+    bloqueosPorDoctor.get(b.doctor_id)!.add(b.fecha)
+  }
+
+  const medicos: Medico[] = doctorsOrdenados.map(d => ({
+    id: d.id,
+    slug: d.slug,
+    full_name: d.full_name,
+    specialty: d.specialty,
+    photo_url: d.photo_url,
+    ciudad: d.ciudad,
+    estado: d.estado,
+    consultation_price_general: d.consultation_price_general,
+    years_experience: d.years_experience,
+    min_patient_age: d.min_patient_age,
+    max_patient_age: d.max_patient_age,
+    atiende_ninos: d.atiende_ninos,
+    clinic_lat: d.clinic_lat,
+    clinic_lng: d.clinic_lng,
+    hospital_affiliation: d.hospital_affiliation,
+    languages: d.languages,
+    insurance_accepted: d.insurance_accepted,
+    professional_license: d.professional_license,
+    professional_title: d.professional_title,
+    rating_avg: d.rating_avg,
+    rating_count: d.rating_count,
+    created_at: d.created_at,
+    proximaCita: proximoDiaDisponible(d.horario, bloqueosPorDoctor.get(d.id) ?? new Set()),
+  }))
+
   const total = contarCoincidencias(medicos, especialidad, estado)
   const { titulo, texto } = armarHero(especialidad, estado, total)
 
