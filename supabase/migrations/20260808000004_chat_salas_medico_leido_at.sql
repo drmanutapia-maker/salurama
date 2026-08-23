@@ -5,4 +5,4 @@
 -- la conversación (app/api/chat/medico/sesion/route.ts) y se combina con el
 -- umbral existente (el más reciente de los dos gana).
 alter table public.chat_salas
-  add column medico_leido_at timestamptz null;
+  add column if not exists medico_leido_at timestamptz null;

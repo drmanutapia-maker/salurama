@@ -17,6 +17,12 @@ interface SessionRow {
   isCurrent: boolean
 }
 
+interface CredencialBiometrica {
+  credentialId: string
+  deviceName: string | null
+  createdAt: string
+}
+
 function formatRelativo(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime()
   const minutos = Math.floor(diffMs / 60000)
@@ -40,6 +46,8 @@ export default function SeguridadPage() {
   const [activandoBiometrico, setActivandoBiometrico] = useState(false)
   const [desactivandoBiometrico, setDesactivandoBiometrico] = useState(false)
   const [biometricoActivado, setBiometricoActivado] = useState(false)
+  const [credenciales, setCredenciales] = useState<CredencialBiometrica[]>([])
+  const [quitandoCredencial, setQuitandoCredencial] = useState<string | null>(null)
 
   const showToast = (msg: string, type: 'success' | 'error') => {
     setToast({ msg, type })
@@ -60,6 +68,19 @@ export default function SeguridadPage() {
   const cargarEstadoBiometrico = useCallback(async () => {
     const activo = await confirmarCredencialLocal(true)
     setBiometricoActivado(activo)
+  }, [])
+
+  // Lista completa de dispositivos con biométrico activo en la cuenta (no
+  // solo el actual) -- para poder revocar el de un celular perdido/robado
+  // desde otro dispositivo. Independiente de cargarEstadoBiometrico (esa
+  // solo confirma SI este navegador tiene una credencial activa).
+  const cargarCredenciales = useCallback(async () => {
+    try {
+      const res = await fetch('/api/webauthn/listar-credenciales')
+      if (!res.ok) return
+      const { credenciales } = await res.json()
+      setCredenciales(Array.isArray(credenciales) ? credenciales : [])
+    } catch {}
   }, [])
 
   const initialCheckDoneRef = useRef(false)
@@ -83,8 +104,9 @@ export default function SeguridadPage() {
     // El estado del biométrico es secundario -- si falla, no bloquea la
     // página (se queda mostrando "Activar" por defecto, sin romper nada).
     await cargarEstadoBiometrico().catch(() => {})
+    await cargarCredenciales().catch(() => {})
     if (!cancelRef.current) setLoading(false)
-  }, [router, cargarSesiones, cargarEstadoBiometrico])
+  }, [router, cargarSesiones, cargarEstadoBiometrico, cargarCredenciales])
 
   useEffect(() => {
     // Ignora el evento INITIAL_SESSION con session=null que puede llegar
@@ -213,6 +235,39 @@ export default function SeguridadPage() {
       showToast('No se pudo desactivar el biométrico. Intenta de nuevo.', 'error')
     } finally {
       setDesactivandoBiometrico(false)
+    }
+  }
+
+  // Quita CUALQUIER credencial de la cuenta (no solo la de este navegador)
+  // -- ver /api/webauthn/desactivar, ya verifica server-side que pertenezca
+  // al médico de la sesión real antes de borrarla. Este es el botón para el
+  // caso "perdí mi celular": desde otro dispositivo, revoca el que ya no
+  // tienes en la mano.
+  const quitarCredencial = async (credentialId: string, nombreDispositivo: string | null) => {
+    if (!window.confirm(`¿Quitar el acceso con huella/Face ID de "${nombreDispositivo || 'este dispositivo'}"? Ese aparato ya no podrá entrar con biométrico.`)) return
+
+    setQuitandoCredencial(credentialId)
+    try {
+      const res = await fetch('/api/webauthn/desactivar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credentialId }),
+      })
+      if (!res.ok) throw new Error('desactivar_failed')
+
+      // Si la credencial que se quitó es la de ESTE navegador, refleja el
+      // cambio también en el estado/badge de "este dispositivo" de arriba.
+      if (obtenerCredencialLocal() === credentialId) {
+        borrarCredencialLocal()
+        setBiometricoActivado(false)
+      }
+
+      setCredenciales(prev => prev.filter(c => c.credentialId !== credentialId))
+      showToast('Dispositivo desactivado', 'success')
+    } catch {
+      showToast('No se pudo quitar el dispositivo. Intenta de nuevo.', 'error')
+    } finally {
+      setQuitandoCredencial(null)
     }
   }
 
@@ -388,6 +443,62 @@ export default function SeguridadPage() {
             </div>
           ))}
         </div>
+
+        {credenciales.length > 0 && (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '32px 0 6px' }}>
+              <Fingerprint size={20} color="#1E3A5F" aria-hidden="true" />
+              <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 17, fontWeight: 900, color: '#1E3A5F' }}>Huella / Face ID por dispositivo</h2>
+            </div>
+            <p style={{ color: '#6B7280', fontSize: 13, marginBottom: 16 }}>
+              Cada dispositivo donde activaste el ingreso biométrico aparece aquí. Si perdiste o te robaron uno, quítalo desde otro dispositivo para que ya no pueda entrar con huella/Face ID.
+            </p>
+            <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #E5E7EB', overflow: 'hidden' }}>
+              {credenciales.map((c, i) => {
+                const esEsteDispositivo = obtenerCredencialLocal() === c.credentialId
+                return (
+                  <div
+                    key={c.credentialId}
+                    className="seg-fila"
+                    style={{ padding: '16px 20px', borderTop: i === 0 ? 'none' : '1px solid #F3F4F6' }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                      <div style={{ width: 38, height: 38, borderRadius: 10, background: '#ECFDF5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <Fingerprint size={18} color="#059669" aria-hidden="true" />
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{c.deviceName || 'Dispositivo sin nombre'}</span>
+                          {esEsteDispositivo && (
+                            <span style={{ fontSize: 11, fontWeight: 700, color: '#065F46', background: '#D1FAE5', padding: '2px 8px', borderRadius: 99 }}>
+                              Este dispositivo
+                            </span>
+                          )}
+                        </div>
+                        <p style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>
+                          Activado {formatRelativo(c.createdAt)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="seg-fila-acciones">
+                      <button
+                        onClick={() => quitarCredencial(c.credentialId, c.deviceName)}
+                        disabled={quitandoCredencial !== null}
+                        style={{
+                          background: '#fff', color: '#DC2626', border: '1.5px solid #FECACA', borderRadius: 10,
+                          padding: '8px 12px', fontSize: 13, fontWeight: 600,
+                          cursor: quitandoCredencial ? 'not-allowed' : 'pointer', opacity: quitandoCredencial ? 0.6 : 1, flexShrink: 0,
+                        }}
+                      >
+                        {quitandoCredencial === c.credentialId ? 'Quitando...' : 'Quitar'}
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </>
+        )}
       </div>
 
       {toast && (

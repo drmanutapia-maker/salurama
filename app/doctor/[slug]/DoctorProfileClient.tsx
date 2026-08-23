@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import BackButton from '@/components/BackButton'
 import InstalarAppBanner from '@/components/InstalarAppBanner'
+import { jsonLdSeguro } from '@/lib/sanitizarTextoLibre'
 import { useInstalarAppElegibilidad } from '@/hooks/useInstalarAppElegibilidad'
 import { getStateLabel } from '@/lib/locations'
 import { calculateProfileCompletion } from '@/hooks/useProfileCompletion'
@@ -1240,7 +1241,7 @@ export default function DoctorProfileClient({
             {doctorSchema && (
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(doctorSchema) }}
+          dangerouslySetInnerHTML={{ __html: jsonLdSeguro(doctorSchema) }}
         />
       )}
 

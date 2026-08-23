@@ -29,7 +29,7 @@ create table if not exists webauthn_credentials (
   last_used_at timestamptz
 );
 
-create index idx_webauthn_credentials_medico_id on webauthn_credentials(medico_id);
+create index if not exists idx_webauthn_credentials_medico_id on webauthn_credentials(medico_id);
 
 comment on table webauthn_credentials is
   'Credenciales WebAuthn/passkey por dispositivo, para login biometrico. Solo se guarda la llave publica y metadatos -- nunca datos biometricos, esos nunca salen del dispositivo del medico.';

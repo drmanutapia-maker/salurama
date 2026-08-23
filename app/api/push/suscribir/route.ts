@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { Redis } from '@upstash/redis'
 import { z } from 'zod'
 import { verificarToken } from '@/lib/chat/token'
+import { endpointPushPermitido } from '@/lib/push/allowlist'
 
 export const dynamic = 'force-dynamic'
 
@@ -81,6 +82,13 @@ export async function POST(request: NextRequest) {
     }
 
     const { subscription } = validation.data
+
+    // Rechazar antes de tocar la base de datos -- ver lib/push/allowlist.ts.
+    if (!endpointPushPermitido(subscription.endpoint)) {
+      console.warn(`[${requestId}] Endpoint push rechazado (host no permitido): ${subscription.endpoint}`)
+      return NextResponse.json({ error: 'Suscripción inválida' }, { status: 400, headers: securityHeaders })
+    }
+
     const { error } = await supabase
       .from('push_subscriptions')
       .upsert(

@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS public.doctor_patient_merges (
   UNIQUE (medico_id, clave_origen)
 );
 
-CREATE INDEX doctor_patient_merges_medico_id_idx ON public.doctor_patient_merges(medico_id);
+CREATE INDEX IF NOT EXISTS doctor_patient_merges_medico_id_idx ON public.doctor_patient_merges(medico_id);
 
 ALTER TABLE public.doctor_patient_merges ENABLE ROW LEVEL SECURITY;
 

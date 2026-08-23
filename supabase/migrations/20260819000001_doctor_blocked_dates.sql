@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS public.doctor_blocked_dates (
   UNIQUE (doctor_id, fecha)
 );
 
-CREATE INDEX doctor_blocked_dates_doctor_id_idx ON public.doctor_blocked_dates(doctor_id, fecha);
+CREATE INDEX IF NOT EXISTS doctor_blocked_dates_doctor_id_idx ON public.doctor_blocked_dates(doctor_id, fecha);
 
 ALTER TABLE public.doctor_blocked_dates ENABLE ROW LEVEL SECURITY;
 

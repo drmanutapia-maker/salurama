@@ -15,7 +15,7 @@ create table if not exists push_subscriptions (
   created_at timestamptz not null default now()
 );
 
-create index idx_push_subscriptions_paciente_id on push_subscriptions(paciente_id);
+create index if not exists idx_push_subscriptions_paciente_id on push_subscriptions(paciente_id);
 
 comment on table push_subscriptions is
   'Suscripciones push (Web Push API/VAPID) de pacientes, una fila por navegador/dispositivo. Se usa desde el endpoint de envío de mensajes del médico para notificar al paciente. Parte 1 de la implementación de notificaciones push.';

@@ -1,5 +1,6 @@
 import webpush, { WebPushError } from 'web-push'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { endpointPushPermitido } from './allowlist'
 
 let configurado = false
 function asegurarConfiguracion() {
@@ -46,6 +47,13 @@ export async function notificarPacientePush(
 
   await Promise.allSettled(
     suscripciones.map(async (sub) => {
+      // Defensa en profundidad -- /api/push/suscribir ya rechaza endpoints
+      // fuera de la allowlist antes de guardarlos, pero si alguna fila vieja
+      // o futura se coló por otra vía, nunca se le hace la petición real.
+      if (!endpointPushPermitido(sub.endpoint)) {
+        console.warn('[push] Suscripción con endpoint fuera de la allowlist, se omite:', sub.id)
+        return
+      }
       try {
         await webpush.sendNotification(
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },

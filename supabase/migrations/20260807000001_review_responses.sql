@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS public.review_responses (
   notified_at  timestamptz
 );
 
-CREATE INDEX review_responses_doctor_id_idx ON public.review_responses(doctor_id);
+CREATE INDEX IF NOT EXISTS review_responses_doctor_id_idx ON public.review_responses(doctor_id);
 
 -- Bitácora interna, nunca expuesta al público. Sin FK a review_responses (esa
 -- fila puede desaparecer) ni FK dura a reviews (una reseña puede ser borrada
@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS public.review_responses_audit_log (
   created_at         timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX review_responses_audit_log_review_id_idx ON public.review_responses_audit_log(review_id);
+CREATE INDEX IF NOT EXISTS review_responses_audit_log_review_id_idx ON public.review_responses_audit_log(review_id);
 
 -- Trigger simple (no el esquema con hash-chain de hema.audit_log — aquí no
 -- hace falta, es solo historial interno) que registra el estado ANTERIOR
