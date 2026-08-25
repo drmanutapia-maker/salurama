@@ -14,11 +14,12 @@ import DoctorProfileClient, {
   type GalleryPhoto,
 } from './DoctorProfileClient'
 
-// ISR — mismo patrón que /blog/[slug] y /especialistas/[e]/[s]: sin esto,
-// Next.js genera el perfil una sola vez (primera visita tras el deploy) y
-// lo sirve congelado ~1 año, así que cambios de specialty/ciudad/foto no se
-// reflejan hasta el próximo deploy.
-export const revalidate = 600
+// Sin ISR aquí a propósito: esta página lee `searchParams` (ver DoctorPage
+// más abajo, para el redirect 301 que preserva el query string), y eso es
+// una Dynamic API de Next.js — fuerza render dinámico en cada request y
+// anula cualquier `export const revalidate`. Confirmado en vivo: las
+// cabeceras de producción ya traen Cache-Control: no-store en cada
+// petición, o sea que el perfil siempre sale fresco, sin necesidad de ISR.
 
 function getSupabase() {
   return createClient(
