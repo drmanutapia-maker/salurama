@@ -3,6 +3,12 @@ import { createClient } from '@supabase/supabase-js'
 import { getArticulosPublicados } from '@/lib/blog'
 import { getCombinacionesCalificadas, especialidadSlug, estadoSlug } from '@/lib/especialidadEstado'
 
+// ISR — sin esto, Next.js genera el sitemap una sola vez (build/primer
+// request) y Netlify lo sirve congelado ~1 año. Con esto, un médico nuevo
+// que se activa o un cambio de specialty/estado/slug aparece en el sitemap
+// sin necesidad de un nuevo deploy.
+export const revalidate = 3600
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = 'https://salurama.com'
 

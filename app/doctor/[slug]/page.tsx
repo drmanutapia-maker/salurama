@@ -14,6 +14,12 @@ import DoctorProfileClient, {
   type GalleryPhoto,
 } from './DoctorProfileClient'
 
+// ISR — mismo patrón que /blog/[slug] y /especialistas/[e]/[s]: sin esto,
+// Next.js genera el perfil una sola vez (primera visita tras el deploy) y
+// lo sirve congelado ~1 año, así que cambios de specialty/ciudad/foto no se
+// reflejan hasta el próximo deploy.
+export const revalidate = 600
+
 function getSupabase() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
