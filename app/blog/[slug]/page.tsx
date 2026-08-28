@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown'
 import { ArrowRight } from 'lucide-react'
 import { getArticuloPublicado, getArticulosRelacionados } from '@/lib/blog'
 import BlogPreguntaForm from '@/components/BlogPreguntaForm'
+import { jsonLdSeguro } from '@/lib/sanitizarTextoLibre'
 
 export const revalidate = 600
 
@@ -78,7 +79,7 @@ export default async function ArticuloPage({ params }: { params: Promise<{ slug:
     <div style={{ fontFamily: "'DM Sans', sans-serif", background: '#fff', minHeight: '100vh', color: '#111827' }}>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(articuloSchema) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdSeguro(articuloSchema) }}
       />
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@600;900&family=DM+Sans:wght@300;400;500;700&display=swap');
