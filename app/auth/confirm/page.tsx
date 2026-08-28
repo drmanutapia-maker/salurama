@@ -19,25 +19,13 @@ export default function ConfirmPage() {
           throw new Error('No se pudo confirmar la sesión')
         }
 
-        const userId = session.user.id
-
-        // Confirmar el correo activa la cuenta (is_active) — nunca debe
-        // tocar review_status, que es un concepto distinto (revisión de
-        // credenciales por un admin, no algo que decida el propio médico
-        // al confirmar su email). Antes esto escribía 'aprobado', un valor
-        // que ningún otro lugar del sistema reconoce (los únicos válidos
-        // son 'pendiente'/'revisado'/'rechazado'), lo cual descuadraba los
-        // contadores de /admin/medicos sin que se notara en el badge.
-        const { error: updateError } = await supabase
-        .from('doctors')
-        .update({
-            is_active: true,
-          })
-        .eq('user_id', userId)
-
-        if (updateError) {
-          console.error('Error activando perfil:', updateError)
-        }
+        // Activar doctors.is_active ya no ocurre aquí: el trigger
+        // trg_sync_doctor_is_active (en auth.users) lo hace a nivel de base de
+        // datos en cuanto email_confirmed_at se marca, sin depender de que
+        // este componente cargue ni de que el navegador logre leer la sesión
+        // (ver migración 20260723000002 — antes una cuenta podía quedar
+        // inactiva para siempre si esta pantalla nunca terminaba de correr).
+        // Para cuando se llega aquí, el perfil ya está activo.
 
         setStatus('success')
         setMessage('¡Email confirmado! Activando tu perfil...')
