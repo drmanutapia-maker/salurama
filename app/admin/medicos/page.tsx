@@ -439,6 +439,24 @@ export default function AdminMedicos() {
 
   // ── Acciones ────────────────────────────────────────────────────────────────
 
+  // admin_actions: bitácora de las 3 escrituras reales de este panel (aprobar/
+  // rechazar cédula, verificar+aprobar, activar/desactivar). Best-effort — un
+  // fallo aquí no debe tumbar la acción real que ya se aplicó a doctors, solo
+  // se registra en consola.
+  async function registrarAccionAdmin(actionType: string, m: Medico, notes?: string) {
+    try {
+      await supabase.from('admin_actions').insert({
+        action_type: actionType,
+        doctor_id: m.id,
+        doctor_name: m.full_name,
+        admin_email: adminEmail || 'admin@salurama.com',
+        notes: notes ?? null,
+      })
+    } catch (err) {
+      console.error('Error registrando admin_actions:', err)
+    }
+  }
+
   async function setReviewStatus(m: Medico, status: 'revisado' | 'rechazado') {
     const label = status === 'revisado' ? `aprobar cédula de ${m.full_name}` : `rechazar a ${m.full_name}`
     if (!confirm(`¿Confirmas ${label}?`)) return
@@ -452,6 +470,7 @@ export default function AdminMedicos() {
         }).eq('id', m.id)
       if (error) throw error
       setMedicos(prev => prev.map(x => x.id === m.id ? { ...x, review_status: status } : x))
+      registrarAccionAdmin(status === 'revisado' ? 'aprobar_cedula' : 'rechazar_cedula', m)
       setToast({ msg: `${m.full_name}: ${status === 'revisado' ? 'cédula aprobada ✓' : 'rechazado'}`, type: 'success' })
     } catch {
       setToast({ msg: 'Error al actualizar. Revisa permisos RLS.', type: 'error' })
@@ -484,6 +503,7 @@ export default function AdminMedicos() {
       setMedicos(prev => prev.map(x => x.id === m.id
         ? { ...x, review_status: 'revisado', verification_status: 'verificado', license_verified: true }
         : x))
+      registrarAccionAdmin('verificar_y_aprobar', m)
       setToast({ msg: `${m.full_name}: verificada y cédula aprobada ✓`, type: 'success' })
     } catch {
       setToast({ msg: 'Error al actualizar. Revisa permisos RLS.', type: 'error' })
@@ -899,6 +919,7 @@ export default function AdminMedicos() {
         .from('doctors').update({ is_active: !m.is_active }).eq('id', m.id)
       if (error) throw error
       setMedicos(prev => prev.map(x => x.id === m.id ? { ...x, is_active: !x.is_active } : x))
+      registrarAccionAdmin(!m.is_active ? 'activar' : 'desactivar', m)
       setToast({ msg: `${m.full_name}: ${!m.is_active ? 'activado' : 'desactivado'}`, type: 'success' })
     } catch {
       setToast({ msg: 'Error al actualizar estado', type: 'error' })
