@@ -4,6 +4,5 @@ Disallow: /hema/
 Disallow: /admin/
 Disallow: /dashboard/
 Disallow: /api/
-Disallow: /test-cp/
 
 Sitemap: https://salurama.com/sitemap.xml
