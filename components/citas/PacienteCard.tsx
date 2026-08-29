@@ -128,6 +128,12 @@ interface PacienteCardProps {
   setMotivoRechazo: (v: string) => void
   cambiarEstado: (citaId: string, nuevoEstado: Cita['estado']) => void
   confirmarRechazo: (citaId: string) => void
+  cancelandoConfirmada: string | null
+  motivoCancelacion: string
+  enviandoCancelacion: boolean
+  setCancelandoConfirmada: (id: string | null) => void
+  setMotivoCancelacion: (v: string) => void
+  confirmarCancelacionConfirmada: (citaId: string) => void
   // Sugerencia de "¿es la misma persona?" -- ver detección en
   // app/dashboard/citas/page.tsx (comparte teléfono o correo con otra
   // tarjeta que no se agrupó sola). null cuando no hay ninguna sospecha.
@@ -149,6 +155,8 @@ interface PacienteCardProps {
 export default function PacienteCard({
   data, procesando, rechazando, motivoRechazo, enviandoRechazo,
   setRechazando, setMotivoRechazo, cambiarEstado, confirmarRechazo,
+  cancelandoConfirmada, motivoCancelacion, enviandoCancelacion,
+  setCancelandoConfirmada, setMotivoCancelacion, confirmarCancelacionConfirmada,
   sugerencia, onSolicitarUnion, deshacerInfo, deshaciendoId, onDeshacerUnion,
   chatActivo,
 }: PacienteCardProps) {
@@ -266,8 +274,8 @@ export default function PacienteCard({
                   {esProc(proximaCita.id, 'completed') ? <span aria-hidden="true" style={{ width: 13, height: 13, border: '2px solid #3730A344', borderTopColor: '#3730A3', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> : <CheckCircle size={14} aria-hidden="true" />}
                   Marcar completada
                 </button>
-                <button className="action-btn" onClick={() => cambiarEstado(proximaCita.id, 'cancelled')} disabled={!!esProc(proximaCita.id, 'cancelled')} aria-busy={!!esProc(proximaCita.id, 'cancelled')} style={{ background: '#FEE2E2', color: '#DC2626' }}>
-                  {esProc(proximaCita.id, 'cancelled') ? <span aria-hidden="true" style={{ width: 13, height: 13, border: '2px solid #DC262644', borderTopColor: '#DC2626', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> : <XCircle size={14} aria-hidden="true" />}
+                <button className="action-btn" onClick={() => { setCancelandoConfirmada(proximaCita.id); setMotivoCancelacion('') }} disabled={!!esProc(proximaCita.id, 'cancelled')} style={{ background: '#FEE2E2', color: '#DC2626' }}>
+                  <XCircle size={14} aria-hidden="true" />
                   Cancelar
                 </button>
               </>
@@ -299,6 +307,39 @@ export default function PacienteCard({
                   className="action-btn"
                   onClick={() => { setRechazando(null); setMotivoRechazo('') }}
                   disabled={enviandoRechazo}
+                  style={{ background: '#F3F4F6', color: '#6B7280' }}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
+
+          {cancelandoConfirmada === proximaCita.id && (
+            <div style={{ marginTop: 12, padding: 14, background: '#FEF2F2', borderRadius: 10, border: '1px solid #FECACA' }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#991B1B', marginBottom: 6 }}>
+                Motivo de la cancelación *
+              </label>
+              <textarea
+                value={motivoCancelacion}
+                onChange={e => setMotivoCancelacion(e.target.value)}
+                rows={3}
+                placeholder="Explícale al paciente por qué no puedes atender esta cita ya confirmada..."
+                style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #FECACA', borderRadius: 8, fontSize: 13, resize: 'vertical', fontFamily: 'inherit' }}
+              />
+              <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                <button
+                  className="action-btn"
+                  onClick={() => confirmarCancelacionConfirmada(proximaCita.id)}
+                  disabled={!motivoCancelacion.trim() || enviandoCancelacion}
+                  style={{ background: '#DC2626', color: '#fff', opacity: !motivoCancelacion.trim() || enviandoCancelacion ? 0.6 : 1 }}
+                >
+                  {enviandoCancelacion ? 'Cancelando...' : 'Confirmar cancelación'}
+                </button>
+                <button
+                  className="action-btn"
+                  onClick={() => { setCancelandoConfirmada(null); setMotivoCancelacion('') }}
+                  disabled={enviandoCancelacion}
                   style={{ background: '#F3F4F6', color: '#6B7280' }}
                 >
                   Cancelar

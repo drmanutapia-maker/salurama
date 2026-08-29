@@ -32,6 +32,9 @@ export default function CitasPage() {
   const [rechazando, setRechazando] = useState<string | null>(null)
   const [motivoRechazo, setMotivoRechazo] = useState('')
   const [enviandoRechazo, setEnviandoRechazo] = useState(false)
+  const [cancelandoConfirmada, setCancelandoConfirmada] = useState<string | null>(null)
+  const [motivoCancelacion, setMotivoCancelacion] = useState('')
+  const [enviandoCancelacion, setEnviandoCancelacion] = useState(false)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [isMobile, setIsMobile] = useState(false)
   const listaRef = useRef<HTMLDivElement>(null)
@@ -268,6 +271,48 @@ export default function CitasPage() {
       showToast('Error al rechazar la cita', 'error')
     } finally {
       setEnviandoRechazo(false)
+    }
+  }
+
+  // Cancelar una cita que el médico ya había confirmado -- a diferencia de
+  // confirmarRechazo (solo aplica a pending_verification), captura motivo y
+  // avisa al paciente por correo vía /api/citas/cancelar-confirmada. Antes
+  // esto pasaba por cambiarEstado() sin motivo ni correo (ver PacienteCard).
+  const confirmarCancelacionConfirmada = async (citaId: string) => {
+    const motivo = motivoCancelacion.trim()
+    if (!motivo || enviandoCancelacion) return
+
+    setEnviandoCancelacion(true)
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.access_token) {
+      showToast('Error al cancelar la cita', 'error')
+      setEnviandoCancelacion(false)
+      return
+    }
+
+    try {
+      const res = await fetch('/api/citas/cancelar-confirmada', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ citaId, motivo }),
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) {
+        showToast(data?.error || 'Error al cancelar la cita', 'error')
+        return
+      }
+
+      setCitas(prev => prev.map(c => c.id === citaId ? { ...c, estado: 'cancelled', rejection_reason: motivo } : c))
+      setCancelandoConfirmada(null)
+      setMotivoCancelacion('')
+      showToast('Cita cancelada', 'success')
+    } catch {
+      showToast('Error al cancelar la cita', 'error')
+    } finally {
+      setEnviandoCancelacion(false)
     }
   }
 
@@ -520,6 +565,12 @@ export default function CitasPage() {
         setMotivoRechazo={setMotivoRechazo}
         cambiarEstado={cambiarEstado}
         confirmarRechazo={confirmarRechazo}
+        cancelandoConfirmada={cancelandoConfirmada}
+        motivoCancelacion={motivoCancelacion}
+        enviandoCancelacion={enviandoCancelacion}
+        setCancelandoConfirmada={setCancelandoConfirmada}
+        setMotivoCancelacion={setMotivoCancelacion}
+        confirmarCancelacionConfirmada={confirmarCancelacionConfirmada}
         sugerencia={sugerenciasPorClave.get(data.clave) || null}
         onSolicitarUnion={solicitarUnion}
         deshacerInfo={deshacerPorClave.get(data.clave) || []}
