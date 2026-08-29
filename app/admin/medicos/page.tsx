@@ -17,6 +17,7 @@ import { resumenCredenciales, type CredResumen } from '@/lib/credenciales'
 
 interface Medico {
   id: string
+  slug: string | null
   full_name: string
   email: string
   specialty: string
@@ -288,7 +289,7 @@ export default function AdminMedicos() {
       const [{ data, error }, credRes, historialRes] = await Promise.all([
         supabase
           .from('doctors')
-          .select('id, full_name, email, specialty, professional_license, created_at, review_status, is_active, verification_status, license_verified')
+          .select('id, slug, full_name, email, specialty, professional_license, created_at, review_status, is_active, verification_status, license_verified')
           .order('created_at', { ascending: false }),
         supabase
           .from('doctor_specialty_credentials')
@@ -1384,7 +1385,7 @@ export default function AdminMedicos() {
                   </button>
                 )})
                 acciones.push({ key:'perfil', node: (
-                  <Link href={`/doctor/${m.id}`} target="_blank" rel="noopener noreferrer"
+                  <Link href={`/doctor/${m.slug ?? m.id}`} target="_blank" rel="noopener noreferrer"
                     className="act-btn" style={{ width:'100%', justifyContent:'center', background:'#F9FAFB', color:'#6B7280', borderColor:'#E5E7EB', textDecoration:'none' }}>
                     <ExternalLink size={13} />
                     Ver perfil
