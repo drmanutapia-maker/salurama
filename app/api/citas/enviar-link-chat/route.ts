@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { z } from 'zod'
 import { enviarLinkChatSiPrimeraVez } from '@/lib/chat/enviarLinkChat'
+import { notificarPacientePush } from '@/lib/push/enviarPush'
 
 const schema = z.object({
   citaId: z.string().uuid(),
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest) {
 
     const { data: cita } = await supabaseAdmin
       .from('citas')
-      .select('id, estado, medico_id, paciente_id, paciente_email')
+      .select('id, estado, medico_id, paciente_id, paciente_email, fecha, hora')
       .eq('id', citaId)
       .maybeSingle()
 
@@ -59,6 +60,18 @@ export async function POST(request: NextRequest) {
       pacienteId: cita.paciente_id,
       pacienteEmail: cita.paciente_email,
       medicoNombre: medico.full_name,
+    })
+
+    // Push al paciente cuando su cita pasa a confirmada -- mismo evento que
+    // ya dispara el link de chat arriba, así que reutiliza el mismo gate
+    // (estado === 'confirmed', paciente_id y paciente_email presentes). Solo
+    // llega si el paciente ya tiene una suscripción push activa (del chat);
+    // notificarPacientePush no hace nada si no la tiene.
+    const fechaFmt = new Date(cita.fecha + 'T00:00:00').toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })
+    await notificarPacientePush(supabaseAdmin, cita.paciente_id, {
+      title: 'Cita confirmada',
+      body: `${medico.full_name} confirmó tu cita del ${fechaFmt} a las ${cita.hora?.slice(0, 5)}.`,
+      url: `${process.env.NEXT_PUBLIC_URL || 'https://salurama.com'}/chat/recuperar`,
     })
 
     return NextResponse.json({ success: true })
