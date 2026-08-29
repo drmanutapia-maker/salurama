@@ -69,3 +69,50 @@ export async function notificarPacientePush(
     })
   )
 }
+
+/**
+ * Envía un push a todos los dispositivos suscritos de un médico. Misma
+ * semántica que notificarPacientePush (nunca lanza, borra suscripciones
+ * dadas de baja) pero contra doctor_push_subscriptions.
+ */
+export async function notificarMedicoPush(
+  supabase: SupabaseClient,
+  medicoId: string,
+  payload: PayloadPush
+): Promise<void> {
+  asegurarConfiguracion()
+
+  const { data: suscripciones, error } = await supabase
+    .from('doctor_push_subscriptions')
+    .select('id, endpoint, p256dh, auth')
+    .eq('medico_id', medicoId)
+
+  if (error) {
+    console.error('[push] Error leyendo suscripciones de médico:', error)
+    return
+  }
+  if (!suscripciones || suscripciones.length === 0) return
+
+  const payloadJson = JSON.stringify(payload)
+
+  await Promise.allSettled(
+    suscripciones.map(async (sub) => {
+      if (!endpointPushPermitido(sub.endpoint)) {
+        console.warn('[push] Suscripción de médico con endpoint fuera de la allowlist, se omite:', sub.id)
+        return
+      }
+      try {
+        await webpush.sendNotification(
+          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+          payloadJson
+        )
+      } catch (err) {
+        if (err instanceof WebPushError && (err.statusCode === 404 || err.statusCode === 410)) {
+          await supabase.from('doctor_push_subscriptions').delete().eq('id', sub.id)
+        } else {
+          console.error('[push] Error enviando notificación a médico:', err)
+        }
+      }
+    })
+  )
+}

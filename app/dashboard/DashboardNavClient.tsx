@@ -7,6 +7,7 @@ import { getUserSafe } from '@/lib/getUserSafe'
 import { isManuelEmail } from '@/lib/manuelOnly'
 import { contarMensajesSinLeerTotal, EVENTO_CHAT_LEIDO } from '@/lib/chat/sinLeer'
 import { confirmarCredencialLocal } from '@/lib/webauthn/dispositivoLocal'
+import AvisoNotificacionesMedico from '@/components/dashboard/AvisoNotificacionesMedico'
 import { Fingerprint, X } from 'lucide-react'
 
 const BANNER_FLAG = 'salurama_mostrar_banner_biometrico'
@@ -143,6 +144,7 @@ export default function DashboardNavClient({ children }: { children: React.React
   return (
     <>
       {!isMslVirtual && <BannerBiometrico />}
+      {!isMslVirtual && <AvisoNotificacionesMedico />}
       {!isMslVirtual && (
       <nav className="hidden md:block sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-neutral-200">
         <div className="max-w-6xl mx-auto px-4 flex gap-7">

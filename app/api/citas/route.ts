@@ -287,6 +287,19 @@ export async function POST(request: NextRequest) {
 
     console.info(`[${requestId}] Cita creada: ${cita.id} para ${medicoId}`)
 
+    // Push al médico de la solicitud cruda -- vía un fetch a una ruta interna
+    // en runtime Node (ver app/api/citas/notificar-nueva/route.ts) porque
+    // web-push no corre en Edge Runtime, que es el runtime de este endpoint.
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_URL || 'https://salurama.com'}/api/citas/notificar-nueva`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Internal-Secret': process.env.INTERNAL_API_SECRET || '' },
+        body: JSON.stringify({ medicoId, pacienteNombre: nombreFinal, fecha, hora }),
+      })
+    } catch (pushError) {
+      console.error(`[${requestId}] Error notificando por push al médico:`, pushError)
+    }
+
     // Invitación a instalar la app -- se informa si esta cuenta de paciente
     // ya la vio antes, para que el cliente decida si ofrecerla (ver
     // InstalarAppBanner + /api/citas/marcar-banner-instalar). Falla en

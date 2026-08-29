@@ -4,6 +4,7 @@ import { Redis } from '@upstash/redis'
 import { z } from 'zod'
 import { verificarToken } from '@/lib/chat/token'
 import { cifrar } from '@/lib/chat/crypto'
+import { notificarMedicoPush } from '@/lib/push/enviarPush'
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL!,
@@ -101,6 +102,21 @@ export async function POST(request: NextRequest) {
     }
 
     console.info(`[${requestId}] Mensaje creado: ${mensaje.id}`)
+
+    // Notificar por push al médico -- nunca debe hacer fallar la respuesta
+    // (el mensaje ya se guardó). A diferencia del lado médico->paciente, no
+    // hay token de chat que rotar aquí (el médico entra por su sesión real,
+    // no por un link de un solo uso), así que no hace falta el pre-chequeo
+    // de "¿hay alguna suscripción?" antes de llamar.
+    try {
+      await notificarMedicoPush(supabase, sesion.medicoId, {
+        title: 'Mensaje nuevo',
+        body: 'Tienes un mensaje nuevo de un paciente.',
+        url: `${process.env.NEXT_PUBLIC_URL || 'https://salurama.com'}/dashboard/chat`,
+      })
+    } catch (pushError) {
+      console.error(`[${requestId}] Error notificando por push:`, pushError)
+    }
 
     return NextResponse.json(
       { success: true, mensaje },

@@ -79,6 +79,51 @@ export async function activarNotificaciones(token: string): Promise<ResultadoAct
 }
 
 /**
+ * Misma lógica que activarNotificaciones(), pero para el lado médico: en vez
+ * de guardar la suscripción vía token de chat, usa el access_token real de
+ * la sesión de Supabase Auth contra /api/push/suscribir-medico.
+ */
+export async function activarNotificacionesMedico(accessToken: string): Promise<ResultadoActivacion> {
+  if (typeof window === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+    return 'no_soportado'
+  }
+
+  try {
+    const reg = await navigator.serviceWorker.register('/sw.js')
+    await navigator.serviceWorker.ready
+
+    const permiso = await Notification.requestPermission()
+    if (permiso !== 'granted') return 'rechazadas'
+
+    const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+    if (!vapidPublicKey) {
+      console.error('[push] Falta NEXT_PUBLIC_VAPID_PUBLIC_KEY')
+      return 'error'
+    }
+
+    let sub = await reg.pushManager.getSubscription()
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey) as BufferSource,
+      })
+    }
+
+    const res = await fetch('/api/push/suscribir-medico', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({ subscription: sub.toJSON() }),
+    })
+    if (!res.ok) return 'error'
+
+    return 'activadas'
+  } catch (err) {
+    console.error('[push] Error activando notificaciones de médico:', err)
+    return 'error'
+  }
+}
+
+/**
  * true si este navegador ya tiene una suscripción push activa para el
  * service worker de la app — se comprueba en vivo (no con una bandera en
  * localStorage) para no mostrar el aviso de nuevo si el permiso ya estaba

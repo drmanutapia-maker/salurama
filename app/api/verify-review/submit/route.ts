@@ -4,6 +4,7 @@ import { Redis } from '@upstash/redis'
 import { z } from 'zod'
 import { verifyTurnstile } from '@/lib/security'
 import { moderarContenido } from '@/lib/moderacion'
+import { notificarMedicoPush } from '@/lib/push/enviarPush'
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL!,
@@ -132,6 +133,12 @@ export async function POST(request: NextRequest) {
     if (comment) {
       await moderarContenido(supabase, 'review', nuevaReview.id, comment)
     }
+
+    await notificarMedicoPush(supabase, cita.medico_id, {
+      title: 'Nueva reseña',
+      body: `Recibiste una reseña de ${rating} estrella${rating === 1 ? '' : 's'}.`,
+      url: `${process.env.NEXT_PUBLIC_URL || 'https://salurama.com'}/dashboard/resenas`,
+    })
 
     return NextResponse.json(
       { success: true, medicoId: cita.medico_id },

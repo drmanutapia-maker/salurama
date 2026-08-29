@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { SupabaseClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
 import { rotarToken } from '@/lib/chat/token'
+import { notificarMedicoPush } from '@/lib/push/enviarPush'
 
 function sanitize(str: string): string {
   return str.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]!))
@@ -148,6 +149,20 @@ export async function POST(request: NextRequest) {
     } catch (err) {
       console.error('[verificar-cita] email error:', err)
     }
+  }
+
+  // Push al médico -- evento distinto del de la solicitud cruda
+  // (api/citas/notificar-nueva): aquí el paciente confirmó solo, sin que el
+  // médico haya hecho nada, así que sí vale la pena avisarle que ya es una
+  // cita real.
+  try {
+    await notificarMedicoPush(supabase, cita.medico_id, {
+      title: 'Cita confirmada',
+      body: `${cita.paciente_nombre || 'Un paciente'} confirmó su cita.`,
+      url: `${process.env.NEXT_PUBLIC_URL || 'https://salurama.com'}/dashboard/citas`,
+    })
+  } catch (pushError) {
+    console.error('[verificar-cita] push error:', pushError)
   }
 
   return NextResponse.json({ success: true, chatToken })
