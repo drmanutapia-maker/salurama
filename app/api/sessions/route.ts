@@ -81,12 +81,27 @@ export async function GET() {
     return NextResponse.json({ error: 'Error al listar sesiones' }, { status: 500 })
   }
 
+  // device_id por sesión -- vive en session_devices (nuestra tabla, llenada
+  // al iniciar sesión), no en auth.sessions. Sirve para que /dashboard/seguridad
+  // fusione esta sesión con su credencial WebAuthn del mismo dispositivo real,
+  // en vez de comparar el texto de user-agent.
+  const sessionIds = (data || []).map((s: { id: string }) => s.id)
+  const deviceIdPorSesion = new Map<string, string>()
+  if (sessionIds.length > 0) {
+    const { data: vinculos } = await db
+      .from('session_devices')
+      .select('session_id, device_id')
+      .in('session_id', sessionIds)
+    for (const v of vinculos || []) deviceIdPorSesion.set(v.session_id, v.device_id)
+  }
+
   const sessions = (data || []).map((s: { id: string; created_at: string; updated_at: string; user_agent: string | null; ip: string | null }) => ({
     id: s.id,
     device: parseUserAgent(s.user_agent),
     createdAt: s.created_at,
     lastActiveAt: s.updated_at,
     isCurrent: s.id === currentSessionId,
+    deviceId: deviceIdPorSesion.get(s.id) ?? null,
   }))
 
   return NextResponse.json({ sessions }, { status: 200 })

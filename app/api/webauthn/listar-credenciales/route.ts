@@ -61,7 +61,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from('webauthn_credentials')
-    .select('credential_id, device_name, created_at')
+    .select('credential_id, device_name, created_at, device_id')
     .eq('medico_id', doctor.id)
     .order('created_at', { ascending: false })
 
@@ -73,6 +73,7 @@ export async function GET() {
     credentialId: c.credential_id,
     deviceName: c.device_name,
     createdAt: c.created_at,
+    deviceId: c.device_id,
   }))
 
   return NextResponse.json({ credenciales }, { headers: securityHeaders })

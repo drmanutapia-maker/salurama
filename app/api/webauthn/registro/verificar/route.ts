@@ -65,6 +65,7 @@ export async function POST(request: NextRequest) {
     if (!response) {
       return NextResponse.json({ error: 'Solicitud inválida' }, { status: 400, headers: securityHeaders })
     }
+    const deviceId = typeof body?.deviceId === 'string' ? body.deviceId : null
 
     const expectedChallenge = await leerYBorrarReto(`reg:${doctor.id}`)
     if (!expectedChallenge) {
@@ -93,6 +94,7 @@ export async function POST(request: NextRequest) {
       device_type: credentialDeviceType,
       backed_up: credentialBackedUp,
       device_name: nombreDeDispositivo(request.headers.get('user-agent')),
+      device_id: deviceId,
     })
 
     if (insertError) {

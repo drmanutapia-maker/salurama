@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { startAuthentication, browserSupportsWebAuthn } from '@simplewebauthn/browser'
 import { confirmarCredencialLocal, obtenerCredencialLocal, borrarCredencialLocal } from '@/lib/webauthn/dispositivoLocal'
+import { vincularDispositivoSesionActual } from '@/lib/webauthn/vincularDispositivo'
 
 // ─── Estilos fuera del componente ─────────────────────────────────────────────
 const PAGE_STYLES = `
@@ -190,6 +191,7 @@ function LoginContent() {
       if (verifyError) throw verifyError
       if (!data.user) throw new Error('No se pudo iniciar sesión')
 
+      await vincularDispositivoSesionActual()
       await redirigirSegunDoctor(data.user.id)
     } catch (err: any) {
       // El usuario canceló el prompt del sistema operativo -- no es un
@@ -226,6 +228,7 @@ function LoginContent() {
         // no tendria sentido invitar a activarlo a quien ya lo usa). El
         // layout del dashboard la consume y borra al montar.
         try { sessionStorage.setItem('salurama_mostrar_banner_biometrico', '1') } catch {}
+        await vincularDispositivoSesionActual()
         await redirigirSegunDoctor(data.user.id)
       }
     } catch (err) {

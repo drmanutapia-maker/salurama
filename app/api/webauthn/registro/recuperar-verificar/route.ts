@@ -75,9 +75,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'La verificación expiró, intenta de nuevo' }, { status: 400, headers: securityHeaders })
     }
 
+    const deviceId = typeof body?.deviceId === 'string' ? body.deviceId : null
+
     const { data: fila, error: filaError } = await supabase
       .from('webauthn_credentials')
-      .select('id, medico_id, public_key, counter, transports')
+      .select('id, medico_id, public_key, counter, transports, device_id')
       .eq('credential_id', credentialId)
       .maybeSingle()
 
@@ -114,7 +116,15 @@ export async function POST(request: NextRequest) {
 
     await supabase
       .from('webauthn_credentials')
-      .update({ counter: newCounter, last_used_at: new Date().toISOString() })
+      .update({
+        counter: newCounter,
+        last_used_at: new Date().toISOString(),
+        // Autocompleta device_id en credenciales registradas antes de que
+        // existiera esta columna -- la ceremonia de arriba ya probó posesión
+        // real del autenticador, así que es seguro asumir que este es su
+        // dispositivo. Nunca pisa un device_id que ya tuviera.
+        ...(deviceId && !fila.device_id ? { device_id: deviceId } : {}),
+      })
       .eq('id', fila.id)
 
     return NextResponse.json({ credentialId }, { headers: { ...securityHeaders, 'X-Request-ID': requestId } })
