@@ -6,6 +6,7 @@ import { getArticulosPorEspecialidadTexto } from '@/lib/blog'
 import { esCombinacionCalificada, especialidadSlug, estadoSlug } from '@/lib/especialidadEstado'
 import { calcularCompletitudPorDoctor, compararPorMerito } from '@/lib/homepageEspecialistas'
 import { proximoDiaDisponible } from '@/lib/proximaCitaDisponible'
+import { filtrarMedicos } from '@/lib/buscarMedicos'
 
 function getSupabase() {
   return createClient(
@@ -15,28 +16,6 @@ function getSupabase() {
 }
 
 type SearchParams = { especialidad?: string; estado?: string }
-
-const norm = (t: string | null | undefined): string =>
-  t ? t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase() : ''
-
-// Misma lógica de filtrado que BuscarClient.tsx (substring en nombre/
-// especialidad, comparación exacta de estado — el fix de ayer) pero
-// server-side, solo para saber cuántos coinciden y armar el texto
-// introductorio. Duplicada a propósito: una copia corre en el servidor
-// para el conteo inicial, otra en el cliente para el filtrado interactivo
-// en vivo — no vale la pena una abstracción compartida para ~6 líneas.
-function contarCoincidencias(doctors: Medico[], especialidad?: string, estado?: string): number {
-  let r = doctors
-  if (especialidad) {
-    const t = norm(especialidad)
-    r = r.filter(m => norm(m.full_name).includes(t) || norm(m.specialty).includes(t))
-  }
-  if (estado) {
-    const s = norm(estado)
-    r = r.filter(m => m.estado && norm(m.estado) === s)
-  }
-  return r.length
-}
 
 export async function generateMetadata({
   searchParams,
@@ -212,7 +191,7 @@ export default async function BuscarPage({
     proximaCita: proximoDiaDisponible(d.horario, bloqueosPorDoctor.get(d.id) ?? new Set()),
   }))
 
-  const total = contarCoincidencias(medicos, especialidad, estado)
+  const total = filtrarMedicos(medicos, { query: especialidad, estado }).length
   const { titulo, texto } = armarHero(especialidad, estado, total)
 
   // Mitad "buscar → blog" del interlink bidireccional (la otra mitad, el CTA

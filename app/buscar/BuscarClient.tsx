@@ -11,6 +11,7 @@ import {
 import { STATES, getStateLabel } from '@/lib/locations'
 import BottomNav from '@/components/BottomNav'
 import type { BlogArticuloResumen } from '@/lib/blog'
+import { filtrarMedicos } from '@/lib/buscarMedicos'
 
 // ─── Constantes ────────────────────────────────────────────────────────────────
 
@@ -431,20 +432,7 @@ function BuscarContent({ initialMedicos, heroTitulo, heroTexto, articulosRelacio
 
   // ── Filtrado con useMemo ─────────────────────────────────────────────────────
   const filteredMedicos = useMemo(() => {
-    let r = [...medicos]
-
-    if (busqueda.trim()) {
-      const t = norm(busqueda)
-      r = r.filter(m => norm(m.full_name).includes(t) || norm(m.specialty).includes(t))
-    }
-    if (selectedState) {
-      // Comparación exacta, no substring: es un <select> de catálogo cerrado
-      // (lib/locations.ts), no búsqueda libre. Con .includes() "México"
-      // (Estado) hacía match también con "Ciudad de México", porque el
-      // string normalizado del segundo contiene al primero.
-      const s = norm(selectedState)
-      r = r.filter(m => m.estado && norm(m.estado) === s)
-    }
+    let r = filtrarMedicos([...medicos], { query: busqueda, estado: selectedState })
 
     if (filtros.includes('ninos')) {
       r = r.filter(m => {
