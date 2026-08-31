@@ -148,6 +148,10 @@ export default function ChatPage() {
           <p style={{ fontSize: 14, color: '#6B7280' }}>Conversaciones con tus pacientes</p>
         </div>
 
+        <div className="fade-up" style={{ background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: '#92400E', fontWeight: 500 }}>
+          Este chat no es para emergencias médicas. Si un paciente reporta una urgencia, indícale que acuda directamente a un servicio de urgencias o llame a los servicios de emergencia.
+        </div>
+
         <div className="fade-up">
           {conversacionSeleccionada ? (
             <ConversacionChat

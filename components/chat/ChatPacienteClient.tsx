@@ -401,6 +401,12 @@ export default function ChatPacienteClient({ token }: { token: string }) {
         )}
       </div>
 
+      <div className="shrink-0 bg-amber-50 border-b border-amber-200 px-4 py-2">
+        <p className="font-body text-xs text-amber-800 text-center leading-relaxed">
+          Este chat no es para emergencias médicas. Si tienes una urgencia, acude directamente a un servicio de urgencias o llama a los servicios de emergencia.
+        </p>
+      </div>
+
       <AvisoNotificaciones token={token} activo={ofrecerNotificaciones} />
 
       {confirmandoCancelar && (

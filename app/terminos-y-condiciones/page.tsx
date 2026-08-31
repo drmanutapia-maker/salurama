@@ -63,7 +63,7 @@ export default function TerminosYCondiciones() {
           </p><h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(28px,6vw,40px)', fontWeight: 900, color: '#0D1829', marginBottom: 12 }}>
             Términos y Condiciones de Uso
           </h1><p style={{ fontSize: 14, color: '#6B7280', marginBottom: 6 }}>
-            Última actualización: 31 de marzo de 2026
+            Última actualización: 30 de agosto de 2026
           </p><p style={{ fontSize: 14, color: '#6B7280' }}>
             Operado por <strong style={{ color: '#111827' }}>SALURAMA S.A.S.</strong> · Ley aplicable: Estados Unidos Mexicanos
           </p></div></section>
@@ -112,6 +112,10 @@ export default function TerminosYCondiciones() {
           {/* 5 */}
           <div id="registro" className="section-block"><h2 className="legal-h2">5. Registro y uso de la plataforma</h2><h3 className="legal-h3">Obligaciones del usuario</h3><ul className="legal-ul"><li className="legal-li">Proporcionar información veraz, completa y actualizada al momento del registro.</li><li className="legal-li">Mantener la confidencialidad de sus credenciales de acceso.</li><li className="legal-li">No suplantar la identidad de terceros.</li><li className="legal-li">No utilizar la plataforma para fines ilegales, fraudulentos o contrarios a estos Términos.</li><li className="legal-li">No intentar acceder a sistemas, datos o cuentas de terceros sin autorización.</li></ul><h3 className="legal-h3">Facultades de Salurama</h3><p className="legal-p">
               Salurama se reserva el derecho de suspender o cancelar cuentas, sin responsabilidad, cuando existan indicios fundados de: (i) información falsa o engañosa, (ii) uso contrario a estos Términos, (iii) solicitud de autoridad competente, o (iv) inactividad superior a 24 meses. En los supuestos (i), (ii) y (iv), se notificará previamente al usuario con al menos 5 días hábiles de anticipación, excepto cuando la urgencia del caso lo impida.
+            </p><h3 className="legal-h3">Chat médico-paciente</h3><p className="legal-p">
+              Salurama pone a disposición un canal de mensajería cifrada entre médico y paciente, vinculado a una cita registrada en la plataforma. <strong className="legal-strong">Este chat no debe utilizarse para reportar emergencias médicas o síntomas que requieran atención inmediata.</strong> Ante una urgencia, el paciente debe acudir directamente a un servicio de urgencias o llamar a los servicios de emergencia correspondientes. Salurama no garantiza tiempos de respuesta del profesional a través de este canal.
+            </p><h3 className="legal-h3">Notificaciones push y acceso biométrico</h3><p className="legal-p">
+              El usuario puede activar notificaciones push en su navegador o dispositivo para recibir avisos de citas, mensajes o reseñas, y puede registrar un acceso biométrico (passkey/WebAuthn) para iniciar sesión sin contraseña. Ambas funciones son opcionales y pueden desactivarse en cualquier momento desde la configuración de la cuenta o del navegador. El tratamiento de los datos asociados a estas funciones se describe en el <a href="/aviso-de-privacidad" style={{ color: '#1E3A5F' }}>Aviso de Privacidad</a>.
             </p></div>
 
           {/* 6 */}
