@@ -10,8 +10,9 @@ import {
   Users, UserCheck, UserX, Gauge, Clock3, Megaphone, TrendingUp, CalendarCheck,
   Upload, FileText, X, Trash2, Star, MessageSquare,
 } from 'lucide-react'
-import { PLAN_NAME } from '@/lib/pricingTiers'
 import { resumenCredenciales, type CredResumen } from '@/lib/credenciales'
+import { isManuelEmail } from '@/lib/manuelOnly'
+import { STATES, getStateLabel } from '@/lib/locations'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -55,6 +56,15 @@ interface FlaggedItem {
   reviewedAt: string | null
 }
 
+// Antes el modal de reseñas solo se abría desde la tarjeta de constancia
+// (recibía un Medico completo) -- ahora también se abre desde la tabla de
+// desglose por médico (DoctorStatsRow), que no comparte todos los campos de
+// Medico. Solo se usan estos dos, así que el tipo se reduce a lo mínimo.
+interface ResenasDoctorRef {
+  id: string
+  full_name: string
+}
+
 interface ReviewAdminRow {
   id: string
   rating: number
@@ -76,19 +86,11 @@ interface ConstanciaLog {
 type ReviewFilter = 'todos' | 'pendiente' | 'revisado' | 'rechazado'
 type CredencialesFilter = 'todos' | 'pendiente' | 'verificado' | 'no_coincide' | 'sin_especialidad'
 
-const TIER_LABEL: Record<string, string> = {
-  gratis: 'Gratis',
-  '349': PLAN_NAME.profesional,
-  '799': PLAN_NAME.premium,
-  '1999': PLAN_NAME.clinica,
-}
-
 interface Estadisticas {
   salud: {
     total: number
     activos: number
     inactivos: number
-    porPlan: { tier: string; label: string; count: number }[]
   }
   calidad: {
     promedioPct: number
@@ -107,6 +109,66 @@ interface Estadisticas {
     tasaConfirmacion: number
     registrosUltimos30Dias: number
     registrosUltimos7Dias: number
+  }
+}
+
+// Una fila por médico con todos los ingredientes ya calculados -- fuente
+// única para las tarjetas agregadas (agregarEstadisticas) y para la tabla de
+// desglose por médico (Paso 3). Se calcula una sola vez en cargarEstadisticas
+// y se filtra/recalcula en el cliente en cada cambio de especialidad/estado/
+// ciudad, sin volver a pedir nada a Supabase.
+interface DoctorStatsRow {
+  id: string
+  full_name: string
+  specialty: string
+  ciudad: string | null
+  estado: string | null
+  slug: string | null
+  email: string
+  is_active: boolean
+  verification_status: string
+  has_aviso_funcionamiento: boolean | null
+  cofepris_aviso_numero: string | null
+  created_at: string
+  completitud: number
+  citasTotales: number
+  citasConfirmadas: number
+  ratingAvg: number | null
+  ratingCount: number
+}
+
+// Recalcula las 4 tarjetas agregadas a partir de un subconjunto de
+// DoctorStatsRow -- misma fórmula que antes vivía inline en
+// cargarEstadisticas(), ahora reusable para "todos los médicos" o para
+// cualquier subconjunto filtrado por especialidad/estado/ciudad.
+function agregarEstadisticas(rows: DoctorStatsRow[]): Estadisticas {
+  const activos = rows.filter(d => d.is_active).length
+
+  const porcentajes = rows.map(d => d.completitud)
+  const promedioPct = porcentajes.length ? Math.round(porcentajes.reduce((a, b) => a + b, 0) / porcentajes.length) : 0
+  const al100 = porcentajes.filter(p => p === 100).length
+  const bajoUmbral = porcentajes.filter(p => p < 50).length
+
+  const pendientesCedulaDocs = rows.filter(d => d.verification_status === 'pendiente')
+  const ahora = Date.now()
+  const antiguedadesDias = pendientesCedulaDocs.map(d => (ahora - new Date(d.created_at).getTime()) / 86400000)
+  const antiguedadPromedioCedula = antiguedadesDias.length ? Math.round(antiguedadesDias.reduce((a, b) => a + b, 0) / antiguedadesDias.length) : 0
+  const antiguedadMaxCedula = antiguedadesDias.length ? Math.round(Math.max(...antiguedadesDias)) : 0
+  const pendientesCofepris = rows.filter(d => d.has_aviso_funcionamiento === true && !d.cofepris_aviso_numero && !isManuelEmail(d.email)).length
+
+  const citasTotales = rows.reduce((a, d) => a + d.citasTotales, 0)
+  const citasConfirmadas = rows.reduce((a, d) => a + d.citasConfirmadas, 0)
+  const tasaConfirmacion = citasTotales ? Math.round((citasConfirmadas / citasTotales) * 100) : 0
+  const hace30 = ahora - 30 * 86400000
+  const hace7 = ahora - 7 * 86400000
+  const registrosUltimos30Dias = rows.filter(d => new Date(d.created_at).getTime() >= hace30).length
+  const registrosUltimos7Dias = rows.filter(d => new Date(d.created_at).getTime() >= hace7).length
+
+  return {
+    salud: { total: rows.length, activos, inactivos: rows.length - activos },
+    calidad: { promedioPct, al100, bajoUmbral },
+    cola: { pendientesCedula: pendientesCedulaDocs.length, antiguedadPromedioCedula, antiguedadMaxCedula, pendientesCofepris },
+    actividad: { citasTotales, citasConfirmadas, tasaConfirmacion, registrosUltimos30Dias, registrosUltimos7Dias },
   }
 }
 
@@ -182,6 +244,23 @@ function medicoInitials(name: string) {
   return name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase() || '').join('')
 }
 
+// Un grupo de filtros con encabezado propio (Estado de cuenta / Orden /
+// Especialidad / Credenciales), separado del siguiente por un borde inferior
+// -- antes estas 4 categorías vivían mezcladas en 2 filas sin relación
+// visual clara entre sí.
+function FiltroGrupo({ titulo, sinBorde, children }: { titulo: string; sinBorde?: boolean; children: React.ReactNode }) {
+  return (
+    <div style={{ paddingBottom: sinBorde ? 0 : 18, borderBottom: sinBorde ? 'none' : '1px solid #F3F4F6' }}>
+      <p style={{ fontSize:11, fontWeight:700, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:10 }}>
+        {titulo}
+      </p>
+      <div style={{ display:'flex', gap:10, flexWrap:'wrap', alignItems:'center' }}>
+        {children}
+      </div>
+    </div>
+  )
+}
+
 function StatTile({ label, value, color, bg, border, icon }: { label: string; value: string | number; color: string; bg: string; border: string; icon?: React.ReactNode }) {
   return (
     <div style={{ background:bg, border:`1px solid ${border}`, borderRadius:12, padding:'12px 14px' }}>
@@ -212,9 +291,18 @@ export default function AdminMedicos() {
   const [procesando, setProcesando] = useState<string | null>(null)
   const [toast, setToast]           = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
 
-  const [estadisticas, setEstadisticas] = useState<Estadisticas | null>(null)
+  const [doctorStatsRows, setDoctorStatsRows] = useState<DoctorStatsRow[]>([])
   const [loadingStats, setLoadingStats] = useState(false)
+  const [statsCargadas, setStatsCargadas] = useState(false)
   const [statsAbiertas, setStatsAbiertas] = useState(false)
+
+  // Filtros combinables (AND) de la sección de estadísticas -- '' = "todas/
+  // todos", independientes de espFilter/reviewFilter/credFilter de más abajo
+  // (esos filtran la lista de tarjetas de gestión, estos filtran solo el
+  // panel de estadísticas).
+  const [statsEspecialidad, setStatsEspecialidad] = useState('')
+  const [statsEstado, setStatsEstado]             = useState('')
+  const [statsCiudad, setStatsCiudad]             = useState('')
 
   const [fechaSortAsc, setFechaSortAsc] = useState(false)
   const [reviewFilter, setReviewFilter] = useState<ReviewFilter>('todos')
@@ -245,7 +333,7 @@ export default function AdminMedicos() {
   const [extraccionAvisos, setExtraccionAvisos]           = useState<string[]>([])
 
   // ── Reseñas y respuestas (moderación, Parte 3) ──────────────────────────────
-  const [resenasModalDoctor, setResenasModalDoctor]       = useState<Medico | null>(null)
+  const [resenasModalDoctor, setResenasModalDoctor]       = useState<ResenasDoctorRef | null>(null)
   const [resenasDelDoctor, setResenasDelDoctor]           = useState<ReviewAdminRow[]>([])
   const [cargandoResenas, setCargandoResenas]             = useState(false)
   const [eliminandoResenaId, setEliminandoResenaId]       = useState<string | null>(null)
@@ -340,7 +428,7 @@ export default function AdminMedicos() {
     try {
       const { data: docs, error } = await supabase
         .from('doctors')
-        .select('id, is_active, pricing_tier, verification_status, has_aviso_funcionamiento, cofepris_aviso_numero, created_at, photo_url, about_me, clinic_lat, clinic_lng, horario, consultation_price_first_time, consultation_price_general, phone, clinic_phone, whatsapp_phone, languages')
+        .select('id, full_name, specialty, ciudad, estado, slug, email, is_active, verification_status, has_aviso_funcionamiento, cofepris_aviso_numero, created_at, photo_url, about_me, clinic_lat, clinic_lng, horario, consultation_price_first_time, consultation_price_general, phone, clinic_phone, whatsapp_phone, languages, rating_avg, rating_count')
       if (error) throw error
       const doctors = docs || []
 
@@ -348,25 +436,31 @@ export default function AdminMedicos() {
         supabase.from('doctor_experience').select('doctor_id'),
         supabase.from('doctor_education').select('doctor_id'),
         supabase.from('doctor_conditions').select('doctor_id'),
-        supabase.from('citas').select('estado'),
+        supabase.from('citas').select('medico_id, estado'),
       ])
       const expSet = new Set((expRes.data || []).map(r => r.doctor_id))
       const eduSet = new Set((eduRes.data || []).map(r => r.doctor_id))
       const condSet = new Set((condRes.data || []).map(r => r.doctor_id))
 
-      // ── Salud del directorio ──
-      const activos = doctors.filter(d => d.is_active).length
-      const porPlanMap: Record<string, number> = {}
-      doctors.forEach(d => {
-        const tier = d.pricing_tier || 'gratis'
-        porPlanMap[tier] = (porPlanMap[tier] || 0) + 1
-      })
-      const porPlan = Object.entries(porPlanMap).map(([tier, count]) => ({
-        tier, label: TIER_LABEL[tier] || tier, count,
-      }))
+      // Citas agrupadas por médico -- antes esta query solo traía `estado`
+      // (sin medico_id), así que era imposible saber cuántas citas o qué
+      // tasa de confirmación tiene un médico en particular, solo el total
+      // global.
+      const citasPorDoctor = new Map<string, { total: number; confirmadas: number }>()
+      for (const c of (citasRes.data || []) as { medico_id: string; estado: string }[]) {
+        const entry = citasPorDoctor.get(c.medico_id) || { total: 0, confirmadas: 0 }
+        entry.total += 1
+        if (c.estado === 'confirmed' || c.estado === 'completed') entry.confirmadas += 1
+        citasPorDoctor.set(c.medico_id, entry)
+      }
 
-      // ── Calidad de perfiles — MISMA fórmula de 10 checks que app/dashboard/page.tsx ──
-      const porcentajes = doctors.map(d => {
+      // Una fila por médico con todo ya calculado -- mismos 10 checks de
+      // completitud que antes (MISMA fórmula que app/dashboard/page.tsx),
+      // solo que ahora por médico en vez de reducidos a un promedio global
+      // de inmediato. Los agregados (StatTiles) y la tabla de desglose por
+      // médico (Paso 3) se derivan de este mismo array vía useMemo, filtrado
+      // en el cliente -- ver doctorStatsFiltrados/estadisticas más abajo.
+      const rows: DoctorStatsRow[] = doctors.map(d => {
         const tieneHorarioActivo = !!(d.horario && Object.values(d.horario).some((h: any) => h?.activo || h?.abierto))
         const tieneUbicacion = !!(d.clinic_lat && d.clinic_lng)
         const tieneTelefono = !!(d.phone || d.clinic_phone || d.whatsapp_phone)
@@ -382,43 +476,56 @@ export default function AdminMedicos() {
           eduSet.has(d.id),
           condSet.has(d.id),
         ]
-        return Math.round((checks.filter(Boolean).length / checks.length) * 100)
+        const completitud = Math.round((checks.filter(Boolean).length / checks.length) * 100)
+        const citas = citasPorDoctor.get(d.id) || { total: 0, confirmadas: 0 }
+
+        return {
+          id: d.id, full_name: d.full_name, specialty: d.specialty, ciudad: d.ciudad, estado: d.estado,
+          slug: d.slug, email: d.email, is_active: d.is_active, verification_status: d.verification_status,
+          has_aviso_funcionamiento: d.has_aviso_funcionamiento, cofepris_aviso_numero: d.cofepris_aviso_numero,
+          created_at: d.created_at, completitud,
+          citasTotales: citas.total, citasConfirmadas: citas.confirmadas,
+          ratingAvg: d.rating_avg, ratingCount: d.rating_count ?? 0,
+        }
       })
-      const promedioPct = porcentajes.length ? Math.round(porcentajes.reduce((a, b) => a + b, 0) / porcentajes.length) : 0
-      const al100 = porcentajes.filter(p => p === 100).length
-      const bajoUmbral = porcentajes.filter(p => p < 50).length
 
-      // ── Cola de verificación ──
-      const pendientesCedulaDocs = doctors.filter(d => d.verification_status === 'pendiente')
-      const ahora = Date.now()
-      const antiguedadesDias = pendientesCedulaDocs.map(d => (ahora - new Date(d.created_at).getTime()) / 86400000)
-      const antiguedadPromedioCedula = antiguedadesDias.length ? Math.round(antiguedadesDias.reduce((a, b) => a + b, 0) / antiguedadesDias.length) : 0
-      const antiguedadMaxCedula = antiguedadesDias.length ? Math.round(Math.max(...antiguedadesDias)) : 0
-      // "Pendientes de COFEPRIS" = ya declararon tener Aviso de Funcionamiento
-      // y empezaron el trámite, pero no han terminado (sin número de aviso aún)
-      const pendientesCofepris = doctors.filter(d => d.has_aviso_funcionamiento === true && !d.cofepris_aviso_numero).length
-
-      // ── Actividad ──
-      const citas = citasRes.data || []
-      const citasConfirmadas = citas.filter(c => c.estado === 'confirmed' || c.estado === 'completed').length
-      const tasaConfirmacion = citas.length ? Math.round((citasConfirmadas / citas.length) * 100) : 0
-      const hace30 = ahora - 30 * 86400000
-      const hace7 = ahora - 7 * 86400000
-      const registrosUltimos30Dias = doctors.filter(d => new Date(d.created_at).getTime() >= hace30).length
-      const registrosUltimos7Dias = doctors.filter(d => new Date(d.created_at).getTime() >= hace7).length
-
-      setEstadisticas({
-        salud: { total: doctors.length, activos, inactivos: doctors.length - activos, porPlan },
-        calidad: { promedioPct, al100, bajoUmbral },
-        cola: { pendientesCedula: pendientesCedulaDocs.length, antiguedadPromedioCedula, antiguedadMaxCedula, pendientesCofepris },
-        actividad: { citasTotales: citas.length, citasConfirmadas, tasaConfirmacion, registrosUltimos30Dias, registrosUltimos7Dias },
-      })
+      setDoctorStatsRows(rows)
+      setStatsCargadas(true)
     } catch (e) {
       console.error('Error cargando estadísticas:', e)
     } finally {
       setLoadingStats(false)
     }
   }
+
+  // Subconjunto filtrado por especialidad/estado/ciudad (AND) -- '' en
+  // cualquiera de los tres significa "sin restricción en ese campo". Sin
+  // ningún filtro activo, devuelve todos los médicos, igual que antes.
+  const doctorStatsFiltrados = useMemo(() => {
+    return doctorStatsRows.filter(d =>
+      (!statsEspecialidad || d.specialty === statsEspecialidad) &&
+      (!statsEstado || d.estado === statsEstado) &&
+      (!statsCiudad || d.ciudad === statsCiudad)
+    )
+  }, [doctorStatsRows, statsEspecialidad, statsEstado, statsCiudad])
+
+  const estadisticas = useMemo(() => agregarEstadisticas(doctorStatsFiltrados), [doctorStatsFiltrados])
+
+  const statsEspecialidades = useMemo(
+    () => Array.from(new Set(doctorStatsRows.map(d => d.specialty).filter(Boolean))).sort(),
+    [doctorStatsRows]
+  )
+  const statsCiudades = useMemo(
+    () => Array.from(new Set(doctorStatsRows.map(d => d.ciudad).filter((c): c is string => !!c))).sort(),
+    [doctorStatsRows]
+  )
+  // Estados con al menos un médico -- de los 32 de STATES, solo se ofrecen
+  // los que de verdad tienen alguien registrado (mismo criterio que ya usa
+  // espFilter más abajo con las especialidades).
+  const statsEstados = useMemo(
+    () => STATES.filter(s => doctorStatsRows.some(d => d.estado === s)),
+    [doctorStatsRows]
+  )
 
   const especialidades = useMemo(() => {
     return Array.from(new Set(medicos.map(m => m.specialty).filter(Boolean))).sort()
@@ -627,7 +734,7 @@ export default function AdminMedicos() {
   // select('*') vía RLS de admin (reviews_admin_all) trae TODAS las reseñas,
   // no solo is_visible=true — el admin necesita ver también las que ya están
   // ocultas para poder moderarlas igual.
-  async function abrirResenasModal(m: Medico) {
+  async function abrirResenasModal(m: ResenasDoctorRef) {
     setResenasModalDoctor(m)
     setResenasDelDoctor([])
     setCargandoResenas(true)
@@ -1120,6 +1227,47 @@ export default function AdminMedicos() {
             </div>
           </div>
 
+          {/* Filtros combinables de estadísticas — Especialidad / Estado /
+              Ciudad, AND entre sí. Recalculan en vivo las tarjetas
+              agregadas y la tabla de desglose por médico de abajo, sin
+              volver a pedir nada a Supabase (todo sale de doctorStatsRows,
+              ya cargado). */}
+          <div style={{ display:'flex', gap:10, marginBottom:12, flexWrap:'wrap', alignItems:'center' }}>
+            <span style={{ fontSize:12, fontWeight:700, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.06em' }}>
+              Filtrar estadísticas:
+            </span>
+            <div style={{ position:'relative' }}>
+              <select value={statsEspecialidad} onChange={e => setStatsEspecialidad(e.target.value)}
+                style={{ appearance:'none', background:'#fff', border:'1.5px solid #C5D0E0', borderRadius:50, padding:'8px 36px 8px 16px', fontSize:13, fontWeight:600, color:'#1E3A5F', cursor:'pointer', fontFamily:"'DM Sans',sans-serif" }}>
+                <option value="">Todas las especialidades</option>
+                {statsEspecialidades.map(e => <option key={e} value={e}>{e}</option>)}
+              </select>
+              <ChevronDown size={14} color="#1E3A5F" style={{ position:'absolute', right:12, top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }} />
+            </div>
+            <div style={{ position:'relative' }}>
+              <select value={statsEstado} onChange={e => setStatsEstado(e.target.value)}
+                style={{ appearance:'none', background:'#fff', border:'1.5px solid #C5D0E0', borderRadius:50, padding:'8px 36px 8px 16px', fontSize:13, fontWeight:600, color:'#1E3A5F', cursor:'pointer', fontFamily:"'DM Sans',sans-serif" }}>
+                <option value="">Todos los estados</option>
+                {statsEstados.map(s => <option key={s} value={s}>{getStateLabel(s)}</option>)}
+              </select>
+              <ChevronDown size={14} color="#1E3A5F" style={{ position:'absolute', right:12, top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }} />
+            </div>
+            <div style={{ position:'relative' }}>
+              <select value={statsCiudad} onChange={e => setStatsCiudad(e.target.value)}
+                style={{ appearance:'none', background:'#fff', border:'1.5px solid #C5D0E0', borderRadius:50, padding:'8px 36px 8px 16px', fontSize:13, fontWeight:600, color:'#1E3A5F', cursor:'pointer', fontFamily:"'DM Sans',sans-serif" }}>
+                <option value="">Todas las ciudades</option>
+                {statsCiudades.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <ChevronDown size={14} color="#1E3A5F" style={{ position:'absolute', right:12, top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }} />
+            </div>
+            {(statsEspecialidad || statsEstado || statsCiudad) && (
+              <button onClick={() => { setStatsEspecialidad(''); setStatsEstado(''); setStatsCiudad('') }}
+                style={{ background:'none', border:'none', color:'#8B5CF6', fontSize:12, fontWeight:700, cursor:'pointer', padding:'4px 6px' }}>
+                Limpiar filtros
+              </button>
+            )}
+          </div>
+
           {/* Estadísticas generales */}
           <div style={{ background:'#fff', border:'1px solid #E8ECF3', borderRadius:16, marginBottom:24, overflow:'hidden' }}>
             <button onClick={() => setStatsAbiertas(v => !v)}
@@ -1132,7 +1280,7 @@ export default function AdminMedicos() {
 
             {statsAbiertas && (
               <div style={{ padding:'0 20px 20px' }}>
-                {loadingStats || !estadisticas ? (
+                {loadingStats || !statsCargadas ? (
                   <p style={{ fontSize:13, color:'#9CA3AF', padding:'12px 0' }}>Cargando estadísticas...</p>
                 ) : (
                   <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
@@ -1146,9 +1294,6 @@ export default function AdminMedicos() {
                         <StatTile label="Total médicos" value={estadisticas.salud.total} color="#1E3A5F" bg="#E8ECF3" border="#C5D0E0" />
                         <StatTile label="Activos" value={estadisticas.salud.activos} color="#059669" bg="#ECFDF5" border="#D1FAE5" />
                         <StatTile label="Inactivos" value={estadisticas.salud.inactivos} color="#6B7280" bg="#F3F4F6" border="#E5E7EB" />
-                        {estadisticas.salud.porPlan.map(p => (
-                          <StatTile key={p.tier} label={p.label} value={p.count} color="#8B5CF6" bg="#F5F3FF" border="#DDD6FE" />
-                        ))}
                       </div>
                     </div>
 
@@ -1176,7 +1321,7 @@ export default function AdminMedicos() {
                         <StatTile label="En progreso COFEPRIS" value={estadisticas.cola.pendientesCofepris} color="#8B5CF6" bg="#F5F3FF" border="#DDD6FE" icon={<Megaphone size={12} />} />
                       </div>
                       <p style={{ fontSize:11, color:'#9CA3AF', marginTop:8 }}>
-                        "En progreso COFEPRIS" cuenta médicos que ya declararon tener Aviso de Funcionamiento pero aún no capturan su número de aviso.
+                        "En progreso COFEPRIS" cuenta médicos reales que ya declararon tener Aviso de Funcionamiento pero aún no capturan su número de aviso. El asistente de COFEPRIS está en pruebas internas (solo accesible desde la cuenta de Manuel), así que este número será 0 hasta que se abra a médicos reales.
                       </p>
                     </div>
 
@@ -1194,6 +1339,49 @@ export default function AdminMedicos() {
                       <p style={{ fontSize:11, color:'#9CA3AF', marginTop:8 }}>
                         Tasa de confirmación = citas confirmadas o completadas / total de citas ({estadisticas.actividad.citasConfirmadas} de {estadisticas.actividad.citasTotales}).
                       </p>
+                    </div>
+
+                    {/* Desglose por médico — mismo subconjunto filtrado que
+                        las tarjetas de arriba. Tarjetas en vez de <table>
+                        a propósito, para que en móvil se apilen solas en
+                        vez de forzar scroll horizontal. */}
+                    <div>
+                      <p style={{ fontSize:11, fontWeight:700, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:10, display:'flex', alignItems:'center', gap:6 }}>
+                        <Users size={13} /> Desglose por médico ({doctorStatsFiltrados.length})
+                      </p>
+                      {doctorStatsFiltrados.length === 0 ? (
+                        <p style={{ fontSize:13, color:'#9CA3AF', padding:'12px 0' }}>Ningún médico coincide con este filtro.</p>
+                      ) : (
+                        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))', gap:10 }}>
+                          {doctorStatsFiltrados.map(d => (
+                            <div key={d.id} style={{ background:'#F9FAFB', border:'1px solid #E8ECF3', borderRadius:12, padding:12, display:'flex', flexDirection:'column', gap:8 }}>
+                              <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:6 }}>
+                                <div style={{ minWidth:0 }}>
+                                  <p style={{ fontWeight:700, color:'#0D1829', fontSize:13, overflowWrap:'break-word' }}>{d.full_name}</p>
+                                  <p style={{ fontSize:11, color:'#2A9D8F', fontWeight:600 }}>{d.specialty}</p>
+                                  <p style={{ fontSize:11, color:'#6B7280' }}>{d.ciudad || 'Sin ciudad registrada'}</p>
+                                </div>
+                                <a href={`/doctor/${d.slug ?? d.id}`} target="_blank" rel="noopener noreferrer"
+                                  title="Ver perfil público" style={{ display:'inline-flex', color:'#1E3A5F', flexShrink:0, marginTop:2 }}>
+                                  <ExternalLink size={14} />
+                                </a>
+                              </div>
+                              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'4px 10px', fontSize:11, color:'#374151', paddingTop:8, borderTop:'1px solid #E5E7EB' }}>
+                                <span>Completitud: <strong>{d.completitud}%</strong></span>
+                                <span>Citas: <strong>{d.citasTotales}</strong></span>
+                                <span>Confirmación: <strong>{d.citasTotales > 0 ? `${Math.round((d.citasConfirmadas / d.citasTotales) * 100)}%` : '-'}</strong></span>
+                                <span>Calificación: <strong>{d.ratingCount > 0 && d.ratingAvg !== null ? d.ratingAvg.toFixed(1) : '-'}</strong></span>
+                              </div>
+                              <button className="act-btn"
+                                onClick={() => abrirResenasModal(d)}
+                                style={{ width:'100%', justifyContent:'center', background:'#fff', color:'#6B7280', borderColor:'#E5E7EB' }}>
+                                <MessageSquare size={13} />
+                                Reseñas
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -1267,33 +1455,40 @@ export default function AdminMedicos() {
             )}
           </div>
 
-          {/* Filtros — Estado de cuenta */}
-          <div style={{ display:'flex', gap:10, marginBottom:20, flexWrap:'wrap', alignItems:'center' }}>
-            <span style={{ fontSize:12, fontWeight:700, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.06em' }}>
-              Estado de cuenta:
-            </span>
-            {(['todos','pendiente','revisado','rechazado'] as const).map(f => {
-              const active = reviewFilter === f
-              const map = {
-                todos:    { label:'Todos',                              onBg:'#1E3A5F', offBg:'#F9FAFB', offColor:'#1E3A5F', border:'#C5D0E0' },
-                pendiente:{ label:`Pendientes (${counts.pendiente})`,  onBg:'#D97706', offBg:'#FFFBEB', offColor:'#D97706', border:'#FEF3C7' },
-                revisado: { label:`Cuenta activa (${counts.revisado})`, onBg:'#059669', offBg:'#ECFDF5', offColor:'#059669', border:'#D1FAE5' },
-                rechazado:{ label:`Rechazados (${counts.rechazado})`,  onBg:'#DC2626', offBg:'#FEF2F2', offColor:'#DC2626', border:'#FEE2E2' },
-              }[f]
-              return (
-                <button key={f} className="fpill" onClick={() => setReviewFilter(f)}
-                  style={{ background: active ? map.onBg : map.offBg, color: active ? '#fff' : map.offColor, borderColor: map.border }}>
-                  {map.label}
-                </button>
-              )
-            })}
+          {/* Filtros del listado de médicos — 4 categorías agrupadas con
+              encabezado propio y separador, en vez de mezcladas en 2 filas
+              (antes "Orden" y "Especialidad" vivían empujadas a la derecha
+              dentro de la fila de "Estado de cuenta", sin relación visual
+              clara entre sí — Manuel lo señaló como confuso). */}
+          <div style={{ background:'#fff', border:'1px solid #E8ECF3', borderRadius:16, marginBottom:24, padding:20, display:'flex', flexDirection:'column', gap:18 }}>
 
-            <div style={{ display:'flex', gap:10, alignItems:'center', marginLeft:'auto', flexWrap:'wrap' }}>
+            <FiltroGrupo titulo="Estado de cuenta">
+              {(['todos','pendiente','revisado','rechazado'] as const).map(f => {
+                const active = reviewFilter === f
+                const map = {
+                  todos:    { label:'Todos',                              onBg:'#1E3A5F', offBg:'#F9FAFB', offColor:'#1E3A5F', border:'#C5D0E0' },
+                  pendiente:{ label:`Pendientes (${counts.pendiente})`,  onBg:'#D97706', offBg:'#FFFBEB', offColor:'#D97706', border:'#FEF3C7' },
+                  revisado: { label:`Cuenta activa (${counts.revisado})`, onBg:'#059669', offBg:'#ECFDF5', offColor:'#059669', border:'#D1FAE5' },
+                  rechazado:{ label:`Rechazados (${counts.rechazado})`,  onBg:'#DC2626', offBg:'#FEF2F2', offColor:'#DC2626', border:'#FEE2E2' },
+                }[f]
+                return (
+                  <button key={f} className="fpill" onClick={() => setReviewFilter(f)}
+                    style={{ background: active ? map.onBg : map.offBg, color: active ? '#fff' : map.offColor, borderColor: map.border }}>
+                    {map.label}
+                  </button>
+                )
+              })}
+            </FiltroGrupo>
+
+            <FiltroGrupo titulo="Orden">
               <button className="fpill" onClick={() => setFechaSortAsc(v => !v)}
                 style={{ display:'inline-flex', alignItems:'center', gap:5, background:'#F9FAFB', color:'#1E3A5F', borderColor:'#C5D0E0' }}>
                 {fechaSortAsc ? <ArrowUp size={13} /> : <ArrowDown size={13} />}
                 {fechaSortAsc ? 'Más antiguos primero' : 'Más recientes primero'}
               </button>
+            </FiltroGrupo>
+
+            <FiltroGrupo titulo="Especialidad">
               <div style={{ position:'relative' }}>
                 <select value={espFilter} onChange={e => setEspFilter(e.target.value)}
                   style={{ appearance:'none', background:'#fff', border:'1.5px solid #C5D0E0', borderRadius:50, padding:'8px 36px 8px 16px', fontSize:13, fontWeight:600, color:'#1E3A5F', cursor:'pointer', fontFamily:"'DM Sans',sans-serif" }}>
@@ -1302,30 +1497,27 @@ export default function AdminMedicos() {
                 </select>
                 <ChevronDown size={14} color="#1E3A5F" style={{ position:'absolute', right:12, top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }} />
               </div>
-            </div>
-          </div>
+            </FiltroGrupo>
 
-          {/* Filtros de Credenciales (credentials_status — Parte A/C) */}
-          <div style={{ display:'flex', gap:10, marginBottom:20, flexWrap:'wrap', alignItems:'center' }}>
-            <span style={{ fontSize:12, fontWeight:700, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.06em' }}>
-              Credenciales:
-            </span>
-            {(['todos','pendiente','verificado','no_coincide','sin_especialidad'] as const).map(f => {
-              const active = credFilter === f
-              const map = {
-                todos:            { label:'Todas',                                              onBg:'#1E3A5F', offBg:'#F9FAFB', offColor:'#1E3A5F', border:'#C5D0E0' },
-                pendiente:        { label:`Pendientes (${credCounts.pendiente})`,                onBg:'#D97706', offBg:'#FFFBEB', offColor:'#D97706', border:'#FEF3C7' },
-                verificado:       { label:`Verificadas (${credCounts.verificado})`,              onBg:'#059669', offBg:'#ECFDF5', offColor:'#059669', border:'#D1FAE5' },
-                no_coincide:      { label:`No coinciden (${credCounts.no_coincide})`,            onBg:'#DC2626', offBg:'#FEF2F2', offColor:'#DC2626', border:'#FEE2E2' },
-                sin_especialidad: { label:`Sin especialidad (${credCounts.sin_especialidad})`,   onBg:'#6B7280', offBg:'#F3F4F6', offColor:'#6B7280', border:'#E5E7EB' },
-              }[f]
-              return (
-                <button key={f} className="fpill" onClick={() => setCredFilter(f)}
-                  style={{ background: active ? map.onBg : map.offBg, color: active ? '#fff' : map.offColor, borderColor: map.border }}>
-                  {map.label}
-                </button>
-              )
-            })}
+            <FiltroGrupo titulo="Credenciales" sinBorde>
+              {(['todos','pendiente','verificado','no_coincide','sin_especialidad'] as const).map(f => {
+                const active = credFilter === f
+                const map = {
+                  todos:            { label:'Todas',                                              onBg:'#1E3A5F', offBg:'#F9FAFB', offColor:'#1E3A5F', border:'#C5D0E0' },
+                  pendiente:        { label:`Pendientes (${credCounts.pendiente})`,                onBg:'#D97706', offBg:'#FFFBEB', offColor:'#D97706', border:'#FEF3C7' },
+                  verificado:       { label:`Verificadas (${credCounts.verificado})`,              onBg:'#059669', offBg:'#ECFDF5', offColor:'#059669', border:'#D1FAE5' },
+                  no_coincide:      { label:`No coinciden (${credCounts.no_coincide})`,            onBg:'#DC2626', offBg:'#FEF2F2', offColor:'#DC2626', border:'#FEE2E2' },
+                  sin_especialidad: { label:`Sin especialidad (${credCounts.sin_especialidad})`,   onBg:'#6B7280', offBg:'#F3F4F6', offColor:'#6B7280', border:'#E5E7EB' },
+                }[f]
+                return (
+                  <button key={f} className="fpill" onClick={() => setCredFilter(f)}
+                    style={{ background: active ? map.onBg : map.offBg, color: active ? '#fff' : map.offColor, borderColor: map.border }}>
+                    {map.label}
+                  </button>
+                )
+              })}
+            </FiltroGrupo>
+
           </div>
 
           {/* Médicos — tarjetas (misma estructura en celular y escritorio; la rejilla se reacomoda sola) */}
@@ -1390,14 +1582,6 @@ export default function AdminMedicos() {
                     <ExternalLink size={13} />
                     Ver perfil
                   </Link>
-                )})
-                acciones.push({ key:'resenas', node: (
-                  <button className="act-btn"
-                    onClick={() => abrirResenasModal(m)}
-                    style={{ width:'100%', justifyContent:'center', background:'#F9FAFB', color:'#6B7280', borderColor:'#E5E7EB' }}>
-                    <MessageSquare size={13} />
-                    Reseñas
-                  </button>
                 )})
 
                 return (
