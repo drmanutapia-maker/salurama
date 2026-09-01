@@ -458,17 +458,16 @@ export default function SeguridadPage() {
                     <button
                       onClick={() => quitarCredencial(t.credencial!.credentialId, t.label)}
                       disabled={quitandoCredencial !== null}
-                      title="Desactivar huella o Face ID"
-                      aria-label="Desactivar huella o Face ID"
                       style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-                        background: '#ECFDF5', border: '1.5px solid #A7F3D0', color: '#059669',
+                        display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0,
+                        background: '#ECFDF5', border: '1.5px solid #A7F3D0', color: '#059669', borderRadius: 10,
+                        padding: '8px 12px', fontSize: 13, fontWeight: 600,
                         cursor: quitandoCredencial ? 'not-allowed' : 'pointer',
                         opacity: quitandoCredencial === t.credencial!.credentialId ? 0.5 : 1,
                       }}
                     >
-                      <Fingerprint size={16} aria-hidden="true" />
+                      <Fingerprint size={14} aria-hidden="true" />
+                      {quitandoCredencial === t.credencial!.credentialId ? 'Desactivando...' : 'Desactivar'}
                     </button>
                   )}
 
