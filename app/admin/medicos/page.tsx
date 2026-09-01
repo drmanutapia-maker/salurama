@@ -8,7 +8,7 @@ import {
   CheckCircle, XCircle, ToggleLeft, ToggleRight,
   Eye, EyeOff, AlertCircle, ChevronDown, ExternalLink, ArrowUp, ArrowDown,
   Users, UserCheck, UserX, Gauge, Clock3, Megaphone, TrendingUp, CalendarCheck,
-  Upload, FileText, X, Trash2, Star, MessageSquare,
+  Upload, FileText, X, Trash2, Star, MessageSquare, Image as ImageIcon,
 } from 'lucide-react'
 import { resumenCredenciales, type CredResumen } from '@/lib/credenciales'
 import { isManuelEmail } from '@/lib/manuelOnly'
@@ -54,6 +54,16 @@ interface FlaggedItem {
   reason: string | null
   flaggedBy: 'ia' | 'usuario' | null
   reviewedAt: string | null
+}
+
+interface GalleryPhotoAdminRow {
+  id: string
+  doctor_id: string
+  doctorName: string
+  storage_path: string
+  photo_url: string
+  caption: string | null
+  created_at: string
 }
 
 // Antes el modal de reseñas solo se abría desde la tarjeta de constancia
@@ -346,6 +356,12 @@ export default function AdminMedicos() {
   const [procesandoFlaggedId, setProcesandoFlaggedId] = useState<string | null>(null)
   const [eliminandoId, setEliminandoId]                   = useState<string | null>(null)
 
+  // ── Moderación de galería de fotos ──────────────────────────────────────────
+  const [galeriaAbierta, setGaleriaAbierta]           = useState(false)
+  const [fotosGaleria, setFotosGaleria]               = useState<GalleryPhotoAdminRow[]>([])
+  const [loadingGaleria, setLoadingGaleria]           = useState(false)
+  const [eliminandoFotoId, setEliminandoFotoId]       = useState<string | null>(null)
+
   useEffect(() => {
     async function checkSession() {
       const { data: { user } } = await supabase.auth.getUser()
@@ -361,7 +377,7 @@ export default function AdminMedicos() {
     checkSession()
   }, [])
 
-  useEffect(() => { if (autenticado) { cargarMedicos(); cargarEstadisticas(); cargarContenidoSenalado() } }, [autenticado])
+  useEffect(() => { if (autenticado) { cargarMedicos(); cargarEstadisticas(); cargarContenidoSenalado(); cargarGaleria() } }, [autenticado])
 
   useEffect(() => {
     if (!toast) return
@@ -875,6 +891,42 @@ export default function AdminMedicos() {
       setToast({ msg: 'Error al eliminar', type: 'error' })
     } finally {
       setProcesandoFlaggedId(null)
+    }
+  }
+
+  async function cargarGaleria() {
+    setLoadingGaleria(true)
+    try {
+      const { data, error } = await supabase
+        .from('doctor_gallery_photos')
+        .select('id, doctor_id, storage_path, photo_url, caption, created_at, doctors(full_name)')
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      setFotosGaleria((data || []).map((r: any) => ({
+        id: r.id, doctor_id: r.doctor_id, doctorName: r.doctors?.full_name || '—',
+        storage_path: r.storage_path, photo_url: r.photo_url, caption: r.caption, created_at: r.created_at,
+      })))
+    } catch (e) {
+      console.error('[cargarGaleria]', e)
+    } finally {
+      setLoadingGaleria(false)
+    }
+  }
+
+  async function eliminarFotoGaleria(foto: GalleryPhotoAdminRow) {
+    if (!confirm(`¿Eliminar esta foto de ${foto.doctorName}? Esta acción no se puede deshacer.`)) return
+    setEliminandoFotoId(foto.id)
+    try {
+      await supabase.storage.from('doctor-gallery').remove([foto.storage_path])
+      const { error } = await supabase.from('doctor_gallery_photos').delete().eq('id', foto.id)
+      if (error) throw error
+      setFotosGaleria(prev => prev.filter(f => f.id !== foto.id))
+      setToast({ msg: 'Foto eliminada', type: 'success' })
+    } catch (e) {
+      console.error('[eliminarFotoGaleria]', e)
+      setToast({ msg: 'Error al eliminar la foto', type: 'error' })
+    } finally {
+      setEliminandoFotoId(null)
     }
   }
 
@@ -1446,6 +1498,61 @@ export default function AdminMedicos() {
                           {item.reason && (
                             <p style={{ fontSize:11, color:'#9CA3AF', fontStyle:'italic' }}>Motivo: {item.reason}</p>
                           )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Moderación de galería de fotos — la tabla y el bucket existen desde
+              julio (doctor_gallery_photos / doctor-gallery) pero no había forma
+              de revisar o borrar una foto inapropiada desde el panel. */}
+          <div style={{ background:'#fff', border:'1px solid #E8ECF3', borderRadius:16, marginBottom:24, overflow:'hidden' }}>
+            <button onClick={() => setGaleriaAbierta(v => !v)}
+              style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 20px', background:'none', border:'none', cursor:'pointer', fontFamily:"'DM Sans',sans-serif" }}>
+              <span style={{ display:'flex', alignItems:'center', gap:8, fontFamily:"'Fraunces',serif", fontSize:16, fontWeight:900, color:'#1E3A5F' }}>
+                <ImageIcon size={18} color="#8B5CF6" /> Galería de fotos
+                {fotosGaleria.length > 0 && (
+                  <span style={{ background:'#F5F3FF', color:'#8B5CF6', border:'1px solid #DDD6FE', borderRadius:20, padding:'2px 9px', fontSize:12, fontWeight:700 }}>
+                    {fotosGaleria.length}
+                  </span>
+                )}
+              </span>
+              <ChevronDown size={16} color="#6B7280" style={{ transform: galeriaAbierta ? 'rotate(180deg)' : 'none', transition:'transform 0.15s' }} />
+            </button>
+
+            {galeriaAbierta && (
+              <div style={{ padding:'0 20px 20px' }}>
+                {loadingGaleria ? (
+                  <p style={{ fontSize:13, color:'#9CA3AF', padding:'12px 0' }}>Cargando...</p>
+                ) : fotosGaleria.length === 0 ? (
+                  <p style={{ fontSize:13, color:'#9CA3AF', padding:'12px 0' }}>No hay fotos en la galería de ningún médico.</p>
+                ) : (
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(150px, 1fr))', gap:12 }}>
+                    {fotosGaleria.map(foto => {
+                      const borrando = eliminandoFotoId === foto.id
+                      return (
+                        <div key={foto.id} style={{ border:'1px solid #E8ECF3', borderRadius:10, overflow:'hidden' }}>
+                          <div style={{ position:'relative', aspectRatio:'1/1' }}>
+                            <img src={foto.photo_url} alt={foto.caption || ''} style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
+                            <button onClick={() => eliminarFotoGaleria(foto)} disabled={borrando}
+                              title="Eliminar foto"
+                              style={{ position:'absolute', top:6, right:6, width:26, height:26, background:'rgba(220,38,38,0.9)', borderRadius:'50%', border:'none', display:'flex', alignItems:'center', justifyContent:'center', cursor: borrando ? 'not-allowed' : 'pointer', padding:0 }}>
+                              {borrando
+                                ? <span className="spin" style={{ width:13, height:13, border:'2px solid #ffffff60', borderTopColor:'#fff', borderRadius:'50%', display:'inline-block' }} />
+                                : <Trash2 size={13} color="#fff" />}
+                            </button>
+                          </div>
+                          <div style={{ padding:'8px 10px' }}>
+                            <p style={{ fontSize:12, fontWeight:700, color:'#1E3A5F', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{foto.doctorName}</p>
+                            {foto.caption && (
+                              <p style={{ fontSize:11, color:'#6B7280', marginTop:2, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{foto.caption}</p>
+                            )}
+                            <p style={{ fontSize:10, color:'#9CA3AF', marginTop:2 }}>{formatFecha(foto.created_at)}</p>
+                          </div>
                         </div>
                       )
                     })}
