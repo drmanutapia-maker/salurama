@@ -449,8 +449,13 @@ export default function SeguridadPage() {
                         cursor: activandoBiometrico ? 'not-allowed' : 'pointer', opacity: activandoBiometrico ? 0.6 : 1, flexShrink: 0,
                       }}
                     >
-                      <Fingerprint size={14} aria-hidden="true" />
-                      {activandoBiometrico ? 'Activando...' : 'Activar huella/Face ID'}
+                      {activandoBiometrico ? 'Activando...' : (
+                        <>
+                          Activar
+                          <Fingerprint size={14} aria-hidden="true" />
+                          /Face ID
+                        </>
+                      )}
                     </button>
                   )}
 
@@ -460,7 +465,7 @@ export default function SeguridadPage() {
                       disabled={quitandoCredencial !== null}
                       style={{
                         display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0,
-                        background: '#ECFDF5', border: '1.5px solid #A7F3D0', color: '#059669', borderRadius: 10,
+                        background: '#fff', border: '1.5px solid #FECACA', color: '#DC2626', borderRadius: 10,
                         padding: '8px 12px', fontSize: 13, fontWeight: 600,
                         cursor: quitandoCredencial ? 'not-allowed' : 'pointer',
                         opacity: quitandoCredencial === t.credencial!.credentialId ? 0.5 : 1,
@@ -485,20 +490,6 @@ export default function SeguridadPage() {
                     >
                       <LogOut size={14} aria-hidden="true" />
                       {revoking === t.session!.id ? 'Cerrando...' : 'Cerrar sesión'}
-                    </button>
-                  )}
-
-                  {!hasSession && hasCredencial && (
-                    <button
-                      onClick={() => quitarCredencial(t.credencial!.credentialId, t.label)}
-                      disabled={quitandoCredencial !== null}
-                      style={{
-                        background: '#fff', color: '#DC2626', border: '1.5px solid #FECACA', borderRadius: 10,
-                        padding: '8px 12px', fontSize: 13, fontWeight: 600,
-                        cursor: quitandoCredencial ? 'not-allowed' : 'pointer', opacity: quitandoCredencial ? 0.6 : 1, flexShrink: 0,
-                      }}
-                    >
-                      {quitandoCredencial === t.credencial!.credentialId ? 'Quitando...' : 'Quitar'}
                     </button>
                   )}
                 </div>
