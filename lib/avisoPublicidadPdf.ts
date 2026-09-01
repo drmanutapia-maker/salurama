@@ -4,8 +4,12 @@ import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from 'pdf-lib'
 // vectoriales dibujadas a mano con pdf-lib, sin librería de terceros.
 // Este documento es un PROYECTO de anuncio para que el médico lo use como
 // base al tramitar su Aviso de Publicidad ante COFEPRIS — no es el aviso
-// en sí, y las leyendas legales obligatorias quedan marcadas como
-// pendientes hasta revisión de un abogado (ver bloque LEYENDAS abajo).
+// en sí. El bloque LEYENDAS abajo genera el texto exigido por el Art. 19
+// del Reglamento de la LGS en Materia de Publicidad a partir de los datos
+// registrados del médico, pero sigue mostrando una advertencia explícita:
+// requiere revisión de abogado antes de usarse en un trámite real (ese
+// artículo no da un formato de leyenda fijo, a diferencia del de
+// medicamentos -- ver investigación de la sesión que agregó este bloque).
 
 const MARGIN = 48
 const PAGE_WIDTH = 612 // Carta
@@ -27,6 +31,13 @@ export interface AvisoPublicidadData {
   professionalLicense: string | null
   aboutMe: string | null
   photoUrl: string | null
+  // Institución(es) que expidieron el título -- de doctor_education, sin
+  // duplicados. Requerido por el Art. 19 del Reglamento de la LGS en
+  // Materia de Publicidad (ver bloque LEYENDAS abajo).
+  educationInstitutions: string[]
+  // Certificados de especialidad ya VERIFICADOS únicamente -- no se declara
+  // en el anuncio una credencial todavía sin confirmar.
+  specialtyCredentials: { councilName: string; numeroCertificacion: string | null }[]
 }
 
 interface Cursor {
@@ -173,25 +184,72 @@ export async function buildAvisoPublicidadPdf(data: AvisoPublicidadData): Promis
   }
   cursor.y -= 12
 
-  // ── Bloque de leyendas legales — placeholder explícito, sin inventar texto ──
-  ensureSpace(110)
+  // ── Leyendas legales — Art. 19, Reglamento de la LGS en Materia de
+  // Publicidad: institución educativa que expidió el título y, en su caso,
+  // cédula profesional / de especialidad. Generado a partir del perfil
+  // registrado; solo se declaran especialidades ya VERIFICADAS. ──
+  text('Leyendas legales (Art. 19, Reglamento de la LGS en Materia de Publicidad)', { x: MARGIN, size: 12, f: bold, color: COLOR_BRAND })
+  cursor.y -= 18
+  drawWrapped(
+    'Quien ejerza actividades profesionales, técnicas o de especialidad de la salud debe expresar en su ' +
+    'publicidad la institución educativa que le expidió el título, diploma o certificado correspondiente y, ' +
+    'en su caso, su número de cédula profesional.',
+    { x: MARGIN, maxWidth: PAGE_WIDTH - MARGIN * 2, size: 10, color: COLOR_MUTED, lineGap: 4 }
+  )
+  cursor.y -= 14
+
+  const leyendas: string[] = [
+    `Cédula profesional: ${data.professionalLicense || 'no registrada'}`,
+  ]
+  if (data.educationInstitutions.length > 0) {
+    for (const inst of data.educationInstitutions) {
+      leyendas.push(`Título profesional expedido por: ${inst}`)
+    }
+  } else {
+    leyendas.push('Título profesional expedido por: [FALTA — agrega tu institución educativa en tu perfil antes de usar este documento]')
+  }
+  for (const cred of data.specialtyCredentials) {
+    leyendas.push(`Certificado de especialidad: ${cred.councilName}${cred.numeroCertificacion ? `, No. ${cred.numeroCertificacion}` : ''}`)
+  }
+
+  for (const leyenda of leyendas) {
+    ensureSpace(16)
+    text('•', { x: MARGIN, size: 11, color: COLOR_TEAL })
+    drawWrapped(leyenda, { x: MARGIN + 14, maxWidth: PAGE_WIDTH - MARGIN * 2 - 14, size: 11, color: COLOR_INK, lineGap: 3 })
+    cursor.y -= 4
+  }
+  cursor.y -= 12
+
+  // ── Advertencia visible: sigue requiriendo revisión de abogado ─────────
+  // El Art. 19 no fija una redacción única para esta leyenda (a diferencia
+  // de la publicidad de medicamentos, que sí tiene texto literal
+  // obligatorio) -- por eso el texto de arriba, aunque real y basado en el
+  // perfil del médico, no reemplaza la revisión legal antes de un trámite
+  // real ante COFEPRIS.
+  const advertenciaTitulo = 'ADVERTENCIA: REQUIERE REVISIÓN DE ABOGADO'
+  const advertenciaTexto =
+    'Estas leyendas se generaron automáticamente a partir de tu perfil registrado en Salurama. ' +
+    'El Reglamento no fija una redacción única para este caso. Verifica que los datos sean exactos y ' +
+    'haz revisar el texto por un abogado antes de usar este documento en un trámite real ante COFEPRIS.'
+  const warnMaxWidth = PAGE_WIDTH - MARGIN * 2 - 32
+  const advertenciaLineas = wrapText(advertenciaTexto, italic, 10, warnMaxWidth)
+  const boxHeight = 22 + 18 + advertenciaLineas.length * 14 + 14
+
+  ensureSpace(boxHeight)
   const boxTop = cursor.y
-  const boxHeight = 100
   cursor.page.drawRectangle({
     x: MARGIN, y: boxTop - boxHeight, width: PAGE_WIDTH - MARGIN * 2, height: boxHeight,
     color: COLOR_WARN_BG, borderColor: COLOR_WARN_BORDER, borderWidth: 1.5,
   })
   cursor.y = boxTop - 22
-  text('[ LEYENDAS LEGALES: PENDIENTE DE REVISIÓN LEGAL ]', { x: MARGIN + 16, size: 12, f: bold, color: COLOR_WARN_TEXT })
+  text(advertenciaTitulo, { x: MARGIN + 16, size: 12, f: bold, color: COLOR_WARN_TEXT })
   cursor.y -= 18
-  drawWrapped(
-    'Este espacio debe contener las leyendas obligatorias que exige la normativa de publicidad ' +
-    'de servicios de salud (COFEPRIS / Ley General de Salud). El texto exacto está pendiente de ' +
-    'aprobación por un abogado antes de usarse en un trámite real. No se generó automáticamente.',
-    { x: MARGIN + 16, maxWidth: PAGE_WIDTH - MARGIN * 2 - 32, size: 10, f: italic, color: COLOR_WARN_TEXT, lineGap: 4 }
-  )
+  for (const linea of advertenciaLineas) {
+    text(linea, { x: MARGIN + 16, size: 10, f: italic, color: COLOR_WARN_TEXT })
+    cursor.y -= 14
+  }
 
-  cursor.y = boxTop - boxHeight - 30
+  cursor.y = boxTop - boxHeight - 24
 
   // ── Pie ──────────────────────────────────────────────────────────────
   ensureSpace(30)

@@ -67,13 +67,35 @@ export async function GET() {
   const db = getServiceSupabase()
   const { data: doctor, error: doctorError } = await db
     .from('doctors')
-    .select('full_name, professional_title, specialty, professional_license, about_me, photo_url')
+    .select('id, full_name, professional_title, specialty, professional_license, about_me, photo_url')
     .eq('user_id', user.id)
     .single()
 
   if (doctorError || !doctor) {
     return NextResponse.json({ error: 'Perfil de médico no encontrado' }, { status: 404 })
   }
+
+  // Datos para las leyendas del Art. 19 del Reglamento de la LGS en Materia
+  // de Publicidad: institución que expidió el título, y certificados de
+  // especialidad -- solo los que ya están verificados, para no declarar en
+  // el anuncio una credencial que todavía no se confirmó.
+  const [eduRes, credRes] = await Promise.all([
+    db.from('doctor_education').select('institution').eq('doctor_id', doctor.id),
+    db.from('doctor_specialty_credentials')
+      .select('numero_certificacion, specialty_granular_mapping(conacem_councils(council_name))')
+      .eq('doctor_id', doctor.id)
+      .eq('credentials_status', 'verificado'),
+  ])
+
+  const educationInstitutions = [...new Set(
+    (eduRes.data || []).map(r => r.institution).filter((i): i is string => !!i)
+  )]
+  const specialtyCredentials = (credRes.data || [])
+    .map((r: any) => ({
+      councilName: r.specialty_granular_mapping?.conacem_councils?.council_name as string | null,
+      numeroCertificacion: r.numero_certificacion as string | null,
+    }))
+    .filter((c): c is { councilName: string; numeroCertificacion: string | null } => !!c.councilName)
 
   const pdfBytes = await buildAvisoPublicidadPdf({
     fullName: doctor.full_name,
@@ -82,6 +104,8 @@ export async function GET() {
     professionalLicense: doctor.professional_license,
     aboutMe: doctor.about_me,
     photoUrl: doctor.photo_url,
+    educationInstitutions,
+    specialtyCredentials,
   })
 
   return new NextResponse(Buffer.from(pdfBytes), {
