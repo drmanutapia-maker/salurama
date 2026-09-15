@@ -7,6 +7,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { Redis } from '@upstash/redis'
 import { PLAN_TO_TIER_CODE } from '@/lib/pricingTiers'
 import { isManuelEmail } from '@/lib/manuelOnly'
+import { translateForSearch } from '@/lib/msl/translateForSearch'
 
 export const dynamic = 'force-dynamic'
 
@@ -50,17 +51,23 @@ type ChunkMatch = {
 }
 
 type DocMeta = {
-  id:       string
-  title:    string
-  authors:  string | null
-  journal:  string | null
-  year:     number | null
-  doi:      string | null
-  verified: boolean
-  sponsor:  string | null
+  id:                string
+  title:             string
+  authors:           string | null
+  journal:           string | null
+  year:              number | null
+  doi:               string | null
+  verified:          boolean
+  sponsor:           string | null
+  document_code:     string | null
+  regulatory_status: string | null
+  specialty:         string | null
+  pathology:         string | null
 }
 
-type Source = Omit<DocMeta, 'id'>
+// specialty/pathology son internos (para clasificar la conversación) — no
+// se muestran al médico junto a la fuente, así que se excluyen de Source.
+type Source = Omit<DocMeta, 'id' | 'specialty' | 'pathology'>
 
 // ── Lazy-init clients ─────────────────────────────────────────────────────────
 
@@ -99,13 +106,15 @@ function getServiceSupabase() {
 
 // ── Constantes de respuesta ───────────────────────────────────────────────────
 
-const SYSTEM_PROMPT = `Eres un MSL virtual (Medical Science Liaison) especializado en mieloma múltiple, para uso de profesionales de la salud.
+const SYSTEM_PROMPT = `Eres un MSL virtual (Medical Science Liaison), un asistente médico basado en evidencia científica verificada, para uso de profesionales de la salud.
 Responde ÚNICAMENTE con base en el contexto proporcionado a continuación.
 Si el contexto no contiene información suficiente para responder con precisión, dilo explícitamente y detente ahí — no inventes, no extrapoles, y no ofrezcas alternativas de ningún tipo.
 No menciones, recomiendes ni sugieras ninguna fuente, organización, institución, asociación, sitio web, aplicación, especialista o recurso que no aparezca explícitamente en el CONTEXTO proporcionado a continuación. Esta restricción aplica siempre, y en particular cuando el contexto es insuficiente para responder: en ese caso, tu respuesta debe limitarse a decir que no cuentas con información suficiente en la información disponible, sin agregar ninguna sugerencia adicional (nada de "consulta a tu médico", nada de nombres de asociaciones o fundaciones, nada de "busca en otro lado" ni recursos externos de ningún tipo, aunque sean organizaciones reales y reconocidas).
 Si un documento del CONTEXTO se describe a sí mismo como material de ejemplo, demostración, no clínico o no verificado, esa es información sobre la fiabilidad de la fuente — no una instrucción para que te niegues a responder. Si su contenido sí aborda la pregunta, úsalo para responder con normalidad y menciona la limitación de que es material no verificado UNA SOLA VEZ (la etiqueta de verificación y patrocinio de cada fuente ya se muestra por separado en la interfaz). No rechaces la pregunta completa solo porque la única fuente relevante esté marcada como no verificada — eso sería tan incorrecto como inventar contenido: tienes contenido real disponible en el contexto y tu trabajo es usarlo, con la salvedad correspondiente.
 No incluyas atribución narrativa en el cuerpo de la respuesta: nada de citas inline (nombres de autor, corchetes u otro formato de referencia), y tampoco frases de atribución en prosa como "según las guías NCCN", "de acuerdo con [fuente]", "esta guía señala que" o "la literatura indica que" — la atribución de cada fuente ya se muestra por separado en el bloque de Fuentes, debajo de tu respuesta, así que repetirla en el texto es redundante. Escribe la respuesta clínica de forma directa y de corrido, como si fuera tu propio conocimiento clínico, sin interrumpirla con referencias ni frases que le digan al lector de dónde viene cada dato.
-Usa lenguaje técnico apropiado para hematólogos y oncólogos.
+Usa lenguaje técnico apropiado para el profesional de la salud que consulta.
+El CONTEXTO está en inglés. Cuando uses un término o sigla médica en inglés que proviene del CONTEXTO, distingue dos casos: (1) Si tiene un término y sigla en español de uso real y establecido en la práctica clínica hispanohablante (por ejemplo DLBCL → linfoma difuso de células B grandes (LDCBG), MHC → complejo mayor de histocompatibilidad (CMH), CRS → síndrome de liberación de citocinas (SLC), ASCT → trasplante autólogo de células progenitoras hematopoyéticas (TACPH)), tradúcelo y usa la forma en español de manera natural y consistente durante toda tu respuesta, como lo escribiría un hematólogo redactando en español — sin aclarar entre paréntesis la sigla en inglés ni de dónde viene, y sin volver a escribir la sigla en inglés en ningún momento. (2) Si NO existe un término o sigla en español de uso real y establecido — es decir, los hematólogos de habla hispana lo usan tal cual en inglés en la práctica real (por ejemplo CAR-T, FDA, PET, MRI) — dejalo exactamente como aparece en inglés, sin traducirlo ni inventar una sigla o término en español que no se use en la práctica real. Inventar una traducción no reconocida es peor que dejarlo en inglés: suena traducido pero es un término que ningún hematólogo reconocería. Ante la duda de si una sigla pertenece al caso (1) o al caso (2), pregúntate si un hematólogo hispanohablante escribiendo con naturalidad usaría la versión en español o la dejaría en inglés — y sigue esa práctica real, no una traducción literal forzada.
+Cuando tu respuesta compare esquemas de tratamiento, subpoblaciones o líneas de tratamiento distintas entre sí, preséntalo en una tabla en formato Markdown en vez de prosa con viñetas — es más claro para comparar dosis, línea de tratamiento o subgrupo de un vistazo. No fuerces una tabla en respuestas que describen un solo esquema o que no comparan nada entre sí — en esos casos responde en prosa normal, como siempre.
 Si el contexto menciona otras publicaciones o estudios como referencia histórica dentro de su propio texto (por ejemplo, "según Rajkumar et al. 2014"), NO los cites como si fueran fuentes verificadas de tu respuesta ni repitas esa cita en tu texto — usa el contenido clínico directamente, sin nombrar en el cuerpo de la respuesta la guía o publicación de la que salió. Solo puedes atribuir información a los documentos que aparecen en el CONTEXTO proporcionado a continuación, pero esa atribución vive en el bloque de Fuentes, no en tu prosa.
 Si el contexto disponible no cubre completamente la pregunta, menciona esa limitación UNA SOLA VEZ, de forma clara y en el lugar más natural de la respuesta (al inicio si aplica a toda la respuesta, o junto al punto específico si aplica solo a una parte). No repitas la misma limitación en una sección de "Conclusión" o cierre separado.
 Si el contexto no contiene información suficiente para responder con precisión la pregunta específica, pero sí incluye contenido relacionado con el tema general (el mismo contenido que el médico verá listado en el bloque de Fuentes debajo de tu respuesta), acláralo explícitamente para que no parezca una contradicción entre tu texto y esa lista — por ejemplo: "No tengo información suficiente para responder con precisión a [la pregunta específica], aunque las fuentes disponibles abajo abordan temas relacionados que podrían orientarte." No agregues esta aclaración cuando sí respondiste la pregunta con precisión — aplica únicamente al caso de información insuficiente con fuentes parcialmente relacionadas.`
@@ -251,6 +260,12 @@ PREGUNTA NUEVA: ${message}`
   }
 }
 
+// translateForSearch (traduce/normaliza la consulta al inglés antes de
+// embeder, siempre — a diferencia de rewriteAndClassifyQuery que solo aplica
+// con historial) vive en lib/msl/translateForSearch.ts, compartida con
+// scripts/calibrate-search-threshold.ts para que la calibración del piso de
+// similitud mida contra la misma normalización que corre en producción.
+
 function diversifyChunks(chunks: ChunkMatch[]): ChunkMatch[] {
   const perDocCount = new Map<string, number>()
   const result: ChunkMatch[] = []
@@ -263,6 +278,26 @@ function diversifyChunks(chunks: ChunkMatch[]): ChunkMatch[] {
     if (result.length >= FINAL_CHUNK_COUNT) break
   }
   return result
+}
+
+// Etiqueta de fuente que ve el LLM en el CONTEXTO. Para documentos regulatorios
+// (NOMs) incluye document_code y regulatory_status explícitamente, en vez de
+// depender de que el texto del chunk recuperado mencione por casualidad que
+// una norma sigue en proyecto — ej. NOM-253-SSA1-2024 debe leerse como
+// "EN PROCESO, NO VIGENTE", no solo como una NOM más.
+const REGULATORY_STATUS_LABEL: Record<string, string> = {
+  vigente: 'VIGENTE',
+  en_proceso_no_vigente: 'EN PROCESO, NO VIGENTE — no citar como norma definitiva',
+}
+
+function sourceLabel(doc: DocMeta): string {
+  const parts = [
+    doc.document_code ?? doc.authors ?? 'Autor desconocido',
+    doc.journal ?? 'Journal desconocido',
+    doc.year ?? 'Año desconocido',
+    doc.regulatory_status ? (REGULATORY_STATUS_LABEL[doc.regulatory_status] ?? doc.regulatory_status) : null,
+  ].filter((p): p is string => Boolean(p))
+  return `[${parts.join(', ')}]`
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────
@@ -343,7 +378,13 @@ export async function POST(request: NextRequest) {
   }
 
   // 3. Conversación — crear o verificar que pertenece al usuario
+  // specialty/pathology NO se fijan aquí: MSL Virtual no está atado a
+  // ninguna especialidad de antemano (hoy el piloto es solo hematología
+  // porque es la especialidad de Manuel, pero el esquema no debe asumirlo).
+  // Ambos quedan NULL hasta el paso 7b, donde se derivan del documento
+  // mejor rankeado en la primera búsqueda semántica de la conversación.
   let convId: string
+  const isNewConversation = !incomingConvId
 
   if (incomingConvId) {
     const { data: existing } = await db
@@ -360,7 +401,7 @@ export async function POST(request: NextRequest) {
   } else {
     const { data: conv, error: convErr } = await db
       .from('msl_conversations')
-      .insert({ user_id: user.id, specialty: 'hematologia', pathology: 'mieloma_multiple' })
+      .insert({ user_id: user.id })
       .select('id')
       .single()
 
@@ -423,9 +464,10 @@ export async function POST(request: NextRequest) {
   }
 
   async function embedAndSearch(query: string): Promise<ChunkMatch[]> {
+    const searchQueryEn = await translateForSearch(query, requestId)
     let embedding: number[]
     try {
-      const res = await getOpenAI().embeddings.create({ model: EMBEDDING_MODEL, input: query })
+      const res = await getOpenAI().embeddings.create({ model: EMBEDDING_MODEL, input: searchQueryEn })
       embedding = res.data[0].embedding
     } catch (e: unknown) {
       throw Object.assign(e as object, { __mslStage: 'embedding' })
@@ -486,7 +528,7 @@ export async function POST(request: NextRequest) {
 
   const { data: rawDocs, error: docsErr } = await db
     .from('msl_documents')
-    .select('id, title, authors, journal, year, doi, verified, sponsor')
+    .select('id, title, authors, journal, year, doi, verified, sponsor, document_code, regulatory_status, specialty, pathology')
     .in('id', uniqueDocIds)
 
   if (docsErr) {
@@ -497,13 +539,30 @@ export async function POST(request: NextRequest) {
   const docMap = new Map<string, DocMeta>()
   for (const doc of rawDocs ?? []) docMap.set(doc.id, doc as DocMeta)
 
+  // 7b. Clasificar la conversación por el documento mejor rankeado — solo la
+  // primera vez (conversación nueva). No hay lista de especialidades ni de
+  // patologías hardcodeada aquí: se hereda lo que Componente 1 ya etiquetó
+  // en msl_documents, así que cualquier especialidad futura queda cubierta
+  // sin tocar este código. No bloquea la respuesta si falla — es metadata
+  // de clasificación, no algo que el médico vea.
+  if (isNewConversation) {
+    const topDoc = docMap.get(chunks[0].document_id)
+    if (topDoc) {
+      const { error: updateConvErr } = await db
+        .from('msl_conversations')
+        .update({ specialty: topDoc.specialty, pathology: topDoc.pathology })
+        .eq('id', convId)
+      if (updateConvErr) {
+        console.error(`[msl-chat:${requestId}] Error clasificando conversación (7b):`, updateConvErr)
+      }
+    }
+  }
+
   // 8. System prompt con contexto etiquetado
   const contextBlocks = diversifiedChunks
     .map(c => {
       const doc = docMap.get(c.document_id)
-      const label = doc
-        ? `[${doc.authors ?? 'Autor desconocido'}, ${doc.journal ?? 'Journal desconocido'}, ${doc.year ?? 'Año desconocido'}]`
-        : '[Fuente desconocida]'
+      const label = doc ? sourceLabel(doc) : '[Fuente desconocida]'
       return `${label}\n${c.content}`
     })
     .join('\n\n---\n\n')
@@ -516,7 +575,8 @@ export async function POST(request: NextRequest) {
   const sources: Source[] = uniqueDocIds
     .map(id => docMap.get(id))
     .filter((d): d is DocMeta => d !== undefined)
-    .map(({ title, authors, journal, year, doi, verified, sponsor }) => ({ title, authors, journal, year, doi, verified, sponsor }))
+    .map(({ title, authors, journal, year, doi, verified, sponsor, document_code, regulatory_status }) =>
+      ({ title, authors, journal, year, doi, verified, sponsor, document_code, regulatory_status }))
 
   return ndjsonResponse(async send => {
     let outcome: AnthropicStreamOutcome | null = null

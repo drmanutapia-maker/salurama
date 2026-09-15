@@ -445,8 +445,8 @@ export default function MSLChat({ backHref, backLabel = 'Volver', patientContext
                 MSL Virtual
               </p>
               <p className="font-body text-sm text-neutral-500 max-w-xs leading-relaxed">
-                Consulta evidencia clínica sobre mieloma múltiple. Las respuestas se basan
-                en publicaciones científicas verificadas.
+                Consulta evidencia clínica verificada. Las respuestas se basan
+                en publicaciones científicas.
               </p>
               <p className="font-body text-xs text-neutral-400 mt-3 max-w-xs leading-relaxed">
                 Solo para profesionales de la salud · Valida siempre con guías clínicas actualizadas
@@ -494,7 +494,7 @@ export default function MSLChat({ backHref, backLabel = 'Volver', patientContext
                 onChange={e => { setInput(e.target.value); adjustTextarea() }}
                 onKeyDown={handleKeyDown}
                 disabled={loading}
-                placeholder="Pregunta sobre mieloma múltiple..."
+                placeholder="Respuestas basadas en evidencia"
                 rows={1}
                 className="flex-1 resize-none rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-2.5 font-body text-sm text-neutral-800 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary-300 disabled:opacity-50 transition-colors"
                 style={{ minHeight: '40px', maxHeight: '120px' }}
