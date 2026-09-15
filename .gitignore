@@ -33,3 +33,8 @@ _pdfs-prueba/
 # Captura de pantalla que quedó mal escrita en la raíz por un error de ruta
 # en un script de validación (Playwright) — nunca debió escribirse aquí
 UsersHuaweiAppDataLocalTempclaudec--Users-Huawei-mediopen-appe44fb990-8970-45f0-ac16-83d1449a5d58scratchpaddebug.png
+
+# Mismo error de ruta (backslashes de Windows interpretados como nombre de
+# archivo en vez de directorio) — sesión de investigación CNIS, 2026-09-09
+UsersHuaweiAppDataLocalTempclaudec--Users-Huawei-mediopen-appad27bf4a-1680-4e77-b619-29c18eaeaf4dscratchpadaudit_full.json
+UsersHuaweiAppDataLocalTempclaudec--Users-Huawei-mediopen-appad27bf4a-1680-4e77-b619-29c18eaeaf4dscratchpadpmc9001632.xml
