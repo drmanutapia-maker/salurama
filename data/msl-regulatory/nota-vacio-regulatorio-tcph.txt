@@ -1,0 +1,25 @@
+Nota aclaratoria — vacío regulatorio sobre trasplante de células progenitoras hematopoyéticas (TCPH) en México
+
+Esta nota no es una Norma Oficial Mexicana ni tiene carácter normativo. Es una síntesis editorial preparada para aclarar, con precisión legal, qué marco regulatorio aplica hoy en México al trasplante de células progenitoras hematopoyéticas (TCPH), dado que no existe una norma única y definitiva dedicada específicamente a este tema.
+
+1. No existe una NOM definitiva y publicada específica para TCPH
+
+A la fecha, no hay una Norma Oficial Mexicana vigente dedicada específicamente a la disposición, procesamiento, distribución y control de células progenitoras hematopoyéticas o troncales con fines de trasplante. El único proyecto conocido en esta materia, el Proy-NOM-SSA1-2015, nunca llegó a publicarse como norma definitiva en el Diario Oficial de la Federación.
+
+2. El Reglamento de Trasplantes NO cubre esto — las excluye explícitamente
+
+A diferencia de lo que podría asumirse por analogía con otros trasplantes de órganos y tejidos, el Reglamento de la Ley General de Salud en Materia de Trasplantes (vigente, publicado en el Diario Oficial de la Federación el 26 de marzo de 2014) no rige ni siquiera de forma indirecta a las células progenitoras hematopoyéticas. Su Artículo 1 las excluye explícitamente de su objeto:
+
+"El presente Reglamento tiene por objeto regular la disposición de órganos, tejidos y células, con excepción de la sangre, componentes sanguíneos y células progenitoras o troncales, que se realice con fines de trasplantes."
+
+3. El mecanismo legal real: reenvío al reglamento anterior
+
+Como el Reglamento de Trasplantes de 2014 excluyó explícitamente a la sangre, sus componentes y las células progenitoras o troncales, su artículo Transitorio Segundo dispuso expresamente que, para ese tema, siguieran vigentes las disposiciones del reglamento que le antecedía: el Reglamento de la Ley General de Salud en Materia de Control Sanitario de la Disposición de Órganos, Tejidos y Cadáveres de Seres Humanos. Específicamente quedaron vigentes las Secciones Tercera y Cuarta de su Capítulo III, y sus Capítulos IV y V — las partes de ese reglamento anterior que tratan sangre, componentes sanguíneos y células progenitoras hematopoyéticas o troncales.
+
+4. Piezas adicionales aplicables por extensión
+
+Además de lo anterior, aplican: (a) la Ley General de Salud, en las disposiciones generales sobre disposición de órganos, tejidos y células (artículos 313 a 342, en lo que resulte aplicable); y (b) la NOM-253-SSA1-2012, Para la disposición de sangre humana y sus componentes con fines terapéuticos, aplicada por extensión en los aspectos de procesamiento y manejo de componentes sanguíneos que se traslapan con la obtención de progenitores hematopoyéticos de sangre periférica o cordón umbilical — aunque su objeto central no es el trasplante de TCPH.
+
+5. Qué decir si un médico pregunta por "la norma de trasplante de médula ósea / TCPH"
+
+La respuesta correcta es que no existe una norma única y específica para TCPH en México. El marco aplicable hoy es una combinación dispersa de: (a) las secciones vigentes del reglamento anterior de trasplantes (por reenvío explícito del Transitorio Segundo del reglamento de 2014), (b) la Ley General de Salud, y (c) la NOM-253-SSA1-2012 aplicada por extensión para el componente sanguíneo. No debe afirmarse que existe una "NOM de TCPH" vigente, ni que el Reglamento de Trasplantes de 2014 la regula — ese reglamento la excluye expresamente.

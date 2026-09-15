@@ -1,0 +1,81 @@
+[
+  {
+    "file": "NOM-004-SSA3-2012.txt",
+    "title": "NOM-004-SSA3-2012, Del expediente clínico",
+    "authors": "Secretaría de Salud",
+    "source_type": "nom",
+    "document_code": "NOM-004-SSA3-2012",
+    "year": 2012,
+    "publication_date": "2012-10-15",
+    "regulatory_status": "vigente",
+    "specialty": "hematologia",
+    "pathology": "regulatorio",
+    "verified": true
+  },
+  {
+    "file": "NOM-024-SSA3-2012.txt",
+    "title": "NOM-024-SSA3-2012, Sistemas de información de registro electrónico para la salud. Intercambio de información en salud",
+    "authors": "Secretaría de Salud",
+    "source_type": "nom",
+    "document_code": "NOM-024-SSA3-2012",
+    "year": 2012,
+    "publication_date": "2012-11-30",
+    "regulatory_status": "vigente",
+    "specialty": "hematologia",
+    "pathology": "regulatorio",
+    "verified": true
+  },
+  {
+    "file": "NOM-253-SSA1-2012.txt",
+    "title": "NOM-253-SSA1-2012, Para la disposición de sangre humana y sus componentes con fines terapéuticos",
+    "authors": "Secretaría de Salud",
+    "source_type": "nom",
+    "document_code": "NOM-253-SSA1-2012",
+    "year": 2012,
+    "publication_date": "2012-10-26",
+    "regulatory_status": "vigente",
+    "specialty": "hematologia",
+    "pathology": "regulatorio",
+    "verified": true
+  },
+  {
+    "file": "NOM-253-SSA1-2024-proyecto.txt",
+    "title": "PROYECTO de NOM-253-SSA1-2024, Para la disposición de sangre humana y sus componentes con fines terapéuticos (actualización de la NOM-253-SSA1-2012, en proceso — no es la versión definitiva)",
+    "authors": "Secretaría de Salud",
+    "source_type": "nom",
+    "document_code": "NOM-253-SSA1-2024",
+    "year": 2024,
+    "publication_date": "2024-11-08",
+    "regulatory_status": "en_proceso_no_vigente",
+    "specialty": "hematologia",
+    "pathology": "regulatorio",
+    "verified": true
+  },
+  {
+    "file": "NOM-087-SEMARNAT-SSA1-2002.txt",
+    "title": "NOM-087-SEMARNAT-SSA1-2002, Protección ambiental - Salud ambiental - Residuos peligrosos biológico-infecciosos - Clasificación y especificaciones de manejo",
+    "authors": "Secretaría de Salud / SEMARNAT",
+    "source_type": "nom",
+    "document_code": "NOM-087-SEMARNAT-SSA1-2002",
+    "year": 2002,
+    "publication_date": "2003-02-17",
+    "regulatory_status": "vigente",
+    "specialty": "hematologia",
+    "pathology": "regulatorio",
+    "verified": true
+  },
+  {
+    "file": "nota-vacio-regulatorio-tcph.txt",
+    "title": "Nota aclaratoria: vacío regulatorio sobre trasplante de células progenitoras hematopoyéticas (TCPH) en México",
+    "authors": "Salurama (síntesis editorial, no es una norma oficial)",
+    "journal": "Nota interna Salurama",
+    "source_type": "nota_regulatoria",
+    "document_code": null,
+    "year": 2026,
+    "publication_date": "2026-08-31",
+    "regulatory_status": null,
+    "specialty": "hematologia",
+    "pathology": "regulatorio",
+    "verified": true
+  }
+]

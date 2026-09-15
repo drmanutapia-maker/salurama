@@ -1,0 +1,1115 @@
+
+
+Viernes 30 de noviembre de 2012 DIARIO OFICIAL (Segunda Sección)     79 
+ 
+SECRETARIA DE SALUD 
+NORMA  Oficial  Mexicana  NOM-024-SSA3-2012,  Sistemas  de  información  de  registro  electrónico  para  la  salud.  
+Intercambio de información en salud. 
+Al   margen   un   sello   con   el   Escudo   Nacional,   que   dice:   Estados   Unidos   Mexicanos.-   Secretaría   de      
+Salud. 
+GERMAN  ENRIQUE  FAJARDO  DOLCI,  Subsecretario  de  Integración  y  Desarrollo  del  Sector  Salud  y  
+Presidente   del   Comité   Consultivo   Nacional   de   Normalización   de   Innovación,   Desarrollo,   Tecnologías      
+e  Información  en  Salud,  con  fundamento  en  lo  dispuesto  en  los  artículos  39  de  la  Ley  Orgánica  de  la  
+Administración Pública Federal; 4 de la Ley Federal de Procedimiento Administrativo; 3, fracciones II y XII, 5, 
+7, fracción X, y 
+13, apartado A, fracción I, 45 y 47 de la Ley General de Salud; 38, fracción II, 40, 
+fracciones III 
+y XI, 41, 43, 44, primer párrafo, 47, fracción IV de la Ley Federal sobre Metrología y Normalización; 28, 33 y 
+40 del Reglamento de la Ley Federal sobre Metrología y Normalización y 8, fracciones V y XVI, 9, fracciones 
+IV Bis, XIV y 24, fracción IX del Reglamento Interior de la Secretaría de Salud, me permito expedir y ordenar 
+la publicación en el Diario Oficial de la Federación, de la: 
+NORMA OFICIAL MEXICANA NOM-024-SSA3-2012, SISTEMAS DE INFORMACION DE REGISTRO 
+ELECTRONICO PARA LA SALUD. INTERCAMBIO DE INFORMACION EN SALUD 
+CONSIDERANDOS 
+Que con fecha 8 de septiembre de 2010, se publicó en el Diario Oficial de la Federación la Norma Oficial 
+Mexicana  NOM-024-SSA3-2010,  Que  establece  los  objetivos  funcionales  y  funcionalidades  que  deberán  
+observar  los  productos  de  Sistemas  de  Expediente  Clínico  Electrónico  para  garantizar  la  interoperabilidad,  
+procesamiento, interpretación, confidencialidad, seguridad y uso de estándares y catálogos de la información 
+de los registros electrónicos en salud, entrando en vigor 60 días después de su publicación. 
+Que  de  conformidad  con  lo  dispuesto  por  el  artículo   51   de   la   Ley   Federal   sobre   Metrología   y   
+Normalización,  dentro  del  año  siguiente  a  la  entrada  en  vigor  de  la  mencionada  Norma  Oficial  Mexicana,  el  
+Comité Consultivo Nacional de Normalización respectivo, podrá solicitar a la dependencia responsable de su 
+emisión  que  se  analice  su  aplicación,  efectos  y  observancia,  a  fin  de  determinar  las  acciones  que  mejoren    
+su aplicación y si procede o no su modificación. 
+Que  del  análisis  de  la  aplicación,  efectos  y  observancia  de  la  Norma  Oficial  Mexicana  NOM-024-SSA3-
+2010,  la  Secretaría  de  Salud,  por  conducto  de  la  Dirección  General  de  Información  en  Salud,  determinó  
+modificar  el  alcance  de  su  contenido,  aunado  a  la  adición  del  artículo  109  Bis  a  la  Ley  General  de  Salud,  
+publicado el 16 de enero de 2012 en el Diario Oficial de la Federación. 
+Que en la Norma Oficial Mexicana NOM-024-SSA3-2010 es necesario un Procedimiento de Evaluación de 
+la  Conformidad  detallado  que  permita  certificar  en  su  totalidad  los  Sistemas  de  Información  de  Registro  
+Electrónico para la Salud, en Intercambio de Información en Salud. 
+Que  con  fecha  15  de  agosto  de  2012  se  publicó  en  el  Diario  Oficial  de  la  Federación,  para  su  consulta  
+pública,  el  Proyecto  de  modificación  a  la  Norma  Oficial  Mexicana  NOM-024-SSA3-2010,  Que  establece  los  
+objetivos  funcionales  y  funcionalidades  que  deberán  observar  los  productos  de  Sistemas  de  Expediente  
+Clínico   Electrónico   para   garantizar   la   interoperabilidad,   procesamiento,   interpretación,   confidencialidad,   
+seguridad  y  uso  de  estándares  y  catálogos  de  la  información  de  los  registros  electrónicos  en  salud;  para  
+quedar  como  Norma  Oficial  Mexicana  PROY-NOM-024-SSA3-2012,  Sistemas  de  Información  de  Registro  
+Electrónico para la Salud. Intercambio de Información en Salud. 
+Que  mediante  oficio  número  COFEME12/2497  de  23  de  agosto  de  2012  la  Comisión  Federal  de  Mejora  
+Regulatoria  emitió  Dictamen  Total,  que  surte  los  efectos  de  un  Dictamen  Final,  respecto  a  lo  previsto  por  el  
+artículo  69-L,  segundo  párrafo,  de  la  Ley  Federal  de  Procedimiento  Administrativo,  sobre  el  anteproyecto  
+denominado Proyecto de modificación a la Norma Oficial Mexicana NOM-024-SSA3-2010, Que establece los 
+objetivos  funcionales  y  funcionalidades  que  deberán  observar  los  productos  de  Sistemas  de  Expediente  
+Clínico   Electrónico   para   garantizar   la   interoperabilidad,   procesamiento,   interpretación,   confidencialidad,   
+seguridad  y  uso  de  estándares  y  catálogos  de  la  información  de  los  registros  electrónicos  en  salud;  para  
+quedar  como  Norma  Oficial  Mexicana  PROY-NOM-024-SSA3-2012,  Sistemas  de  Información  de  Registro  
+Electrónico para la Salud. Intercambio de Información en Salud, a fin de que se continúe con los trámites para 
+su publicación en el Diario Oficial de la Federación, de conformidad con las disposiciones jurídicas aplicables. 
+Que con fecha previa se publicaron en el Diario Oficial de la Federación las respuestas a los comentarios 
+recibidos, respecto del proyecto antes mencionado. 
+
+80     (Segunda Sección) DIARIO OFICIAL Viernes 30 de noviembre de 2012 
+ 
+PREFACIO 
+En la elaboración de la presente Norma Oficial Mexicana participaron: 
+SECRETARIA DE SALUD 
+SUBSECRETARIA DE INTEGRACION Y DESARROLLO DEL SECTOR SALUD 
+Dirección General de Calidad y Educación en Salud 
+Dirección General de Planeación y Desarrollo en Salud 
+Dirección General de Información en Salud 
+Dirección General de Evaluación del Desempeño 
+Centro Nacional de Excelencia Tecnológica en Salud 
+SUBSECRETARIA DE ADMINISTRACION Y FINANZAS 
+Dirección General de Tecnologías de la Información 
+SUBSECRETARIA DE PREVENCION Y PROMOCION DE LA SALUD 
+Centro Nacional de Programas Preventivos y Control de Enfermedades 
+Dirección General de Epidemiología 
+CONSEJO DE SALUBRIDAD GENERAL 
+COMISION NACIONAL DE ARBITRAJE MEDICO 
+COMISION NACIONAL DE PROTECCION SOCIAL EN SALUD 
+COMISION NACIONAL DE BIOETICA 
+COMISION FEDERAL PARA LA PROTECCION CONTRA RIESGOS SANITARIOS 
+COMISION  COORDINADORA  DE  INSTITUTOS  NACIONALES  DE  SALUD  Y  HOSPITALES  DE  ALTA  
+ESPECIALIDAD 
+Dirección General de Coordinación de los Hospitales Federales de Referencia 
+HOSPITAL JUAREZ DE MEXICO 
+INSTITUTO NACIONAL DE CIENCIAS MEDICAS Y NUTRICION 
+INSTITUTO NACIONAL DE REHABILITACION 
+INSTITUTO NACIONAL DE PSIQUIATRIA 
+INSTITUTO POLITECNICO NACIONAL 
+Sección  de  Estudios  de  Posgrado  e  Investigación  de  la  Escuela  Superior  de  Ingeniería  Mecánica  y  
+Eléctrica, Unidad Culhuacán 
+UNIVERSIDAD NACIONAL AUTONOMA DE MEXICO 
+Facultad de Medicina 
+Dirección General de Cómputo y de Tecnologías de Información y Comunicación 
+INSTITUTO DE SERVICIOS DESCENTRALIZADOS DE SALUD PUBLICA DEL ESTADO DE CAMPECHE 
+SECRETARIA DE SALUD DEL DISTRITO FEDERAL 
+SECRETARIA DE SALUD DE GUANAJUATO 
+SECRETARIA DE SALUD DE GUERRERO 
+SECRETARIA DE SALUD DE JALISCO 
+INSTITUTO DE SALUD DEL ESTADO DE MEXICO 
+
+Viernes 30 de noviembre de 2012 DIARIO OFICIAL (Segunda Sección)     81 
+ 
+SERVICIOS DE SALUD DE MORELOS 
+SECRETARIA DE SALUD DE NUEVO LEON 
+SERVICIOS DE SALUD DEL ESTADO DE QUERETARO 
+SERVICIOS DE SALUD DEL ESTADO DE SAN LUIS POTOSI 
+SECRETARIA DE SALUD DEL ESTADO DE TLAXCALA 
+INSTITUTO DE SEGURIDAD Y SERVICIOS SOCIALES DE LOS TRABAJADORES DEL ESTADO 
+Dirección Médica 
+Dirección de Tecnología y Desarrollo Institucional 
+INSTITUTO FEDERAL DE ACCESO A LA INFORMACION Y PROTECCION DE DATOS 
+INSTITUTO MEXICANO DEL SEGURO SOCIAL 
+Dirección de Prestaciones Médicas 
+Dirección de Innovación y Desarrollo Tecnológico 
+INSTITUTO NACIONAL DE ESTADISTICA Y GEOGRAFIA 
+PETROLEOS MEXICANOS 
+Subdirección Corporativa de Servicios Médicos 
+SECRETARIA DE COMUNICACIONES Y TRANSPORTES 
+Coordinación del Sistema Nacional e-México 
+SECRETARIA DE LA FUNCION PUBLICA 
+SECRETARIA DE GOBERNACION 
+Dirección General del Registro de Población e Identificación Personal 
+SECRETARIA DE LA DEFENSA NACIONAL 
+Dirección General de Sanidad Militar 
+Dirección General de Informática 
+SECRETARIA DE MARINA 
+Dirección General de Sanidad Naval 
+SERVICIO DE ADMINISTRACION TRIBUTARIA 
+Administración General de Comunicaciones y Tecnologías de la Información 
+SISTEMA NACIONAL PARA EL DESARROLLO INTEGRAL DE LA FAMILIA 
+ASOCIACION MEXICANA DE FACULTADES Y ESCUELAS DE MEDICINA 
+ASOCIACION MEXICANA DE HOSPITALES, A.C. 
+ASOCIACION NACIONAL DE HOSPITALES PRIVADOS, A.C. 
+CAMARA NACIONAL DE COMERCIO, SERVICIOS Y TURISMO DE LA CIUDAD DE MEXICO 
+COLEGIO NACIONAL DE ENFERMERAS, A.C. 
+CONSEJO NACIONAL DE CIENCIA Y TECNOLOGIA 
+CONSEJO NACIONAL DE POBLACION 
+FUNDACION MEXICANA PARA LA SALUD, A.C. 
+SOCIEDAD MEXICANA DE SALUD PUBLICA A.C. 
+
+82     (Segunda Sección) DIARIO OFICIAL Viernes 30 de noviembre de 2012 
+ 
+INDICE 
+0. Introducción 
+1.  Objetivo y campo de aplicación 
+2.      Referencias 
+3.  Definiciones 
+4.  Abreviaturas 
+5.  Generalidades 
+6.  Especificaciones 
+7.  Procedimiento de Evaluación de la Conformidad 
+8.  Concordancia con normas internacionales y mexicanas 
+9.  Bibliografía 
+10.  Vigilancia 
+11.  Vigencia 
+12.  Apéndice Normativo A "Matriz de catálogos fundamentales" 
+0. Introducción 
+El   Intercambio   de   Información   entre   Prestadores   de   Servicios   de   Salud   en   nuestro   país   es   un   
+requerimiento  esencial  para  otorgarle  continuidad  a  la  atención  médica  entre  los  mismos.  El  avance  
+tecnológico  que  presenta  la  informática  médica  posibilita  que  los  Sistemas  de  Información  de  Registro  
+Electrónico  para  la  Salud,  entre  los  que  se  encuentran  los  Expedientes  Clínicos  Electrónicos,  puedan  
+intercambiar  información  útil  con  este  objetivo,  además  de  permitir  explotar  información  de  salud  pública,  lo  
+que facilita la toma de decisiones en el sector. 
+La   Norma   Oficial   Mexicana   NOM-024-SSA3-2010   Que   establece   los   objetivos   funcionales   y   
+funcionalidades  que  deberán  observar  los  productos  de  Sistemas  de  Expediente  Clínico  Electrónico  para  
+garantizar la interoperabilidad, procesamiento, interpretación, confidencialidad, seguridad y uso de estándares 
+y catálogos de la información de los registros electrónicos en salud, fue publicada el 8 de septiembre de 2010 
+en  el  Diario  Oficial  de  la  Federación  y  entró  en  vigor  60  días  posteriores  a  su  publicación.  Sin  embargo,  del  
+análisis  de  la  aplicación,  efectos  y  observancia  de  la  Norma  Oficial  Mexicana  NOM-024-SSA3-2010,  la  
+Secretaría  de  Salud,  por  conducto  de  la  Dirección  General  de  Información  en  Salud,  ha  detectado  la  
+necesidad de especificar a cabalidad los estándares a los que la Norma Oficial Mexicana NOM-024-SSA3-2010 
+hace  referencia,  tales  como  Guías  de  Implementación  y  Catálogos  de  Terminología.  Se  prevé  mejorar  la  
+redacción  y  estructura  para  facilitar  la  comprensión,  interpretación,  aplicación  y  evaluación  de  esta  Norma  
+Oficial Mexicana. 
+El objetivo de la modificación a la NOM-024-SSA3-2010 es adecuar los criterios bajo los cuales se deben 
+generar,  procesar,  conservar,  interpretar  y  asegurar  el  intercambio  de  información  entre  Sistemas  de  
+Información  de  Registro  Electrónico  para  la  Salud,  entre  los  que  se  encuentran  los  Expedientes  Clínicos  
+Electrónicos,  así  como  los  mecanismos  mediante  los  cuales  se  emitirán  especificaciones  técnicas  para  los  
+posibles escenarios de intercambio y para el diseño de este tipo de sistemas. 
+1. Objetivo y campo de aplicación 
+1.1 Esta Norma tiene por objeto regular los Sistemas de Información de Registro Electrónico para la Salud, 
+así como establecer los mecanismos para que los Prestadores de Servicios de Salud del Sistema Nacional de 
+Salud registren, intercambien y consoliden información. 
+1.2 Esta Norma es de observancia obligatoria en todo el territorio nacional para todos los establecimientos 
+que  presten  servicios  de  atención  médica  que  formen  parte  del  Sistema  Nacional  de  Salud  que  adopten  un  
+Sistema  de  Información  de  Registro  Electrónico  para  la  Salud,  así  como  para  aquellas  personas  físicas  o  
+morales que dentro del territorio nacional cuenten indistintamente con los derechos de propiedad, uso, autoría, 
+distribución y/o comercialización de dichos Sistemas; en ambos casos, en términos de la presente Norma y de 
+las disposiciones jurídicas aplicables. 
+1.3 Esta Norma es aplicable a los Sistemas de Información de Registro Electrónico para la Salud que se 
+utilicen indistintamente en los Sectores Público, Privado y Social del Sistema Nacional de Salud. 
+
+Viernes 30 de noviembre de 2012 DIARIO OFICIAL (Segunda Sección)     83 
+ 
+2. Referencias 
+Para la correcta aplicación de esta Norma Oficial Mexicana, es necesario consultar las siguientes Normas 
+Oficiales Mexicanas en vigor o las que las sustituyan: 
+2.1 Norma Oficial Mexicana NOM-035-SSA3-2012, En Materia de Información en Salud. 
+2.2 Norma Oficial Mexicana NOM-004-SSA3-2012, Del Expediente Clínico. 
+2.3 Norma Oficial Mexicana NOM-017-SSA2-1994, Para la Vigilancia Epidemiológica. 
+3. Definiciones 
+Para efectos de esta Norma Oficial Mexicana se entiende por: 
+3.1  Acceso.-  Se  refiere  a  la  posibilidad  de  ingresar  a  la  información  almacenada  por  los  Sistemas    
+de  Información  de  Registro  Electrónico  para  la  Salud.  El  acceso  debe  estar  limitado  por  mecanismos  de  
+seguridad entre los que se encuentre la autenticación. 
+3.2  Actividad.-  Acción  realizada  en  un  sistema  electrónico  al  proveer  servicios  o  suministros  que  
+intervienen directa o indirectamente en la salud de un individuo o población a la que se le proporciona. 
+3.3  Administrar  (datos).-  Manejar  datos  por  medio  de  su  captura,  mantenimiento,  interpretación,  
+presentación, intercambio, análisis, definición y visibilidad. 
+3.4  Arquitectura  de  Referencia.-  Marco  general  de  especificaciones  técnicas  en  el  que  se  basa  el  
+desarrollo de Guías e Interfaces de intercambio de información con el fin de asegurar la homologación de las 
+mismas. 
+3.5  Apéndice  normativo.-  Parte  integral  del  cuerpo  de  esta  Norma  Oficial  Mexicana  de  observancia  
+obligatoria que contiene la descripción de conceptos, datos y sus interrelaciones. 
+3.6  Atención  médica.-  Conjunto  de  servicios  que  se  proporcionan  al  individuo,  con  el  fin  de  promover,  
+proteger y restaurar su salud. 
+3.7  Autenticar.-  Controlar  el  acceso  a  un  sistema  mediante  la  validación  de  la  identidad  de  un  usuario,  
+otro sistema, o dispositivo antes de autorizar su acceso. 
+3.8  Autorizar.-  Proceso  que  consiste  en  dar  permiso  a  algún  usuario,  organización  o  dispositivo  para  
+acceder,  manipular  u  obtener  algo  del  sistema,  usualmente  el  administrador  del  sistema,  basado  en  las  
+políticas de la institución y la normatividad aplicable, es quien define el acceso al sistema y los privilegios de 
+uso. 
+3.9  Base  de  datos.-  Conjunto  organizado  de  datos  pertenecientes  a  un  mismo  contexto  y  almacenados  
+sistemáticamente para su posterior uso. 
+3.10 Certificación.- Al procedimiento por el cual se asegura que un producto, proceso, sistema o servicio 
+se ajusta a las Normas Oficiales Mexicanas. 
+3.11  Certificado.-  Es  el  documento  mediante  el  cual  la  Dirección  General  de  Información  en  Salud  o  el  
+Organismo  de  Certificación,  hacen  constar  que  el  Sistema  de  Información  de  Registro  Electrónico  para  la  
+Salud  cumple  las  especificaciones  establecidas  en  esta  Norma  Oficial  Mexicana  y  cuya  validez  está  sujeta    
+a la verificación respectiva. 
+3.12  Cifrado.-  Es  un  procedimiento  que  utiliza  un  algoritmo  con  determinada  clave  para  transformar  un  
+mensaje, de tal forma que sea incomprensible o, al menos difícil de comprender, a toda persona que no tenga 
+la clave secreta del algoritmo que se usa para poder descifrarlo. 
+3.13 Clave Unica de Establecimientos de Salud.- Al Identificador único, consecutivo e intransferible que 
+asigna la Secretaría de Salud a través de la Dirección General de Información en Salud de manera obligatoria 
+a  cada  establecimiento  de  salud  (entre  los  que  se  encuentran:  unidades  médicas,  laboratorios,  centros  de  
+diagnóstico,  centros  de  tratamiento,  oficinas  administrativas,  sean  estos  fijos  o  móviles)  que  exista  en  el  
+territorio  nacional,  sea  público,  privado  o  social,  y  con  la  cual  se  identifica  todo  lo  reportado  por  el  mismo  a  
+cada uno de los subsistemas del Sistema Nacional de Información en Salud. 
+3.14  Codificado.-  Referencia  a  un  vocabulario,  conjunto  de  códigos,  bases  de  datos,  terminologías    
+o catálogos. 
+3.15  Componente.-  Elemento  de  un  sistema  capaz  de  operar  independientemente,  pero  diseñado,  
+construido y operado como parte integral del sistema. 
+
+84     (Segunda Sección) DIARIO OFICIAL Viernes 30 de noviembre de 2012 
+ 
+3.16  Confidencialidad.-  Propiedad  por  la  que  la  información  no  está  disponible  y  no  es  revelada  a  
+individuos, entidades o procesos sin autorización. 
+3.17  Conservar.-  Mantener  en  condiciones  adecuadas  de  operación  los  sistemas  para  asegurar  la  
+integridad,  confiabilidad  y  disponibilidad  de  los  datos  e  información  contenidos  en  los  mismos  a  través  del  
+tiempo. 
+3.18 Control de acceso.- Mecanismos de seguridad para garantizar que los recursos del sistema puedan 
+ser  accedidos  sólo  por  usuarios,  organizaciones  y  dispositivos  habilitados  y  que  cuenten  con  las  facultades  
+requeridas. 
+3.19  Datos  personales.-  Información  concerniente  a  una  persona  física  identificada  o  identificable,  que  
+puede estar expresada en forma numérica, alfabética, gráfica, fotográfica, acústica o de cualquier otro tipo. 
+3.20  Estándares.-  Documentos  que  contienen  las  especificaciones  y  procedimientos  destinados  a  la  
+generación de productos, servicios y sistemas confiables. Estos establecen un lenguaje común, el cual define 
+los  criterios  de  calidad  y  seguridad,  son  documentos  prácticos  que  fijan  metas  alcanzables,  son  sujetos  a  
+revisión  constante  para  permitir  el  avance  conforme  a  las  tecnologías.  Los  estándares  pueden  incluir  
+referencia a otros estándares internacionales, códigos, especificaciones o manuales, entre otros. 
+3.21  Expediente  Clínico  Electrónico.-  Conjunto  de  información  almacenada  en  medios  electrónicos  
+centrada en el paciente que documenta la atención médica prestada por profesionales de la salud con arreglo 
+a las disposiciones sanitarias, dentro de un establecimiento de salud. El sistema por el que se administra un 
+Expediente Clínico Electrónico es un Sistema de Información de Registro Electrónico para la Salud. 
+3.22 Firma Electrónica Avanzada.- Es el conjunto de datos y caracteres que permite la identificación del 
+firmante, que ha sido creada por medios electrónicos bajo su exclusivo control, de manera que está vinculada 
+únicamente  al  mismo  y  a  los  datos  a  los  que  se  refiere,  lo  que  permite  que  sea  detectable  cualquier  
+modificación ulterior de éstos, la cual produce los mismos efectos jurídicos que la firma autógrafa. 
+3.23  Grupo  de  trabajo  estratégico  de  seguridad  de  la  información.-  Personal  designado  por  el  
+Prestador de Servicios de Salud que es responsable de constatar que se efectúe la implantación del Sistema 
+de Gestión de la Seguridad de la Información y que se lleven a cabo revisiones al mismo a fin de verificar su 
+cumplimiento. Sus actividades deben observar las disposiciones jurídicas aplicables al Prestador de Servicios 
+de Salud. 
+3.24 Guías y Formatos.- Documentos técnicos de intercambio de información para la salud, los cuales se 
+desarrollan en el apartado de Especificaciones. 
+3.25  Health  Level  Seven  International.-  (Salud  Nivel  Siete  Internacional,  por  su  nombre  en  inglés).- 
+Organización internacional generadora de estándares de interoperabilidad para informática médica, enfocada 
+en el entendimiento y uso de la información más que los mecanismos para transportarla. 
+3.26  Identificar.-  Proceso  que  consiste  en  tomar  conocimiento  de  que  una  persona,  organización  o  
+dispositivo es quien dice ser. 
+3.27  Información  Básica  en  Materia  de  Salud.-  Aquella  que  se  encuentra  conformada,  en  forma  
+enunciativa  y  no  limitativa  por:  a)  el  nombre  completo,  edad,  sexo,  domicilio,  así  como  el  historial  clínico,  
+hospitalario  e  información  de  última  cita  de  urgencias,  respecto  de  los  afiliados  y/o  beneficiarios  y/o  
+derechohabientes y/o pacientes; y, b) la infraestructura con que se cuenta en atención médica y hospitalaria, 
+así como la capacidad instalada para la prestación de los servicios médicos a nivel nacional. 
+3.28  Información  clínica.-  Información  relevante  para  la  salud  o  el  tratamiento  de  un  paciente,  que  se  
+registra  por  o  en  nombre  de  un  profesional  de  la  salud.  Puede  incluir  información  del  paciente,  de  los  
+familiares o del entorno. 
+3.29   Información   en   salud.-   Datos,   información,   conocimiento   y   evidencia   relacionados   con   la   
+generación, acceso, difusión y uso del personal, servicios, recursos, afiliados, derechohabientes, beneficiarios, 
+pacientes,  tratamientos  y  resultados  dentro  del  sector  salud,  entre  la  que  se  encuentra  indistintamente  la  
+información estadística, epidemiológica y financiera. 
+3.30  Integrating  the  Healthcare  Enterprise.-  (Integrando  la  Industria  de  la  Salud,  por  su  nombre  en  
+inglés).- Organización  internacional  de  profesionales  de  la  salud  e  industria  enfocados  en  mejorar  la  manera  
+en que los sistemas informáticos comparten información médica. Promueve el uso coordinado de estándares 
+probados para necesidades específicas, con el objetivo de brindar un cuidado óptimo al paciente. Sus perfiles 
+son utilizados oficialmente en diversos países de Europa, Asia y América al momento de esta publicación. 
+
+Viernes 30 de noviembre de 2012 DIARIO OFICIAL (Segunda Sección)     85 
+ 
+3.31  Integridad.-  Propiedad  de  la  información  que  se  refiere  a  que  dicha  información  contenida  en  
+sistemas para la prestación de servicios digitales permanecen completos e inalterados y, en su caso, que sólo 
+han sido modificados por la fuente de confianza correspondiente. 
+3.32  Interfaz  de  intercambio  de  información.-  Conjunto  de  protocolos,  estándares  y  componentes  que  
+sirven para intercambiar datos entre sistemas, con independencia del lenguaje de programación o plataforma 
+en la que fueron desarrollados y operan. 
+3.33  Interoperabilidad.-  Capacidad  de  los  sistemas  de  diversas  organizaciones  para  interactuar  con  
+objetivos  consensuados  y  comunes,  con  la  finalidad  de  obtener  beneficios  mutuos,  en  donde  la  interacción  
+implica  que  los  Prestadores  de  Servicios  de  Salud  compartan  información  y  conocimiento  mediante  el  
+intercambio de datos entre sus respectivos sistemas de tecnología de información y comunicaciones. 
+3.34 Interoperabilidad semántica.- Capacidad que garantiza el significado preciso de la información para 
+que pueda ser utilizada por cualquier sistema. 
+3.35   Interoperabilidad   técnica.-   Especificaciones   técnicas   que   garantizan   que   los   componentes   
+tecnológicos de los Sistemas de Información están preparados para interactuar de manera conjunta. 
+3.36  Nombre  de  usuario.-  Conjunto  de  caracteres  alfanuméricos  basados  en  el  código  American  
+Standard  Code  for  Information  Interchange  (Código  Americano  Estandarizado  para  el  Intercambio  de  
+Información,  por  su  nombre  en  inglés)  –ASCII-  con  el  que  la  persona  usuaria  de  un  sistema  se  autentica  
+dentro del mismo. 
+3.37   Organismo   de   Certificación.-   Organismo   acreditado   y   aprobado,   de   conformidad   con   las   
+disposiciones   jurídicas   aplicables,   para   certificar   que   los   productos   cumplen   con   los   requerimientos   
+establecidos en esta Norma Oficial Mexicana. 
+3.38 Paciente.- Beneficiario directo de la atención médica. 
+3.39 Perfil IHE.- Solución desarrollada por IHE a un problema específico de intercambio de información en 
+salud  basada  en  integrar  los  estándares  probados  apropiados.  Documenta  a  través  de  guías,  los  actores,  
+transacciones,  referencias  a  estándares  y  detalles  de  diseño  que  permitan  a  implementadores  desarrollar  
+sistemas que resuelvan los problemas de comunicación de información. 
+3.40  Prestador  de  Servicios  de  Salud.-  Persona  física  o  moral  del  sector  público,  privado  o  social  que  
+proporciona servicios de salud en los términos de las disposiciones jurídicas sanitarias aplicables y que forma 
+parte del Sistema Nacional de Salud. 
+3.41  Profesional  de  la  Salud.-  Persona  que  ejerce  una  profesión,  actividad  técnica,  auxiliar  o  de  
+especialidad  en  salud,  quedando  sujeta  a  lo  establecido  en  las  disposiciones  jurídicas  aplicables  para  el  
+ejercicio de dicha actividad. 
+3.42  Registro  de  auditoría.-  Registro  cronológico  de  actividades  de  los  usuarios  de  un  sistema  de  
+información que permite reconstruir fielmente la información a estados anteriores. 
+3.43  Registro  Electrónico  en  Salud.-  Datos  estructurados  de  información  clínica,  imagenológica,  
+demográfica,  social,  financiera,  de  infraestructura  y  de  cualquier  otra  índole  que  documente  la  atención  
+médica prestada a un solo individuo y/o la capacidad instalada en los establecimientos de salud, almacenados 
+en medios electrónicos. 
+3.44 Registro estructurado.- Conjunto de datos elementales organizados como valores diferenciados con 
+el fin de hacer posible su manipulación tanto por métodos automatizados como manuales dentro de sistemas 
+de información. 
+3.45  Seguridad.-  Preservación  de  la  confidencialidad,  integridad  y  disponibilidad  de  la  información;  
+además,   otras   propiedades   como   autenticidad,   responsabilidad,   no   repudio   y   fiabilidad   son   también   
+consideradas. 
+3.46  Sistema  de  Gestión  de  la  Seguridad  de  la  Información.-  Parte  de  un  sistema  global  de  gestión  
+que, basado en el análisis de riesgos, establece, implementa, opera, monitorea, revisa, mantiene y mejora la 
+seguridad  de  la  información.  El  sistema  de  gestión  incluye  una  estructura  de  organización,  políticas,  
+planificación de actividades, responsabilidades, procedimientos, procesos y recursos. 
+3.47  Sistema  de  Expediente  Clínico  Electrónico.-  Es  un  tipo  de  Sistema  de  Información  de  Registro  
+Electrónico para la Salud en el cual el personal de salud registra, anota y certifica su intervención relacionada 
+con el paciente, con arreglo a las disposiciones jurídicas sanitarias aplicables. 
+
+86     (Segunda Sección) DIARIO OFICIAL Viernes 30 de noviembre de 2012 
+ 
+3.48  Sistema  de  información.-  Conjunto  de  elementos  que  permiten  procesar  y  almacenar  información  
+con el apoyo de equipos de cómputo. 
+3.49  Sistema  de  Información  de  Registro  Electrónico  para  la  Salud.-  Sistema  de  información  que  
+permite  capturar,  manejar  e  intercambiar  información  estructurada  e  integrada,  del  expediente  clínico,  así  
+como información geográfica, social, financiera, de infraestructura y de cualquier otra índole que documente la 
+atención médica prestada a un solo individuo y/o la capacidad instalada de los establecimientos de salud. La 
+información  generada  por  estos,  en  conjunto  con  la  información  contenida  en  el  Sistema  Nacional  de  
+Información en Salud, se integran al Sistema Nacional de Información Básica en Materia de Salud. 
+3.50  Sistema  de  información  en  salud.-  Conjunto  de  elementos,  recursos  y  personas  que  interactúan,  
+bajo criterios y procedimientos definidos, para realizar de manera sistemática las actividades relacionadas con 
+la organización y la administración de la información en materia de salud. 
+3.51  Sistema  Nacional  de  Salud.-  Conjunto  constituido  por  las  dependencias  y  entidades  de  la  
+Administración  Pública,  tanto  federal  como  local  y  las  personas  morales  o  físicas  de  los  sectores  social  y  
+privado  que  prestan  servicios  de  salud,  así  como  por  los  mecanismos  establecidos  para  la  coordinación  de  
+acciones, y tiene por objeto dar cumplimiento al derecho de la protección de la salud. 
+3.52 Sistema Nacional de Información en Salud.- Sistema que integra la información para elaborar las 
+estadísticas  nacionales  en  salud,  el  cual  se  encuentra  conformado  por:  a)  estadísticas  de  natalidad,  
+mortalidad, morbilidad e invalidez; b) factores demográficos, económicos, sociales y ambientales vinculados a 
+la  salud;  y,  c)  recursos  físicos,  humanos  y  financieros  disponibles  para  la  protección  de  la  salud  de  la  
+población,  y  su  utilización,  el  cual  es  administrado  por  la  Secretaría  de  Salud,  por  conducto  de  la  Dirección  
+General de Información en Salud, en términos de lo que señalan los artículos 104 y 105 de la Ley General de 
+Salud vigente, así como la NOM-035-SSA3-2012, En Materia de Información en Salud. 
+3.53  Sistema  Nacional  de  Información  Básica  en  Materia  de  Salud.-  Sistema  que  garantiza  el  
+intercambio  de  información  y  su  análisis  en  materia  de  salud  a  nivel  nacional,  el  cual  integra  de  forma  
+estructurada  y  sistematizada  la  información  básica  en  materia  de  salud,  a  través  de  los  procedimientos,  
+protocolos  y  las  plataformas  tecnológicas  que  permiten  su  operación.  Los  Sistemas  de  Información  de  
+Registro Electrónico para la Salud, entre los que se encuentran los del Expediente Clínico Electrónico, forman 
+parte  del  Sistema  Nacional  de  Información  Básica  en  Materia  de  Salud.  Este  último  es  administrado  por    
+la  Secretaría  de  Salud,  en  su  carácter  de  coordinadora  del  Sistema  Nacional  de  Salud,  por  conducto  de  la  
+Dirección General de Información en Salud en términos de lo señalado por los artículos 5, 6 y 7 fracción X de 
+la  Ley  General  de  Salud  en  vigor,  así  como  por  el  Acuerdo  por  el  que  se  establece  el  Sistema  Nacional    
+de Información Básica en Materia de Salud publicado en el Diario Oficial de la Federación el 5 de septiembre de 
+2012, expedido por el Secretario de Salud en su carácter de coordinador del Sistema Nacional de Salud. 
+3.54  Trazabilidad.-  Cualidad  que  permite  que  todas  las  acciones  realizadas  sobre  la  información  o  un  
+sistema de tratamiento de la información sean asociadas de modo inequívoco a un individuo o entidad. 
+3.55  Unidad  de  Verificación.-  Persona  física  o  moral  que  realiza  actos  de  verificación,  conforme  a  lo  
+dispuesto  en  la  Ley  Federal  Sobre  Metrología  y  Normalización  y  su  Reglamento,  que  se  encuentra  
+debidamente acreditada y aprobada para verificar el cumplimiento de la Norma Oficial Mexicana. 
+3.56  Usuario.-  Persona  que  cuenta  con  permisos  para  acceder  a  los  recursos  y  servicios  que  ofrece  un  
+sistema. 
+3.57  Verificación.-  Constatación  ocular  o  comprobación  mediante  muestreo,  medición,  pruebas  de  
+laboratorio,  o  examen  de  documentos,  que  se  realizan  para  evaluar  la  conformidad  en  un  momento  
+determinado. 
+3.58  Vigilancia  Epidemiológica.-  Estudio  permanente  y  dinámico  del  estado  de  salud,  así  como  de  sus  
+condicionantes, en la población. 
+4. Abreviaturas 
+4.1  ASCII.-  (American  Standard  Code  for  Information  Interchange,  por  su  nombre  en  inglés)  Código  
+Americano Estandarizado para el Intercambio de Información. 
+4.2 CEMECE.- Centro Mexicano para la Clasificación de Enfermedades. 
+4.3  CIE.-  Clasificación  Internacional  de  Enfermedades  y  Problemas  Relacionados  con  la  Salud  de  la  
+Organización Mundial de la Salud. 
+4.4 CLUES.- Clave Unica de Establecimientos de Salud. 
+
+Viernes 30 de noviembre de 2012 DIARIO OFICIAL (Segunda Sección)     87 
+ 
+4.5 CURP.- Clave Unica de Registro de Población. 
+4.6 DGIS.- Dirección General de Información en Salud. 
+4.7 HL7.- Health Level Seven (Salud Nivel Siete, por su nombre en inglés). 
+4.8  IHE.-  Integrating  the  Healthcare  Enterprise  (Integrando  la  Industria  de  la  Salud,  por  su  nombre    
+en inglés). 
+4.9 INEGI.- Instituto Nacional de Estadística y Geografía. 
+4.10 LFMN.- Ley Federal sobre Metrología y Normalización. 
+4.11 LFPA.- Ley Federal de Procedimiento Administrativo. 
+4.12 LFPDPPP.- Ley Federal de Protección de Datos Personales en Posesión de los Particulares. 
+4.13 LFTAIPG.- Ley Federal de Transparencia y Acceso a la Información Pública Gubernamental. 
+4.14 NOM.- Norma Oficial Mexicana. 
+4.15 RENAPO.- Registro Nacional de Población 
+4.16 Secretaría.- Secretaría de Salud. 
+4.17 SHCP.- Secretaría de Hacienda y Crédito Público 
+4.18 SINAIS.- Sistema Nacional de Información en Salud. 
+4.19 SNIBMS.- Sistema Nacional de Información Básica en Materia de Salud. 
+4.20 SIRES.- Sistemas de Información de Registro Electrónico para la Salud. 
+4.21 SNS.- Sistema Nacional de Salud. 
+5. Generalidades 
+5.1 Corresponde a la Secretaría de Salud establecer, conforme a las disposiciones jurídicas aplicables, la 
+normatividad  a  que  deben  sujetarse  los  SIRES  que  utilicen  los  Prestadores  de  Servicios  de  Salud,  a  fin  de  
+garantizar  el  intercambio,  procesamiento,  interpretación  y  seguridad  de  la  información  contenida  en  dichos  
+sistemas. 
+5.2 Los  Prestadores  de  Servicios  de  Salud  que  utilicen  algún(os)  SIRES,  deben  hacerlo  con  un  sistema  
+que  cumpla  con  los  términos  previstos  en  la  presente  norma,  en  las  Normas  Oficiales  Mexicanas  citadas  en  
+los  puntos  2.1,  2.2  y  2.3  de  esta  norma  y  en  las  disposiciones  jurídicas  aplicables;  los  Prestadores  de  
+Servicios  de  Salud  son  solidariamente  responsables,  respecto  del  cumplimiento  de  esta  obligación  por  parte  
+del personal que preste sus servicios en los mismos, independientemente de la forma en que dicho personal 
+se encuentre contratado. 
+5.3 Los Prestadores de Servicios de Salud a través de los SIRES deben garantizar la confidencialidad de 
+la  identidad  de  los  pacientes  así  como  la  integridad  y  confiabilidad  de  la  información  clínica  y  establecer  las  
+medidas  de  seguridad  pertinentes  y  adecuadas  a  fin  de  evitar  el  uso  ilícito  o  ilegítimo  que  pueda  lesionar  la  
+esfera jurídica del titular de la información, de acuerdo con las disposiciones jurídicas aplicables. 
+5.4 En  todos  los  establecimientos  de  atención  médica,  la  información  contenida  en  los  SIRES  debe  ser  
+manejada con discreción y confidencialidad, de acuerdo con las disposiciones jurídicas aplicables, así como a 
+los principios científicos y éticos que orientan la práctica médica, dicha información puede ser dada a conocer 
+al  paciente,  familiares,  representante  legal  o  terceros,  conforme  a  los  términos  establecidos  en  la  Norma  
+Oficial Mexicana citada en el punto 2.1 de esta norma. 
+5.5 Los  Prestadores  de  Servicios  de  Salud  pueden  intercambiar  información  a  través  de  los  SIRES  de  
+conformidad con la LFTAIPG y demás disposiciones jurídicas aplicables. 
+La  revelación  de  la  información  contenida  en  los  SIRES  sin  autorización  expresa  de  los  Prestadores  de  
+Servicios  de  Salud,  del  titular  de  la  información  o  de  quien  tenga  facultad  legal  para  decidir  por  él,  será  
+sancionada de conformidad con las disposiciones jurídicas aplicables. 
+5.6 Los  Prestadores  de  Servicios  de  Salud  son  responsables  de  conservar  y  mantener  en  condiciones  
+adecuadas de operación sus SIRES, para asegurar la integridad, confiabilidad y disponibilidad de los datos e 
+información contenidos en los mismos a través del tiempo. 
+
+88     (Segunda Sección) DIARIO OFICIAL Viernes 30 de noviembre de 2012 
+ 
+5.7 Los Prestadores de Servicios de Salud compartirán información y conocimiento para la prestación de 
+servicios de salud integrados, así como para la adecuada toma de decisiones, dentro del marco de convenios 
+o acuerdos entre sí y la autoridad sanitaria. 
+5.8 Los Prestadores de Servicios de Salud deben generar los medios para poner a disposición y compartir 
+la  información,  funcionalidades  y  soluciones  tecnológicas,  entre  aquéllas  que  lo  requieran  y,  en  dicho  
+intercambio, deben contar con trazabilidad en los registros que les permitan identificar y analizar situaciones, 
+generales o específicas, de los servicios digitales. 
+5.9 Los Prestadores de Servicios de Salud son responsables de que los datos e información contenidos en 
+sus SIRES para la prestación de servicios de salud permanezcan completos e inalterados. 
+6. Especificaciones 
+6.1 Guías y Formatos para Intercambio de Información en Salud 
+6.1.1  La  Secretaría,  a  través  de  la  DGIS  conforme  a  las  disposiciones  jurídicas  aplicables  y  criterios  
+médicos,   disposiciones   de   intercambio   de   información   y   estándares   técnicos   probados,   coordina   la   
+elaboración   de   Guías   y   Formatos   que   orientan   a   los   Prestadores   de   Servicios   de   Salud   en   lograr      
+la  Interoperabilidad  Semántica  e  Interoperabilidad  Técnica  en  escenarios  concretos  de  intercambio  de  
+información entre SIRES. 
+6.1.2  Las  Guías  y  Formatos  son  documentos  técnicos  enfocados  en  lograr  la  Interoperabilidad  Técnica  e  
+Interoperabilidad  Semántica,  están  compuestos  tanto  en  formatos  de  texto,  diagramas,  archivos  anexos    
+e incluyen en su contenido al menos: a) el alcance de tipos de sistemas, tipos de Prestadores de Servicios de 
+Salud  y  tipos  de  intercambio  para  los  que  aplica;  b)  el  diccionario  de  variables,  distinguiendo  aquellas    
+de  tratamiento  confidencial,  catálogos  y  reglas  de  validación;  c)  la  conformación  del  documento  electrónico,  
+mensaje  de  datos  o  servicio;  d)  el  mecanismo  de  interconexión  basado  en  estándares;  y,  e)  ejemplos,  
+referencias y bibliografía. 
+6.1.3 Las Guías y Formatos están basados en la Arquitectura de Referencia y procedimientos que emite la 
+Secretaría  a  través  de  la  DGIS.  Esta  Arquitectura  de  Referencia  puede  considerar  los  estándares  y  
+lineamientos  publicados  internacionalmente  por  IHE,  HL7  o  aquellos  que  determine  la  propia  Secretaría  a  
+través de la DGIS de acuerdo a los avances tecnológicos y situación del SNS. 
+6.1.3.1 De acuerdo al alcance del intercambio de información, se pueden considerar los estándares: HL7 
+CDA, HL7 V3, XML y/o el estándar probado que determine la Secretaría a través de la DGIS de acuerdo a los 
+avances  tecnológicos  y  situación  del  SNS.  Los  Prestadores  de  Servicios  de  Salud  pueden  elegir  para  el  
+intercambio de información al interior de su organización los estándares que mejor resuelvan sus necesidades 
+para prestar dichos servicios, sujetándose siempre a lo previsto por esta norma. 
+6.1.3.2  De  acuerdo  al  alcance  del  intercambio  de  información,  se  pueden  considerar  las  configuraciones  
+de  estándares  definidas  en  los  perfiles  IHE,  así  como  las  configuraciones  de  estándares  probados  que  
+determine  la  Secretaría  de  acuerdo  a  los  avances  tecnológicos  y  situación  del  SNS.  Los  Prestadores  de  
+Servicios  de  Salud  pueden  elegir  para  el  intercambio  de  información  al  interior  de  su  organización  los  
+estándares  que  mejor  resuelvan  sus  necesidades  para  prestar  dichos  servicios,  sujetándose  siempre  a  lo  
+previsto por esta norma. 
+6.1.4  Las  Guías  y  Formatos  especifican  el  detalle  del  intercambio  de  información  entre  Prestadores  de  
+Servicios de Salud, con independencia de los procesos que se den al interior de los mismos. 
+6.1.5 La  elaboración  y  actualización  de  las  Guías  y  Formatos  es  coordinado  por  la  Secretaría  en  su  
+carácter  de  coordinadora  del  SNS,  a  través  de  la  DGIS,  por  medio  del  procedimiento  que  para  este  fin  
+publique la Secretaría. Las Guías y Formatos deben cumplir las características descritas en esta norma y ser 
+sometidas a la Secretaría por conducto de la DGIS para su aprobación y publicación en su página electrónica: 
+www.dgis.salud.gob.mx 
+6.2 Sistemas de Información en Salud de las Unidades Administrativas de la Secretaría 
+6.2.1  Los  sistemas  de  información  de  la  Secretaría  para  recopilación  y  consulta  de  información  deben  
+implementar  interfaces  de  intercambio  de  información  de  acuerdo  a  los  estándares  definidos  en  esta  norma,  
+así como apegar su diseño a la Arquitectura de Referencia que emita la Secretaría por conducto de la DGIS. 
+6.3 SIRES 
+6.3.1   Los   SIRES   deben   implementar   interfaces   de   intercambio   de   información   de   acuerdo   a   lo   
+especificado  en  las  Guías  y  Formatos  correspondientes  a  cada  escenario  que  aplique  al  Prestador  de  
+Servicios de Salud que lo opera. Es obligación de los Prestadores de Servicios de Salud que utilicen SIRES, 
+mantener actualizada esta implementación, de acuerdo a las Guías y Formatos publicados. 
+
+Viernes 30 de noviembre de 2012 DIARIO OFICIAL (Segunda Sección)     89 
+ 
+6.3.2  Para  todo  tipo  de  intercambio  de  información  entre  SIRES  los  Prestadores  de  Servicios  de  Salud  
+involucrados  deben  desarrollar  las  Guías  y  los  Formatos  correspondientes  en  caso  de  que  éstas  no  existan,  
+observando lo dispuesto en el apartado 6.1 
+6.3.3 Los SIRES deben registrar al menos la información requerida por las variables especificadas en las 
+Guías  y  Formatos  que  les  apliquen  de  acuerdo  a  su  alcance  y  disposiciones  jurídicas  aplicables  en  materia  
+de salud. 
+6.3.4  Los  SIRES  deben  registrar  la  información  derivada  de  la  prestación  de  servicios  de  salud  en  forma  
+de documentos electrónicos estructurados e inalterables. 
+6.4 Uso de Estándares y Catálogos 
+6.4.1  Con  el  fin  de  lograr  la  Interoperabilidad  semántica  entre  Prestadores  de  Servicios  de  Salud  y  la  
+alineación  de  sistemas  en  el  ámbito  nacional  e  internacional,  los  SIRES  deben  utilizar  los  estándares  de  
+formato  de  mensajes,  transporte  y  terminología  definidos  en  las  Guías  aplicables  a  cada  SIRES  de  acuerdo    
+a su alcance. 
+6.4.2 Los SIRES deben utilizar los catálogos fundamentales establecidos en el Apéndice Normativo A de 
+la presente norma "Matriz de Catálogos Fundamentales", en su versión vigente de acuerdo a lo publicado por 
+la  Secretaría  a  través  de  la  DGIS  y  siguiendo  los  lineamientos  de  uso  que  en  su  caso  establezca  el  órgano  
+rector  de  acuerdo  al  Apéndice  Normativo  A.  Es  obligación  de  los  Prestadores  de  Servicios  de  Salud  que  
+utilicen SIRES, mantener actualizados los catálogos y cumplir sus lineamientos de acuerdo a lo publicado en 
+la página electrónica de la DGIS www.dgis.salud.gob.mx. 
+6.5 Identificación de Pacientes y Profesionales de la Salud 
+6.5.1 Con fines de intercambio de información en salud, la CURP validada de acuerdo a los lineamientos 
+emitidos  por  la  Secretaría  de  Gobernación,  debe  ser  el  atributo  de  identificación  única  de  personas.  Los  
+SIRES no deben autogenerar la CURP. 
+6.5.2  Cada  SIRES  puede  soportar  el  manejo  de  identificadores  adicionales  a  la  CURP,  de  acuerdo  a  los  
+requerimientos del Prestador de Servicios de Salud. 
+6.5.3  Cada  Prestador  de  Servicios  de  Salud  debe  ser  capaz  de  reportar  a  la  Secretaría  a  través  de  la  
+DGIS,  los  datos  mínimos  para  la  identificación  de  personas  especificados  en  la  Tabla  1  "DATOS  MINIMOS  
+PARA LA IDENTIFICACION DE PERSONAS" a partir de la información contenida en sus SIRES, de acuerdo 
+a las Guías y Formatos que se emitan para tal fin. 
+TABLA 1 
+"DATOS MINIMOS PARA LA IDENTIFICACION DE PERSONAS" 
+ATRIBUTO DESCRIPCION 
+TIPO Y 
+LONGITUD 
+REQUERIDO VALIDACION 
+CURP 
+Clave  Unica  de  Registro  
+de  Población,  asignada  
+por el RENAPO. 
+Alfanumérico 
+(18) 
+SI 
+De acuerdo a los lineamientos del 
+RENAPO. 
+PRIMER 
+APELLIDO 
+Primer apellido asentado 
+en        el        documento        
+probatorio      presentado      
+ante    el    Prestador    de    
+Servicios de Salud. 
+Alfanumérico 
+(50) 
+SI 
+Se  debe  evitar  cualquier  tipo  de  
+abreviaturas   en   un   apellido   o   
+nombre compuesto. 
+Esta   información   con   fines   de   
+intercambio   debe   entregarse   en   
+mayúsculas. 
+Como      caracteres      especiales      
+solamente     se     deben     enviar     
+vocales  mayúsculas  con  acento  o  
+con diéresis y apóstrofes. 
+SEGUNDO 
+APELLIDO 
+Segundo             apellido             
+asentado         en         el         
+documento      probatorio      
+presentado      ante      el      
+Prestador   de   Servicios   
+de Salud. 
+Alfanumérico 
+(50) 
+NO 
+NOMBRE 
+Nombre(s)    asentado(s)    
+en        el        documento        
+probatorio      presentado      
+ante    el    Prestador    de    
+Servicios de Salud. 
+Alfanumérico 
+(50) 
+SI 
+
+90     (Segunda Sección) DIARIO OFICIAL Viernes 30 de noviembre de 2012 
+ 
+FECNAC 
+Fecha    de    nacimiento    
+asentada         en         el         
+documento      probatorio      
+presentado      ante      el      
+Prestador   de   Servicios   
+de Salud. 
+Numérico (8) SI 
+La   fecha   de   nacimiento   debe   
+tener  un  formato  de  8  posiciones  
+numéricas , asignadas en el orden 
+siguiente [aaaammdd]: 
+• Cuatro posiciones para el año. 
+• Dos posiciones para el mes (del 
+01 al 12). 
+•  Dos  posiciones  para  el  día  (del  
+01 al 31). 
+Ejemplo para alguien nacido el 15 
+de agosto de 1994: 
+19940815 
+EDONAC 
+Clave    de    la    entidad    
+federativa    en    la    que    
+nació     el     beneficiario     
+presentado      ante      el      
+Prestador   de   Servicios   
+de Salud. 
+Alfanumérico 
+(2) 
+SI 
+El valor debe existir en el catálogo 
+de       claves       de       entidades       
+federativas,         municipios         y         
+localidades del INEGI. 
+En caso de que haya nacido en el 
+extranjero   se   debe   capturar   la   
+clave     “NE”     (Nacido     en     el     
+Extranjero). 
+En  caso  de  que  sea  mexicano  y  
+se    desconoce    el    estado    de    
+nacimiento   del   beneficiario,   se   
+debe  capturar  la  clave  “00”  (no  
+disponible). 
+SEXO 
+Sexo    del    beneficiario    
+asentado         en         el         
+documento      probatorio      
+presentado      ante      el      
+Prestador   de   Servicios   
+de Salud. 
+Alfabético (1) SI 
+Unicos     valores     posibles     de     
+acuerdo  al  catálogo  de  RENAPO:  
+- M para Mujer  
+- H para Hombre 
+NACORIGEN 
+Nacionalidad              del              
+beneficiario  asentada  en  
+el  documento  probatorio  
+presentado      ante      el      
+Prestador   de   Servicios   
+de Salud. 
+Alfanumérico 
+(3) 
+SI 
+El    valor    debe    existir    en    el    
+Catálogo   de   Nacionalidades   de   
+RENAPO. 
+En  caso  de  no  ser  conocida  se  
+debe            capturar            “NND”            
+(Nacionalidad No Disponible). 
+FOLIO 
+Folio  o  número  con  el  
+que     cada     institución     
+identifica  internamente  a  
+la persona. 
+Alfanumérico 
+(18) 
+SI 
+Cada  Prestador  de  Servicios  de  
+Salud  define  la  estructura  de  este  
+folio. 
+EDO 
+Clave    de    la    entidad    
+federativa de residencia. 
+Alfanumérico (2)SI 
+El valor debe existir en el catálogo 
+de       claves       de       entidades       
+federativas,         municipios         y         
+localidades del INEGI. 
+    En    el    caso    de    no    existir    
+información se debe capturar “00”.
+MUN 
+Clave  del  municipio  de  
+residencia. 
+Alfanumérico (3)SI 
+El valor debe existir en el catálogo 
+de       claves       de       entidades       
+federativas,         municipios         y         
+localidades del INEGI. 
+En     el     caso     de     no     existir     
+información    se    debe    capturar    
+“000”. 
+
+Viernes 30 de noviembre de 2012 DIARIO OFICIAL (Segunda Sección)     91 
+ 
+LOC 
+Clave  de  la  localidad  de  
+residencia. 
+Alfanumérico 
+(4) 
+SI 
+El valor debe existir en el catálogo 
+de       claves       de       entidades       
+federativas,         municipios         y         
+localidades del INEGI. 
+En     el     caso     de     no     existir     
+información    se    debe    capturar    
+“0000”. 
+EXCLUSIVOS PARA PRESTADORES DE SERVICIOS DE SALUD FEDERALES 
+TIPO 
+BENEFICIARIO 
+Clave   que   identifica   el   
+tipo de beneficiario. 
+Alfanumérico (2)SI 
+01      =      Trabajador/Asegurado.      
+02      =   Beneficiario   del   Seguro   
+Popular. 
+03      =      Familiar.      
+04      =      Pensionado.      
+CLAVE 
+DEPENDENCIA 
+Clave de la dependencia 
+encargada                  del                  
+programa. 
+Alfanumérico (3)SI 
+La dependencia deberá notificar a 
+la  Secretaría  a  través  de  la  DGIS  
+esta clave.  
+CLAVE 
+PROGRAMA 
+Clave  del  programa  en  
+el   que   está   inscrito   el   
+beneficiario. 
+Alfanumérico 
+(20) 
+SI 
+La dependencia deberá notificar a 
+la  Secretaría  a  través  de  la  DGIS  
+esta clave. 
+En  caso  de  no  existir  información  
+se    debe    capturar:    “ND”    (No    
+Disponible) 
+ 
+6.5.5  Para  fines  de  intercambio  de  información,  los  datos  mínimos  de  identificación  obligatorios  son:  
+CURP, nombre, primer apellido y segundo apellido en caso de que cuente con él, de acuerdo a lo establecido 
+en la Tabla 1 (ver 6.5.3). 
+6.6 Consideraciones Universales de Manejo y Seguridad de la Información 
+6.6.1  Los  Prestadores  de  Servicios  de  Salud  que  utilicen  SIRES  deben  implementar  un  Sistema  de  
+Gestión  de  Seguridad  de  la  Información  de  acuerdo  a  las  disposiciones  jurídicas  aplicables  en  materia    
+de transparencia, protección de datos personales y estándares en materia de seguridad de la información, que 
+aseguren la confidencialidad, integridad, disponibilidad, trazabilidad y no repudio de la información en salud. 
+6.6.2  Los  SIRES  deben  registrar  y  resguardar  la  información  derivada  de  la  prestación  de  servicios  de  
+salud  en  forma  de  documentos  electrónicos  estructurados  e  inalterables  de  acuerdo  a  las  disposiciones  
+jurídicas aplicables. Los SIRES deben permitir la firma electrónica avanzada del profesional de la salud para 
+toda  aquella  información  que  determine  el  Prestador  de  Servicios  de  Salud  en  su  sistema  de  gestión  de  
+seguridad de la información, de conformidad con lo establecido en las disposiciones jurídicas aplicables. 
+6.6.3  Todos  los  usuarios,  organizaciones  y  dispositivos  deben  ser  autenticados  en  los  SIRES  como  
+mínimo  por  un  nombre  de  usuario  y  una  contraseña  cuya  definición  debe  aprobarse  por  el  grupo  de  trabajo  
+estratégico de seguridad de la información de la organización. Se recomienda el uso de factores adicionales 
+de autenticación. 
+6.6.4 Los SIRES deben implementar mecanismos de autorización basada en roles. Los perfiles de usuario 
+deben  ser  definidos  por  cada  Prestador  de  Servicios  de  Salud  de  acuerdo  a  las  disposiciones  jurídicas  
+aplicables a cada organización. 
+6.6.5 Con fines de intercambio de información entre Prestadores de Servicios de Salud los SIRES deben 
+implementar  mecanismos  de  autenticación,  de  cifrado  y  de  firma  electrónica  avanzada  de  acuerdo  a  las  
+disposiciones jurídicas, Guías y Formatos aplicables. 
+6.6.6 Los SIRES deben permitir la exportación de la información del paciente de acuerdo a lo establecido 
+en  las  disposiciones  jurídicas  aplicables  en  materia  de  transparencia  y  protección  de  datos  personales,  
+utilizando  las  Guías  y  Formatos  que  para  este  fin  se  definan.  Así  mismo  deben  implementar  controles  sobre  
+los consentimientos del titular de la información o quien tenga facultad legal para decidir por él, de acuerdo a 
+lo  establecido  por  las  disposiciones  jurídicas  aplicables  en  materia  de  transparencia  y  protección  de  datos  
+personales. 
+
+92     (Segunda Sección) DIARIO OFICIAL Viernes 30 de noviembre de 2012 
+ 
+7. Procedimiento de Evaluación de la Conformidad 
+7.1 Objetivo 
+Este  Procedimiento  tiene  como  objetivo  establecer  los  requisitos  para  la  Evaluación  de  la  Conformidad  
+para certificar el cumplimiento de los SIRES por parte de los obligados señalados y en los términos plasmados 
+en el numeral 1 de esta norma. 
+7.2 Referencias 
+Para la correcta aplicación de este Procedimiento de Evaluación de la Conformidad es necesario consultar 
+y observar, en su parte conducente, los siguientes ordenamientos vigentes: 
+7.2.1 Ley Federal de Procedimiento Administrativo (LFPA). 
+7.2.2 Ley Federal sobre Metrología y Normalización (LFMN). 
+7.2.3 Reglamento de la Ley Federal sobre Metrología y Normalización (RLFMN). 
+7.3 Disposiciones generales 
+7.3.1 Los  Certificados  pueden  obtenerse  de  la  Secretaría  a  través  de  la  DGIS  y  de  los  Organismos  de  
+Certificación  acreditados  y  aprobados  en  términos  de  lo  dispuesto  por  la  LFMN.  Una  vez  que  se  cuente  con  
+organismos  de  tercera  parte  que  se  acrediten  y  aprueben  como  Organismos  de  Certificación  para  la  
+evaluación  de  la  conformidad  de  la  presente  norma,  momento  en  el  cual  la  Secretaría  a  través  de  la  DGIS  
+dejará  de  prestar  dichos  servicios  de  Certificación  y  se  limitará  únicamente  a  las  labores  de  supervisión    
+y vigilancia que las disposiciones jurídicas aplicables le confieren respecto de la presente norma. 
+7.3.2 Para obtener la Certificación es necesario contar con un Dictamen de Verificación donde se señale el 
+cumplimiento  de  los  requisitos  de  la  norma.  Para  efectos  de  la  verificación,  ésta  se  lleva  a  cabo  por  la  
+Secretaría a través de la DGIS o por las Unidades de Verificación acreditadas y aprobadas en términos de lo 
+dispuesto por la LFMN y su Reglamento. 
+7.3.3 Para  obtener  el  Certificado  expedido  por  la  Secretaría  a  través  de  la  DGIS,  se  debe  proceder  
+conforme a lo siguiente: 
+7.3.3.1 El interesado debe pedir en la DGIS un paquete informativo que contendrá el formato de solicitud 
+de  Certificado  de  la  presente  norma,  el  listado  de  temas  a  verificar,  el  proceso  de  auditoría  y  demás  
+documentación  e  información  que  se  considere  relevante  para  efectos  de  la  Certificación,  así  como  en  su  
+caso,  el  listado  de  Unidades  de  Verificación  acreditadas  y  aprobadas  para  la  presente  norma  cuando  éstas  
+existan. 
+7.3.3.2 El  interesado  presentará  a  la  DGIS  en  original  y  copia  la  solicitud  debidamente  requisitada    
+y firmada, así como en su caso, la documentación necesaria para tal efecto. 
+7.3.3.3 Una  vez  ocurrido  lo  señalado  en  el  numeral  inmediato  anterior,  la  DGIS  debe  revisar  la  
+documentación  presentada  y  en  caso  de  detectar  alguna  deficiencia  en  la  misma,  devolverá  al  interesado    
+la  solicitud  y  sus  anexos,  junto  con  una  constancia  en  la  que  indique  con  claridad  la  deficiencia  que  el  
+solicitante debe corregir conforme a lo previsto en la LFPA. 
+7.3.3.4 La  respuesta  a  la  solicitud  de  Certificación  se  emitirá  en  un  plazo  máximo  de  60  días  hábiles  
+contados éstos a partir de que se haya presentado la solicitud en forma completa. Si en dicho plazo la DGIS 
+no emite respuesta, se entenderá que la solicitud fue negada. 
+7.3.4 Para  obtener  el  Certificado  por  parte  de  un  Organismo  de  Certificación  se  deben  llevar  a  cabo  las  
+siguientes acciones: 
+7.3.4.1 El  interesado  debe  pedir  al  Organismo  de  Certificación  un  paquete  informativo  que  contendrá  el  
+formato de solicitud de Certificado de la presente norma, el listado de temas a verificar, el proceso de auditoría 
+y demás documentación e información que se considere relevante para efectos de la Certificación, así como 
+en  su  caso,  el  listado  de  Unidades  de  Verificación  acreditadas  y  aprobadas  para  la  presente  norma  cuando  
+éstas existan; 
+
+Viernes 30 de noviembre de 2012 DIARIO OFICIAL (Segunda Sección)     93 
+ 
+7.3.4.2 El interesado presentará al Organismo de Certificación en original y copia la solicitud debidamente 
+requisitada y firmada, el contrato de prestación de servicios de certificación que celebre con dicho Organismo 
+debidamente firmado, así como en su caso, la documentación necesaria para tal efecto. 
+7.3.4.3 Una vez ocurrido lo señalado en el numeral inmediato anterior, el Organismo de Certificación debe 
+revisar  la  documentación  presentada  y  en  caso  de  detectar  alguna  deficiencia  en  la  misma,  devolverá  al  
+interesado la solicitud y sus anexos, junto con una constancia en la que indique con claridad la deficiencia que 
+el solicitante debe corregir conforme a lo previsto en la LFPA; 
+7.3.4.4 La  respuesta  a  la  solicitud  de  Certificación  se  emitirá  en  un  plazo  máximo  de  60  días  hábiles  
+contados éstos a partir de que se haya presentado la solicitud en forma completa. 
+Si  en  dicho  plazo  el  Organismo  de  Certificación  no  emite  respuesta,  se  entenderá  que  la  solicitud  fue  
+negada. 
+7.3.5 Los Organismos de Certificación y las Unidades de Verificación acreditados y aprobados mantendrán 
+permanentemente informada a la DGIS de los Certificados y de los Dictámenes de Verificación que expidan, 
+así como de las verificaciones que realicen, en términos de las disposiciones jurídicas aplicables. 
+7.4 Procedimiento de Verificación 
+7.4.1 La DGIS o el Organismo de Certificación que realice la Certificación, la debe realizar con base en los 
+resultados  de  la  correspondiente  verificación  de  los  SIRES  realizada  por  la  DGIS  o  por  la  Unidad  de  
+Verificación acreditada y aprobada. 
+7.4.2  La  DGIS  o,  en  su  caso,  la  Unidad  de  Verificación  acreditada  y  aprobada,  deben  establecer  los  
+términos y condiciones de los trabajos de verificación. El interesado debe entregar a la DGIS o a la Unidad de 
+Verificación    acreditada    y    aprobada    la    información    necesaria    para    realizar    este    Procedimiento,    
+independientemente de la que se acuerde en los términos y las condiciones de los trabajos de verificación. 
+Con  base  a  lo  anterior,  la  DGIS  o  en  su  caso  la  Unidad  de  Verificación  acreditada  y  aprobada  deben  
+verificar lo siguiente en los SIRES que: 
+7.4.2.1 Demuestren  la  capacidad  de  intercambiar  información  de  acuerdo  a  cada  una  de  las  Guías  y  
+Formatos que le apliquen de acuerdo a su alcance, conforme a las especificaciones señaladas en el numeral 
+6.3.  Es  necesario  que  el  “Dictamen  de  Verificación”  y  el  “Certificado”  indiquen  claramente  las  Guías    
+y Formatos que fueron evaluados. 
+7.4.2.2  Utilicen  los  catálogos  fundamentales  descritos  en  el  Apéndice  Normativo  A,  conforme  a  las  
+especificaciones señaladas en el numeral 6.4 
+7.4.2.3 Registren la información mínima para identificación conforme a las especificaciones señaladas en 
+el numeral 6.5 y en la Tabla 1. 
+7.4.2.4 Implementen funcionalidad de seguridad de acuerdo a lo descrito en el numeral 6.6. 
+7.4.3  De  igual  manera  la  DGIS  o,  en  su  caso  la  Unidad  de  Verificación  acreditada  y  aprobada,  deberán  
+verificar en los Prestadores de Servicios de Salud que: 
+7.4.3.1 Utilicen  un  SIRES  “Certificado”  de  acuerdo  al  alcance  que  requiere  el  Prestador  de  Servicios  de  
+Salud. 
+7.4.3.2  Demuestren  la  capacidad  de  intercambiar  información  de  acuerdo  a  cada  una  de  las  Guías  y  
+Formatos que le apliquen de acuerdo a su alcance, conforme a las especificaciones señaladas en el numeral 
+6.3.  Será  necesario  que  el  “Dictamen  de  Verificación”  y  el  “Certificado”  indiquen  claramente  cuales  Guías    
+y Formatos fueron evaluados. 
+7.4.3.3 Establezcan un Sistema de Gestión de Seguridad de la Información conforme al apartado 6.6 y de 
+acuerdo a las disposiciones jurídicas aplicables al Prestador de Servicios de Salud. 
+7.4.4 Si  el  sistema  cumple  con  lo  establecido  en  la  presente  norma,  la  DGIS  o,  en  su  caso  la  Unidad  de  
+Verificación acreditada y aprobada, deben entregar al usuario, original y copia del Dictamen de Verificación. 
+7.4.5 Si el sistema no cumple con lo establecido en la presente norma, la DGIS o, en su caso la Unidad de 
+Verificación  acreditada  y  aprobada,  deben  notificar  al  solicitante  en  un  plazo  máximo  de  60  días  hábiles  y  
+asentarlo en el informe técnico y en la lista de verificación, los hallazgos (observaciones o no conformidades) 
+encontrados  en  la  verificación  del  cumplimiento  del  sistema  y  entregar  copia  al  solicitante  de  dichos  
+documentos. 
+
+94     (Segunda Sección) DIARIO OFICIAL Viernes 30 de noviembre de 2012 
+ 
+7.4.6 El  usuario  debe  realizar,  dentro  del  plazo  previsto  en  el  numeral  anterior,  las  modificaciones  
+pertinentes  y  notificar  a  la  DGIS  o  a  la  Unidad  de  Verificación  acreditada  y  aprobada  para  que  verifiquen  
+nuevamente  el  sistema.  En  caso  de  no  cumplirse  nuevamente,  el  interesado  podrá  presentar  una  nueva  
+solicitud. 
+7.4.7 Los  trabajos  de  verificación  concluyen  con  la  entrega  del  “Dictamen  de  Verificación”  al  solicitante.  
+Cuando  el  Procedimiento  de  Verificación  haya  sido  ejecutado  por  alguna  Unidad  de  Verificación  acreditada    
+y aprobada, ésta debe entregar copia a la DGIS del Dictamen de Verificación respectivo. 
+7.5 Procedimiento de Certificación 
+7.5.1 Una vez que se cuente con el Dictamen de Verificación, el solicitante debe entregarlo a la DGIS o, en 
+su  caso,  al  Organismo  de  Certificación  acreditado  y  aprobado,  con  el  fin  de  que  se  realice  el  proceso  de  
+Certificación de conformidad con lo dispuesto en este Procedimiento de Evaluación de la Conformidad. 
+7.5.2 Para obtener el Certificado se debe contar con el Dictamen de Verificación satisfactorio así como con 
+la documentación de la información técnica requerida, de conformidad con lo dispuesto en la presente norma 
+y en las disposiciones jurídicas aplicables. 
+7.5.3 La vigencia de los Certificados es de dos años y queda sujeta a las verificaciones correspondientes 
+por parte de la DGIS y, en su caso, de los Organismos de Certificación acreditados y aprobados, así como a 
+la evaluación del sistema en el supuesto de que se le hagan modificaciones. Para este último caso, el titular 
+del  Certificado  debe  manifestar  bajo  protesta  de  decir  verdad  a  la  DGIS  o  al  Organismo  de  Certificación,  
+según  corresponda,  que  no  existen  cambios  significativos  en  el  funcionamiento,  diseño  o  proceso,  bajo  el  
+apercibimiento que en caso de faltar a la verdad, con independencia de las sanciones que se haga acreedor 
+en términos de las disposiciones jurídicas aplicables, se le suspenderá o cancelará la vigencia del Certificado. 
+7.6 Documentación 
+7.6.1  Con  fundamento  en  los  artículos  73,  84,  85,  86,  87  y  88  de  la  LFMN  y  80  del  RLFMN,  los  
+Organismos  de  Certificación  y  las  Unidades  de  Verificación  acreditados  y  aprobados  deben  entregar  a  la  
+DGIS  por  escrito  y  en  el  domicilio  de  esta  última,  dentro  de  los  primeros  veinte  días  hábiles  siguientes  al  
+vencimiento de cada trimestre del año calendario, un informe de Certificados y/o Dictámenes de Verificación 
+emitidos  en  el  período  respectivo,  debiendo  anexar  la  documentación  soporte  (entre  la  que  se  encuentra:  
+Actas  y  Dictámenes  de  Verificación,  Certificados  y  Contratos).  El  incumplimiento  a  lo  anterior  será  causa  de  
+revocación  de  la  acreditación  y  aprobación  del  Organismo  de  Certificación  y/o  de  la  Unidad  de  Verificación  
+correspondiente. 
+La DGIS puede establecer un sistema alternativo para el envío y recepción de los informes de Dictámenes 
+de  Verificación  y  de  los  Certificados  antes  mencionados,  bastando  con  notificarlo  a  las  Unidades  de  
+Verificación y/o a los Organismos de Certificación acreditados y aprobados para su observancia y aplicación. 
+7.6.2 Los  Organismos  de  Certificación  y  las  Unidades  de  Verificación  acreditadas  y  aprobadas  deben  
+llevar  registros  de  las  solicitudes  de  servicio  recibidas  y  de  los  contratos  de  servicios  de  certificación  y/o  
+verificación celebrados. 
+7.6.3 Los  Organismos  de  Certificación  y  las  Unidades  de  Verificación  acreditados  y  aprobados  deben  
+conservar  para  aclaraciones  o  auditorías,  registros  de  los  siguientes  documentos  que  harán  evidencia  
+objetiva, para fines administrativos y legales: 
+a) Solicitud de servicios de verificación o certificación. 
+b) Contratos de servicios de verificación o certificación. 
+c) Informes técnicos. 
+d) Actas de verificación. 
+e) Copia de los Dictámenes de Verificación emitidos. 
+f) Copia de los Certificados emitidos. 
+7.6.4 Los documentos e información deben mantenerse en el archivo activo disponible en el domicilio del 
+Organismo de Certificación y/o de la Unidad de Verificación, como mínimo cinco años, contados éstos a partir 
+de su fecha de emisión. 
+
+Viernes 30 de noviembre de 2012 DIARIO OFICIAL (Segunda Sección)     95 
+ 
+8. Concordancia con normas internacionales y mexicanas 
+Esta  norma  no  es  equivalente  a  ninguna  norma  internacional  ni  mexicana,  por  no  existir  referencia  al  
+momento de su elaboración. 
+9. Bibliografía 
+9.1 Ley General de Salud. 
+9.2 Ley Federal sobre Metrología y Normalización. 
+9.3 Ley Federal de Transparencia y Acceso a la Información Pública Gubernamental. 
+9.4 Ley Federal de Protección de Datos Personales en Posesión de los Particulares. 
+9.5 Ley del Sistema Nacional de Información Estadística y Geográfica. 
+9.6 Ley de Firma Electrónica Avanzada. 
+9.7 Reglamento de la Ley General de Salud en Materia de Prestación de Servicios de Atención Médica. 
+9.8 Reglamento de la Ley General de Salud en Materia de Protección Social en Salud. 
+9.9 Reglamento de la Ley Federal sobre Metrología y Normalización. 
+9.10 Reglamento de la Ley Federal de Transparencia y Acceso a la Información Pública Gubernamental. 
+9.11 Reglamento de la Ley Federal de Protección de Datos Personales en Posesión de los Particulares. 
+9.12 Manual sobre el Uso de Identificadores Personales. 
+9.13 Acuerdo por el que se establece el Sistema Nacional de Información Básica en Materia de Salud. 
+9.14 Acuerdo para la adopción y uso por la Administración Pública Federal de la Clave Unica de Registro 
+de Población. 
+9.15 Health Level Seven V 3.0. 
+9.16 NOM-Z13-1977,  Guía  para  la  redacción,  estructuración  y  presentación  de  las  Normas  Oficiales  
+Mexicanas. 
+9.17 Lineamientos de Protección de Datos Personales. 
+9.18 Lineamientos  para  la  clasificación  y  desclasificación  de  la  información  de  las  dependencias  y  
+entidades de la Administración Pública Federal. 
+10. Vigilancia 
+La  vigilancia  de  la  aplicación  de  esta  norma,  corresponde  a  la  Secretaría  y  a  los  gobiernos  de  las  
+entidades federativas en el ámbito de sus respectivas competencias. 
+11. Vigencia 
+Esta norma entrará en vigor a los 60 días naturales, contados a partir de la fecha de su publicación en el 
+Diario Oficial de la Federación. 
+TRANSITORIO: La entrada en vigor de la presente Norma, deja sin efectos a la Norma Oficial Mexicana 
+NOM-024-SSA3-2010,  Que  establece  los  objetivos  funcionales  y  funcionalidades  que  deberán  observar  los  
+productos de Sistemas de Expediente Clínico Electrónico para garantizar la interoperabilidad, procesamiento, 
+interpretación, confidencialidad, seguridad y uso de estándares y catálogos de la información de los registros 
+electrónicos en salud; publicada en el Diario Oficial de la Federación el 8 de septiembre de 2010. 
+Sufragio Efectivo. No Reelección. 
+México, D.F., a 9 de noviembre de 2012.- El Subsecretario de Integración y Desarrollo del Sector Salud y 
+Presidente   del   Comité   Consultivo   Nacional   de   Normalización   de   Innovación,   Desarrollo,   Tecnologías      
+e Información en Salud, Germán Enrique Fajardo Dolci.- Rúbrica. 
+
+96     (Segunda Sección) DIARIO OFICIAL Viernes 30 de noviembre de 2012 
+ 
+12 Apéndice Normativo A 
+“Matriz de Catálogos Fundamentales" 
+IDENTIFICADOR NOMBRE DEL CATALOGO 
+ORGANO 
+RECTOR 
+PROPOSITO(S) DEL 
+CATALOGO EN LOS SIRES 
+CAT_CLUES 
+Clave Unica de 
+Establecimientos de Salud 
+DGIS 
+Identificar establecimientos de salud. 
+Determinar   la   institución   a   la   que   
+pertenece  el  establecimiento  (a  partir  
+de   caracteres   3   a   5   de   la   clave   
+CLUES). 
+Determinar   el   domicilio   y   tipo   de   
+establecimiento  (a  partir  del  contenido  
+del catálogo). 
+CAT_LOCALIDADES 
+Catálogo de claves de 
+localidades 
+INEGI 
+Ubicar  cualquier  referencia  geográfica  
+en los sistemas. 
+CAT_MUNICIPIOS 
+Catálogo de claves de 
+municipios 
+INEGI 
+Ubicar  cualquier  referencia  geográfica  
+en los sistemas. 
+CAT_ENTIDADES 
+Catálogo de claves de 
+entidades federativas 
+INEGI 
+Ubicar  cualquier  referencia  geográfica  
+en los sistemas. 
+CAT_ 
+DIAGNOSTICOS 
+Clasificación Estadística 
+Internacional de 
+Enfermedades y Problemas 
+Relacionados con la Salud, 
+versión oficial vigente 
+DGIS/CEMECE 
+Registrar    diagnósticos,    causas    de    
+defunción,     motivos     de     consulta,     
+afecciones. 
+CAT_ 
+PROCEDIMIENTOS 
+Clasificación Estadística 
+Internacional de 
+Procedimientos de la 
+Codificación Clínica, versión 
+oficial vigente para 
+procedimientos 
+DGIS/CEMECE 
+Registrar  procedimientos  diagnósticos  
+y terapéuticos realizados. 
+CAT_MATERIAL_ 
+CURACION 
+Cuadro Básico y Catálogo de 
+Material de Curación 
+Consejo de 
+Salubridad General
+Clasificar material de curación. 
+CAT_INSTUMENTAL_ 
+EQUIPO_MEDICO 
+Cuadro Básico y Catálogo de 
+Instrumental y Equipo 
+Médico 
+Consejo de 
+Salubridad General
+Clasificar   el   instrumental   y   equipo   
+médico,    así    como    el    reporte    de    
+información de los mismos. 
+CAT_ 
+MEDICAMENTOS 
+Cuadro Básico y Catálogo de 
+Medicamentos 
+Consejo de 
+Salubridad General
+Registrar           medicamentos           en           
+prescripciones        y        con        fines        
+administrativos      del      abasto      de      
+medicamentos. 
+Mostrar      indicaciones      y      verificar      
+interacciones  con  otros  medicamentos  
+y  alergias,  así  como  dosis  y  vía  de  
+administración adecuadas. 
+CAT_FORMACION 
+Clasificación mexicana de 
+programas de estudio por 
+campos de formación 
+académica 
+INEGI 
+Identificar  a  los  recursos  humanos  en  
+el  área  de  la  salud  según  el  tipo  de  
+formación y área de especialidad. 
+CAT_LENGUAS_ 
+INDIGENAS 
+Clasificación de lenguas 
+indígenas 
+INEGI Registrar la lengua indígena. 
+CAT_RELIGION Clasificación de Religiones INEGI 
+Registrar    la    religión    del    paciente    
+solamente   si   la   institución   así   lo   
+requiere. 
+CAT_VIA_ 
+ADMINISTRACION 
+Vía de Administración 
+Consejo de 
+Salubridad General
+Registrar  la  vía  de  administración  a  
+través   de   la   cual   se   suministra   un   
+medicamento. 
+CODIGO_POSTAL Código Postal Correos de México    Ubicar domicilios en los sistemas. 
+CAT_CIF 
+Clasificación Internacional 
+del Funcionamiento, de la 
+Discapacidad y de la Salud 
+(CIF), versión oficial vigente 
+DGIS / CEMECE 
+Registrar  información  sobre  niveles  de  
+funcionamiento y estados de salud. 
+CAT_NACIONALIDAD Nacionalidad                         RENAPO                         
+Registrar      información      sobre      la      
+nacionalidad del individuo 
+ 
+______________________ 

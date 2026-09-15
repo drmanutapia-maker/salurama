@@ -1,0 +1,646 @@
+NORMA  Oficial  Mexicana  NOM-087-ECOL-SSA1-2002,  Protección  ambiental  -  
+Salud  ambiental  -  Residuos  peligrosos  biológico-infecciosos  -  Clasificación  y  
+especificaciones de manejo. 
+Al  margen  un  sello  con  el  Escudo  Nacional,  que  dice:  Estados  Unidos  Mexicanos.-  
+Secretaría de Medio Ambiente y Recursos Naturales. 
+CASSIO  LUISELLI  FERNANDEZ,  Presidente  del  Comité  Consultivo  Nacional  de  
+Normalización  de  Medio  Ambiente  y  Recursos  Naturales,  y  ERNESTO  ENRIQUEZ  
+RUBIO,  Presidente  del  Comité  Consultivo  Nacional  de  Normalización,  de  Regulación  y  
+Fomento Sanitario, con fundamento en lo dispuesto en los artículos 32 bis fracciones I, 
+II, IV, V y 39 fracciones I, VIII y XXI de la Ley Orgánica de la Administración Pública 
+Federal; 4 de la Ley Federal de Procedimiento Administrativo; 5 fracciones V, VI y XIX, 
+15,  36,  37,  37  Bis,  150,  151,  151  Bis,  160  y  171  de  la  Ley  General  del  Equilibrio  
+Ecológico y la Protección al Ambiente; 3 fracciones XIII y XIV, 13, apartado A) fracción 
+I, 45, 116, 117, 118, 128, 129 y 393 de la Ley General de Salud; 38 fracción II, 40, 
+fracciones  I,  III,  V,  IV,  X  y  XI,  41,  43,  44  y  47  de  la  Ley  Federal  sobre  Metrología  y  
+Normalización; 1o., 2o. y 4o. fracciones II, III y IV, 5o., 6o. y 58 del Reglamento de la 
+Ley General del Equilibrio Ecológico y la Protección al Ambiente en materia de Residuos 
+Peligrosos; 2 fracción I incisos a) y c), y 7o. y 66 del Reglamento de la Ley General de 
+Salud  en  materia  de  Control  Sanitario  de  Actividades,  Establecimientos,  Productos  y  
+Servicios; 10 del Reglamento de la Ley General de Salud en materia de Prestación de 
+Servicios  de  Atención  Médica;  28,  31  fracción  II,  33  y  34  del  Reglamento  de  la  Ley  
+
+Lunes 17 de febrero de 2003  DIARIO OFICIAL  (Primera Sección)     11 
+Federal  sobre  Metrología  y  Normalización;  8  fracción  V  del  Reglamento  Interior  de  la  
+Secretaría  de  Medio  Ambiente  y  Recursos  Naturales;  2  literal  C  fracción  II  del  
+Reglamento Interior de la Secretaría de Salud y 2, fracciones I, II, III, VII, VIII y IX, 7 
+fracción XVI, y 12 fracción VI del Decreto por el que se crea la Comisión Federal para 
+la Protección contra Riesgos Sanitarios, ordenan la publicación en el Diario Oficial de 
+la  Federación  de  la  Norma  Oficial  Mexicana  NOM-087-ECOL-SSA1-2002,  Protección  
+ambiental-Salud   ambiental-Residuos   peligrosos   biológico-infecciosos-Clasificación   y   
+especificaciones de manejo, y 
+CONSIDERANDO 
+Que  en  cumplimiento  a  lo  establecido  en  la  fracción  I  del  artículo  47  de  la  Ley  
+Federal  sobre  Metrología  y  Normalización,  con  fecha  1  de  noviembre  de  2001  se  
+publicó  en  el  Diario  Oficial  de  la  Federación,  con  carácter  de  proyecto  la  Norma  
+Oficial   Mexicana   PROY-NOM-087-ECOL-SSA1-2000,   Protección   ambiental-   Salud   
+ambiental-Residuos  peligrosos  biológico-Infecciosos-Clasificación  y  especificaciones  de  
+manejo, mismo que fue elaborado de manera conjunta con la Secretaría de Salud, con 
+el  fin  de  que  dentro  de  los  60  días  naturales  siguientes  a  su  publicación,  los  
+interesados   presenten   sus   comentarios   ante el Comité Consultivo Nacional de 
+Normalización  para  la  Protección  Ambiental,  sito  en  bulevar  Adolfo  Ruiz  Cortines  
+número  4209,  piso  5o.,  colonia  Jardines  en  la  Montaña,  código  postal  14210,  
+Delegación Tlalpan, Distrito Federal o se enviaron al correo electrónico o al fax que se 
+señalaron.   Durante   el   citado   plazo,   la   Manifestación   de   Impacto   Regulatorio   
+correspondiente  estuvo  a  disposición  del  público  en  general  para  su  consulta  en  el  
+citado domicilio, de conformidad con el artículo 45 del citado ordenamiento. 
+Que  en  el  plazo  de  los  60  días  antes  señalado,  los  interesados  presentaron  sus  
+comentarios al proyecto en cuestión, los cuales fueron analizados por el citado Comité, 
+realizándose   las   modificaciones   procedentes   al   mismo.   La   Secretaría   de   Medio   
+Ambiente y Recursos Naturales publicó las respuestas a los comentarios recibidos en el 
+Diario Oficial de la Federación el día 20 de enero de 2003. 
+Que habiéndose cumplido con el procedimiento establecido en la Ley Federal sobre 
+Metrología  y  Normalización,  el  Comité  Consultivo  Nacional  de  Normalización  para  la  
+Protección  Ambiental  aprobó  la  Norma  Oficial  Mexicana  NOM-087-ECOL-SSA1-2002,  
+Protección    ambiental-Salud    ambiental-Residuos    peligrosos    biológico-infecciosos-
+Clasificación  y  especificaciones  de  manejo,  misma  que  abroga  a  su  similar  NOM-087-
+ECOL-1995 y su aclaración publicada en el citado órgano informativo el 12 de junio de 
+1996,  Que  establece  los  requisitos  para  la  separación,  envasado,  almacenamiento,  
+recolección,  transporte,  tratamiento  y  disposición  final  de  los  residuos  peligrosos  
+biológico-infecciosos que se generan en establecimientos que presten atención médica, 
+actualizando el año de su expedición. Por lo expuesto y fundado se expide la siguiente: 
+NORMA OFICIAL MEXICANA NOM-087-ECOL-SSA1-2002, PROTECCION 
+AMBIENTAL-SALUD AMBIENTAL-RESIDUOS PELIGROSOS BIOLOGICO-
+INFECCIOSOS- CLASIFICACION  
+Y ESPECIFICACIONES DE MANEJO 
+INDICE 
+0.  Introducción 
+1.  Objetivo y campo de aplicación 
+2.  Referencias 
+3.  Definiciones y terminología 
+4.  Clasificación de los residuos peligrosos biológico-infecciosos 
+
+12     (Primera Sección)  DIARIO OFICIAL  Lunes 17 de febrero de 2003 
+5.  Clasificación   de   los   establecimientos   generadores   de   residuos   peligrosos   
+biológico-infecciosos 
+6.  Manejo de residuos peligrosos biológico-infecciosos 
+7.  Grado  de  concordancia  con  normas  y  lineamientos  internacionales  y  con  las  
+normas mexicanas tomadas como base para su elaboración 
+8.  Bibliografía 
+9.  Observancia de esta Norma 
+      Apéndice      normativo      
+0. Introducción 
+La  Ley  General  del  Equilibrio  Ecológico  y  la  Protección  al  Ambiente,  define  como  
+residuos  peligrosos  a  todos  aquellos  residuos  que  por  sus  características  corrosivas,  
+reactivas,  explosivas,  tóxicas,  inflamables  y  biológico-infecciosas,  que  representan  un  
+peligro  para  el  equilibrio  ecológico  o  el  ambiente;  mismos  que  serán  manejados  en  
+términos de la propia ley, su Reglamento y normas oficiales mexicanas que expida la 
+Secretaría  de  Medio  Ambiente  y  Recursos  Naturales  previa  opinión  de  diversas  
+dependencias  que  tengan  alguna  injerencia  en  la  materia,  correspondiéndole  a  la  
+citada SEMARNAT su regulación y control. 
+Con  fecha  de  7  de  noviembre  de  1995,  se  publicó  en  el  Diario  Oficial  de  la  
+Federación  la  Norma  Oficial  Mexicana  NOM-087-ECOL-1995,  Que  establece  los  
+requisitos  para  la  separación,  envasado,  almacenamiento,  recolección,  transporte,  
+tratamiento  y  disposición  final  de  los  residuos  peligrosos  biológico-infecciosos  que  se  
+generan en establecimientos que presten servicios de atención médica. 
+Los  establecimientos  de  atención  médica  son  regulados  por  la  Secretaría  de  Salud  
+por lo que en la revisión de la norma mencionada, se incluye a los representantes del 
+sector. 
+Esta  revisión  consideró  las  características  de  los  diferentes  tipos  de  unidades  
+médicas que prestan atención a poblaciones rurales. 
+Los residuos peligrosos biológico-infecciosos se han venido manejando en términos 
+de las regulaciones ambientales antes señaladas, sin embargo fue necesario actualizar 
+la NOM-087-ECOL-1995, tomándose en consideración las experiencias y competencias 
+de  los  sectores  involucrados  en  su  cumplimiento,  con  el  fin  de  que  sus  disposiciones  
+sean  operativas  y  adecuadas  para  proteger  el  medio  ambiente  y  la  salud  de  la  
+población en general. 
+1. Objetivo y campo de aplicación 
+La  presente  Norma  Oficial  Mexicana  establece  la  clasificación  de  los  residuos  
+peligrosos  
+biológico-infecciosos así como las especificaciones para su manejo. 
+Esta Norma Oficial Mexicana es de observancia obligatoria para los establecimientos 
+que  generen  residuos  peligrosos  biológico-infecciosos  y  los  prestadores  de  servicios  a  
+terceros que tengan relación directa con los mismos. 
+2. Referencias 
+Norma  Oficial  Mexicana  NOM-052-ECOL-1993,  Que  establece  las  características  de  
+los  residuos  peligrosos,  el  listado  de  los  mismos y los límites que hacen a un residuo 
+peligroso  por  su  toxicidad  al  ambiente,  publicada  en  el  Diario  Oficial  de  la  
+Federación  el  22  de  octubre  de  1993.  Esta  Norma  contiene  la  nomenclatura  en  
+términos del Acuerdo Secretarial publicado el 29 de noviembre de 1994, por el cual se 
+actualiza la nomenclatura de 58 normas oficiales mexicanas. 
+3. Definiciones y terminología 
+Para  efectos  de  esta  Norma  Oficial  Mexicana,  se  consideran  las  definiciones  
+contenidas  en  la  Ley  General  del  Equilibrio  Ecológico  y  la  Protección  al  Ambiente,  su  
+
+Lunes 17 de febrero de 2003  DIARIO OFICIAL  (Primera Sección)     13 
+Reglamento  en  materia  de  Residuos  Peligrosos,  la  Ley  General  de  Salud,  sus  
+Reglamentos, y las siguientes: 
+3.1 Agente biológico-infeccioso 
+Cualquier microorganismo capaz de producir enfermedades cuando está presente en 
+concentraciones  suficientes  (inóculo),  en  un  ambiente  propicio  (supervivencia),  en  un  
+hospedero susceptible y en presencia de una vía de entrada. 
+3.2 Agente enteropatógeno 
+Microorganismo que bajo ciertas circunstancias puede producir enfermedad en el ser 
+humano a nivel del sistema digestivo, se transmite vía oral-fecal. 
+3.3 Bioterio 
+Es  un  área  o  departamento  especializado  en  la  reproducción,  mantenimiento  y  
+control  de  diversas  especies  de  animales  de  laboratorio  en  óptimas  condiciones,  los  
+cuales  son  utilizados  para  la  experimentación,  investigación  científica  y  desarrollo  
+tecnológico. 
+3.4 Carga útil 
+Es el resultado de la sustracción del peso vehicular al peso bruto vehicular. 
+3.5 Centro de acopio 
+Instalación  de  servicio  que  tiene  por  objeto  resguardar  temporalmente  y  bajo  
+ciertas  condiciones  a  los  residuos  peligrosos  biológico-infecciosos  para  su  envío  a  
+instalaciones autorizadas para su tratamiento o disposición final. 
+3.6 Cepa 
+Cultivo de microorganismos procedente de un aislamiento. 
+3.7 Establecimientos generadores 
+Son los lugares públicos, sociales o privados, fijos o móviles cualquiera que sea su 
+denominación, que estén relacionados con servicios de salud y que presten servicios de 
+atención  médica  ya  sea  ambulatoria  o  para  internamiento  de  seres  humanos  y  
+utilización de animales de bioterio, de acuerdo con la tabla 1 del presente instrumento. 
+3.8 Irreconocible 
+Pérdida  de  las  características  físicas  y  biológico-infecciosas  del  objeto  para  no  ser  
+reutilizado. 
+3.9 Manejo 
+Conjunto  de  operaciones  que  incluyen  la  identificación,  separación,  envasado,  
+almacenamiento, acopio, recolección, transporte, tratamiento y disposición final de los 
+residuos peligrosos biológico-infecciosos. 
+3.10 Muestra biológica 
+Parte anatómica o fracción de órganos o tejido, excreciones o secreciones obtenidas 
+de un ser humano o animal vivo o muerto para su análisis. 
+3.11 Organo 
+Entidad   morfológica   compuesta   por   la   agrupación   de   tejidos   diferentes   que   
+concurren al desempeño de un trabajo fisiológico. 
+3.12 Prestador de servicios 
+Empresa  autorizada  para  realizar  una  o  varias  de  las  siguientes  actividades:  
+recolección,  transporte,  acopio,  tratamiento  y  disposición  final  de  residuos  peligrosos  
+biológico-infecciosos. 
+
+14     (Primera Sección)  DIARIO OFICIAL  Lunes 17 de febrero de 2003 
+3.13 Residuos Peligrosos Biológico-Infecciosos (RPBI) 
+Son  aquellos  materiales  generados  durante  los  servicios  de  atención  médica  que  
+contengan  agentes  biológico-infecciosos  según  son  definidos  en  esta  Norma,  y  que  
+puedan causar efectos nocivos a la salud y al ambiente. 
+3.14 Sangre 
+El tejido hemático con todos sus elementos. 
+3.15 SEMARNAT 
+Secretaría de Medio Ambiente y Recursos Naturales. 
+3.16 SSA 
+Secretaría de Salud. 
+3.17 Separación 
+Segregación   de   las   sustancias,   materiales   y   residuos   peligrosos   de   iguales   
+características cuando presentan un riesgo. 
+3.18 Tejido 
+Entidad   morfológica   compuesta   por   la   agrupación   de   células   de   la   misma   
+naturaleza, ordenadas con regularidad y que desempeñan una misma función. 
+3.19 Tratamiento 
+El  método  físico  o  químico  que  elimina  las  características  infecciosas  y  hace  
+irreconocibles a los residuos peligrosos biológico-infecciosos. 
+4. Clasificación de los residuos peligrosos biológico-infecciosos 
+Para  efectos  de  esta  Norma  Oficial  Mexicana  se  consideran  residuos  peligrosos  
+biológico-infecciosos  
+los siguientes: 
+4.1 La sangre 
+4.1.1 La sangre y los componentes de ésta, sólo en su forma líquida, así como los 
+derivados  no  comerciales,  incluyendo  las  células  progenitoras,  hematopoyéticas  y  las  
+fracciones celulares o acelulares de la sangre resultante (hemoderivados). 
+4.2 Los cultivos y cepas de agentes biológico-infecciosos 
+4.2.1 Los cultivos generados en los procedimientos de diagnóstico e investigación, 
+así como los generados en la producción y control de agentes biológico-infecciosos. 
+4.2.2  Utensilios  desechables  usados  para  contener,  transferir,  inocular  y  mezclar  
+cultivos de agentes biológico-infecciosos. 
+4.3 Los patológicos 
+4.3.1  Los  tejidos,  órganos  y  partes  que  se  extirpan  o  remueven  durante  las  
+necropsias,  la  cirugía  o  algún  otro  tipo  de  intervención  quirúrgica,  que  no  se  
+encuentren en formol. 
+4.3.2  Las  muestras  biológicas  para  análisis  químico,  microbiológico,  citológico  e  
+histológico, excluyendo orina y excremento. 
+4.3.3  Los  cadáveres  y  partes  de  animales  que  fueron  inoculados  con  agentes  
+enteropatógenos en centros de investigación y bioterios. 
+4.4 Los residuos no anatómicos 
+Son residuos no anatómicos los siguientes: 
+4.4.1 Los recipientes desechables que contengan sangre líquida. 
+
+Lunes 17 de febrero de 2003  DIARIO OFICIAL  (Primera Sección)     15 
+4.4.2  Los  materiales  de  curación,  empapados,  saturados,  o  goteando  sangre  o  
+cualquiera  de  los  siguientes  fluidos  corporales:  líquido  sinovial,  líquido  pericárdico,  
+líquido pleural, líquido Céfalo-Raquídeo o líquido peritoneal. 
+4.4.3 Los materiales desechables que contengan esputo, secreciones pulmonares y 
+cualquier material usado para contener éstos, de pacientes con sospecha o diagnóstico 
+de  tuberculosis  o  de  otra  enfermedad  infecciosa  según  sea  determinado  por  la  SSA  
+mediante memorándum interno o el Boletín Epidemiológico. 
+4.4.4  Los  materiales  desechables  que  estén  empapados,  saturados  o  goteando  
+sangre,   o   secreciones   de   pacientes   con   sospecha   o   diagnóstico   de   fiebres   
+hemorrágicas,   así   como   otras   enfermedades   infecciosas   emergentes   según   sea   
+determinado por la SSA mediante memorándum interno o el Boletín Epidemiológico. 
+4.4.5  Materiales  absorbentes  utilizados  en  las  jaulas  de  animales  que  hayan  sido  
+expuestos a agentes enteropatógenos. 
+4.5 Los objetos punzocortantes 
+4.5.1  Los  que  han  estado  en  contacto  con  humanos  o  animales  o  sus  muestras  
+biológicas durante el diagnóstico y tratamiento, únicamente: tubos capilares, navajas, 
+lancetas,   agujas   de   jeringas   desechables,   agujas   hipodérmicas,   de   sutura,   de   
+acupuntura  y  para  tatuaje,  bisturís  y  estiletes  de  catéter,  excepto  todo  material  de  
+vidrio  roto  utilizado  en  el  laboratorio,  el  cual  deberá  desinfectar  o  esterilizar  antes  de  
+ser dispuesto como residuo municipal. 
+5. Clasificación de los establecimientos generadores de residuos peligrosos 
+biológico-infecciosos 
+5.1 Para efectos de esta Norma Oficial Mexicana, los establecimientos generadores 
+se clasifican como se establece en la tabla 1. 
+TABLA 1 
+NIVEL I  NIVEL II  NIVEL III 
+     Unidades     hospitalarias     
+de 1 a 5 camas e 
+instituciones de 
+investigación con 
+excepción de los 
+señalados en el  
+Nivel III. 
+  Laboratorios clínicos y 
+bancos de sangre que 
+realicen análisis de 1 a 
+50 muestras al día. 
+     Unidades     hospitalarias     
+psiquiátricas. 
+  Centros de toma de 
+muestras para análisis 
+clínicos. 
+     Unidades     hospitalarias     
+de 6 hasta 60 camas; 
+  Laboratorios clínicos y 
+bancos de sangre que 
+realicen análisis de 51 
+a 200 muestras al día; 
+  Bioterios que se 
+dediquen a la 
+investigación con 
+agentes biológico-
+infecciosos, o 
+     Establecimientos     que     
+generen de 25 a 100 
+kilogramos al mes de 
+RPBI. 
+     Unidades     hospitalarias     
+de más de 60 camas; 
+  Centros de producción 
+e investigación 
+experimental en 
+enfermedades 
+infecciosas; 
+  Laboratorios clínicos y 
+bancos de sangre que 
+realicen análisis a más 
+de 200 muestras al 
+día, o 
+     Establecimientos     que     
+generen más de 100 
+kilogramos al mes de 
+RPBI. 
+ 
+5.2 Los establecimientos generadores independientes del Nivel I que se encuentren 
+ubicados  en  un  mismo  inmueble,  podrán  contratar  los  servicios  de  un  prestador  de  
+servicios  común,  quien  será  el  responsable  del  manejo  de  los  residuos  peligrosos  
+biológico-infecciosos. 
+6. Manejo de residuos peligrosos biológico-infecciosos 
+
+16     (Primera Sección)  DIARIO OFICIAL  Lunes 17 de febrero de 2003 
+6.1  Los  generadores  y  prestadores  de  servicios,  además  de  cumplir  con  las  
+disposiciones legales aplicables, deben: 
+6.1.1  Cumplir  con  las  disposiciones  correspondientes  a  las  siguientes  fases  de  
+manejo, según el caso: 
+a) Identificación de los residuos. 
+b) Envasado de los residuos generados. 
+c) Almacenamiento temporal. 
+d) Recolección y transporte externo. 
+e) Tratamiento. 
+f) Disposición final. 
+6.2 Identificación y envasado 
+6.2.1 En las áreas de generación de los establecimientos generadores, se deberán 
+separar  y  envasar  todos  los  residuos  peligrosos  biológico-infecciosos,  de  acuerdo  con  
+sus características físicas y biológicas infecciosas, conforme a la tabla 2 de esta Norma 
+Oficial Mexicana. Durante el envasado, los residuos peligrosos biológico-infecciosos no 
+deberán mezclarse con ningún otro tipo de residuos municipales o peligrosos. 
+TABLA 2 
+TIPO DE RESIDUOS  ESTADO 
+FISICO 
+ENVASADO            COLOR            
+4.1  Sangre     Líquidos   Recipientes  
+herméticos  
+Rojo 
+4.2    Cultivos    y    cepas    de    
+agentes infecciosos 
+Sólidos  Bolsas de polietileno  Rojo 
+4.3  Patológicos  Sólidos  Bolsas de polietileno  Amarillo 
+                                                  Líquidos                                                  Recipientes                                                  
+herméticos 
+Amarillo 
+4.4  Residuos no anatómicos  Sólidos  Bolsas de polietileno  Rojo 
+                                                  Líquidos                                                  Recipientes                                                  
+herméticos 
+Rojo 
+ 4.5 Objetos punzocortantes  Sólidos         Recipientes         rígidos         
+polipropileno 
+Rojo 
+ 
+a)  Las bolsas deberán ser de polietileno de color rojo traslúcido de calibre mínimo 
+200  y  de  color  amarillo  traslúcido  de  calibre  mínimo  300,  impermeables  y  con  
+un contenido de metales pesados de no más de una parte por millón y libres de 
+cloro,  además  deberán  estar  marcadas  con  el  símbolo  universal  de  riesgo  
+biológico  y  la  leyenda  Residuos  Peligrosos  Biológico-Infecciosos  (Apéndice  
+Normativo),  deberán  cumplir  los  valores  mínimos  de  los  parámetros  indicados  
+en la tabla 3 de esta Norma Oficial Mexicana. 
+Las bolsas se llenarán al 80 por ciento (80%) de su capacidad, cerrándose antes de 
+ser  transportadas  al  sitio  de  almacenamiento  temporal  y  no  podrán  ser  abiertas  o  
+vaciadas. 
+TABLA 3 
+PARAMETRO               UNIDADES               ESPECIFICACIONES               
+
+Lunes 17 de febrero de 2003  DIARIO OFICIAL  (Primera Sección)     17 
+Resistencia a la tensión  Kg/cm
+2
+               SL:               140               
+ST: 120 
+Elongación                          %                          SL:                          150                          
+ST: 400 
+Resistencia al rasgado  G  SL: 90 
+ST: 150 
+  SL: Sistema longitudinal. 
+  ST: Sistema transversal. 
+6.2.2 Los recipientes de los residuos peligrosos punzocortantes deberán ser rígidos, 
+de  polipropileno  color  rojo,  con  un  contenido  de  metales  pesados  de  no  más  de  una  
+parte  por  millón  y  libres  de  cloro,  que  permitan  verificar  el  volumen  ocupado  en  el  
+mismo,  resistentes  a  fracturas  y  pérdidas  de  contenido  al  caerse,  destructibles  por  
+métodos  físicos,  tener  separador  de  agujas  y  abertura  para  depósito,  con  tapa(s)  de  
+ensamble  seguro  y  cierre  permanente,  deberán  contar  con  la  leyenda  que  indique  
+“RESIDUOS  PELIGROSOS  PUNZOCORTANTES  BIOLOGICO-INFECCIOSOS”  y  marcados  
+con el símbolo universal de riesgo biológico (Apéndice Normativo). 
+a)  La   resistencia   mínima   de   penetración   para   los   recipientes   tanto   para   
+punzocortantes  como  para  líquidos,  debe  ser  de  12.5  N  (doce  punto  cinco  
+Newtons) en todas sus partes y será determinada por la medición de la fuerza 
+requerida  para  penetrar  los  lados  y  la  base  con  una  aguja  hipodérmica  calibre  
+21 x 32 mm mediante calibrador de fuerza o tensiómetro. 
+b)  Los  recipientes  para  los  residuos  peligrosos  punzocortantes  y  líquidos  se  
+llenarán hasta el 80% (ochenta por ciento) de su capacidad, asegurándose los 
+dispositivos de cierre y no deberán ser abiertos o vaciados. 
+c)  Las  unidades  médicas  que  presten  atención  a  poblaciones  rurales,  con  menos  
+de 2,500 habitantes y ubicadas en zonas geográficas de difícil accceso, podrán 
+utilizar  latas  con  tapa  removible  o  botes  de  plástico  con  tapa  de  rosca,  con  
+capacidad  mínima  de  uno  hasta  dos  litros,  que  deberán  marcar  previamente  
+con  la  leyenda  de  “RESIDUOS  PELIGROSOS  PUNZOCORTANTES  BIOLOGICO-
+INFECCIOSOS". 
+6.2.3 Los recipientes de los residuos peligrosos líquidos deben ser rígidos, con tapa 
+hermética de polipropileno color rojo o amarillo, con un contenido de metales pesados 
+de no más de una parte por millón y libres de cloro, resistente a fracturas y pérdidas de 
+contenido al caerse, destructible por métodos físicos, deberá contar con la leyenda que 
+indique  “RESIDUOS  PELIGROSOS  LIQUIDOS  BIOLOGICO-INFECCIOSOS”  y  marcados  
+con el símbolo universal de riesgo biológico (Apéndice Normativo) 
+En caso de que los residuos líquidos no sean tratados dentro de las instalaciones del 
+establecimiento generador, deberán ser envasados como se indica en la tabla 2 de esta 
+Norma Oficial Mexicana. 
+6.3 Almacenamiento 
+6.3.1 Se deberá destinar un área para el almacenamiento temporal de los residuos 
+peligrosos biológico-infecciosos. 
+Los establecimientos generadores incluidos en el Nivel I de la tabla 1 de esta Norma 
+Oficial Mexicana, quedan exentos del cumplimiento del punto 6.3.5 y podrán ubicar los 
+contenedores a que se refiere el punto 6.3.2 en el lugar más apropiado dentro de sus 
+instalaciones, de manera tal que no obstruyan las vías de acceso. 
+6.3.2 Los residuos peligrosos biológico-infecciosos envasados deberán almacenarse 
+en  contenedores  metálicos  o  de  plástico  con  tapa  y  ser  rotulados  con  el  símbolo  
+
+18     (Primera Sección)  DIARIO OFICIAL  Lunes 17 de febrero de 2003 
+universal  de  riesgo  biológico,  con  la  leyenda “RESIDUOS  PELIGROSOS  BIOLOGICO-
+INFECCIOSOS”. 
+6.3.3   El   periodo   de   almacenamiento   temporal   estará   sujeto   al   tipo   de   
+establecimiento generador, como sigue: 
+(a) Nivel I: Máximo 30 días. 
+(b) Nivel II: Máximo 15 días. 
+(c) Nivel III: Máximo 7 días. 
+6.3.4  Los  residuos  patológicos,  humanos  o  de  animales  (que  no  estén  en  formol)  
+deberán conservarse a una temperatura no mayor de 4°C (cuatro grados Celsius), en 
+las áreas de patología, o en almacenes temporales con sistemas de refrigeración o en 
+refrigeradores  en  áreas  que  designe  el  responsable  del  establecimiento  generador  
+dentro del mismo. 
+6.3.5  El  área  de  almacenamiento  temporal  de  residuos  peligrosos  biológico-
+infecciosos debe: 
+a)  Estar  separada  de  las  áreas  de  pacientes,  almacén  de  medicamentos  y  
+materiales  para  la  atención  de  los  mismos,  cocinas,  comedores,  instalaciones  
+sanitarias,  sitios  de  reunión,  áreas  de  esparcimiento,  oficinas,  talleres  y  
+lavanderías. 
+b)  Estar techada, ser de fácil acceso, para la recolección y transporte, sin riesgos 
+de inundación e ingreso de animales. 
+c)  Contar  con  señalamientos  y  letreros  alusivos  a  la  peligrosidad  de  los  mismos,  
+en lugares y formas visibles, el acceso a esta área sólo se permitirá al personal 
+responsable de estas actividades. 
+d)  El  diseño,  construcción  y  ubicación  de  las  áreas  de  almacenamiento  temporal  
+destinadas   al   manejo   de   residuos   peligrosos   biológico-infecciosos   en   las   
+empresas  prestadoras  de  servicios,  deberán  ajustarse  a  las  disposiciones  
+señaladas  y  contar  con  la  autorización  correspondiente  por  parte  de  la  
+SEMARNAT. 
+e)  Los  establecimientos  generadores  de  residuos  peligrosos  biológico-infecciosos  
+que  no  cuenten  con  espacios  disponibles  para  construir  un  almacenamiento  
+temporal,  podrán  utilizar  contenedores  plásticos  o  metálicos  para  tal  fin,  
+siempre y cuando cumplan con los requisitos mencionados en los incisos a), b) 
+y c) de este numeral. 
+6.3.6  Los  residuos  peligrosos  biológico-infecciosos  podrán  ser  almacenados  en  
+centros  de  acopio,  previamente  autorizados  por  la  SEMARNAT.  Dichos  centros  de  
+acopio deberán operar sistemas de refrigeración para mantener los residuos peligrosos 
+biológico-infecciosos  a  una  temperatura  máxima  de  4°C  (cuatro  grados  Celsius)  y  
+llevar  una  bitácora  de  conformidad  con  el  artículo  21  del  Reglamento  en  materia  de  
+Residuos  Peligrosos  de  la  Ley  General  del  Equilibrio  Ecológico  y  la  Protección  al  
+Ambiente. El tiempo de estancia de los residuos en un centro de acopio podrá ser de 
+hasta treinta días. 
+6.4 Recolección y transporte externo 
+6.4.1 La recolección y el transporte de los residuos peligrosos biológico-infecciosos 
+referidos en esta Norma Oficial Mexicana, deberá realizarse conforme a lo dispuesto en 
+los ordenamientos jurídicos aplicables y cumplir lo siguiente: 
+a) Sólo podrán recolectarse los residuos que cumplan con el envasado, embalado y 
+etiquetado  o  rotulado  como  se  establece  en  el  punto  6.2  de  esta  Norma  Oficial  
+Mexicana. 
+
+Lunes 17 de febrero de 2003  DIARIO OFICIAL  (Primera Sección)     19 
+b) Los residuos peligrosos biológico-infecciosos no deben ser compactados durante 
+su recolección y transporte. 
+c) Los contenedores referidos en el punto 6.3.2 deben ser desinfectados y lavados 
+después de cada ciclo de recolección. 
+d)  Los  vehículos  recolectores  deben  ser  de  caja  cerrada  y  hermética,  contar  con  
+sistemas de captación de escurrimientos, y operar con sistemas de enfriamiento para 
+mantener los residuos a una temperatura máxima de 4°C (cuatro grados Celsius). 
+Además, los vehículos con capacidad de carga útil de 1,000 kg o más deben operar 
+con sistemas mecanizados de carga y descarga. 
+e)   Durante   su   transporte,   los   residuos   peligrosos   biológico-infecciosos   sin   
+tratamiento  no  deberán  mezclarse  con  ningún  otro  tipo  de  residuos  municipales  o  de  
+origen industrial. 
+6.4.2 Para la recolección y transporte de residuos peligrosos biológico-infecciosos se 
+requiere  la  autorización  por  parte  de  la  SEMARNAT.  Dicho  transporte  deberá  dar  
+cumplimiento  con  los  incisos  a),  b),  d)  y  e)  del  numeral  6.4.1  de  esta  Norma  Oficial  
+Mexicana. 
+6.5 Tratamiento 
+6.5.1 Los residuos peligrosos biológico-infecciosos deben ser tratados por métodos 
+físicos  o  químicos  que  garanticen  la  eliminación  de  microorganismos  patógenos  y  
+deben hacerse irreconocibles para su disposición final en los sitios autorizados. 
+6.5.2  La   operación   de   sistemas   de   tratamiento   que   apliquen   tanto   a   
+establecimientos  generadores  como  prestadores  de  servicios  dentro  o  fuera  de  la  
+instalación del generador, requieren autorización previa de la SEMARNAT, sin perjuicio 
+de  los  procedimientos  que  competan  a  la  SSA  de  conformidad  con  las  disposiciones  
+aplicables en la materia. 
+6.5.3  Los  residuos  patológicos  deben  ser  incinerados  o  inhumados,  excepto  
+aquellos  que  estén  destinados  a  fines  terapéuticos,  de  investigación  y  los  que  se  
+mencionan  en  el  inciso  4.3.2  de  esta  Norma  Oficial  Mexicana.  En  caso  de  ser  
+inhumados debe realizarse en sitios autorizados por la SSA. 
+6.6. Disposición final 
+Los  residuos  peligrosos  biológico-infecciosos  tratados  e  irreconocibles,  podrán  
+disponerse  como  residuos  no  peligrosos  en  sitios  autorizados  por  las  autoridades  
+competentes. 
+6.7 Programa de contingencias 
+Los  establecimientos  generadores  de  residuos  peligrosos  biológico-infecciosos  y  los  
+prestadores de servicios deberán contar con un programa de contingencias en caso de 
+derrames, fugas o accidentes relacionados con el manejo de estos residuos. 
+7. Grado de concordancia con normas y lineamientos internacionales y con 
+las normas mexicanas tomadas como base para su elaboración 
+7.1 Esta Norma Oficial Mexicana no concuerda con ninguna Norma Internacional por 
+no  existir  referencia  en  el  momento  de  su  elaboración,  ni  existen  normas  mexicanas  
+que hayan servido de base para su elaboración. 
+8. Bibliografía 
+8.1 Althaus H, Sauerwald M, Schrammeck E. Hygienic aspects of waste disposal Zbl 
+Bakt Mikr Hyg, I Abt Orig B. 1983; 178:1-29. 
+8.2 Anglin AM Collmer JE. Loving TJ. Beltran KA. Coyner BJ. Adal K. Jagger J. Sojka 
+NJ, Farr BM. An outbreak of needlestick injuries in hospital employees due to needles 
+piercing infectious waste containers. Infect Control Hosp Epidemiology 1995; 16:570-
+6. 
+
+20     (Primera Sección)  DIARIO OFICIAL  Lunes 17 de febrero de 2003 
+8.3  Belkin  NL.  Medical  Waste  a  minimal  Hazard.  Infect  Control  Hosp  Epidemiol  
+1993; 13:75-76. 
+8.4 Brenniman GR. Allen RJ. Impact of repackaging hazardous (infectious) hospital 
+waste on the indoor air quality of a hospital. Science of the Total Environment. 1993; 
+128:141-9. 
+8.5  Birnaum  D.  Medical  Waste  Applied  Epidemiology.  Letters  to  the  Editor.  Infect  
+Control Hosp Epidemiol 1993; 14:7-8. 
+8.6  Cimino  JA.  Health  and  safety  in  the  solid  waste  industry.  Am  J  Public  Health  
+1975; 65:38-46. 
+8.7 Collins CH. Treatment and disposal of clinical and laboratory waste. Med Lab Sci 
+1991; 48:324-31. 
+8.8 Crow S. Infectious waste. Infect Control Hosp Epidemiology 1984; 5:149-50. 
+8.9 Crow S. Dissolving the problem of infectious medical waste. Infect Control Hosp 
+Epidemiology. 1996; 17:434-7. 
+8.10  Daschner  FD.  Chemical  Disinfection  of  medical  waste.  Infect  Control  Hosp  
+Epidemiology 1993; 14:306. 
+8.11 Daschner FD. Disinfection of Medical Waste. Letters to the Editor authors reply 
+Infect Control Hosp Epidemiology 1993; 14:306. 
+8.12 Daschner FD. The Hospital and Pollution: Role of the Hospital Epidemiologist in 
+Protecting  the  Environment.  In  Wenzel  R.  Prevention  and  Control  of  Nosocomial  
+Infection. Third edition William & Wilkins USA 1997; pag. 595-605. 
+8.13  Decker  MD  and  Schaffer  W.  The  relationship  between  the  Hospital  and  the  
+Community in Hospital Infection Bennnett JV and Brachman editors. Philadelphia 1998. 
+Fourth edition Lypincott-Raven Press. pag 181-188. 
+8.14  Gardner  JS,  Favero  MS.  CDC  Guideline  for  handwashing  and  hospital  
+environmental control, 1985. Infect Control Hosp Epidemiology 1986; 7:231-33. 
+8.15  Gerberding  JL.  Limiting  the  risks  of  health  care  workers.  In  Sande  MA  and  
+Volberding  PA.  The  Medical  Management  of  AIDS.  W.B.  Saunders  Company.  United  
+States. Fifth edition 1997; pag. 75-85. 
+8.16 Gerberding JL. Management of occupational exposures to blood-borne viruses, 
+N Engl J Med 1995; 332:444-51. 
+8.17  G.P.  Youmans  P.  y  Paterson  H.  Sommers.  Manual  de  Infectología.  Ed.  
+Interamericana McGraw-Hill 1982; pág. 15. 
+8.18  Henderson  DK  et  al.  Risk  for  occupational  transmission  of  HIV-1  associated  
+with clinical exposures. Ann Intern. Med 1990; 113:740-746. 
+8.19  Honeycutt  TW.  Disinfection  off  Medical  waste.  Infect  Control  Hosp  Epidemiol.  
+1993; 14:305-6. 
+8.20  Infective  Waste  in  Occupational  Health;  section  seven  in  Friede  A,  O ́Carrol  
+PW, Nicola RM, Teustch MW. in CDC Prevention Guidelines. Williams and Wilkins USA, 
+1997; pag. 1266-70. 
+8.21 Jager E, Xander L, Ruden H. Hospital wastesl. Communication: microbiological 
+investigations of hospital wastes from various ward of a big and of smaller hospitals in 
+comparison to household refuse Zbl Hyg. 1989; 188:343-364. 
+8.22  Keene  JH.  Medical  Waste:  A  Minimal  Hazard.  Infect  Control  Hosp  Epidemiol  
+1991; 12:682-5. 
+
+Lunes 17 de febrero de 2003  DIARIO OFICIAL  (Primera Sección)     21 
+8.23 Ley General de Salud publicada en el Diario Oficial de la Federación el 7 de 
+febrero de 1984 (última reforma 4 de junio de 2002). 
+8.24 Makosfshy D. Cone JE. Installing needle disposal boxes closer to the bedside 
+reduces  
+needle-recapping rates in hospital units. Infect Control Hosp Epidemiol. 1993; 14:140-
+4. 
+8.25  Mc  Veigh  P.  OR  nursing  and  environmental  ethics.  Medical  Waste  reduction,  
+reuse and recycling. Todays OR-Nurse. 1993; 15:13-8. 
+8.26 Mose JR, Reinhaler F. Microbial contamination of hospital waste and household 
+refuse. Zbl Bakt Mikr Hyg, I Abt Orig B. 1985:181-98-110. 
+8.27  Organización  Panamericana  de  la  Salud.  Manual  de  Prevención  y  Control  de  
+Infecciones Hospitalarias en la serie HSP-UNI/Manual Operativo PALTEX, 1996, 4: pág. 
+87-90. 
+8.28 Petithory JC. De Loye J. Guesnu M. Pariente P. Milgram M. Tardy M. Provoost 
+JP.  Prevention  of  AIDS  transmission  by  syringes  and  needles  in  France  and  Africa.  
+[French] Bulletin de l Academie Nationale de Medecine. 1989; 173(4):415-9. 
+8.29  Resnick  et  al.  Stabillity  and  inactivation  of  HTLV  III/LAV  under  clinical  and  
+laboratory environments JAMA 1986; 255:1887-1891. 
+8.30  Rutala  WA,  Sarubbi  FA.  Management  of  Infectious  Waste  from  Hospitals.  
+Infect Control Hosp Epidemiol 1983; 4:198-201. 
+8.31 Rutala WA, Weber DJ. Infectious Waste. N Engl J Med 1991; 325:58378-582. 
+8.32  Rutala  WC,  Mayhall  G.  The  Society  for  Hospital  Epidemiology  of  America;  
+Medical Waste Infect Control Hosp Epidemiology. 1991; 12:38-48. 
+8.33  Strain  BA  and  Groschel  DHM.  Laboratory  Safety  and  Infectious  Waste  
+management.  In  Murray  PR,  Baron  EJ,  Pfaller  MA,  Tenover  FC,  Yolken  RH  editors.  
+Manual  of  Clinical  Microbiology.  ASM  Press  Washington  D.C.  Fifth  edition  1995;  pag.  
+75-85. 
+8.34  Streed  SA.  The  Medical  Waste  Condrum  Revisted.  Infect  Control  Hosp  
+Epidemiol 1992; 13:385-6. 
+8.35  Thornton  J.  McCally  M.  Orris  P.  Weinberg  J.  Hospital  and  plastics.  Dioxin  
+prevention and medical waste incinerators. Public Health Reports. 1996; 111:299-313. 
+8.36  Volkow  P,  Jacquemin  B,  Vilar-Compte  D,  Castillo  JR.  Contact  with  blood  and  
+body fluids of hospital syringes. Implications for regulated medical waste. Salud Pública 
+de México. 
+8.37  Volkow  P.  Rangel-Frausto  S.  Ponce  de  León  Rosales  S.  Basura  hospitalaria:  
+comentarios sobre sus riesgos y su regulación. Enf Infec y Microbiol 1999; 19:1-4. 
+8.38  Weber  DJ,  Rutala  WA.  Environmental  Issues  and  Nosocomial  Infection  in  
+Wenzel  R.  Prevention  and  Control  of  Nosocomial  Infection.  Third  edition  William  &  
+Wilkins USA 1997; pag. 492-514. 
+8.39 Weinstein S, Kotilainen HR, Moore D Gantz, N. Microbiologic contamination of 
+hospital trash from patients on isolation precautions versus standard care. Am J Infect. 
+Control 1988; 16:76. 
+8.40  Who/PEP/RUD/94.1.   General.   Managing   Medical   Wastes   in   Developing   
+Countries World Health Organization 1994. 
+
+22     (Primera Sección)  DIARIO OFICIAL  Lunes 17 de febrero de 2003 
+8.41 Reglamento de la Ley General de Salud en materia de Control Sanitario de la 
+Disposición de Organos, Tejidos y Cadáveres de Seres Humanos publicado en el Diario 
+Oficial de Federación el 20 de febrero de 1985. 
+8.42 Censo de Universo de Trabajo 1999/INEGI/estimaciones CONAPO. 
+9. Observancia de esta Norma 
+9.1 La SEMARNAT, a través de la Procuraduría Federal de Protección al Ambiente y 
+la SSA, a través de la Comisión Federal para la Protección contra Riesgos Sanitarios en 
+el  ámbito  de  sus  respectivas  atribuciones  y  competencias,  vigilarán  del  cumplimiento  
+de  la  presente  Norma  Oficial  Mexicana  de  conformidad con las Bases de Colaboración 
+que celebren entre SSA y SEMARNAT, mismas que se publicarán en el Diario Oficial 
+de  la  Federación.  Las  violaciones  a  la  misma  se  sancionarán  en  los  términos  de  la  
+Ley  General  del  Equilibrio  Ecológico  y  la  Protección  al  Ambiente,  y  su  Reglamento  en  
+materia de Residuos Peligrosos, la Ley General de Salud y sus Reglamentos, así como 
+los demás ordenamientos jurídicos aplicables. 
+9.2  Los  gobiernos  del  Distrito  Federal,  de  los  estados  y  de  los  municipios,  podrán  
+realizar actos de vigilancia para la verificación del cumplimiento de esta Norma Oficial 
+Mexicana, previa la publicación en el Diario Oficial de la Federación de los Acuerdos 
+de Coordinación que se celebren con la SEMARNAT. 
+9.3  Dentro  del  marco  de  los  Acuerdos  de  Coordinación  para  la  Descentralización  
+Integral de los Servicios de Salud, las entidades federativas verificarán el cumplimiento 
+de esta Norma Oficial Mexicana. 
+TRANSITORIOS 
+PRIMERO.-  Provéase  la  publicación  de  esta  Norma  Oficial  Mexicana  en  el  Diario 
+Oficial de la Federación. 
+SEGUNDO.-  La  presente  Norma  Oficial  Mexicana  entrará  en  vigor  a  los  60  días  
+posteriores al de su publicación en el Diario Oficial de la Federación. 
+TERCERO.-  Los  establecimientos  generadores  de  residuos  peligrosos  biológico-
+infecciosos deben cumplir con la fase de manejo señalada en el punto 6, a los 90 días 
+posteriores al de la entrada en vigor de la presente Norma, tiempo en el cual seguirá 
+surtiendo sus efectos legales en lo conducente la NOM-087-ECOL-1995. 
+CUARTO.- La presente Norma Oficial Mexicana abroga a su similar NOM-087-ECOL-
+1995,  Que  establece  los  requisitos  para  la  separación,  envasado,  almacenamiento,  
+recolección,  transporte,  tratamiento  y  disposición  final  de  los  residuos  peligrosos  
+biológico-infecciosos que se generan en establecimientos que presten atención médica, 
+publicada  en  el  Diario  Oficial  de  la  Federación  el  7  de  noviembre  de  1995  y  su  
+aclaración publicada en el citado órgano informativo el 12 de junio de 1996. 
+México,  Distrito  Federal,  a  los  veintidós  días  del  mes  de  enero  de  dos  mil  tres.-  El  
+Presidente  del  Comité  Consultivo  Nacional  de  Normalización  de  Medio  Ambiente  y  
+Recursos  Naturales,  Cassio  Luiselli  Fernández.-  Rúbrica.-  El  Presidente  del  Comité  
+Consultivo  Nacional  de  Normalización,  de  Regulación  y  Fomento  Sanitario,  Ernesto 
+Enríquez Rubio.- Rúbrica. 
+APENDICE NORMATIVO 
+SIMBOLO UNIVERSAL DE RIESGO BIOLOGICO 
+
+Lunes 17 de febrero de 2003  DIARIO OFICIAL  (Primera Sección)     23 
+ 
+ 
+RESIDUOS 
+PELIGROSOS 
+BIOLOGICO–INFECCIOSOS 
+__________________________ 
