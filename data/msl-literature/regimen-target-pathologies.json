@@ -1,0 +1,4 @@
+[
+  { "pathology": "leucemia_mieloide_aguda", "cie10_codes": ["C92.0"] },
+  { "pathology": "linfoma_difuso_celulas_b_grandes", "cie10_codes": ["C83.3"] }
+]

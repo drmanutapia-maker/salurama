@@ -1,0 +1,292 @@
+[
+  {
+    "pathology": "leucemia_mieloide_aguda",
+    "cie10_codes": ["C92.0"],
+    "mesh_query": "\"Leukemia, Myeloid, Acute\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "linfoma_difuso_celulas_b_grandes",
+    "cie10_codes": ["C83.3"],
+    "mesh_query": "\"Lymphoma, Large B-Cell, Diffuse\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "enfermedad_von_willebrand",
+    "cie10_codes": ["D68.0"],
+    "mesh_query": "\"von Willebrand Diseases\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "leucemia_linfoblastica_aguda",
+    "cie10_codes": ["C91.0"],
+    "mesh_query": "\"Precursor Cell Lymphoblastic Leukemia-Lymphoma\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "leucemia_linfocitica_cronica",
+    "cie10_codes": ["C91.1"],
+    "mesh_query": "\"Leukemia, Lymphocytic, Chronic, B-Cell\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "leucemia_mieloide_cronica",
+    "cie10_codes": ["C92.1"],
+    "mesh_query": "\"Leukemia, Myelogenous, Chronic, BCR-ABL Positive\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "leucemia_promielocitica_aguda",
+    "cie10_codes": ["C92.4"],
+    "mesh_query": "\"Leukemia, Promyelocytic, Acute\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "tricoleucemia",
+    "cie10_codes": ["C91.4"],
+    "mesh_query": "\"Leukemia, Hairy Cell\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "linfoma_hodgkin",
+    "cie10_codes": ["C81.9"],
+    "mesh_query": "\"Hodgkin Disease\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "linfoma_folicular",
+    "cie10_codes": ["C82.9"],
+    "mesh_query": "\"Lymphoma, Follicular\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "linfoma_celulas_manto",
+    "cie10_codes": ["C83.1"],
+    "mesh_query": "\"Lymphoma, Mantle-Cell\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "linfoma_burkitt",
+    "cie10_codes": ["C83.7"],
+    "mesh_query": "\"Burkitt Lymphoma\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "micosis_fungoide_sezary",
+    "cie10_codes": ["C84.0"],
+    "mesh_query": "(\"Mycosis Fungoides\"[Mesh] OR \"Sezary Syndrome\"[Mesh]) AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "sindrome_mielodisplasico",
+    "cie10_codes": ["D46.9"],
+    "mesh_query": "\"Myelodysplastic Syndromes\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "policitemia_vera",
+    "cie10_codes": ["D45"],
+    "mesh_query": "\"Polycythemia Vera\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "trombocitemia_esencial",
+    "cie10_codes": ["D47.3"],
+    "mesh_query": "\"Thrombocythemia, Essential\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "mielofibrosis_primaria",
+    "cie10_codes": ["D47.4"],
+    "mesh_query": "\"Primary Myelofibrosis\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "anemia_hemolitica_autoinmune",
+    "cie10_codes": ["D59.1"],
+    "mesh_query": "\"Anemia, Hemolytic, Autoimmune\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "talasemia",
+    "cie10_codes": ["D56.9"],
+    "mesh_query": "\"Thalassemia\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "anemia_celulas_falciformes",
+    "cie10_codes": ["D57.1"],
+    "mesh_query": "\"Anemia, Sickle Cell\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "deficiencia_vitamina_b12",
+    "cie10_codes": ["D51.9"],
+    "mesh_query": "\"Vitamin B 12 Deficiency\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "hemofilia_a",
+    "cie10_codes": ["D66"],
+    "mesh_query": "\"Hemophilia A\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "hemofilia_b",
+    "cie10_codes": ["D67"],
+    "mesh_query": "\"Hemophilia B\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "purpura_trombocitopenica_inmune",
+    "cie10_codes": ["D69.3"],
+    "mesh_query": "\"Purpura, Thrombocytopenic, Idiopathic\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "sindrome_antifosfolipido",
+    "cie10_codes": ["D68.61"],
+    "mesh_query": "\"Antiphospholipid Syndrome\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "trombofilia_hereditaria",
+    "cie10_codes": ["D68.59"],
+    "mesh_query": "\"Thrombophilia\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "gammapatia_monoclonal_significado_incierto",
+    "cie10_codes": ["D47.2"],
+    "mesh_query": "\"Monoclonal Gammopathy of Undetermined Significance\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "amiloidosis_al",
+    "cie10_codes": ["E85.9"],
+    "mesh_query": "\"Immunoglobulin Light-chain Amyloidosis\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "macroglobulinemia_waldenstrom",
+    "cie10_codes": ["C88.0"],
+    "mesh_query": "\"Waldenstrom Macroglobulinemia\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "linfoma_zona_marginal",
+    "cie10_codes": ["C83.8"],
+    "mesh_query": "\"Lymphoma, B-Cell, Marginal Zone\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "mastocitosis_sistemica",
+    "cie10_codes": ["D47.5"],
+    "mesh_query": "\"Mastocytosis, Systemic\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "linfoma_t_periferico",
+    "cie10_codes": ["C84.4"],
+    "mesh_query": "\"Lymphoma, T-Cell, Peripheral\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "leucemia_mielomonocitica_cronica",
+    "cie10_codes": ["C93.1"],
+    "mesh_query": "\"Leukemia, Myelomonocytic, Chronic\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "plasmocitoma_solitario",
+    "cie10_codes": ["C90.3"],
+    "mesh_query": "\"Plasmacytoma\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "leucemia_prolinfocitica",
+    "cie10_codes": ["C91.3", "C91.6"],
+    "mesh_query": "\"Leukemia, Prolymphocytic\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "trastorno_linfoproliferativo_postrasplante",
+    "cie10_codes": ["T86.09"],
+    "mesh_query": "\"Lymphoproliferative Disorders\"[Mesh] AND \"post-transplant lymphoproliferative\"[tiab] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "linfoma_anaplasico_celulas_grandes",
+    "cie10_codes": ["C84.6", "C86.6"],
+    "mesh_query": "\"Lymphoma, Large-Cell, Anaplastic\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "leucemia_neutrofilica_cronica",
+    "cie10_codes": ["D47.1"],
+    "mesh_query": "\"Leukemia, Neutrophilic, Chronic\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "leucemia_eosinofilica_cronica",
+    "cie10_codes": ["D47.5"],
+    "mesh_query": "\"Hypereosinophilic Syndrome\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "linfoma_nk_t_extranodal",
+    "cie10_codes": ["C86.0"],
+    "mesh_query": "\"Lymphoma, Extranodal NK-T-Cell\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "anemia_ferropenica",
+    "cie10_codes": ["D50.9"],
+    "mesh_query": "\"Anemia, Iron-Deficiency\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "neutropenia",
+    "cie10_codes": ["D70.9"],
+    "mesh_query": "\"Neutropenia\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "deficiencia_folato",
+    "cie10_codes": ["D52.9"],
+    "mesh_query": "\"Folic Acid Deficiency\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "anemia_enfermedad_cronica",
+    "cie10_codes": ["D63.8"],
+    "mesh_query": "(\"anemia of chronic disease\"[tiab] OR \"anemia of inflammation\"[tiab]) AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "coagulacion_intravascular_diseminada",
+    "cie10_codes": ["D65"],
+    "mesh_query": "\"Disseminated Intravascular Coagulation\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "trombocitopenia_inducida_heparina",
+    "cie10_codes": ["D75.82"],
+    "mesh_query": "\"Heparin\"[Mesh] AND \"Thrombocytopenia\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "purpura_trombotica_trombocitopenica",
+    "cie10_codes": ["M31.1"],
+    "mesh_query": "\"Purpura, Thrombotic Thrombocytopenic\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "esferocitosis_hereditaria",
+    "cie10_codes": ["D58.0"],
+    "mesh_query": "\"Spherocytosis, Hereditary\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "deficiencia_g6pd",
+    "cie10_codes": ["D55.0"],
+    "mesh_query": "\"Glucosephosphate Dehydrogenase Deficiency\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "hemocromatosis",
+    "cie10_codes": ["E83.1"],
+    "mesh_query": "\"Hemochromatosis\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "anemia_aplasica",
+    "cie10_codes": ["D61.9"],
+    "mesh_query": "\"Anemia, Aplastic\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "aplasia_pura_celulas_rojas",
+    "cie10_codes": ["D60.9"],
+    "mesh_query": "\"Red-Cell Aplasia, Pure\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "hemoglobinuria_paroxistica_nocturna",
+    "cie10_codes": ["D59.5"],
+    "mesh_query": "\"Hemoglobinuria, Paroxysmal\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "sindrome_uremico_hemolitico",
+    "cie10_codes": ["D59.3"],
+    "mesh_query": "\"Hemolytic-Uremic Syndrome\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "deficiencias_factores_raros_coagulacion",
+    "cie10_codes": ["D68.2"],
+    "mesh_query": "(\"Factor VII Deficiency\"[Mesh] OR \"Factor XI Deficiency\"[Mesh] OR \"Factor XIII Deficiency\"[Mesh]) AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "anemia_fanconi",
+    "cie10_codes": ["D61.0"],
+    "mesh_query": "\"Fanconi Anemia\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "anemia_diamond_blackfan",
+    "cie10_codes": ["D61.0"],
+    "mesh_query": "\"Anemia, Diamond-Blackfan\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  },
+  {
+    "pathology": "leucemia_mielomonocitica_juvenil",
+    "cie10_codes": ["C93.1"],
+    "mesh_query": "\"Leukemia, Myelomonocytic, Juvenile\"[Mesh] AND (\"review\"[Publication Type] OR \"systematic review\"[Publication Type]) AND 2022:2026[pdat]"
+  }
+]
