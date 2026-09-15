@@ -29,18 +29,38 @@ export const TEST_CASES: TestCase[] = [
   { question: '¿Es seguro?',                                                          category: 'debe_pasar', note: 'elíptico extremo — casi sin contenido' },
   { question: '¿Y si no funciona?',                                                   category: 'debe_pasar', note: 'elíptico extremo — casi sin contenido' },
 
-  // Debe fallar el piso: fuera de dominio, sin relación real con mieloma/hematología.
-  { question: '¿Qué es la diabetes tipo 2?',                                          category: 'debe_fallar', note: 'otra condición médica, no oncohematológica' },
+  // Debe pasar el piso: preguntas reales sobre patologías del corpus ampliado
+  // de Componente 1 (27 patologías más allá de mieloma), escritas como un
+  // médico las escribiría de verdad — con la sigla en español, no el nombre
+  // expandido. Esto es lo que expuso el bug real (MSL Virtual respondía "no
+  // tengo contexto" para LLA a pesar de tener 116 chunks ingeridos) — el
+  // corpus está en inglés y las siglas en español no comparten texto con su
+  // equivalente en inglés, así que estos casos solo pasan de verdad una vez
+  // que la búsqueda traduce/normaliza la consulta antes de embeder (ver
+  // translateForSearch en app/api/msl-chat/route.ts). No agregar aquí casos
+  // de una sola patología puntual — el objetivo es que la calibración quede
+  // representativa de "el corpus tiene muchas patologías", no de hematología
+  // específicamente, para que siga siendo válida cuando se agreguen otras
+  // especialidades.
+  { question: 'Esquema de primera línea para LLA',                                    category: 'debe_pasar', note: 'patología del corpus ampliado — sigla en español (leucemia_linfoblastica_aguda)' },
+  { question: '¿Cuál es el tratamiento de primera línea para la leucemia mieloide aguda?', category: 'debe_pasar', note: 'patología del corpus ampliado (leucemia_mieloide_aguda)' },
+  { question: '¿Qué es el linfoma de Hodgkin?',                                       category: 'debe_pasar', note: 'patología del corpus ampliado (linfoma_hodgkin)' },
+  { question: '¿Cuál es la dosis de referencia en LLC?',                              category: 'debe_pasar', note: 'sigla en español — leucemia_linfocitica_cronica' },
+  { question: '¿Cómo se trata la PTI en adultos?',                                    category: 'debe_pasar', note: 'sigla en español — purpura_trombocitopenica_inmune' },
+  { question: '¿Qué esquemas existen para el síndrome antifosfolípido (SAF)?',        category: 'debe_pasar', note: 'sigla en español — sindrome_antifosfolipido' },
+
+  // Debe fallar el piso: fuera de dominio, sin relación real con el corpus.
+  // Deliberadamente NO se usa aquí "otra patología hematológica" como
+  // negativo (ese fue el error original de esta calibración: asumía que
+  // cualquier patología fuera de mieloma estaba fuera del corpus, lo cual
+  // dejó de ser cierto en cuanto Componente 1 ingirió 27 patologías más).
+  // Los negativos deben ser géneramente ajenos a cualquier corpus médico,
+  // para que sigan siendo válidos sin importar cuántas especialidades se
+  // agreguen a futuro.
+  { question: '¿Qué es la diabetes tipo 2?',                                          category: 'debe_fallar', note: 'otra condición médica, fuera del alcance actual del corpus' },
   { question: '¿Cuál es la capital de Francia?',                                      category: 'debe_fallar', note: 'trivia, no médico' },
   { question: 'Ayúdame a redactar un correo para mi jefe',                            category: 'debe_fallar', note: 'tarea administrativa, no médica' },
   { question: '¿Cómo hago una pasta carbonara?',                                      category: 'debe_fallar', note: 'cocina' },
   { question: '¿Qué opinas del nuevo iPhone?',                                        category: 'debe_fallar', note: 'consumo/tecnología' },
-
-  // El caso más peligroso: fuera de dominio (no es mieloma) pero comparte
-  // vocabulario clínico/oncohematológico con el corpus — el que puede
-  // engañar al embedding aislado por jerga compartida en vez de tema real.
-  { question: '¿Cuál es el tratamiento de primera línea para la leucemia mieloide aguda?', category: 'debe_fallar', note: 'otra especialidad hematológica — LMA' },
-  { question: '¿Qué es el linfoma de Hodgkin?',                                       category: 'debe_fallar', note: 'otra especialidad hematológica — linfoma' },
-  { question: '¿Cómo se diagnostica la anemia aplásica?',                             category: 'debe_fallar', note: 'otra especialidad hematológica — anemia aplásica' },
-  { question: '¿Cuáles son los criterios de remisión en linfoma no Hodgkin?',         category: 'debe_fallar', note: 'otra especialidad hematológica — linfoma no Hodgkin' },
+  { question: '¿Cómo se diagnostica la anemia aplásica?',                             category: 'debe_fallar', note: 'patología hematológica NO presente en el corpus actual' },
 ]

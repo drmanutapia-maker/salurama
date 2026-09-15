@@ -15,6 +15,7 @@ dotenv.config({ path: '.env.local' })
 import OpenAI from 'openai'
 import { createClient } from '@supabase/supabase-js'
 import { TEST_CASES, type Category, type TestCase } from './calibration-test-cases'
+import { translateForSearch } from '../lib/msl/translateForSearch'
 
 const EMBEDDING_MODEL = 'text-embedding-3-small'
 
@@ -63,8 +64,17 @@ function fmt(n: number | null): string {
 async function main() {
   console.log('\n🔬  Calibración de piso de similitud — MSL Virtual\n')
   console.log(`   ${TEST_CASES.length} casos de prueba · modelo: ${EMBEDDING_MODEL}\n`)
+  console.log('   Traduciendo cada pregunta con translateForSearch() — igual que producción...\n')
 
-  const embeddings = await getEmbeddings(TEST_CASES.map(c => c.question))
+  const translatedQuestions = await Promise.all(TEST_CASES.map(c => translateForSearch(c.question)))
+  for (let i = 0; i < TEST_CASES.length; i++) {
+    if (translatedQuestions[i] !== TEST_CASES[i].question) {
+      console.log(`   "${TEST_CASES[i].question}" → "${translatedQuestions[i]}"`)
+    }
+  }
+  console.log('')
+
+  const embeddings = await getEmbeddings(translatedQuestions)
 
   const results: Array<TestCase & { similarity: number | null }> = []
 
