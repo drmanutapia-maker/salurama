@@ -5,8 +5,10 @@ import type { KeyboardEvent } from 'react'
 import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { Send, ArrowLeft } from 'lucide-react'
+import { Send, ArrowLeft, ClipboardCheck } from 'lucide-react'
 import BackButton from '@/components/BackButton'
+import { supabase } from '@/lib/supabaseClient'
+import { isManuelEmail } from '@/lib/manuelOnly'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -223,6 +225,15 @@ export default function MSLChat({ backHref, backLabel = 'Volver', patientContext
   const textareaRef                       = useRef<HTMLTextAreaElement>(null)
   const scrollRef                         = useRef<HTMLDivElement>(null)
   const scrolledForAnswerRef              = useRef(false)
+  const [isManuel, setIsManuel]           = useState(false)
+
+  // Enlace al panel de revisión de esquemas (Componente 2) — solo visible
+  // para la cuenta de Manuel, mismo gate que la propia página lo protege.
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setIsManuel(isManuelEmail(data.user?.email))
+    })
+  }, [])
 
   // El scroll debe detenerse al INICIO de la respuesta nueva (para que el
   // médico la lea desde el principio) exactamente una vez, en el momento en
@@ -394,7 +405,7 @@ export default function MSLChat({ backHref, backLabel = 'Volver', patientContext
       <div className="flex flex-col h-full max-w-3xl mx-auto">
 
         {/* ── Back — Link fijo si backHref viene dado (patrón HEMA), si no, BackButton de Salurama ── */}
-        <div className="shrink-0 flex items-center px-4 py-3 border-b border-neutral-200">
+        <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-neutral-200">
           {backHref ? (
             <Link
               href={backHref}
@@ -406,6 +417,16 @@ export default function MSLChat({ backHref, backLabel = 'Volver', patientContext
             </Link>
           ) : (
             <BackButton fallback="/dashboard" />
+          )}
+
+          {isManuel && (
+            <Link
+              href="/dashboard/msl-virtual/admin"
+              title="Revisión de esquemas (Componente 2)"
+              className="inline-flex items-center justify-center w-9 h-9 rounded-full text-neutral-400 hover:text-primary-500 hover:bg-neutral-100 transition-colors"
+            >
+              <ClipboardCheck size={18} />
+            </Link>
           )}
         </div>
 
