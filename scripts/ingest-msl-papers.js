@@ -228,4 +228,11 @@ async function main() {
   console.log('─'.repeat(50) + '\n');
 }
 
-main().catch(err => { console.error('Error fatal:', err); process.exit(1); });
+if (require.main === module) {
+  main().catch(err => { console.error('Error fatal:', err); process.exit(1); });
+}
+
+module.exports = {
+  extractText, stripPdfBoilerplate, chunkText, getEmbeddings, sleep,
+  supabase, EMBED_BATCH, EMBED_DELAY_MS,
+};
