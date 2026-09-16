@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { isManuelEmail } from '@/lib/manuelOnly'
-import { Menu, X, LogOut, User, UserPlus, LayoutDashboard, CreditCard, Shield, ShieldCheck } from 'lucide-react'
+import { Menu, X, LogOut, User, UserPlus, LayoutDashboard, CreditCard, Shield, ShieldCheck, Megaphone } from 'lucide-react'
 
 export default function Navbar() {
   const router = useRouter()
@@ -91,6 +91,9 @@ export default function Navbar() {
                     {isManuelEmail(user.email) && (
                       <Link href="/admin" onClick={() => setShowDropdown(false)} className="dropdown-item" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', color: '#374151', textDecoration: 'none', fontSize: 14, borderBottom: '1px solid #F3F4F6' }}><ShieldCheck size={16}/> Admin</Link>
                     )}
+                    {isManuelEmail(user.email) && (
+                      <Link href="/dashboard/cofepris" onClick={() => setShowDropdown(false)} className="dropdown-item" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', color: '#374151', textDecoration: 'none', fontSize: 14, borderBottom: '1px solid #F3F4F6' }}><Megaphone size={16}/> COFEPRIS</Link>
+                    )}
                     <button onClick={handleLogout} className="dropdown-item" style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', background: 'none', border: 'none', color: '#DC2626', fontSize: 14, cursor: 'pointer', textAlign: 'left' }}><LogOut size={16}/> Cerrar sesión</button>
                   </>
                 ) : (
@@ -121,6 +124,9 @@ export default function Navbar() {
                 <Link href="/dashboard/seguridad" onClick={() => setMobileOpen(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px', background: 'white', border: '1px solid #E5E7EB', borderRadius: 12, color: '#1A1A2E', textDecoration: 'none', fontWeight: 500 }}><Shield size={18}/> Seguridad</Link>
                 {isManuelEmail(user.email) && (
                   <Link href="/admin" onClick={() => setMobileOpen(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px', background: 'white', border: '1px solid #E5E7EB', borderRadius: 12, color: '#1A1A2E', textDecoration: 'none', fontWeight: 500 }}><ShieldCheck size={18}/> Admin</Link>
+                )}
+                {isManuelEmail(user.email) && (
+                  <Link href="/dashboard/cofepris" onClick={() => setMobileOpen(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px', background: 'white', border: '1px solid #E5E7EB', borderRadius: 12, color: '#1A1A2E', textDecoration: 'none', fontWeight: 500 }}><Megaphone size={18}/> COFEPRIS</Link>
                 )}
                 <button onClick={handleLogout} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px', background: 'white', border: '1px solid #FECACA', borderRadius: 12, color: '#DC2626', fontWeight: 500, width: '100%' }}><LogOut size={18}/> Cerrar sesión</button>
               </>
