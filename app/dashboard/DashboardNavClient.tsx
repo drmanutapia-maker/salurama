@@ -170,14 +170,18 @@ function BannerInstalarApp() {
 // una tarjeta grande fija en el contenido de /dashboard (Inicio), visible
 // solo ahí; ahora vive en la barra superior como los demás, con prioridad 4
 // (la más baja) y visible en cualquier página de /dashboard/*. Mismo patrón
-// autocontenido: consulta ligera propia (solo las 2 columnas que necesita,
-// no el select('*') pesado de page.tsx). Condición de "tengo algo que
-// mostrar" sin tocar: cuenta de Manuel, sin número de aviso capturado aún.
+// autocontenido: consulta ligera propia (solo las columnas que necesita, no
+// el select('*') pesado de page.tsx). Condición de "tengo algo que mostrar"
+// sin tocar: cuenta de Manuel, sin número de aviso capturado aún -- ahora
+// además sin haber declinado permanentemente (mismo patrón de "No, gracias"
+// que BannerBiometrico: X = temporal sin guardar nada, "No, gracias" =
+// permanente vía cofepris_banner_declined).
 function BannerCofepris() {
   const router = useRouter()
   const [cargado, setCargado] = useState(false)
   const [avisoNumero, setAvisoNumero] = useState<string | null>(null)
   const [esManuel, setEsManuel] = useState(false)
+  const [bannerDeclined, setBannerDeclined] = useState(false)
   const [cerrado, setCerrado] = useState(false)
 
   useEffect(() => {
@@ -187,11 +191,12 @@ function BannerCofepris() {
       if (networkError || !user) return
       const { data: medico } = await supabase
         .from('doctors')
-        .select('cofepris_aviso_numero, email')
+        .select('cofepris_aviso_numero, cofepris_banner_declined, email')
         .eq('user_id', user.id)
         .maybeSingle()
       if (!medico || cancelado) return
       setAvisoNumero(medico.cofepris_aviso_numero)
+      setBannerDeclined(medico.cofepris_banner_declined)
       setEsManuel(isManuelEmail(medico.email))
       setCargado(true)
     }
@@ -199,10 +204,18 @@ function BannerCofepris() {
     return () => { cancelado = true }
   }, [])
 
+  const declinar = async () => {
+    setCerrado(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    await supabase.from('doctors').update({ cofepris_banner_declined: true }).eq('user_id', user.id)
+  }
+
   // `cargado` evita que el efecto de abajo cuente el estado inicial
   // (antes de que resuelva el fetch) como "sin aviso" -- misma condición de
-  // siempre (`!cofepris_aviso_numero && isManuelEmail`), sin tocar.
-  const listo = cargado && !avisoNumero && esManuel && !cerrado
+  // siempre (`!cofepris_aviso_numero && isManuelEmail`), sin tocar, más el
+  // nuevo `!cofeprisBannerDeclined`.
+  const listo = cargado && !avisoNumero && esManuel && !bannerDeclined && !cerrado
   const miTurno = useColaBanners('cofepris', listo)
 
   return (
@@ -216,6 +229,7 @@ function BannerCofepris() {
           colorTexto="#1D6F65"
           colorAccento="#2A9D8F"
           accionPrincipal={{ label: 'Empezar', onClick: () => { setCerrado(true); router.push('/dashboard/cofepris') } }}
+          accionSecundaria={{ label: 'No, gracias', onClick: declinar }}
           onCerrar={() => setCerrado(true)}
         />
       )}
