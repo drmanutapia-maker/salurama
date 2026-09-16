@@ -7,10 +7,9 @@ import {
   X, ZoomIn, Calendar, Edit2, Eye, Share2,
   Star, Users, MoreVertical, Lightbulb,
   CheckCircle, ArrowRight,
-  Megaphone, AlertCircle, Banknote, Smartphone
+  AlertCircle, Banknote
 } from 'lucide-react'
 import { calculateProfileCompletion } from '@/hooks/useProfileCompletion'
-import { isManuelEmail } from '@/lib/manuelOnly'
 import { fechaISOLocal } from '@/lib/citas/fechas'
 import { Skeleton } from '@/components/Skeleton'
 import { PageErrorState, classifyError, type PageErrorType } from '@/components/PageErrorState'
@@ -36,7 +35,6 @@ interface Medico {
   ciudad: string | null
   estado: string | null
   user_id?: string
-  cofepris_aviso_numero: string | null
 }
 
 interface Cita {
@@ -721,86 +719,6 @@ export default function DashboardMedico() {
           )}
         </div>
       )}
-
-      {/* ═══════════════════════════════════════════════════════════
-          INVITACIÓN COFEPRIS — servicio opcional, independiente del
-          "consejo" de arriba a propósito: no debe impedir que se
-          muestre "¡Perfil completo!" ni contarse en profileCompletion,
-          ya que no es parte de la completitud del perfil público.
-      ═══════════════════════════════════════════════════════════ */}
-      {medico && !medico.cofepris_aviso_numero && isManuelEmail(medico.email) && (
-        <div style={{ maxWidth: 1100, margin: '0 auto 20px', padding: '0 16px' }}>
-          <div className="fade-in" style={{
-            background: 'linear-gradient(135deg, #E8F7F5 0%, #D1FAE5 100%)',
-            border: '1.5px solid #9FD8CD',
-            borderRadius: 16,
-            padding: 20,
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexDirection: isMobile ? 'column' : 'row',
-            gap: 16,
-          }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, flex: 1, width: '100%' }}>
-              <div style={{ width: 44, height: 44, borderRadius: 12, background: '#2A9D8F', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <Megaphone size={22} color="#fff" />
-              </div>
-              <div style={{ flex: 1, textAlign: isMobile ? 'center' : 'left' }}>
-                <p style={{ fontFamily: 'Fraunces', fontWeight: 900, fontSize: 16, color: '#1D6F65', margin: '0 0 6px' }}>
-                  Formaliza tu Aviso de Publicidad ante COFEPRIS
-                </p>
-                <p style={{ fontSize: 14, color: '#4A5568', margin: 0, lineHeight: 1.5 }}>
-                  Te ayudamos a preparar la documentación. Es un servicio opcional, no afecta tu perfil ni tu visibilidad.
-                </p>
-              </div>
-            </div>
-            <Link
-              href="/dashboard/cofepris"
-              prefetch={true}
-              className="btn-hover"
-              style={{
-                background: '#2A9D8F', color: '#fff', padding: '12px 20px', borderRadius: 12, fontSize: 14, fontWeight: 600,
-                textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap',
-                width: isMobile ? '100%' : 'auto', justifyContent: 'center', minHeight: 48,
-              }}
-            >
-              Empezar <ArrowRight size={16} />
-            </Link>
-          </div>
-        </div>
-      )}
-
-      {/* ═══════════════════════════════════════════════════════════
-          INSTALAR COMO APP (PWA) — indicación estática, siempre
-          visible aquí; independiente del banner puntual que ya existe
-          tras la primera cita confirmada (ver InstalarAppBanner.tsx).
-      ═══════════════════════════════════════════════════════════ */}
-      <div style={{ maxWidth: 1100, margin: '0 auto 20px', padding: '0 16px' }}>
-        <div style={{
-          background: '#F9FAFB',
-          border: '1px solid #E5E7EB',
-          borderRadius: 16,
-          padding: 20,
-          display: 'flex',
-          alignItems: 'flex-start',
-          gap: 14,
-        }}>
-          <div style={{ width: 40, height: 40, borderRadius: 10, background: '#1E3A5F', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <Smartphone size={20} color="#fff" />
-          </div>
-          <div style={{ flex: 1 }}>
-            <p style={{ fontFamily: 'Fraunces', fontWeight: 900, fontSize: 15, color: '#1E3A5F', margin: '0 0 6px' }}>
-              Instala Salurama como app en tu celular
-            </p>
-            <p style={{ fontSize: 13, color: '#4B5563', margin: '0 0 4px', lineHeight: 1.5 }}>
-              <strong>Android (Chrome):</strong> toca el menú ⋮ y elige "Instalar app" o "Agregar a pantalla de inicio".
-            </p>
-            <p style={{ fontSize: 13, color: '#4B5563', margin: 0, lineHeight: 1.5 }}>
-              <strong>iPhone (Safari):</strong> toca el ícono de Compartir y elige "Agregar a inicio".
-            </p>
-          </div>
-        </div>
-      </div>
 
       {/* ═══════════════════════════════════════════════════════════
           STATS CARDS (3 métricas clave)

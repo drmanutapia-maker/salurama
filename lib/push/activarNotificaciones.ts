@@ -16,6 +16,11 @@ export interface InfoPlataforma {
   esIOS: boolean
   esSafari: boolean
   esStandalone: boolean
+  esAndroid: boolean
+  // Celular real (iOS o Android, o cualquier otro UA de móvil genérico) --
+  // distingue de escritorio incluso cuando Chrome de escritorio también
+  // dispara 'beforeinstallprompt' (sí lo hace, ver useInstalarAppElegibilidad.ts).
+  esMobile: boolean
 }
 
 // iPadOS 13+ se reporta como 'MacIntel' pero tiene soporte táctil — se cuenta
@@ -28,7 +33,9 @@ export function detectarPlataforma(): InfoPlataforma {
   const esStandalone =
     window.matchMedia('(display-mode: standalone)').matches ||
     (navigator as unknown as { standalone?: boolean }).standalone === true
-  return { esIOS, esSafari, esStandalone }
+  const esAndroid = /Android/.test(ua)
+  const esMobile = esIOS || esAndroid || /Mobi/i.test(ua)
+  return { esIOS, esSafari, esStandalone, esAndroid, esMobile }
 }
 
 export type ResultadoActivacion = 'activadas' | 'rechazadas' | 'no_soportado' | 'error'
