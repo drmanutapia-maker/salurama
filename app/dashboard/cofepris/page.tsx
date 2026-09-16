@@ -247,9 +247,10 @@ export default function CofeprisPage() {
                   <h2 style={{ fontFamily: 'Fraunces', fontSize: 18, fontWeight: 900, color: '#1E3A5F' }}>Proyecto de anuncio</h2>
                 </div>
                 <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 18, lineHeight: 1.6 }}>
-                  Genera un PDF base con tus datos de perfil (nombre, título, especialidad, cédula, foto y
-                  descripción). Es un borrador de apoyo: revísalo antes de subirlo a DIGIPRiS, incluye un espacio
-                  marcado para las leyendas legales obligatorias que aún están pendientes de revisión.
+                  Genera un PDF con tus datos de perfil (nombre, título, especialidad, cédula, foto y descripción),
+                  incluyendo ya redactadas las leyendas legales del Art. 19 del Reglamento de la LGS en Materia de
+                  Publicidad con tu información real. Es un borrador de apoyo: ese artículo no fija un formato único
+                  de leyenda, así que haz que un abogado lo revise antes de subirlo a DIGIPRiS.
                 </p>
                 <a
                   href="/api/dashboard/cofepris/proyecto-pdf"

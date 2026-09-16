@@ -7,7 +7,7 @@ import {
   X, ZoomIn, Calendar, Edit2, Eye, Share2,
   Star, Users, MoreVertical, Lightbulb,
   CheckCircle, ArrowRight,
-  Megaphone, AlertCircle, Banknote
+  Megaphone, AlertCircle, Banknote, Smartphone
 } from 'lucide-react'
 import { calculateProfileCompletion } from '@/hooks/useProfileCompletion'
 import { isManuelEmail } from '@/lib/manuelOnly'
@@ -17,6 +17,7 @@ import { PageErrorState, classifyError, type PageErrorType } from '@/components/
 
 interface Medico {
   id: string
+  slug: string | null
   full_name: string
   email: string
   specialty: string
@@ -413,7 +414,7 @@ export default function DashboardMedico() {
   }
 
   const handleShare = async () => {
-    const profileUrl = `${window.location.origin}/doctor/${medico?.id}`
+    const profileUrl = `${window.location.origin}/doctor/${medico?.slug || medico?.id}`
     const shareText = `Te recomiendo al Dr. ${medico?.full_name} - ${medico?.specialty} en Salurama. Verifica sus credenciales y agenda aquí:`
     if (navigator.share) {
       try {
@@ -448,7 +449,7 @@ export default function DashboardMedico() {
   }
 
   const esPerfilCompleto = consejo?.id === 'completo'
-  const profileUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/doctor/${medico.id}`
+  const profileUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/doctor/${medico.slug || medico.id}`
   const fechaHoyLegible = new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })
 
   const formatProximaFecha = (fechaStr: string) => {
@@ -526,7 +527,7 @@ export default function DashboardMedico() {
                 <Edit2 size={16} /> Editar Perfil
               </Link>
               <button
-                onClick={() => router.push(`/doctor/${medico.id}`)}
+                onClick={() => router.push(`/doctor/${medico.slug || medico.id}`)}
                 className="btn-hover"
                 style={{ background: '#fff', color: '#1E3A5F', border: '1.5px solid #E5E7EB', padding: isMobile ? '14px 20px' : '10px 20px', borderRadius: 12, fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', minHeight: 48 }}
               >
@@ -768,6 +769,38 @@ export default function DashboardMedico() {
           </div>
         </div>
       )}
+
+      {/* ═══════════════════════════════════════════════════════════
+          INSTALAR COMO APP (PWA) — indicación estática, siempre
+          visible aquí; independiente del banner puntual que ya existe
+          tras la primera cita confirmada (ver InstalarAppBanner.tsx).
+      ═══════════════════════════════════════════════════════════ */}
+      <div style={{ maxWidth: 1100, margin: '0 auto 20px', padding: '0 16px' }}>
+        <div style={{
+          background: '#F9FAFB',
+          border: '1px solid #E5E7EB',
+          borderRadius: 16,
+          padding: 20,
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: 14,
+        }}>
+          <div style={{ width: 40, height: 40, borderRadius: 10, background: '#1E3A5F', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Smartphone size={20} color="#fff" />
+          </div>
+          <div style={{ flex: 1 }}>
+            <p style={{ fontFamily: 'Fraunces', fontWeight: 900, fontSize: 15, color: '#1E3A5F', margin: '0 0 6px' }}>
+              Instala Salurama como app en tu celular
+            </p>
+            <p style={{ fontSize: 13, color: '#4B5563', margin: '0 0 4px', lineHeight: 1.5 }}>
+              <strong>Android (Chrome):</strong> toca el menú ⋮ y elige "Instalar app" o "Agregar a pantalla de inicio".
+            </p>
+            <p style={{ fontSize: 13, color: '#4B5563', margin: 0, lineHeight: 1.5 }}>
+              <strong>iPhone (Safari):</strong> toca el ícono de Compartir y elige "Agregar a inicio".
+            </p>
+          </div>
+        </div>
+      </div>
 
       {/* ═══════════════════════════════════════════════════════════
           STATS CARDS (3 métricas clave)
