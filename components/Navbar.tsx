@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { isManuelEmail } from '@/lib/manuelOnly'
-import { Menu, X, LogOut, User, UserPlus, LayoutDashboard, CreditCard, Shield, ShieldCheck, Megaphone } from 'lucide-react'
+import { Menu, X, LogOut, User, UserPlus, LayoutDashboard, CreditCard, Settings, ShieldCheck, Megaphone } from 'lucide-react'
 
 export default function Navbar() {
   const router = useRouter()
@@ -87,7 +87,7 @@ export default function Navbar() {
                   <>
                     <Link href="/dashboard" onClick={() => setShowDropdown(false)} className="dropdown-item" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', color: '#374151', textDecoration: 'none', fontSize: 14, borderBottom: '1px solid #F3F4F6' }}><LayoutDashboard size={16}/> Mi perfil</Link>
                     <Link href="/dashboard/plan" onClick={() => setShowDropdown(false)} className="dropdown-item" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', color: '#374151', textDecoration: 'none', fontSize: 14, borderBottom: '1px solid #F3F4F6' }}><CreditCard size={16}/> Beneficios</Link>
-                    <Link href="/dashboard/seguridad" onClick={() => setShowDropdown(false)} className="dropdown-item" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', color: '#374151', textDecoration: 'none', fontSize: 14, borderBottom: '1px solid #F3F4F6' }}><Shield size={16}/> Seguridad</Link>
+                    <Link href="/dashboard/configuracion" onClick={() => setShowDropdown(false)} className="dropdown-item" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', color: '#374151', textDecoration: 'none', fontSize: 14, borderBottom: '1px solid #F3F4F6' }}><Settings size={16}/> Configuración</Link>
                     {isManuelEmail(user.email) && (
                       <Link href="/admin" onClick={() => setShowDropdown(false)} className="dropdown-item" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', color: '#374151', textDecoration: 'none', fontSize: 14, borderBottom: '1px solid #F3F4F6' }}><ShieldCheck size={16}/> Admin</Link>
                     )}
@@ -121,7 +121,7 @@ export default function Navbar() {
               <>
                 <Link href="/dashboard" onClick={() => setMobileOpen(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px', background: 'white', border: '1px solid #E5E7EB', borderRadius: 12, color: '#1A1A2E', textDecoration: 'none', fontWeight: 500 }}><LayoutDashboard size={18}/> Mi perfil</Link>
                 <Link href="/dashboard/plan" onClick={() => setMobileOpen(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px', background: 'white', border: '1px solid #E5E7EB', borderRadius: 12, color: '#1A1A2E', textDecoration: 'none', fontWeight: 500 }}><CreditCard size={18}/> Beneficios</Link>
-                <Link href="/dashboard/seguridad" onClick={() => setMobileOpen(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px', background: 'white', border: '1px solid #E5E7EB', borderRadius: 12, color: '#1A1A2E', textDecoration: 'none', fontWeight: 500 }}><Shield size={18}/> Seguridad</Link>
+                <Link href="/dashboard/configuracion" onClick={() => setMobileOpen(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px', background: 'white', border: '1px solid #E5E7EB', borderRadius: 12, color: '#1A1A2E', textDecoration: 'none', fontWeight: 500 }}><Settings size={18}/> Configuración</Link>
                 {isManuelEmail(user.email) && (
                   <Link href="/admin" onClick={() => setMobileOpen(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px', background: 'white', border: '1px solid #E5E7EB', borderRadius: 12, color: '#1A1A2E', textDecoration: 'none', fontWeight: 500 }}><ShieldCheck size={18}/> Admin</Link>
                 )}
