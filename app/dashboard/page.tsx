@@ -11,8 +11,24 @@ import {
 } from 'lucide-react'
 import { calculateProfileCompletion } from '@/hooks/useProfileCompletion'
 import { fechaISOLocal } from '@/lib/citas/fechas'
-import { Skeleton } from '@/components/Skeleton'
 import { PageErrorState, classifyError, type PageErrorType } from '@/components/PageErrorState'
+import Loading from './loading'
+
+// Versión rápida (spinner, sin la animación de 3.5s) para regresos a Inicio
+// dentro de la misma sesión -- mismo patrón que ya usan otras páginas del
+// dashboard (ver app/dashboard/estadisticas/page.tsx) para su propio estado
+// de carga.
+function LoadingRapido() {
+  return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif" }} role="status" aria-label="Cargando Salurama">
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ width: 40, height: 40, border: '3px solid #E8ECF3', borderTopColor: '#1E3A5F', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
+        <p style={{ color: '#9CA3AF', fontSize: 14 }}>Cargando...</p>
+      </div>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  )
+}
 
 interface Medico {
   id: string
@@ -80,6 +96,21 @@ export default function DashboardMedico() {
   const [profileCompletion, setProfileCompletion] = useState(0)
   const [isMobile, setIsMobile] = useState(false)
   const [photoTs] = useState(() => Date.now())
+  // true por default (seguro para SSR, donde sessionStorage no existe) --
+  // el useEffect de abajo lo corrige a false si esta pestaña ya mostró la
+  // animación completa antes, sin provocar un mismatch de hidratación (el
+  // primer render del cliente coincide con el del server; el ajuste llega
+  // después, en un re-render normal).
+  const [mostrarIntroCompleta, setMostrarIntroCompleta] = useState(true)
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem('salurama_dashboard_intro_vista')) {
+        setMostrarIntroCompleta(false)
+      } else {
+        sessionStorage.setItem('salurama_dashboard_intro_vista', '1')
+      }
+    } catch { /* modo incógnito sin sessionStorage -- se queda con la animación completa */ }
+  }, [])
   // Detectar mobile
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 640)
@@ -442,8 +473,26 @@ export default function DashboardMedico() {
     )
   }
 
+  // Next.js nunca dispara app/dashboard/loading.tsx aquí: el chequeo de
+  // sesión de app/dashboard/layout.tsx corre ANTES de devolver `children`,
+  // fuera de cualquier límite de Suspense (Next solo envuelve `children` en
+  // Suspense, no al propio layout) -- y esta página en sí es 'use client'
+  // con su propio fetch vía useEffect, no un Server Component del que Next
+  // pueda "colgarse" para mostrar el fallback. Por eso la animación se
+  // renderiza manualmente aquí, como el propio estado de carga de la
+  // página -- reemplaza al viejo DashboardSkeleton (gris, de bloques).
+  //
+  // La animación completa de 3.5s solo se muestra la primera vez que esta
+  // pestaña/sesión carga /dashboard (apertura fría real, incluida la
+  // reapertura de la PWA tras un cold start de Android) -- mostrarla en
+  // cada regreso a Inicio dentro de la misma sesión ya iniciada se sentía
+  // como una interrupción injustificada. sessionStorage es justo lo que se
+  // necesita: sobrevive navegaciones y hasta un F5 dentro de la misma
+  // pestaña, pero se reinicia solo si el proceso realmente arranca de cero
+  // (pestaña/app nueva) -- que es exactamente el caso en el que sí queremos
+  // repetir la animación.
   if (loading || !medico) {
-    return <DashboardSkeleton isMobile={isMobile} />
+    return mostrarIntroCompleta ? <Loading /> : <LoadingRapido />
   }
 
   const esPerfilCompleto = consejo?.id === 'completo'
@@ -854,90 +903,6 @@ export default function DashboardMedico() {
           <img src={`${medico.photo_url}?t=${photoTs}`} style={{ maxWidth: '90%', maxHeight: '90%', borderRadius: 12 }} alt={`Foto de perfil de ${medico.full_name}`} />
         </div>
       )}
-    </div>
-  )
-}
-
-// Skeleton del dashboard principal — refleja la misma estructura de
-// tarjetas que la página real (encabezado, progreso, tarjeta de consejo,
-// 3 métricas, actividad reciente) para que la transición a los datos
-// reales no salte ni cambie de layout.
-function DashboardSkeleton({ isMobile }: { isMobile: boolean }) {
-  return (
-    <div style={{ minHeight: '100vh', background: '#F9FAFB', paddingBottom: isMobile ? 80 : 0 }} aria-busy="true">
-      <span style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0 }}>
-        Cargando tu panel…
-      </span>
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 16px 20px' }}>
-        {/* Encabezado */}
-        <div style={{ background: '#fff', borderRadius: 16, padding: 24, border: '1px solid #E5E7EB', display: 'flex', gap: 20, flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'center' : 'flex-start' }}>
-          <Skeleton width={96} height={96} radius={999} style={{ flexShrink: 0 }} />
-          <div style={{ flex: 1, width: '100%', display: 'flex', flexDirection: 'column', gap: 10, alignItems: isMobile ? 'center' : 'flex-start' }}>
-            <Skeleton width={220} height={26} />
-            <Skeleton width={140} height={16} />
-            <div style={{ display: 'flex', gap: 12, marginTop: 10, width: isMobile ? '100%' : 'auto' }}>
-              <Skeleton width={isMobile ? '100%' : 150} height={44} radius={12} />
-              <Skeleton width={isMobile ? '100%' : 120} height={44} radius={12} />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Progreso */}
-      <div style={{ maxWidth: 1100, margin: '0 auto 20px', padding: '0 16px' }}>
-        <div style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #E5E7EB' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-            <Skeleton width={140} height={16} />
-            <Skeleton width={36} height={16} />
-          </div>
-          <Skeleton width="100%" height={8} radius={99} />
-        </div>
-      </div>
-
-      {/* Tarjeta de consejo */}
-      <div style={{ maxWidth: 1100, margin: '0 auto 20px', padding: '0 16px' }}>
-        <div style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #E5E7EB', display: 'flex', gap: 14, alignItems: 'center', flexDirection: isMobile ? 'column' : 'row' }}>
-          <Skeleton width={44} height={44} radius={12} style={{ flexShrink: 0 }} />
-          <div style={{ flex: 1, width: '100%', display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <Skeleton width={200} height={16} />
-            <Skeleton width="80%" height={14} />
-          </div>
-        </div>
-      </div>
-
-      {/* Stats */}
-      <div style={{ maxWidth: 1100, margin: '0 auto 20px', padding: '0 16px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 16 }}>
-          {[0, 1, 2].map(i => (
-            <div key={i} style={{ background: '#fff', padding: 24, borderRadius: 16, border: '1px solid #E5E7EB' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-                <Skeleton width={80} height={11} />
-                <Skeleton width={18} height={18} radius={4} />
-              </div>
-              <Skeleton width={70} height={32} style={{ marginBottom: 10 }} />
-              <Skeleton width={110} height={12} />
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Actividad reciente */}
-      <div style={{ maxWidth: 1100, margin: '0 auto 20px', padding: '0 16px' }}>
-        <div style={{ background: '#fff', padding: 24, borderRadius: 16, border: '1px solid #E5E7EB' }}>
-          <Skeleton width={180} height={20} style={{ marginBottom: 20 }} />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {[0, 1].map(i => (
-              <div key={i} style={{ background: '#F9FAFB', padding: 16, borderRadius: 12, display: 'flex', gap: 12, alignItems: 'center' }}>
-                <Skeleton width={44} height={44} radius={999} style={{ flexShrink: 0 }} />
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <Skeleton width="50%" height={14} />
-                  <Skeleton width="70%" height={12} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
     </div>
   )
 }

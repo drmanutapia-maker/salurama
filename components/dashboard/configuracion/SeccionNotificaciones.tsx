@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
-import { Bell, BellOff, BellRing } from 'lucide-react'
+import { Bell, BellOff } from 'lucide-react'
 import { supabase } from '@/lib/supabaseClient'
 import { activarNotificacionesMedico, yaTieneSuscripcion, type ResultadoActivacion } from '@/lib/push/activarNotificaciones'
 
@@ -42,6 +42,12 @@ export default function SeccionNotificaciones() {
     }
   }
 
+  // Sin nada que ofrecer si ya están activadas -- mostrar información sin
+  // ninguna acción posible (no se puede desactivar desde aquí) es ruido,
+  // no ayuda. Misma idea que SeccionInstalarApp: la sección solo aparece
+  // cuando hay algo que el médico puede hacer.
+  if (estado === 'activadas') return null
+
   return (
     <section style={{ marginBottom: 40 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
@@ -55,15 +61,6 @@ export default function SeccionNotificaciones() {
       <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #E5E7EB', padding: 20, display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
         {estado === 'cargando' && (
           <p style={{ color: '#9CA3AF', fontSize: 14 }}>Revisando...</p>
-        )}
-
-        {estado === 'activadas' && (
-          <>
-            <div style={{ width: 38, height: 38, borderRadius: 10, flexShrink: 0, background: '#ECFDF5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <BellRing size={18} color="#059669" aria-hidden="true" />
-            </div>
-            <p style={{ fontSize: 14, fontWeight: 600, color: '#059669' }}>Notificaciones activadas en este dispositivo</p>
-          </>
         )}
 
         {estado === 'no_soportado' && (
