@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Bell, BellOff } from 'lucide-react'
 import { supabase } from '@/lib/supabaseClient'
-import { activarNotificacionesMedico, yaTieneSuscripcion, type ResultadoActivacion } from '@/lib/push/activarNotificaciones'
+import { activarNotificacionesMedico, yaTieneSuscripcion, EVENTO_NOTIFICACIONES_MEDICO_ACTIVADAS, type ResultadoActivacion } from '@/lib/push/activarNotificaciones'
 
 type EstadoPush = 'cargando' | 'activadas' | 'no_activadas' | 'bloqueadas' | 'no_soportado'
 
@@ -26,6 +26,14 @@ export default function SeccionNotificaciones() {
   }, [])
 
   useEffect(() => { revisar() }, [revisar])
+
+  // Si se activan desde el banner del layout (AvisoNotificacionesMedico) en
+  // vez de desde aquí -- poco común que ambos estén montados a la vez, pero
+  // posible -- esta sección debe enterarse igual.
+  useEffect(() => {
+    window.addEventListener(EVENTO_NOTIFICACIONES_MEDICO_ACTIVADAS, revisar)
+    return () => window.removeEventListener(EVENTO_NOTIFICACIONES_MEDICO_ACTIVADAS, revisar)
+  }, [revisar])
 
   const handleActivar = async () => {
     setActivando(true)

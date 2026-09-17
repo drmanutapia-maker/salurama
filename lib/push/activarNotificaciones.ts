@@ -40,6 +40,17 @@ export function detectarPlataforma(): InfoPlataforma {
 
 export type ResultadoActivacion = 'activadas' | 'rechazadas' | 'no_soportado' | 'error'
 
+// Evento global disparado justo cuando activarNotificacionesMedico() confirma
+// la activación -- mismo patrón que EVENTO_CHAT_LEIDO (ver lib/chat/sinLeer.ts).
+// SeccionNotificaciones (Configuración) y AvisoNotificacionesMedico (banner del
+// layout) son dos componentes independientes que leen la misma fuente de
+// verdad (Notification.permission + yaTieneSuscripcion()) pero cada uno solo
+// la revisa en su propio montaje -- sin este evento, activar desde uno deja al
+// otro con el estado viejo hasta su próximo remount. Se dispara aquí, en el
+// único lugar donde de verdad ocurre la activación, para que ambos puntos de
+// entrada (y cualquier otro futuro) queden sincronizados gratis.
+export const EVENTO_NOTIFICACIONES_MEDICO_ACTIVADAS = 'salurama:notificaciones-medico-activadas'
+
 /**
  * Registra el service worker (si no estaba), pide permiso de notificaciones,
  * crea la suscripción push y la guarda en el backend. Nunca lanza — cualquier
@@ -123,6 +134,7 @@ export async function activarNotificacionesMedico(accessToken: string): Promise<
     })
     if (!res.ok) return 'error'
 
+    window.dispatchEvent(new Event(EVENTO_NOTIFICACIONES_MEDICO_ACTIVADAS))
     return 'activadas'
   } catch (err) {
     console.error('[push] Error activando notificaciones de médico:', err)

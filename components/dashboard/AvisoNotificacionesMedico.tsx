@@ -10,6 +10,7 @@ import {
   detectarPlataforma,
   activarNotificacionesMedico,
   yaTieneSuscripcion,
+  EVENTO_NOTIFICACIONES_MEDICO_ACTIVADAS,
   type ResultadoActivacion,
 } from '@/lib/push/activarNotificaciones'
 
@@ -66,9 +67,29 @@ export default function AvisoNotificacionesMedico() {
 
     async function evaluar() {
       if (typeof window === 'undefined' || typeof Notification === 'undefined') return
-      if (localStorage.getItem(DISMISS_KEY_PREFIX + doctorId) === '1') return
-      if (Notification.permission === 'denied') return
-      if (Notification.permission === 'granted' && (await yaTieneSuscripcion())) return
+
+      // El "No, gracias" es una decisión sobre CONCEDER el permiso -- no debe
+      // seguir aplicando si la persona cambió de opinión y revocó un permiso
+      // que sí había concedido (o nunca llegó a concederlo tras descartar el
+      // banner). Sin este reseteo, SeccionNotificaciones (que no tiene este
+      // descarte, solo lee Notification.permission/yaTieneSuscripcion()) sí
+      // vuelve a ofrecer activar, pero este banner se queda mudo para
+      // siempre en ese dispositivo -- misma fuente de verdad, dos resultados
+      // distintos. Se limpia aquí, no en el guard de abajo, para que la
+      // decisión de "ocultarse por descarte" de esta misma pasada ya la vea
+      // levantada.
+      if (Notification.permission !== 'granted') {
+        localStorage.removeItem(DISMISS_KEY_PREFIX + doctorId)
+      }
+
+      // Los "return" de abajo ponen 'oculto' explícitamente (no solo lo dejan
+      // implícito en el estado inicial) porque evaluar() también se vuelve a
+      // llamar en caliente -- ver el listener del evento más abajo -- cuando
+      // el banner ya pudo haber estado mostrando 'activar' y necesita
+      // ocultarse de verdad, no solo "no cambiar nada".
+      if (localStorage.getItem(DISMISS_KEY_PREFIX + doctorId) === '1') { if (!cancelado) setPaso('oculto'); return }
+      if (Notification.permission === 'denied') { if (!cancelado) setPaso('oculto'); return }
+      if (Notification.permission === 'granted' && (await yaTieneSuscripcion())) { if (!cancelado) setPaso('oculto'); return }
       if (cancelado) return
 
       const { esIOS, esSafari } = detectarPlataforma()
@@ -76,7 +97,14 @@ export default function AvisoNotificacionesMedico() {
     }
 
     evaluar()
-    return () => { cancelado = true }
+    // Si se activan desde SeccionNotificaciones (Configuración) en vez de
+    // este banner, hay que reevaluar para ocultarlo -- ambos leen la misma
+    // fuente de verdad pero cada uno solo la revisaba en su propio montaje.
+    window.addEventListener(EVENTO_NOTIFICACIONES_MEDICO_ACTIVADAS, evaluar)
+    return () => {
+      cancelado = true
+      window.removeEventListener(EVENTO_NOTIFICACIONES_MEDICO_ACTIVADAS, evaluar)
+    }
   }, [doctorId])
 
   // "No, gracias" -- descarte permanente, nunca vuelve a preguntar (igual que
