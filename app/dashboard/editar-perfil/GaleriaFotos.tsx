@@ -44,7 +44,7 @@ export default function GaleriaFotos({ doctorId, doctorSlug }: { doctorId: strin
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    if (!file.type.startsWith('image/')) { setError('Selecciona una imagen válida'); return }
+    if (!file.type.startsWith('image/')) { setError('Selecciona una imagen en formato JPG o PNG'); return }
     if (file.size > 5 * 1024 * 1024) { setError('Máximo 5 MB'); return }
     if (photos.length >= MAX_PHOTOS) { setError(`Máximo ${MAX_PHOTOS} fotos`); return }
 
@@ -85,7 +85,7 @@ export default function GaleriaFotos({ doctorId, doctorSlug }: { doctorId: strin
       if (uploadedPath) {
         await supabase.storage.from('doctor-gallery').remove([uploadedPath]).catch(() => {})
       }
-      setError('No se pudo guardar la foto. Inténtalo de nuevo.')
+      setError('No se pudo guardar la foto. Verifica que sea JPG o PNG y pese menos de 5 MB, e inténtalo de nuevo.')
     } finally {
       setUploading(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
@@ -191,7 +191,7 @@ export default function GaleriaFotos({ doctorId, doctorSlug }: { doctorId: strin
         <p style={{ fontSize: 15, fontWeight: 700, color: '#111827' }}>Galería de fotos</p>
         <span style={{ fontSize: 12, color: '#9CA3AF' }}>{photos.length}/{MAX_PHOTOS}</span>
       </div>
-      <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 12 }}>Fotos de tu consultorio o equipo, visibles en tu perfil público.</p>
+      <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 12 }}>Fotos de tu consultorio o equipo, visibles en tu perfil público. Formatos JPG o PNG, máximo 5 MB.</p>
 
       {error && <p style={{ fontSize: 12, color: '#DC2626', marginBottom: 10 }}>{error}</p>}
 

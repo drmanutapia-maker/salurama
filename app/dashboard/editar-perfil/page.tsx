@@ -347,7 +347,7 @@ export default function EditarPerfilPage() {
   const handleFoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file ||!medico) return
-    if (!file.type.startsWith('image/')) { alert('Selecciona una imagen válida'); return }
+    if (!file.type.startsWith('image/')) { alert('Selecciona una imagen en formato JPG o PNG'); return }
     if (file.size > 5 * 1024 * 1024) { alert('Máximo 5 MB'); return }
 
     setUploading(true)
@@ -384,7 +384,7 @@ export default function EditarPerfilPage() {
       setMedico(prev => prev? {...prev, photo_url: photoUrl } : null)
     } catch (err) {
       console.error('Error:', err)
-      alert('Error al subir foto')
+      alert('No se pudo subir la foto. Verifica que sea JPG o PNG y pese menos de 5 MB, e inténtalo de nuevo.')
     } finally {
       setUploading(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
@@ -738,17 +738,20 @@ export default function EditarPerfilPage() {
           <>
             <Card title="Información básica" onEdit={() => setActiveModal('basic')}>
               <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-                <div className="foto-wr" style={{ position: 'relative' }}>
-                  {medico.photo_url? <img src={medico.photo_url} alt={displayName} style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover', display: 'block', cursor: uploading? 'not-allowed' : 'pointer', opacity: uploading? 0.5 : 1 }} onClick={() => { if (!uploading) fileInputRef.current?.click() }} /> : <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'linear-gradient(135deg,#1E3A5F,#2A9D8F)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, fontWeight: 900, color: '#fff', fontFamily: "'Fraunces', serif", cursor: uploading? 'not-allowed' : 'pointer', opacity: uploading? 0.5 : 1 }} onClick={() => { if (!uploading) fileInputRef.current?.click() }}>{(displayName?.charAt(0) || '?').toUpperCase()}</div>}
-                  <div style={{ position: 'absolute', bottom: 0, right: 0, width: 26, height: 26, background: '#1E3A5F', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #fff', cursor: uploading? 'not-allowed' : 'pointer', opacity: uploading? 0.5 : 1 }} onClick={() => { if (!uploading) fileInputRef.current?.click() }}>
-                    <Camera size={13} color="#fff" />
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                  <div className="foto-wr" style={{ position: 'relative' }}>
+                    {medico.photo_url? <img src={medico.photo_url} alt={displayName} style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover', display: 'block', cursor: uploading? 'not-allowed' : 'pointer', opacity: uploading? 0.5 : 1 }} onClick={() => { if (!uploading) fileInputRef.current?.click() }} /> : <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'linear-gradient(135deg,#1E3A5F,#2A9D8F)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, fontWeight: 900, color: '#fff', fontFamily: "'Fraunces', serif", cursor: uploading? 'not-allowed' : 'pointer', opacity: uploading? 0.5 : 1 }} onClick={() => { if (!uploading) fileInputRef.current?.click() }}>{(displayName?.charAt(0) || '?').toUpperCase()}</div>}
+                    <div style={{ position: 'absolute', bottom: 0, right: 0, width: 26, height: 26, background: '#1E3A5F', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #fff', cursor: uploading? 'not-allowed' : 'pointer', opacity: uploading? 0.5 : 1 }} onClick={() => { if (!uploading) fileInputRef.current?.click() }}>
+                      <Camera size={13} color="#fff" />
+                    </div>
+                    {medico.photo_url && (
+                      <button onClick={handleDeletePhoto} disabled={uploading} style={{ position: 'absolute', top: -4, right: -4, width: 22, height: 22, background: '#DC2626', borderRadius: '50%', border: '2px solid #fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0 }} title="Eliminar foto">
+                        <X size={12} color="#fff" />
+                      </button>
+                    )}
+                    <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFoto} style={{ display: 'none' }} />
                   </div>
-                  {medico.photo_url && (
-                    <button onClick={handleDeletePhoto} disabled={uploading} style={{ position: 'absolute', top: -4, right: -4, width: 22, height: 22, background: '#DC2626', borderRadius: '50%', border: '2px solid #fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0 }} title="Eliminar foto">
-                      <X size={12} color="#fff" />
-                    </button>
-                  )}
-                  <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFoto} style={{ display: 'none' }} />
+                  <p style={{ fontSize: 10, color: '#9CA3AF', margin: 0, whiteSpace: 'nowrap' }}>JPG o PNG, máx. 5 MB</p>
                 </div>
                 <div style={{ flex: 1 }}>
                   <p style={{ fontSize: 17, fontWeight: 700, marginBottom: 4, color: '#111827' }}>{titlePrefix}{displayName}</p>
