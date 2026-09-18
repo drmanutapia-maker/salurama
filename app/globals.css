@@ -2,6 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Ver el script "beforeInteractive" en app/layout.tsx y components/IntroGate.tsx:
+   evita el parpadeo breve de la pantalla de bienvenida en cualquier recarga
+   completa posterior a la primera de la sesión (ej. tras iniciar sesión, que
+   redirige con window.location.href). El script corre antes de pintar el
+   body y agrega esta clase si sessionStorage ya tiene la bandera -- oculta el
+   overlay desde el primer frame, sin esperar a que React lo desmonte. */
+html.intro-vista #salurama-splash-overlay {
+  display: none !important;
+}
+
 /* ========================================
    VARIABLES CSS GLOBALES - SALURAMA 2026
    ======================================== */

@@ -1,14 +1,13 @@
-// Pantalla propia de Salurama (HTML/CSS/SVG) -- Next.js la muestra sola,
-// automáticamente, mientras el segmento /dashboard/* está resolviendo del
-// lado del servidor (el chequeo de sesión async en app/dashboard/layout.tsx)
-// o esperando datos con Suspense. Es DISTINTA del splash nativo del sistema
-// operativo que genera Chrome/Android para la PWA instalada (a partir de
-// app/manifest.ts: ícono + background_color) -- ese splash nativo no se
-// puede animar ni tocar desde código, lo compone el propio SO antes de que
-// cualquier HTML de Salurama llegue a pintarse. Esta pantalla es lo que se
-// ve justo DESPUÉS de que ese splash nativo entrega el control a la app,
-// mientras el contenido real de Inicio termina de cargar -- aquí sí se
-// puede animar.
+// Pantalla de apertura de Salurama (HTML/CSS/SVG) -- vive a nivel de app
+// (montada por components/IntroGate.tsx desde app/layout.tsx), no específica
+// de /dashboard. Es DISTINTA del splash nativo del sistema operativo que
+// genera Chrome/Android para la PWA instalada (a partir de app/manifest.ts:
+// ícono + background_color) -- ese splash nativo no se puede animar ni tocar
+// desde código, lo compone el propio SO antes de que cualquier HTML de
+// Salurama llegue a pintarse. Esta pantalla es lo que se ve justo DESPUÉS de
+// que ese splash nativo entrega el control a la app, mientras el contenido
+// real de la página de entrada (Home, perfil de médico, dashboard...)
+// termina de cargar por debajo -- aquí sí se puede animar.
 //
 // Todo en un solo <svg viewBox="0 0 640 200">, valores exactos acordados:
 // wordmark "Salurama" (Fraunces 900 64px) con baseline en y=110, línea de
@@ -40,7 +39,7 @@ const LETRAS = [
   { ch: 'a', x: 441.84375,  color: '#2A9D8F', delay: 2.229 },
 ]
 
-export default function Loading() {
+export default function SplashInicial() {
   return (
     <div
       style={{
