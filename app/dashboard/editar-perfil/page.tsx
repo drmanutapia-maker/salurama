@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import {
   X, Edit2, Save, Plus, Trash2, Phone, MessageCircle,
-  DollarSign, Shield, Camera, Eye, CheckCircle, MapPin, Star
+  DollarSign, Shield, Camera, Eye, CheckCircle, MapPin, Star, Globe
 } from 'lucide-react'
 import dynamic from 'next/dynamic'
 const LocationPicker = dynamic(() => import('@/components/LocationPicker'), { ssr: false })
@@ -118,6 +118,7 @@ interface Medico {
   facebook_url: string | null
   instagram_url: string | null
   tiktok_url: string | null
+  website_url: string | null
   location_city: string
   location_state: string | null
   location_neighborhood: string | null
@@ -418,6 +419,29 @@ export default function EditarPerfilPage() {
 
   const handleSaveBasicInfo = async (data: Partial<Medico>) => {
   if (!medico) return
+  // Segunda barrera, independiente de que BasicInfoForm mantenga su botón
+  // "Guardar" deshabilitado -- este es el único lugar donde estos campos
+  // de verdad llegan a la base de datos (esta función también la comparten
+  // otros modales: intro, idiomas, precios), así que el guardado real nunca
+  // debe depender solo de que la UI del formulario bloquee el envío. Si
+  // `data` no trae estas llaves (los otros modales no las tocan), los
+  // checks no hacen nada.
+  if (data.facebook_url && !esLinkDeRedSocial(data.facebook_url, ['facebook.com', 'fb.com'])) {
+    alert('Este campo solo acepta links de Facebook')
+    return
+  }
+  if (data.instagram_url && !esLinkDeRedSocial(data.instagram_url, ['instagram.com'])) {
+    alert('Este campo solo acepta links de Instagram')
+    return
+  }
+  if (data.tiktok_url && !esLinkDeRedSocial(data.tiktok_url, ['tiktok.com'])) {
+    alert('Este campo solo acepta links de TikTok')
+    return
+  }
+  if (data.website_url && marcaCompetidoraEn(data.website_url)) {
+    alert('Este campo solo acepta tu propia página web')
+    return
+  }
   setSaving(true)
   try {
     const { error } = await supabase.from('doctors').update(data).eq('id', medico.id)
@@ -1045,6 +1069,57 @@ function Modal({ children, onClose, title }: { children: React.ReactNode; onClos
   )
 }
 
+// La mayoría de las personas escriben/pegan un dominio sin esquema
+// ("www.salurama.com") -- sin esto, el propio navegador rechaza el valor por
+// su validación nativa de type="url" (exige http(s)://) antes de que
+// nuestra validación de dominio llegue a correr, con un mensaje nativo
+// confuso que no explica el porqué. Se antepone https:// automáticamente;
+// si la persona sí puso su propio esquema (http:// o https://), se respeta
+// tal cual.
+function normalizarUrl(valor: string): string {
+  const v = valor.trim()
+  if (v === '') return v
+  return /^https?:\/\//i.test(v) ? v : `https://${v}`
+}
+
+// Lee el hostname real de la URL en vez de buscar el texto del dominio en
+// todo el string -- así "https://ejemplo.com/?ir=facebook.com" NO cuenta
+// como link de Facebook solo porque la palabra aparece en la query string.
+// Si el navegador todavía no bloqueó un valor sin esquema (type="url" nativo
+// exige uno, pero por si acaso), cae de vuelta al string completo en
+// minúsculas para no reventar con una URL inválida.
+function hostnameDe(url: string): string {
+  try { return new URL(url).hostname.toLowerCase() } catch { return url.toLowerCase() }
+}
+
+// true si el hostname ES ese dominio o es un subdominio suyo (www., m.,
+// es-la., etc.) -- evita falsos positivos como "notfacebook.com".
+function hostnameCoincideCon(host: string, dominio: string): boolean {
+  return host === dominio || host.endsWith('.' + dominio)
+}
+
+function esLinkDeRedSocial(url: string, dominios: string[]): boolean {
+  if (!url) return true
+  const host = hostnameDe(url)
+  return dominios.some(d => hostnameCoincideCon(host, d))
+}
+
+// Directorios médicos competidores conocidos en México -- lista corta a
+// propósito (los más reconocidos: Doctoralia y Top Doctors), no pretende ser
+// exhaustiva. Se compara por ETIQUETA del hostname (cada segmento entre
+// puntos), no por substring del dominio completo -- "doctoralia" así
+// coincide con "doctoralia.com.mx", "www.doctoralia.com", "mx.doctoralia.com",
+// etc. (cualquier TLD/subdominio de esa marca) sin falsos positivos como
+// "notdoctoralia.com" (esa etiqueta completa es "notdoctoralia", no
+// "doctoralia").
+const MARCAS_COMPETIDORAS = ['doctoralia', 'topdoctors']
+
+function marcaCompetidoraEn(url: string): string | null {
+  if (!url) return null
+  const etiquetas = hostnameDe(url).split('.')
+  return MARCAS_COMPETIDORAS.find(marca => etiquetas.includes(marca)) || null
+}
+
 function BasicInfoForm({ medico, onSave, saving }: any) {
   const [form, setForm] = useState({
     display_name: medico.display_name || medico.full_name,
@@ -1053,6 +1128,7 @@ function BasicInfoForm({ medico, onSave, saving }: any) {
     facebook_url: medico.facebook_url || '',
     instagram_url: medico.instagram_url || '',
     tiktok_url: medico.tiktok_url || '',
+    website_url: medico.website_url || '',
     atiende_ninos: medico.atiende_ninos || false,
     min_patient_age: medico.min_patient_age?.toString() ?? '',
     max_patient_age: medico.max_patient_age?.toString() ?? '',
@@ -1064,16 +1140,36 @@ function BasicInfoForm({ medico, onSave, saving }: any) {
   const rangoInvalido = form.atiende_ninos && form.min_patient_age !== '' && form.max_patient_age !== ''
     && Number(form.min_patient_age) > Number(form.max_patient_age)
 
+  // Se valida sobre la versión CON https:// antepuesto, no sobre lo que haya
+  // en el estado en este instante -- así, si alguien escribe "salurama.com"
+  // y le da a Guardar sin pasar por otro campo (sin que el onBlur de abajo
+  // llegue a normalizarlo en el estado), la validación igual lo evalúa bien
+  // en vez de que new URL() truene por falta de esquema. Cada uno vacío
+  // cuenta como válido (son opcionales) -- solo se marca inválido si el
+  // médico escribió algo que no corresponde a esa plataforma.
+  const facebookNormalizado = normalizarUrl(form.facebook_url)
+  const instagramNormalizado = normalizarUrl(form.instagram_url)
+  const tiktokNormalizado = normalizarUrl(form.tiktok_url)
+  const websiteNormalizado = normalizarUrl(form.website_url)
+
+  const facebookInvalido = facebookNormalizado !== '' && !esLinkDeRedSocial(facebookNormalizado, ['facebook.com', 'fb.com'])
+  const instagramInvalido = instagramNormalizado !== '' && !esLinkDeRedSocial(instagramNormalizado, ['instagram.com'])
+  const tiktokInvalido = tiktokNormalizado !== '' && !esLinkDeRedSocial(tiktokNormalizado, ['tiktok.com'])
+  const marcaCompetidoraWebsite = marcaCompetidoraEn(websiteNormalizado)
+
+  const formInvalido = rangoInvalido || facebookInvalido || instagramInvalido || tiktokInvalido || !!marcaCompetidoraWebsite
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (rangoInvalido) return
+    if (formInvalido) return
     onSave({
       display_name: form.display_name,
       professional_title: form.professional_title,
       years_experience: form.years_experience? parseInt(form.years_experience) : null,
-      facebook_url: form.facebook_url || null,
-      instagram_url: form.instagram_url || null,
-      tiktok_url: form.tiktok_url || null,
+      facebook_url: facebookNormalizado || null,
+      instagram_url: instagramNormalizado || null,
+      tiktok_url: tiktokNormalizado || null,
+      website_url: websiteNormalizado || null,
       atiende_ninos: form.atiende_ninos,
       // Si desmarca el checkbox, el rango deja de tener sentido -- se
       // limpia en vez de quedar guardado "fantasma" sin el checkbox que lo
@@ -1146,21 +1242,46 @@ function BasicInfoForm({ medico, onSave, saving }: any) {
 
         <div style={{ marginBottom: 12 }}>
           <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5, color: '#374151' }}>Facebook</label>
-          <input type="url" value={form.facebook_url} onChange={e => setForm({...form, facebook_url: e.target.value})} style={{ width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: 8, fontSize: 14 }} placeholder="https://facebook.com/tu-perfil" />
+          <input type="url" value={form.facebook_url} onChange={e => setForm({...form, facebook_url: e.target.value})} onBlur={() => setForm(f => ({...f, facebook_url: normalizarUrl(f.facebook_url)}))} style={{ width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: 8, fontSize: 14 }} placeholder="https://facebook.com/tu-perfil" />
+          {facebookInvalido && (
+            <p role="alert" style={{ fontSize: 12, color: '#DC2626', fontWeight: 600, marginTop: 4 }}>
+              Este campo solo acepta links de Facebook
+            </p>
+          )}
         </div>
 
         <div style={{ marginBottom: 12 }}>
           <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5, color: '#374151' }}>Instagram</label>
-          <input type="url" value={form.instagram_url} onChange={e => setForm({...form, instagram_url: e.target.value})} style={{ width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: 8, fontSize: 14 }} placeholder="https://instagram.com/tu-usuario" />
+          <input type="url" value={form.instagram_url} onChange={e => setForm({...form, instagram_url: e.target.value})} onBlur={() => setForm(f => ({...f, instagram_url: normalizarUrl(f.instagram_url)}))} style={{ width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: 8, fontSize: 14 }} placeholder="https://instagram.com/tu-usuario" />
+          {instagramInvalido && (
+            <p role="alert" style={{ fontSize: 12, color: '#DC2626', fontWeight: 600, marginTop: 4 }}>
+              Este campo solo acepta links de Instagram
+            </p>
+          )}
+        </div>
+
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5, color: '#374151' }}>TikTok</label>
+          <input type="url" value={form.tiktok_url} onChange={e => setForm({...form, tiktok_url: e.target.value})} onBlur={() => setForm(f => ({...f, tiktok_url: normalizarUrl(f.tiktok_url)}))} style={{ width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: 8, fontSize: 14 }} placeholder="https://tiktok.com/@tu-usuario" />
+          {tiktokInvalido && (
+            <p role="alert" style={{ fontSize: 12, color: '#DC2626', fontWeight: 600, marginTop: 4 }}>
+              Este campo solo acepta links de TikTok
+            </p>
+          )}
         </div>
 
         <div>
-          <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5, color: '#374151' }}>TikTok</label>
-          <input type="url" value={form.tiktok_url} onChange={e => setForm({...form, tiktok_url: e.target.value})} style={{ width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: 8, fontSize: 14 }} placeholder="https://tiktok.com/@tu-usuario" />
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, marginBottom: 5, color: '#374151' }}><Globe size={14} color="#1E3A5F" /> Página web propia</label>
+          <input type="url" value={form.website_url} onChange={e => setForm({...form, website_url: e.target.value})} onBlur={() => setForm(f => ({...f, website_url: normalizarUrl(f.website_url)}))} style={{ width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: 8, fontSize: 14 }} placeholder="https://tu-consultorio.com" />
+          {marcaCompetidoraWebsite && (
+            <p role="alert" style={{ fontSize: 12, color: '#DC2626', fontWeight: 600, marginTop: 4 }}>
+              Este campo solo acepta tu propia página web
+            </p>
+          )}
         </div>
       </div>
 
-      <button type="submit" disabled={saving || rangoInvalido} style={{...btnPrimary, opacity: (saving || rangoInvalido)? 0.6 : 1, marginTop: 8 }}><Save size={15} /> {saving? 'Guardando...' : 'Guardar'}</button>
+      <button type="submit" disabled={saving || formInvalido} style={{...btnPrimary, opacity: (saving || formInvalido)? 0.6 : 1, marginTop: 8 }}><Save size={15} /> {saving? 'Guardando...' : 'Guardar'}</button>
     </form>
   )
 }
