@@ -143,6 +143,30 @@ export default async function BuscarPage({
   const doctorsRaw = data ?? []
   const doctorIds = doctorsRaw.map(d => d.id)
 
+  // Especialidades adicionales certificadas (no la principal, que ya viene
+  // en `specialty`) -- solo para que el buscador encuentre al médico
+  // también por ellas (ver lib/buscarMedicos.ts). is_primary=false +
+  // credentials_status='verificado': la misma especialidad ya vive en
+  // `specialty` si es la principal, y una NO verificada no debería hacer
+  // que el médico aparezca en una búsqueda por algo que todavía no se le
+  // confirmó.
+  const { data: secundariasData } = doctorIds.length > 0
+    ? await supabase
+        .from('doctor_specialty_credentials')
+        .select('doctor_id, specialty_granular_mapping(granular_name)')
+        .in('doctor_id', doctorIds)
+        .eq('is_primary', false)
+        .eq('credentials_status', 'verificado')
+    : { data: [] as { doctor_id: string; specialty_granular_mapping: { granular_name: string } | null }[] }
+  const secundariasPorDoctor = new Map<string, string[]>()
+  for (const s of secundariasData ?? []) {
+    const nombre = (s as any).specialty_granular_mapping?.granular_name
+    if (!nombre) continue
+    const arr = secundariasPorDoctor.get(s.doctor_id) ?? []
+    arr.push(nombre)
+    secundariasPorDoctor.set(s.doctor_id, arr)
+  }
+
   // Mismo criterio de mérito que ya usa la home (completitud de perfil →
   // rating con mínimo de reseñas → alfabético) -- antes esta lista se
   // ordenaba por fecha de registro más reciente primero, inconsistente con
@@ -170,6 +194,7 @@ export default async function BuscarPage({
     slug: d.slug,
     full_name: d.full_name,
     specialty: d.specialty,
+    secondarySpecialties: secundariasPorDoctor.get(d.id) ?? [],
     photo_url: d.photo_url,
     ciudad: d.ciudad,
     estado: d.estado,

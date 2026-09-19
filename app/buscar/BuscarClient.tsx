@@ -45,6 +45,11 @@ export interface Medico {
   slug: string | null
   full_name: string
   specialty: string
+  // Especialidades adicionales certificadas (verificadas, no primarias) --
+  // solo para que el buscador encuentre al médico por ellas (ver
+  // lib/buscarMedicos.ts); la tarjeta sigue destacando únicamente
+  // `specialty` (la principal), sin cambios visuales.
+  secondarySpecialties?: string[]
   photo_url: string | null
   ciudad: string | null
   estado: string | null

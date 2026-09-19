@@ -31,14 +31,50 @@ export async function generateStaticParams() {
 
 type Params = { especialidad: string; estado: string }
 
+// Ids de médicos con `especialidad` como especialidad SECUNDARIA certificada
+// y verificada -- compartido entre generateMetadata() (solo necesita el
+// conteo) y el cuerpo de la página (necesita las filas completas), para no
+// mantener este mismo criterio de negocio duplicado en dos lugares.
+async function idsPorEspecialidadSecundaria(supabase: ReturnType<typeof getSupabase>, especialidad: string): Promise<string[]> {
+  const { data } = await supabase
+    .from('doctor_specialty_credentials')
+    .select('doctor_id, specialty_granular_mapping!inner(granular_name)')
+    .eq('is_primary', false)
+    .eq('credentials_status', 'verificado')
+    .eq('specialty_granular_mapping.granular_name', especialidad)
+  return Array.from(new Set((data ?? []).map((r: any) => r.doctor_id as string)))
+}
+
+// Mismo criterio que el cuerpo de la página (principal + secundarias
+// verificadas, sin duplicados) pero solo trayendo `id` -- generateMetadata()
+// no necesita las filas completas, solo el conteo real para el
+// <meta description>. Antes usaba combinacion.total (lib/especialidadEstado.ts),
+// que solo cuenta la especialidad principal -- quedaba desincronizado del
+// número que el body de la página ya muestra correctamente.
+async function contarEspecialistasReal(supabase: ReturnType<typeof getSupabase>, especialidad: string, estado: string): Promise<number> {
+  const idsSecundaria = await idsPorEspecialidadSecundaria(supabase, especialidad)
+  const [{ data: porPrincipal }, secundariaRes] = await Promise.all([
+    supabase.from('doctors').select('id').eq('is_active', true).eq('specialty', especialidad).eq('estado', estado),
+    idsSecundaria.length > 0
+      ? supabase.from('doctors').select('id').eq('is_active', true).eq('estado', estado).in('id', idsSecundaria)
+      : Promise.resolve({ data: [] as { id: string }[] }),
+  ])
+  const vistos = new Set<string>([
+    ...(porPrincipal ?? []).map(d => d.id),
+    ...((secundariaRes as any).data ?? []).map((d: any) => d.id as string),
+  ])
+  return vistos.size
+}
+
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
   const { especialidad, estado } = await params
   const combinacion = await resolverPorSlugs(especialidad, estado)
   if (!combinacion) return { title: 'Página no encontrada' }
 
   const estadoLabel = getStateLabel(combinacion.estado)
+  const total = await contarEspecialistasReal(getSupabase(), combinacion.especialidad, combinacion.estado)
   const title = `Especialistas en ${combinacion.especialidad} en ${estadoLabel}`
-  const description = `${combinacion.total} especialistas en ${combinacion.especialidad} en ${estadoLabel}, verificables en Salurama. Consulta su cédula profesional, reseñas de pacientes reales y agenda tu cita.`
+  const description = `${total} especialistas en ${combinacion.especialidad} en ${estadoLabel}, verificables en Salurama. Consulta su cédula profesional, reseñas de pacientes reales y agenda tu cita.`
   const canonicalUrl = `https://salurama.com/especialistas/${especialidad}/${estado}`
 
   return {
@@ -65,25 +101,50 @@ export default async function EspecialidadEstadoPage({ params }: { params: Promi
 
   const estadoLabel = getStateLabel(combinacion.estado)
 
-  const [{ data }, articulosRelacionados] = await Promise.all([
-    getSupabase()
-      .from('doctors')
-      .select(`id, slug, full_name, specialty, photo_url, ciudad, estado,
+  const supabase = getSupabase()
+  const SELECT_COLS = `id, slug, full_name, specialty, photo_url, ciudad, estado,
              consultation_price_general, years_experience, min_patient_age, max_patient_age,
-             clinic_lat, clinic_lng, hospital_affiliation, languages, insurance_accepted, professional_license`)
+             clinic_lat, clinic_lng, hospital_affiliation, languages, insurance_accepted, professional_license, created_at`
+
+  // Médicos que califican por esta especialidad como SECUNDARIA certificada
+  // (verificada) -- la principal se resuelve aparte, con el `.eq('specialty', ...)`
+  // de siempre. Sin esto, alguien con esta especialidad solo como secundaria
+  // (ej. Ginecología y Obstetricia de un Ginecólogo Oncólogo) nunca aparecía
+  // en esta página SEO aunque sí está certificado en ella.
+  const idsPorSecundaria = await idsPorEspecialidadSecundaria(supabase, combinacion.especialidad)
+
+  const [{ data: porPrincipal }, secundariaRes, articulosRelacionados] = await Promise.all([
+    supabase
+      .from('doctors')
+      .select(SELECT_COLS)
       .eq('is_active', true)
       .eq('specialty', combinacion.especialidad)
-      .eq('estado', combinacion.estado)
-      .order('created_at', { ascending: false }),
+      .eq('estado', combinacion.estado),
+    idsPorSecundaria.length > 0
+      ? supabase
+          .from('doctors')
+          .select(SELECT_COLS)
+          .eq('is_active', true)
+          .eq('estado', combinacion.estado)
+          .in('id', idsPorSecundaria)
+      : Promise.resolve({ data: [] as any[] }),
     getArticulosPorEspecialidadTexto(combinacion.especialidad, 3),
   ])
 
-  const medicos = (data ?? []) as Medico[]
+  // Unión sin duplicados (Set por id) -- un médico con la especialidad
+  // buscada tanto de forma "principal" como "secundaria" no debería pasar
+  // (is_primary es mutuamente excluyente por diseño), pero por si acaso se
+  // deduplica igual antes de ordenar.
+  const vistos = new Set<string>()
+  const medicos = [...(porPrincipal ?? []), ...((secundariaRes as any).data ?? [])]
+    .filter(d => (vistos.has(d.id) ? false : (vistos.add(d.id), true)))
+    .sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? '')) as Medico[]
 
   // Defensa en profundidad: si entre resolverPorSlugs() y esta query el
   // roster cambió y ya no llega al umbral, no serví una página delgada.
   if (medicos.length === 0) notFound()
 
+  const totalReal = medicos.length
   const rangoPrecio = calcularRangoPrecio(medicos)
 
   return (
@@ -105,7 +166,7 @@ export default async function EspecialidadEstadoPage({ params }: { params: Promi
             Especialistas en {combinacion.especialidad} en {estadoLabel}
           </h1>
           <p style={{ fontSize: 15, color: '#6B7280', lineHeight: 1.7 }}>
-            Encontramos {combinacion.total} especialistas en {combinacion.especialidad} activos en {estadoLabel}. Cada perfil incluye su cédula profesional para que la verifiques directamente en la SEP, además de reseñas de pacientes reales. Nunca certificamos ni avalamos a ningún médico nosotros mismos.
+            Encontramos {totalReal} especialistas en {combinacion.especialidad} activos en {estadoLabel}. Cada perfil incluye su cédula profesional para que la verifiques directamente en la SEP, además de reseñas de pacientes reales. Nunca certificamos ni avalamos a ningún médico nosotros mismos.
           </p>
         </div>
 
@@ -116,7 +177,7 @@ export default async function EspecialidadEstadoPage({ params }: { params: Promi
               ¿Cuántos especialistas en {combinacion.especialidad} hay en {estadoLabel} en Salurama?
             </p>
             <p style={{ fontSize: 13.5, color: '#6B7280', lineHeight: 1.6 }}>
-              Hoy hay {combinacion.total} especialistas en {combinacion.especialidad} con perfil activo en {estadoLabel}. Cada uno muestra su cédula profesional para que la confirmes en la fuente oficial.
+              Hoy hay {totalReal} especialistas en {combinacion.especialidad} con perfil activo en {estadoLabel}. Cada uno muestra su cédula profesional para que la confirmes en la fuente oficial.
             </p>
           </div>
           <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 14, padding: '18px 20px' }}>

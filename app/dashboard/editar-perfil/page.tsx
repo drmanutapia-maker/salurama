@@ -865,7 +865,7 @@ export default function EditarPerfilPage() {
                     : <p style={{ fontSize: 13, color: '#9CA3AF' }}>Sin consejo certificador para esta especialidad</p>}
                 </div>
                 <p style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4 }}>
-                  Tu especialidad principal y su consejo los administra Salurama. Si necesitas cambiarla, contáctanos.
+                  El consejo certificador se asigna automáticamente según la especialidad. Para cambiar cuál es tu especialidad principal, marca con la estrella una de tus especialidades secundarias de abajo.
                 </p>
 
                 {primaryCredential && (

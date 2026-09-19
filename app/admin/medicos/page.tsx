@@ -45,6 +45,24 @@ interface SpecialtyCredentialRow {
   self_declared_not_current: boolean
 }
 
+// Nombres de especialidad que hacen "encontrable" a un médico: la principal
+// (doctors.specialty) más cualquier secundaria certificada y VERIFICADA
+// (doctor_specialty_credentials) -- una no verificada todavía no debería
+// contar, es la misma regla que ya aplica en el resto del sistema (buscador,
+// página SEO, autocompletado).
+function especialidadesVerificadasDe(specialtyPrincipal: string, credRows: SpecialtyCredentialRow[] | undefined): string[] {
+  const nombres = new Set<string>()
+  if (specialtyPrincipal) nombres.add(specialtyPrincipal)
+  for (const c of credRows || []) {
+    if (c.credentials_status === 'verificado' && c.granular_name) nombres.add(c.granular_name)
+  }
+  return Array.from(nombres)
+}
+
+function medicoTieneEspecialidad(especialidad: string, specialtyPrincipal: string, credRows: SpecialtyCredentialRow[] | undefined): boolean {
+  return especialidadesVerificadasDe(specialtyPrincipal, credRows).includes(especialidad)
+}
+
 interface FlaggedItem {
   tipo: 'review' | 'review_response'
   id: string
@@ -519,18 +537,21 @@ export default function AdminMedicos() {
   // ningún filtro activo, devuelve todos los médicos, igual que antes.
   const doctorStatsFiltrados = useMemo(() => {
     return doctorStatsRows.filter(d =>
-      (!statsEspecialidad || d.specialty === statsEspecialidad) &&
+      (!statsEspecialidad || medicoTieneEspecialidad(statsEspecialidad, d.specialty, credentialsByDoctor[d.id])) &&
       (!statsEstado || d.estado === statsEstado) &&
       (!statsCiudad || d.ciudad === statsCiudad)
     )
-  }, [doctorStatsRows, statsEspecialidad, statsEstado, statsCiudad])
+  }, [doctorStatsRows, statsEspecialidad, statsEstado, statsCiudad, credentialsByDoctor])
 
   const estadisticas = useMemo(() => agregarEstadisticas(doctorStatsFiltrados), [doctorStatsFiltrados])
 
-  const statsEspecialidades = useMemo(
-    () => Array.from(new Set(doctorStatsRows.map(d => d.specialty).filter(Boolean))).sort(),
-    [doctorStatsRows]
-  )
+  const statsEspecialidades = useMemo(() => {
+    const nombres = new Set<string>()
+    for (const d of doctorStatsRows) {
+      for (const n of especialidadesVerificadasDe(d.specialty, credentialsByDoctor[d.id])) nombres.add(n)
+    }
+    return Array.from(nombres).sort()
+  }, [doctorStatsRows, credentialsByDoctor])
   const statsCiudades = useMemo(
     () => Array.from(new Set(doctorStatsRows.map(d => d.ciudad).filter((c): c is string => !!c))).sort(),
     [doctorStatsRows]
@@ -544,15 +565,19 @@ export default function AdminMedicos() {
   )
 
   const especialidades = useMemo(() => {
-    return Array.from(new Set(medicos.map(m => m.specialty).filter(Boolean))).sort()
-  }, [medicos])
+    const nombres = new Set<string>()
+    for (const m of medicos) {
+      for (const n of especialidadesVerificadasDe(m.specialty, credentialsByDoctor[m.id])) nombres.add(n)
+    }
+    return Array.from(nombres).sort()
+  }, [medicos, credentialsByDoctor])
 
   const medicosVisibles = useMemo(() => {
     return medicos
       .filter(m => {
         if (reviewFilter !== 'todos' && m.review_status !== reviewFilter) return false
         if (credFilter !== 'todos' && resumenCredenciales(credentialsByDoctor[m.id]) !== credFilter) return false
-        if (espFilter !== 'todas' && m.specialty !== espFilter) return false
+        if (espFilter !== 'todas' && !medicoTieneEspecialidad(espFilter, m.specialty, credentialsByDoctor[m.id])) return false
         return true
       })
       .sort((a, b) => {

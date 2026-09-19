@@ -14,18 +14,27 @@ export function normalizarTexto(t: string | null | undefined): string {
 export interface MedicoBuscable {
   full_name: string
   specialty: string
+  // Especialidades adicionales certificadas (doctor_specialty_credentials
+  // con is_primary=false y credentials_status='verificado') -- opcional
+  // porque no todos los callers las traen (ej. la RPC nearby_doctors de
+  // "cerca de mí" no las incluye); sin ellas, la coincidencia simplemente
+  // cae de vuelta al comportamiento de solo la especialidad principal, sin
+  // romper nada.
+  secondarySpecialties?: string[]
   ciudad: string | null
   estado: string | null
 }
 
-// Substring (no exacto) contra nombre, especialidad y ciudad a la vez -- un
-// médico califica si el texto aparece en cualquiera de los tres.
+// Substring (no exacto) contra nombre, TODAS las especialidades certificadas
+// (principal + secundarias verificadas) y ciudad a la vez -- un médico
+// califica si el texto aparece en cualquiera.
 export function coincideBusqueda(medico: MedicoBuscable, query: string): boolean {
   const t = normalizarTexto(query)
   if (!t) return true
+  const especialidades = [medico.specialty, ...(medico.secondarySpecialties ?? [])]
   return (
     normalizarTexto(medico.full_name).includes(t) ||
-    normalizarTexto(medico.specialty).includes(t) ||
+    especialidades.some(esp => normalizarTexto(esp).includes(t)) ||
     normalizarTexto(medico.ciudad).includes(t)
   )
 }

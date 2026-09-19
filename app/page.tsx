@@ -70,15 +70,30 @@ function getSupabase() {
 }
 
 async function getEspecialidades(): Promise<string[]> {
-  const { data, error } = await getSupabase()
-    .from('doctors')
-    .select('specialty')
-    .eq('is_active', true)
-    .not('specialty', 'is', null)
-    .limit(500)
+  const supabase = getSupabase()
+  const [{ data, error }, { data: secundarias }] = await Promise.all([
+    supabase
+      .from('doctors')
+      .select('specialty')
+      .eq('is_active', true)
+      .not('specialty', 'is', null)
+      .limit(500),
+    // Especialidades secundarias certificadas y verificadas -- sin esto, una
+    // especialidad que nadie tiene como PRINCIPAL (pero sí como secundaria
+    // verificada) nunca aparecía como sugerencia/chip aquí, aunque no fuera
+    // ya parte del catálogo fijo de ESPECIALIDADES_CONACEM de arriba.
+    supabase
+      .from('doctor_specialty_credentials')
+      .select('specialty_granular_mapping!inner(granular_name), doctors!inner(is_active)')
+      .eq('is_primary', false)
+      .eq('credentials_status', 'verificado')
+      .eq('doctors.is_active', true)
+      .limit(500),
+  ])
   if (error || !data) return ESPECIALIDADES_CONACEM
 
-  const fromDB = Array.from(new Set(data.map(d => d.specialty).filter(Boolean))) as string[]
+  const nombresSecundarios = (secundarias ?? []).map((r: any) => r.specialty_granular_mapping?.granular_name).filter(Boolean)
+  const fromDB = Array.from(new Set([...data.map(d => d.specialty).filter(Boolean), ...nombresSecundarios])) as string[]
   const extras = fromDB.filter(esp => !ESPECIALIDADES_CONACEM.includes(esp)).sort()
   return [...ESPECIALIDADES_CONACEM, ...extras]
 }
