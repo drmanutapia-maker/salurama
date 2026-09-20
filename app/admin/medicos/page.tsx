@@ -1065,6 +1065,14 @@ export default function AdminMedicos() {
     try {
       const ahora = new Date().toISOString()
       const input = cardInputs[credentialId] || { numero: '', vigencia: '' }
+      // Al aprobar, se limpia self_declared_not_current -- si no, el banner
+      // de "Certificación pendiente" del dashboard del médico (que se fija
+      // solo en este campo, no en credentials_status) se queda encendido
+      // para siempre una vez que quedó en true al registrarse, sin importar
+      // cuántas veces se vuelva a aprobar después. Al rechazar ('no_coincide')
+      // no se toca: si el médico de verdad declaró que no está vigente, esa
+      // declaración sigue siendo cierta hasta que se apruebe de verdad.
+      const camposEstado = estadoFinal === 'verificado' ? { self_declared_not_current: false } : {}
       const { error } = await supabase
         .from('doctor_specialty_credentials')
         .update({
@@ -1073,18 +1081,19 @@ export default function AdminMedicos() {
           numero_certificacion: input.numero.trim() || null,
           vigencia_hasta: input.vigencia || null,
           source_constancia_id: currentAuditLogId,
+          ...camposEstado,
         })
         .eq('id', credentialId)
       if (error) throw error
 
       setModalCredentials(prev => prev.map(r => r.id === credentialId
-        ? { ...r, credentials_status: estadoFinal, credentials_verified_at: estadoFinal === 'verificado' ? ahora : null, numero_certificacion: input.numero.trim() || null, vigencia_hasta: input.vigencia || null }
+        ? { ...r, credentials_status: estadoFinal, credentials_verified_at: estadoFinal === 'verificado' ? ahora : null, numero_certificacion: input.numero.trim() || null, vigencia_hasta: input.vigencia || null, ...camposEstado }
         : r))
       if (constanciaModalDoctor) {
         setCredentialsByDoctor(prev => ({
           ...prev,
           [constanciaModalDoctor.id]: (prev[constanciaModalDoctor.id] || []).map(r => r.id === credentialId
-            ? { ...r, credentials_status: estadoFinal, credentials_verified_at: estadoFinal === 'verificado' ? ahora : null, numero_certificacion: input.numero.trim() || null, vigencia_hasta: input.vigencia || null }
+            ? { ...r, credentials_status: estadoFinal, credentials_verified_at: estadoFinal === 'verificado' ? ahora : null, numero_certificacion: input.numero.trim() || null, vigencia_hasta: input.vigencia || null, ...camposEstado }
             : r),
         }))
       }
