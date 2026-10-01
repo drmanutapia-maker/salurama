@@ -176,10 +176,13 @@ export default function CitasPage() {
     setProcesando(null)
 
     // Si se confirmó manualmente, disparar el link de chat (idempotente en el servidor)
+    // -- con await: sin esto era fire-and-forget y si el médico navegaba fuera
+    // de esta página justo después de confirmar, la petición podía perderse a
+    // medio camino sin que el correo, el push ni el link de chat llegaran.
     if (nuevoEstado === 'confirmed') {
       const { data: { session } } = await supabase.auth.getSession()
       if (session?.access_token) {
-        fetch('/api/citas/enviar-link-chat', {
+        await fetch('/api/citas/enviar-link-chat', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

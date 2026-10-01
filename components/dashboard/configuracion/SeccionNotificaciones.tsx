@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Bell, BellOff } from 'lucide-react'
 import { supabase } from '@/lib/supabaseClient'
-import { activarNotificacionesMedico, yaTieneSuscripcion, EVENTO_NOTIFICACIONES_MEDICO_ACTIVADAS, type ResultadoActivacion } from '@/lib/push/activarNotificaciones'
+import { activarNotificacionesMedico, yaTieneSuscripcion, tieneSuscripcionGuardadaMedico, EVENTO_NOTIFICACIONES_MEDICO_ACTIVADAS, type ResultadoActivacion } from '@/lib/push/activarNotificaciones'
 
 type EstadoPush = 'cargando' | 'activadas' | 'no_activadas' | 'bloqueadas' | 'no_soportado'
 
@@ -21,7 +21,20 @@ export default function SeccionNotificaciones() {
       return
     }
     if (Notification.permission === 'denied') { setEstado('bloqueadas'); return }
-    if (Notification.permission === 'granted' && (await yaTieneSuscripcion())) { setEstado('activadas'); return }
+    if (Notification.permission === 'granted' && (await yaTieneSuscripcion())) {
+      // El navegador cree que ya está activado, pero eso no basta: si el
+      // guardado en el backend falló en su momento, doctor_push_subscriptions
+      // puede seguir vacía aunque haya un PushSubscription local válido. Sin
+      // confirmar esto, un médico en ese estado se queda sin esta sección
+      // para siempre y nunca recibe nada (ver lib/push/activarNotificaciones.ts).
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.access_token && (await tieneSuscripcionGuardadaMedico(session.access_token))) {
+        setEstado('activadas')
+        return
+      }
+      setEstado('no_activadas')
+      return
+    }
     setEstado('no_activadas')
   }, [])
 

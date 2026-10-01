@@ -143,6 +143,30 @@ export async function activarNotificacionesMedico(accessToken: string): Promise<
 }
 
 /**
+ * true si el backend tiene al menos una fila guardada en
+ * doctor_push_subscriptions para el médico de este accessToken. A diferencia
+ * de yaTieneSuscripcion() (que solo mira el navegador), esto confirma contra
+ * Supabase -- necesario porque el navegador puede tener un PushSubscription
+ * local válido aunque el POST a /api/push/suscribir-medico que debía
+ * guardarlo haya fallado en su momento. Ante cualquier error de red o de la
+ * API se devuelve false (fail-open hacia "no está activado"): es preferible
+ * mostrarle de más el botón de activar a un médico que sí está bien
+ * configurado, que ocultárselo para siempre a uno que no lo está.
+ */
+export async function tieneSuscripcionGuardadaMedico(accessToken: string): Promise<boolean> {
+  try {
+    const res = await fetch('/api/push/suscribir-medico', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+    if (!res.ok) return false
+    const data = await res.json()
+    return data.existe === true
+  } catch {
+    return false
+  }
+}
+
+/**
  * true si este navegador ya tiene una suscripción push activa para el
  * service worker de la app — se comprueba en vivo (no con una bandera en
  * localStorage) para no mostrar el aviso de nuevo si el permiso ya estaba

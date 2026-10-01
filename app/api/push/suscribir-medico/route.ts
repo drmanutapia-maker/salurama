@@ -34,6 +34,60 @@ const securityHeaders = {
   'Referrer-Policy': 'strict-origin-when-cross-origin',
 }
 
+// Dice si el médico autenticado ya tiene al menos una suscripción guardada
+// en el backend -- un COUNT, nunca devuelve endpoints ni llaves. Existe
+// porque el navegador puede creer que ya está "activado" (permiso concedido
+// + PushSubscription local) aunque el POST de abajo haya fallado en su
+// momento y nunca se haya guardado nada acá; sin este chequeo, esa sección
+// de Configuración se queda oculta para siempre sin que el médico reciba
+// nada (ver SeccionNotificaciones.tsx).
+export async function GET(request: NextRequest) {
+  const requestId = crypto.randomUUID().slice(0, 8)
+
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false } }
+  )
+
+  try {
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: securityHeaders })
+    }
+
+    const { data: { user } } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''))
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: securityHeaders })
+    }
+
+    const { data: medico } = await supabase
+      .from('doctors')
+      .select('id')
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    if (!medico) {
+      return NextResponse.json({ error: 'Cuenta no encontrada' }, { status: 403, headers: securityHeaders })
+    }
+
+    const { count, error } = await supabase
+      .from('doctor_push_subscriptions')
+      .select('id', { count: 'exact', head: true })
+      .eq('medico_id', medico.id)
+
+    if (error) {
+      console.error(`[${requestId}] Error consultando suscripciones:`, error)
+      return NextResponse.json({ error: 'Error al procesar la solicitud' }, { status: 500, headers: securityHeaders })
+    }
+
+    return NextResponse.json({ existe: !!count && count > 0 }, { headers: { ...securityHeaders, 'X-Request-ID': requestId } })
+  } catch (error) {
+    console.error(`[${requestId}] Error:`, error)
+    return NextResponse.json({ error: 'Error al procesar la solicitud' }, { status: 500, headers: { ...securityHeaders, 'X-Request-ID': requestId } })
+  }
+}
+
 // Guarda (o actualiza) la suscripción push de un médico. A diferencia de
 // /api/push/suscribir (pacientes, identificados por token de chat), el
 // médico tiene sesión real de Supabase Auth -- se identifica con el Bearer

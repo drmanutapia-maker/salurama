@@ -10,6 +10,7 @@ import {
   detectarPlataforma,
   activarNotificacionesMedico,
   yaTieneSuscripcion,
+  tieneSuscripcionGuardadaMedico,
   EVENTO_NOTIFICACIONES_MEDICO_ACTIVADAS,
   type ResultadoActivacion,
 } from '@/lib/push/activarNotificaciones'
@@ -89,7 +90,17 @@ export default function AvisoNotificacionesMedico() {
       // ocultarse de verdad, no solo "no cambiar nada".
       if (localStorage.getItem(DISMISS_KEY_PREFIX + doctorId) === '1') { if (!cancelado) setPaso('oculto'); return }
       if (Notification.permission === 'denied') { if (!cancelado) setPaso('oculto'); return }
-      if (Notification.permission === 'granted' && (await yaTieneSuscripcion())) { if (!cancelado) setPaso('oculto'); return }
+      if (Notification.permission === 'granted' && (await yaTieneSuscripcion())) {
+        // Igual que en SeccionNotificaciones (Configuración): el navegador
+        // puede creer que ya está activado aunque doctor_push_subscriptions
+        // no tenga ninguna fila, si el POST que la guarda falló en su
+        // momento. Sin confirmar contra el backend, este banner se oculta
+        // para siempre y el médico nunca se entera de que no recibe nada --
+        // cae al cálculo de abajo (mostrar 'activar') cuando no se confirma.
+        const { data: { session } } = await supabase.auth.getSession()
+        const confirmadoEnBackend = !!session?.access_token && (await tieneSuscripcionGuardadaMedico(session.access_token))
+        if (confirmadoEnBackend) { if (!cancelado) setPaso('oculto'); return }
+      }
       if (cancelado) return
 
       const { esIOS, esSafari } = detectarPlataforma()
