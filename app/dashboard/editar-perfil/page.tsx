@@ -118,6 +118,7 @@ interface Medico {
   facebook_url: string | null
   instagram_url: string | null
   tiktok_url: string | null
+  linkedin_url: string | null
   website_url: string | null
   location_city: string
   location_state: string | null
@@ -436,6 +437,10 @@ export default function EditarPerfilPage() {
   }
   if (data.tiktok_url && !esLinkDeRedSocial(data.tiktok_url, ['tiktok.com'])) {
     alert('Este campo solo acepta links de TikTok')
+    return
+  }
+  if (data.linkedin_url && !esLinkDeRedSocial(data.linkedin_url, ['linkedin.com'])) {
+    alert('Este campo solo acepta links de LinkedIn')
     return
   }
   if (data.website_url && marcaCompetidoraEn(data.website_url)) {
@@ -781,7 +786,7 @@ export default function EditarPerfilPage() {
                   <p style={{ fontSize: 17, fontWeight: 700, marginBottom: 4, color: '#111827' }}>{titlePrefix}{displayName}</p>
                   <p style={{ fontSize: 14, color: '#6B7280', marginBottom: 2 }}>{medico.specialty}</p>
                   <p style={{ fontSize: 13, color: '#9CA3AF' }}>{medico.email}</p>
-                  {(medico.facebook_url || medico.instagram_url || medico.tiktok_url) && (
+                  {(medico.facebook_url || medico.instagram_url || medico.tiktok_url || medico.linkedin_url) && (
   <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
     {medico.facebook_url && (
       <a href={medico.facebook_url} target="_blank" rel="noopener noreferrer" style={{ color: '#1877F2' }}>
@@ -796,6 +801,11 @@ export default function EditarPerfilPage() {
     {medico.tiktok_url && (
       <a href={medico.tiktok_url} target="_blank" rel="noopener noreferrer" style={{ color: '#000000' }}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>
+      </a>
+    )}
+    {medico.linkedin_url && (
+      <a href={medico.linkedin_url} target="_blank" rel="noopener noreferrer" style={{ color: '#0A66C2' }}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
       </a>
     )}
   </div>
@@ -1128,6 +1138,7 @@ function BasicInfoForm({ medico, onSave, saving }: any) {
     facebook_url: medico.facebook_url || '',
     instagram_url: medico.instagram_url || '',
     tiktok_url: medico.tiktok_url || '',
+    linkedin_url: medico.linkedin_url || '',
     website_url: medico.website_url || '',
     atiende_ninos: medico.atiende_ninos || false,
     min_patient_age: medico.min_patient_age?.toString() ?? '',
@@ -1150,14 +1161,16 @@ function BasicInfoForm({ medico, onSave, saving }: any) {
   const facebookNormalizado = normalizarUrl(form.facebook_url)
   const instagramNormalizado = normalizarUrl(form.instagram_url)
   const tiktokNormalizado = normalizarUrl(form.tiktok_url)
+  const linkedinNormalizado = normalizarUrl(form.linkedin_url)
   const websiteNormalizado = normalizarUrl(form.website_url)
 
   const facebookInvalido = facebookNormalizado !== '' && !esLinkDeRedSocial(facebookNormalizado, ['facebook.com', 'fb.com'])
   const instagramInvalido = instagramNormalizado !== '' && !esLinkDeRedSocial(instagramNormalizado, ['instagram.com'])
   const tiktokInvalido = tiktokNormalizado !== '' && !esLinkDeRedSocial(tiktokNormalizado, ['tiktok.com'])
+  const linkedinInvalido = linkedinNormalizado !== '' && !esLinkDeRedSocial(linkedinNormalizado, ['linkedin.com'])
   const marcaCompetidoraWebsite = marcaCompetidoraEn(websiteNormalizado)
 
-  const formInvalido = rangoInvalido || facebookInvalido || instagramInvalido || tiktokInvalido || !!marcaCompetidoraWebsite
+  const formInvalido = rangoInvalido || facebookInvalido || instagramInvalido || tiktokInvalido || linkedinInvalido || !!marcaCompetidoraWebsite
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -1169,6 +1182,7 @@ function BasicInfoForm({ medico, onSave, saving }: any) {
       facebook_url: facebookNormalizado || null,
       instagram_url: instagramNormalizado || null,
       tiktok_url: tiktokNormalizado || null,
+      linkedin_url: linkedinNormalizado || null,
       website_url: websiteNormalizado || null,
       atiende_ninos: form.atiende_ninos,
       // Si desmarca el checkbox, el rango deja de tener sentido -- se
@@ -1266,6 +1280,16 @@ function BasicInfoForm({ medico, onSave, saving }: any) {
           {tiktokInvalido && (
             <p role="alert" style={{ fontSize: 12, color: '#DC2626', fontWeight: 600, marginTop: 4 }}>
               Este campo solo acepta links de TikTok
+            </p>
+          )}
+        </div>
+
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5, color: '#374151' }}>LinkedIn</label>
+          <input type="url" value={form.linkedin_url} onChange={e => setForm({...form, linkedin_url: e.target.value})} onBlur={() => setForm(f => ({...f, linkedin_url: normalizarUrl(f.linkedin_url)}))} style={{ width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: 8, fontSize: 14 }} placeholder="https://linkedin.com/in/tu-perfil" />
+          {linkedinInvalido && (
+            <p role="alert" style={{ fontSize: 12, color: '#DC2626', fontWeight: 600, marginTop: 4 }}>
+              Este campo solo acepta links de LinkedIn
             </p>
           )}
         </div>
