@@ -104,6 +104,8 @@ const ASEGURADORAS = [
   'Banorte Seguros', 'Qualitas', 'Allianz', 'Chubb', 'MAPFRE',
 ]
 
+const FORMAS_DE_PAGO = ['💳 Tarjeta', '💵 Efectivo', '🏦 Transferencia', '📱 PayPal']
+
 interface Medico {
   id: string
   slug: string
@@ -133,6 +135,8 @@ interface Medico {
   consultation_price_general: number | null
   accepts_insurance: boolean
   insurance_names: string[]
+  payment_methods: string[] | null
+  factura_disponible: boolean | null
   whatsapp_available: boolean
   whatsapp_phone: string | null
   clinic_phone: string | null
@@ -1672,26 +1676,68 @@ function LanguagesForm({ languages, onSave, saving }: any) {
 }
 
 function BookingForm({ medico, onSave, saving }: any) {
+  // El precio único no tiene columna propia -- es solo un modo de captura
+  // que, al guardar, escribe el mismo valor en consultation_price_first_time
+  // y consultation_price_general. Si ambos ya venían iguales desde la base
+  // de datos, el formulario arranca en modo "precio único" para reflejar
+  // ese estado; si no, arranca en modo "precios separados".
+  const preciosYaIguales = medico.consultation_price_first_time != null
+    && medico.consultation_price_general != null
+    && medico.consultation_price_first_time === medico.consultation_price_general
+
   const [form, setForm] = useState({
-    consultation_price_first_time: medico.consultation_price_first_time?.toString() || '',
-    consultation_price_general: medico.consultation_price_general?.toString() || '',
+    consultation_price_first_time: preciosYaIguales? '' : (medico.consultation_price_first_time?.toString() || ''),
+    consultation_price_general: preciosYaIguales? '' : (medico.consultation_price_general?.toString() || ''),
+    precio_unico: preciosYaIguales? medico.consultation_price_first_time.toString() : '',
+    mismo_precio: preciosYaIguales,
     accepts_insurance: medico.accepts_insurance || false,
     insurance_names: Array.isArray(medico.insurance_names)? medico.insurance_names : [],
+    payment_methods: Array.isArray(medico.payment_methods)? medico.payment_methods : [],
+    factura_disponible: medico.factura_disponible || false,
     whatsapp_available: medico.whatsapp_available || false,
     whatsapp_phone: medico.whatsapp_phone || '',
     clinic_phone: medico.clinic_phone || '',
   })
   const toggleInsurance = (seg: string) => setForm(prev => ({...prev, insurance_names: prev.insurance_names.includes(seg)? prev.insurance_names.filter((s: string) => s !== seg) : [...prev.insurance_names, seg] }))
-  const submit = (e: React.FormEvent) => { e.preventDefault(); onSave({ consultation_price_first_time: form.consultation_price_first_time? Number(form.consultation_price_first_time) : null, consultation_price_general: form.consultation_price_general? Number(form.consultation_price_general) : null, accepts_insurance: form.accepts_insurance, insurance_names: form.insurance_names, whatsapp_available: form.whatsapp_available, whatsapp_phone: form.whatsapp_phone || null, clinic_phone: form.clinic_phone || null }) }
+  const togglePaymentMethod = (metodo: string) => setForm(prev => ({...prev, payment_methods: prev.payment_methods.includes(metodo)? prev.payment_methods.filter((m: string) => m !== metodo) : [...prev.payment_methods, metodo] }))
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const precioPrimera = form.precio_unico !== ''? form.precio_unico : form.consultation_price_first_time
+    const precioGeneral = form.precio_unico !== ''? form.precio_unico : form.consultation_price_general
+    onSave({
+      consultation_price_first_time: precioPrimera? Number(precioPrimera) : null,
+      consultation_price_general: precioGeneral? Number(precioGeneral) : null,
+      accepts_insurance: form.accepts_insurance,
+      insurance_names: form.insurance_names,
+      payment_methods: form.payment_methods,
+      factura_disponible: form.factura_disponible,
+      whatsapp_available: form.whatsapp_available,
+      whatsapp_phone: form.whatsapp_phone || null,
+      clinic_phone: form.clinic_phone || null,
+    })
+  }
   return (
     <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div>
         <p style={{ fontSize: 13, fontWeight: 700, color: '#1E3A5F', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><DollarSign size={15} /> Precios (MXN)</p>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer', color: '#374151', marginBottom: 10 }}>
+          <input type="checkbox" checked={form.mismo_precio} onChange={e => setForm(p => ({...p, mismo_precio: e.target.checked }))} style={{ accentColor: '#1E3A5F' }} />
+          Mismo precio para ambas consultas
+        </label>
+        <div style={{ marginBottom: 10 }}>
+          <label style={{ display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 4, color: '#6B7280', textTransform: 'uppercase' }}>Precio único</label>
+          <input type="number" value={form.precio_unico} onChange={e => setForm(p => ({...p, precio_unico: e.target.value }))} disabled={!form.mismo_precio} style={{...inputStyle, opacity: !form.mismo_precio? 0.5 : 1 }} placeholder="1200" min="0" />
+        </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <div><label style={{ display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 4, color: '#6B7280', textTransform: 'uppercase' }}>Primera vez *</label><input type="number" value={form.consultation_price_first_time} onChange={e => setForm(p => ({...p, consultation_price_first_time: e.target.value }))} style={inputStyle} placeholder="1500" min="0" required /></div>
-          <div><label style={{ display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 4, color: '#6B7280', textTransform: 'uppercase' }}>Subsecuente *</label><input type="number" value={form.consultation_price_general} onChange={e => setForm(p => ({...p, consultation_price_general: e.target.value }))} style={inputStyle} placeholder="1000" min="0" required /></div>
+          <div><label style={{ display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 4, color: '#6B7280', textTransform: 'uppercase' }}>Primera vez</label><input type="number" value={form.consultation_price_first_time} onChange={e => setForm(p => ({...p, consultation_price_first_time: e.target.value }))} disabled={form.mismo_precio} style={{...inputStyle, opacity: form.mismo_precio? 0.5 : 1 }} placeholder="1500" min="0" /></div>
+          <div><label style={{ display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 4, color: '#6B7280', textTransform: 'uppercase' }}>Subsecuente</label><input type="number" value={form.consultation_price_general} onChange={e => setForm(p => ({...p, consultation_price_general: e.target.value }))} disabled={form.mismo_precio} style={{...inputStyle, opacity: form.mismo_precio? 0.5 : 1 }} placeholder="1000" min="0" /></div>
         </div>
         <p style={{ fontSize: 11, color: '#9CA3AF', marginTop: 6 }}>💡 Mostrar precios aumenta reservas 28%</p>
+      </div>
+      <div>
+        <p style={{ fontSize: 13, fontWeight: 700, color: '#1E3A5F', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><DollarSign size={15} /> Formas de pago</p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>{FORMAS_DE_PAGO.map(metodo => <label key={metodo} className={`chip ${form.payment_methods.includes(metodo)? 'selected' : ''}`}><input type="checkbox" checked={form.payment_methods.includes(metodo)} onChange={() => togglePaymentMethod(metodo)} style={{ display: 'none' }} />{metodo}</label>)}</div>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer', marginTop: 10, color: '#374151' }}><input type="checkbox" checked={form.factura_disponible} onChange={e => setForm(p => ({...p, factura_disponible: e.target.checked }))} style={{ accentColor: '#1E3A5F' }} /> Ofrezco factura</label>
       </div>
       <div>
         <p style={{ fontSize: 13, fontWeight: 700, color: '#1E3A5F', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><Shield size={15} /> Seguros</p>

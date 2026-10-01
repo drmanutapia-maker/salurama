@@ -53,6 +53,7 @@ export interface Medico {
   insurance_names: string[] | null
   accepts_insurance: boolean
   payment_methods: string[] | null
+  factura_disponible: boolean | null
   clinic_name: string | null
   clinic_lat: number | null
   clinic_lng: number | null
@@ -1256,6 +1257,8 @@ export default function DoctorProfileClient({
         .toast { animation: toastIn 0.3s ease-out; }
         @media (max-width: 767px) {.desktop-only { display: none!important; } }
         @media (min-width: 768px) {.mobile-only { display: none!important; } }
+        .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
       `}</style>
       {/* El layout raíz (app/layout.tsx) ya envuelve todo en su propio <main>
           con paddingTop: 68px para librar el Navbar fijo (72px) — este <main>
@@ -1294,7 +1297,7 @@ export default function DoctorProfileClient({
               </div>
             )}
           </div>
-          <div>
+          <div style={{ minWidth: 0 }}>
             <h1 style={{ fontFamily: 'var(--font-fraunces), serif', fontSize: isMobile ? 28 : 40, fontWeight: 900, color: '#1E3A5F', marginBottom: 4, lineHeight: 1.1 }}>
               {titlePrefix}{displayName}
               {mostrarBadgePerfilCompleto && (
@@ -1397,14 +1400,14 @@ export default function DoctorProfileClient({
               </div>
             </div>
             {(precioPrimera || precioSubsecuente) && (
-              <div style={{ background: '#F5F3FF', borderRadius: 12, padding: 14, marginBottom: 20, display: 'inline-block' }}>
+              <div style={{ background: '#F5F3FF', borderRadius: 12, padding: 14, marginBottom: 20, width: '100%' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{ width: 36, height: 36, background: '#8B5CF6', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <DollarSign size={18} color="#fff" />
                   </div>
                   <div>
                     <p style={{ fontSize: 10, color: '#9CA3AF', textTransform: 'uppercase', fontWeight: 600, marginBottom: 4 }}>Consulta</p>
-                    {precioPrimera && precioSubsecuente ? (
+                    {precioPrimera && precioSubsecuente && precioPrimera !== precioSubsecuente ? (
                       <div style={{ display: 'flex', gap: 16, alignItems: 'baseline' }}>
                         <div>
                           <p style={{ fontSize: 10, color: '#6B7280', marginBottom: 2 }}>Primera vez</p>
@@ -1421,6 +1424,18 @@ export default function DoctorProfileClient({
                     )}
                   </div>
                 </div>
+                {Array.isArray(medico.payment_methods) && medico.payment_methods.length > 0 && (
+                  <div className="no-scrollbar" style={{ display: 'flex', flexWrap: 'nowrap', overflowX: 'auto', gap: 8, marginTop: 12 }}>
+                    {medico.payment_methods.map((metodo, i) => (
+                      <span key={i} style={{ display: 'inline-flex', flexDirection: 'row', flexShrink: 0, alignItems: 'center', fontSize: 13, padding: '6px 12px', borderRadius: 20, border: '1.5px solid #DDD6FE', background: '#F5F3FF', color: '#1E3A5F', fontFamily: "'DM Sans', sans-serif" }}>
+                        {metodo}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {medico.factura_disponible && (
+                  <p style={{ fontSize: 12, color: '#6B7280', marginTop: 8, textAlign: 'center' }}>🧾 Factura disponible</p>
+                )}
               </div>
             )}
           </div>
@@ -1810,7 +1825,9 @@ export default function DoctorProfileClient({
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
             {(precioPrimera || precioSubsecuente) && (
               <div style={{ flex: '0 0 auto', textAlign: 'center', minWidth: 80 }}>
-                <p style={{ fontSize: 10, color: '#9CA3AF', textTransform: 'uppercase', fontWeight: 600 }}>Desde</p>
+                {precioPrimera && precioSubsecuente && (
+                  <p style={{ fontSize: 10, color: '#9CA3AF', textTransform: 'uppercase', fontWeight: 600 }}>{precioPrimera === precioSubsecuente ? 'Precio' : 'Desde'}</p>
+                )}
                 <p style={{ fontFamily: 'var(--font-fraunces), serif', fontSize: 18, fontWeight: 900, color: '#1E3A5F' }}>${precioSubsecuente || precioPrimera}</p>
               </div>
             )}
