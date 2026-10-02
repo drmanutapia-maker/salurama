@@ -7,6 +7,7 @@ import {
   Bell, Lock, Smartphone, LogOut,
 } from 'lucide-react'
 import BaculoEsculapio from '@/components/icons/BaculoEsculapio'
+import { supabase } from '@/lib/supabaseClient'
 
 // Microinteracciones de cada tarjeta: reciben `active` (true solo cuando esa
 // tarjeta está centrada en el carrusel) y usan `key` para forzar un remount
@@ -298,8 +299,14 @@ interface BeneficiosCarouselProps {
   title?: string
   ctaTitle?: string
   ctaSubtitle?: string
-  primaryCta: CtaLink
+  primaryCta?: CtaLink
   secondaryCta?: CtaLink
+  // El carrusel se comparte con /dashboard/plan (usuario siempre autenticado,
+  // conserva el bloque de CTA de siempre) y con /beneficios (página pública
+  // de marketing, que lo reemplaza por la barra sticky de registro). Los
+  // defaults preservan el comportamiento de /dashboard/plan sin tocarlo.
+  showFinalCta?: boolean
+  showRegisterSticky?: boolean
 }
 
 export default function BeneficiosCarousel({
@@ -308,12 +315,25 @@ export default function BeneficiosCarousel({
   ctaSubtitle = 'Completa tu perfil para que los pacientes te encuentren con toda la información que necesitan.',
   primaryCta,
   secondaryCta,
+  showFinalCta = true,
+  showRegisterSticky = false,
 }: BeneficiosCarouselProps) {
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [scrollSnaps, setScrollSnaps] = useState<number[]>([])
   const [canPrev, setCanPrev] = useState(false)
   const [canNext, setCanNext] = useState(true)
   const [emblaRef, emblaApi] = useEmblaCarousel({ align: 'center', loop: false, containScroll: 'trimSnaps' })
+
+  // null mientras carga -- evita el parpadeo de mostrar la barra de registro
+  // a un médico ya autenticado antes de que supabase confirme la sesión.
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    if (!showRegisterSticky) return
+    supabase.auth.getUser().then(({ data: { user } }) => setIsAuthenticated(!!user))
+  }, [showRegisterSticky])
+
+  const mostrarStickyRegistro = showRegisterSticky && isAuthenticated === false
 
   const onSelect = useCallback(() => {
     if (!emblaApi) return
@@ -353,9 +373,9 @@ export default function BeneficiosCarousel({
         .carousel-dot.active { width: 20px; border-radius: 4px; background: #1E3A5F; }
       `}</style>
 
-      <div style={{ maxWidth: 720, margin: '0 auto', padding: '24px 16px 80px' }}>
+      <div style={{ maxWidth: 720, margin: '0 auto', padding: mostrarStickyRegistro ? '24px 16px 140px' : '24px 16px 80px' }}>
         <div className="fade-up" style={{ textAlign: 'center', marginBottom: 28 }}>
-          <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 28, fontWeight: 900, color: '#111827' }}>{title}</h1>
+          <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 16, fontWeight: 400, color: '#6B7280' }}>{title}</h1>
         </div>
 
         <div className="fade-up" style={{ marginBottom: 16 }}>
@@ -407,21 +427,36 @@ export default function BeneficiosCarousel({
           </button>
         </div>
 
-        <div className="fade-up" style={{ background: '#fff', borderRadius: 16, border: '1px solid #E5E7EB', padding: 28, textAlign: 'center' }}>
-          <p style={{ fontFamily: "'Fraunces', serif", fontSize: 19, fontWeight: 900, color: '#111827', marginBottom: 8 }}>{ctaTitle}</p>
-          <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 18 }}>{ctaSubtitle}</p>
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <a href={primaryCta.href} style={{ background: '#1E3A5F', color: '#fff', textDecoration: 'none', borderRadius: 50, padding: '11px 22px', fontSize: 13, fontWeight: 600 }}>
-              {primaryCta.label}
-            </a>
-            {secondaryCta && (
-              <a href={secondaryCta.href} style={{ background: '#F3F4F6', color: '#374151', textDecoration: 'none', borderRadius: 50, padding: '11px 22px', fontSize: 13, fontWeight: 600 }}>
-                {secondaryCta.label}
+        {showFinalCta && primaryCta && (
+          <div className="fade-up" style={{ background: '#fff', borderRadius: 16, border: '1px solid #E5E7EB', padding: 28, textAlign: 'center' }}>
+            <p style={{ fontFamily: "'Fraunces', serif", fontSize: 19, fontWeight: 900, color: '#111827', marginBottom: 8 }}>{ctaTitle}</p>
+            <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 18 }}>{ctaSubtitle}</p>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+              <a href={primaryCta.href} style={{ background: '#1E3A5F', color: '#fff', textDecoration: 'none', borderRadius: 50, padding: '11px 22px', fontSize: 13, fontWeight: 600 }}>
+                {primaryCta.label}
               </a>
-            )}
+              {secondaryCta && (
+                <a href={secondaryCta.href} style={{ background: '#F3F4F6', color: '#374151', textDecoration: 'none', borderRadius: 50, padding: '11px 22px', fontSize: 13, fontWeight: 600 }}>
+                  {secondaryCta.label}
+                </a>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {mostrarStickyRegistro && (
+        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: 'rgba(255, 255, 255, 0.98)', backdropFilter: 'blur(12px)', padding: '16px 20px', zIndex: 1000, borderTop: '1px solid #E5E7EB', boxShadow: '0 -4px 20px rgba(0,0,0,0.05)' }}>
+          <div style={{ maxWidth: 600, margin: '0 auto' }}>
+            <a href="/registro" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)', color: '#fff', textDecoration: 'none', border: 'none', borderRadius: 12, padding: '14px 24px', fontSize: 14, fontWeight: 700, boxShadow: '0 4px 14px rgba(139, 92, 246, 0.3)' }}>
+              Crear mi perfil
+            </a>
+            <p style={{ textAlign: 'center', marginTop: 8, fontSize: 12, fontWeight: 700, color: '#374151' }}>
+              Ya hay pacientes buscando tu especialidad
+            </p>
           </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

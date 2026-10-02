@@ -7,10 +7,5 @@ export const metadata: Metadata = {
 }
 
 export default function BeneficiosPage() {
-  return (
-    <BeneficiosCarousel
-      ctaSubtitle="Crea tu cuenta y arma tu perfil profesional en minutos."
-      primaryCta={{ label: 'Regístrate gratis', href: '/registro' }}
-    />
-  )
+  return <BeneficiosCarousel showFinalCta={false} showRegisterSticky />
 }
