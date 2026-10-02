@@ -949,6 +949,43 @@ function ReportarBoton({ tipo, id }: { tipo: 'review' | 'review_response'; id: s
   )
 }
 
+// Tarjeta de una reseña -- se usa tal cual tanto en el carrusel móvil como
+// en el grid de escritorio (ver sección "Reseñas de pacientes" más abajo),
+// para no duplicar el markup entre los dos layouts.
+function ReviewCard({ r, doctorName }: { r: any; doctorName: string }) {
+  return (
+    // scroll-margin-top libra el Navbar fijo (72px) al hacer scroll por JS
+    // hasta acá, ej. desde el link del correo de aviso de respuesta
+    // (?review=, ver el useEffect de reviewDestacadaId en DoctorProfileClient).
+    <div id={`review-${r.id}`} style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #E5E7EB', scrollMarginTop: 90, height: '100%' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
+        <span style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>Paciente</span>
+        <div style={{ display: 'flex', gap: 2 }}>
+          {[1, 2, 3, 4, 5].map(i => (
+            <Star key={i} size={16} color="#F59E0B" fill={i <= r.rating ? '#F59E0B' : 'none'} />
+          ))}
+        </div>
+      </div>
+      {r.comment && <p style={{ fontSize: 14, color: '#4A5568', lineHeight: 1.6 }}>{r.comment}</p>}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, gap: 8 }}>
+        <p style={{ fontSize: 11, color: '#9CA3AF' }}>
+          {new Date(r.created_at).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}
+        </p>
+        <ReportarBoton tipo="review" id={r.id} />
+      </div>
+      {r.respuesta && (
+        <div style={{ marginTop: 12, padding: 14, background: '#F0F4F8', borderRadius: 12, borderLeft: '3px solid #1E3A5F' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, gap: 8 }}>
+            <p style={{ fontSize: 12, fontWeight: 700, color: '#1E3A5F' }}>{doctorName}</p>
+            {r.respuestaId && <ReportarBoton tipo="review_response" id={r.respuestaId} />}
+          </div>
+          <p style={{ fontSize: 14, color: '#374151', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{r.respuesta}</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // Datos públicos del perfil (medico, licencias, educación, reseñas, etc.) ya
 // llegan resueltos desde el Server Component (page.tsx) para que el HTML
 // inicial traiga el contenido real y el JSON-LD — antes se pedían aquí vía
@@ -982,15 +1019,14 @@ export default function DoctorProfileClient({
   const reviewDestacadaId = searchParams.get('review')
   const [lightboxPhoto, setLightboxPhoto] = useState<GalleryPhoto | null>(null)
   const [showAllPhotosModal, setShowAllPhotosModal] = useState(false)
-  // Arranca ya expandida si el link trae ?review= apuntando a una reseña
-  // que no está entre las 5 iniciales — si no, el ancla no existiría en el
-  // DOM y el scroll de más abajo no tendría a dónde llegar.
-  const [mostrarTodasResenas, setMostrarTodasResenas] = useState(() => {
-    if (!reviewDestacadaId) return false
-    const idx = reviews.findIndex(r => r.id === reviewDestacadaId)
-    return idx >= 5
-  })
   const [isMobile, setIsMobile] = useState(false)
+  // Índice de la reseña centrada en el carrusel móvil -- controla qué punto
+  // de navegación se ve activo y el disabled de las flechas. Se actualiza
+  // solo al detectar scroll real (swipe o flecha), nunca se fuerza desde
+  // fuera salvo al destacar una reseña por ?review= (ver efecto más abajo).
+  const [reviewIndex, setReviewIndex] = useState(0)
+  const reviewTrackRef = useRef<HTMLDivElement>(null)
+  const [mostrarTodosPadecimientos, setMostrarTodosPadecimientos] = useState(false)
   const [showAppointmentModal, setShowAppointmentModal] = useState(false)
   const [showVerificationModal, setShowVerificationModal] = useState(false)
   const [showConacemModal, setShowConacemModal] = useState(false)
@@ -1016,16 +1052,21 @@ export default function DoctorProfileClient({
 
   // Scroll explícito por JS en vez de depender del salto nativo del
   // navegador a #hash — un fragmento se pierde si algún filtro de seguridad
-  // de correo reescribe el link (nunca llega al servidor). rAF espera al
-  // siguiente frame para que, si mostrarTodasResenas se acaba de activar
-  // arriba, la reseña ya exista en el DOM antes de intentar el scroll.
+  // de correo reescribe el link (nunca llega al servidor). Todas las reseñas
+  // viven siempre en el DOM (ya no hay "ver más"), así que el ancla existe
+  // desde el primer render -- solo se espera un frame para que el layout del
+  // carrusel/grid ya esté montado. inline:'center' también centra la reseña
+  // dentro del carril horizontal del carrusel móvil, no solo el scroll
+  // vertical de la página.
   useEffect(() => {
     if (!reviewDestacadaId) return
     const frame = requestAnimationFrame(() => {
-      document.getElementById(`review-${reviewDestacadaId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      document.getElementById(`review-${reviewDestacadaId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'center' })
+      const idx = reviews.findIndex(r => r.id === reviewDestacadaId)
+      if (idx >= 0) setReviewIndex(idx)
     })
     return () => cancelAnimationFrame(frame)
-  }, [reviewDestacadaId, mostrarTodasResenas])
+  }, [reviewDestacadaId, reviews])
 
   useEffect(() => {
     if (!mostrarTooltipBadge) return
@@ -1067,6 +1108,10 @@ export default function DoctorProfileClient({
   const precioSubsecuente = medico?.consultation_price_general || null
   const displayName = medico?.display_name || medico?.full_name || ''
   const titlePrefix = medico?.professional_title ? `${medico.professional_title} ` : ''
+  // Título + primer nombre + primer apellido (ej. "Dr. Manuel Tapia") en vez
+  // del nombre completo -- usado en la firma de la respuesta del médico
+  // dentro de cada reseña.
+  const nombreCortoMedico = `${titlePrefix}${displayName.trim().split(/\s+/).slice(0, 2).join(' ')}`.trim()
   // Mismo cálculo que el checklist de completitud del dashboard del médico
   // (hooks/useProfileCompletion.ts) — reutilizado tal cual, sin ajustes: los
   // datos que necesita ya llegan como props en este perfil público.
@@ -1135,6 +1180,25 @@ export default function DoctorProfileClient({
     }
   }
 
+  // Carrusel nativo de reseñas (móvil) -- sin librería: scroll-snap de CSS
+  // + estas tres funciones. onScroll detecta la reseña centrada con el
+  // mismo cálculo que usan las flechas/puntos para moverse, así los tres
+  // mecanismos de navegación (swipe, flecha, punto) siempre quedan en
+  // sincronía con reviewIndex.
+  const handleReviewScroll = () => {
+    const el = reviewTrackRef.current
+    if (!el || el.clientWidth === 0) return
+    const idx = Math.round(el.scrollLeft / el.clientWidth)
+    setReviewIndex(prev => (prev === idx ? prev : idx))
+  }
+
+  const scrollToReview = (idx: number) => {
+    const el = reviewTrackRef.current
+    if (!el) return
+    const clamped = Math.max(0, Math.min(idx, reviews.length - 1))
+    el.scrollTo({ left: clamped * el.clientWidth, behavior: 'smooth' })
+  }
+
   // Dirección completa desde SEPOMEX
   const direccionCompleta = [
     medico?.street,
@@ -1171,6 +1235,45 @@ export default function DoctorProfileClient({
       normalizado[keyNormalizada] = horario[key]
     })
     return normalizado
+  })()
+
+  // Resumen comprimido del horario para la tarjeta del sidebar: agrupa días
+  // CONSECUTIVOS (lunes primero, igual que diasAtencionTexto en
+  // AppointmentModal -- así se describe normalmente un horario médico,
+  // aunque DIAS_SEMANA empiece en domingo) con el mismo rango en una sola
+  // línea ("Lun a Vie: 09:00 - 18:00"), y omite los días cerrados por
+  // completo en vez de listarlos como "Cerrado".
+  const resumenHorario = (() => {
+    if (!horarioParsed) return []
+    const ordenLunesPrimero = [1, 2, 3, 4, 5, 6, 0]
+    const diasAbiertos = ordenLunesPrimero
+      .map(idx => {
+        const horarioDia = horarioParsed[DIAS_SEMANA[idx]]
+        const inicio = horarioDia?.inicio || horarioDia?.start
+        const fin = horarioDia?.fin || horarioDia?.end
+        const abierto = horarioDia?.abierto ?? horarioDia?.open ?? horarioDia?.activo ?? !!(inicio && fin)
+        return abierto && inicio && fin ? { idx, pos: ordenLunesPrimero.indexOf(idx), inicio, fin } : null
+      })
+      .filter((d): d is { idx: number; pos: number; inicio: string; fin: string } => d !== null)
+
+    const grupos: { idxs: number[]; posFinal: number; inicio: string; fin: string }[] = []
+    diasAbiertos.forEach(d => {
+      const ultimo = grupos[grupos.length - 1]
+      const esConsecutivo = ultimo && ultimo.inicio === d.inicio && ultimo.fin === d.fin && d.pos === ultimo.posFinal + 1
+      if (esConsecutivo) {
+        ultimo.idxs.push(d.idx)
+        ultimo.posFinal = d.pos
+      } else {
+        grupos.push({ idxs: [d.idx], posFinal: d.pos, inicio: d.inicio, fin: d.fin })
+      }
+    })
+
+    return grupos.map(g => ({
+      label: g.idxs.length === 1
+        ? DIAS_LABELS_FULL[g.idxs[0]]
+        : `${DIAS_LABELS_FULL[g.idxs[0]]} a ${DIAS_LABELS_FULL[g.idxs[g.idxs.length - 1]]}`,
+      rango: `${g.inicio} - ${g.fin}`,
+    }))
   })()
 
   // Schema.org para Google (estrellas en resultados de búsqueda)
@@ -1531,18 +1634,31 @@ export default function DoctorProfileClient({
             )}
 
             {/* Padecimientos que atiende */}
-            {conditions.length > 0 && (
-              <section className="fade-up" style={{ marginBottom: 32 }}>
-                <h2 style={{ fontFamily: 'var(--font-fraunces), serif', fontSize: 20, fontWeight: 900, color: '#1E3A5F', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Heart size={20} /> Padecimientos que atiende
-                </h2>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                  {conditions.map(c => (
-                    <span key={c.id} style={{ padding: '6px 14px', background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 20, fontSize: 13, color: '#374151' }}>{c.condition_name}</span>
-                  ))}
-                </div>
-              </section>
-            )}
+            {conditions.length > 0 && (() => {
+              const condicionesOrdenadas = [...conditions].sort((a, b) => a.condition_name.localeCompare(b.condition_name, 'es'))
+              const condicionesVisibles = mostrarTodosPadecimientos ? condicionesOrdenadas : condicionesOrdenadas.slice(0, 6)
+              return (
+                <section className="fade-up" style={{ marginBottom: 32 }}>
+                  <h2 style={{ fontFamily: 'var(--font-fraunces), serif', fontSize: 20, fontWeight: 900, color: '#1E3A5F', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Heart size={20} /> Padecimientos que atiende
+                  </h2>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8 }}>
+                    {condicionesVisibles.map(c => (
+                      <span key={c.id} style={{ padding: '6px 14px', background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 20, fontSize: 13, color: '#374151' }}>{c.condition_name}</span>
+                    ))}
+                  </div>
+                  {condicionesOrdenadas.length > 6 && (
+                    <button
+                      type="button"
+                      onClick={() => setMostrarTodosPadecimientos(v => !v)}
+                      style={{ display: 'block', marginTop: 12, background: 'none', border: 'none', color: '#1E3A5F', fontSize: 13, fontWeight: 700, cursor: 'pointer', padding: 0 }}
+                    >
+                      {mostrarTodosPadecimientos ? 'Ver menos' : `Ver todos (${condicionesOrdenadas.length})`}
+                    </button>
+                  )}
+                </section>
+              )
+            })()}
 
             {/* Idiomas */}
             {langs.length > 0 && (
@@ -1695,26 +1811,18 @@ export default function DoctorProfileClient({
             )}
 
             {/* Horario */}
-            {horarioParsed && Object.keys(horarioParsed).length > 0 && (
+            {resumenHorario.length > 0 && (
               <div className="fade-up" style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #E5E7EB' }}>
                 <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1E3A5F', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Clock size={16} /> Horario
                 </h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {DIAS_SEMANA.map((dia, idx) => {
-                    const horarioDia = horarioParsed?.[dia]
-                    const inicio = horarioDia?.inicio || horarioDia?.start
-                    const fin = horarioDia?.fin || horarioDia?.end
-                    const abierto = horarioDia?.abierto ?? horarioDia?.open ?? horarioDia?.activo ?? !!(inicio && fin)
-                    return (
-                      <div key={dia} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8, borderBottom: idx < 6 ? '1px solid #F3F4F6' : 'none' }}>
-                        <span style={{ fontSize: 13, color: '#6B7280', fontWeight: 500, width: 40 }}>{DIAS_LABELS[idx]}</span>
-                        <span style={{ fontSize: 13, color: abierto ? '#111827' : '#9CA3AF', fontWeight: abierto ? 600 : 400 }}>
-                          {abierto && inicio && fin ? `${inicio} - ${fin}` : 'Cerrado'}
-                        </span>
-                      </div>
-                    )
-                  })}
+                  {resumenHorario.map((g, idx) => (
+                    <div key={g.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8, borderBottom: idx < resumenHorario.length - 1 ? '1px solid #F3F4F6' : 'none' }}>
+                      <span style={{ fontSize: 13, color: '#6B7280', fontWeight: 500 }}>{g.label}</span>
+                      <span style={{ fontSize: 13, color: '#111827', fontWeight: 600 }}>{g.rango}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -1762,51 +1870,67 @@ export default function DoctorProfileClient({
           </div>
         </div>
       {reviews.length > 0 && (
-  <section className="fade-up" style={{ maxWidth: 1200, margin: '40px auto 0', padding: '0 20px' }}>
+  <section className="fade-up" style={{ maxWidth: 1200, margin: '40px auto 0' }}>
     <h2 style={{ fontFamily: 'var(--font-fraunces), serif', fontSize: 24, fontWeight: 900, color: '#1E3A5F', marginBottom: 16 }}>
       Reseñas de pacientes ({reviews.length})
     </h2>
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {(mostrarTodasResenas ? reviews : reviews.slice(0, 5)).map((r: any) => (
-        // scroll-margin-top libra el Navbar fijo (72px) al hacer scroll por
-        // JS hasta acá, ej. desde el link del correo de aviso de respuesta
-        // (?review=, ver el useEffect de reviewDestacadaId más arriba).
-        <div key={r.id} id={`review-${r.id}`} style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #E5E7EB', scrollMarginTop: 90 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>Paciente</span>
-            <div style={{ display: 'flex', gap: 2 }}>
-              {[1, 2, 3, 4, 5].map(i => (
-                <Star key={i} size={16} color="#F59E0B" fill={i <= r.rating ? '#F59E0B' : 'none'} />
-              ))}
+
+    {/* Móvil: carrusel nativo (scroll-snap) con flechas siempre visibles y
+        puntos de posición. Desktop: grid de 3 columnas con todas las
+        reseñas a la vista, sin controles de navegación. */}
+    <div className="mobile-only">
+      <div style={{ position: 'relative', width: '100%' }}>
+        <div
+          ref={reviewTrackRef}
+          onScroll={handleReviewScroll}
+          className="no-scrollbar"
+          style={{ display: 'flex', width: '100%', overflowX: 'auto', scrollSnapType: 'x mandatory' }}
+        >
+          {reviews.map((r: any) => (
+            <div key={r.id} style={{ flex: '0 0 100%', minWidth: 0, width: '100%', scrollSnapAlign: 'start' }}>
+              <ReviewCard r={r} doctorName={nombreCortoMedico} />
             </div>
-          </div>
-          {r.comment && <p style={{ fontSize: 14, color: '#4A5568', lineHeight: 1.6 }}>{r.comment}</p>}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, gap: 8 }}>
-            <p style={{ fontSize: 11, color: '#9CA3AF' }}>
-              {new Date(r.created_at).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}
-            </p>
-            <ReportarBoton tipo="review" id={r.id} />
-          </div>
-          {r.respuesta && (
-            <div style={{ marginTop: 12, padding: 14, background: '#F0F4F8', borderRadius: 12, borderLeft: '3px solid #1E3A5F' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, gap: 8 }}>
-                <p style={{ fontSize: 12, fontWeight: 700, color: '#1E3A5F' }}>Respuesta del médico</p>
-                {r.respuestaId && <ReportarBoton tipo="review_response" id={r.respuestaId} />}
-              </div>
-              <p style={{ fontSize: 14, color: '#374151', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{r.respuesta}</p>
-            </div>
-          )}
+          ))}
         </div>
+        <button
+          type="button"
+          onClick={() => scrollToReview(reviewIndex - 1)}
+          disabled={reviewIndex === 0}
+          aria-label="Reseña anterior"
+          style={{ position: 'absolute', top: '50%', left: 8, transform: 'translateY(-50%)', zIndex: 1, width: 36, height: 36, borderRadius: '50%', border: '1px solid #E5E7EB', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: reviewIndex === 0 ? 'not-allowed' : 'pointer', opacity: reviewIndex === 0 ? 0.35 : 1 }}
+        >
+          <ChevronLeft size={18} color="#374151" />
+        </button>
+        <button
+          type="button"
+          onClick={() => scrollToReview(reviewIndex + 1)}
+          disabled={reviewIndex === reviews.length - 1}
+          aria-label="Siguiente reseña"
+          style={{ position: 'absolute', top: '50%', right: 8, transform: 'translateY(-50%)', zIndex: 1, width: 36, height: 36, borderRadius: '50%', border: '1px solid #E5E7EB', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: reviewIndex === reviews.length - 1 ? 'not-allowed' : 'pointer', opacity: reviewIndex === reviews.length - 1 ? 0.35 : 1 }}
+        >
+          <ChevronRight size={18} color="#374151" />
+        </button>
+      </div>
+      {reviews.length > 1 && (
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginTop: 12 }}>
+          {reviews.map((r: any, i: number) => (
+            <button
+              key={r.id}
+              type="button"
+              onClick={() => scrollToReview(i)}
+              aria-label={`Ir a la reseña ${i + 1}`}
+              style={{ width: i === reviewIndex ? 20 : 7, height: 7, borderRadius: 4, border: 'none', padding: 0, cursor: 'pointer', background: i === reviewIndex ? '#1E3A5F' : '#D1D5DB', transition: 'all 0.25s' }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+
+    <div className="desktop-only" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+      {reviews.map((r: any) => (
+        <ReviewCard key={r.id} r={r} doctorName={nombreCortoMedico} />
       ))}
     </div>
-    {!mostrarTodasResenas && reviews.length > 5 && (
-      <button
-        onClick={() => setMostrarTodasResenas(true)}
-        style={{ display: 'block', margin: '20px auto 0', background: '#fff', color: '#1E3A5F', border: '1px solid #E5E7EB', borderRadius: 50, padding: '10px 24px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
-      >
-        Ver más ({reviews.length - 5})
-      </button>
-    )}
   </section>
 )}
       </main>
