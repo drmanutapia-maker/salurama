@@ -495,7 +495,18 @@ function AppointmentModal({
     const hoy = new Date()
     const hoyStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' })
     if (dateStr === hoyStr) {
-      const ahoraMinutos = hoy.getHours() * 60 + hoy.getMinutes()
+      // getHours()/getMinutes() siempre leen la hora local del dispositivo,
+      // sin importar qué timeZone se le pida a otro método -- por eso hoyStr
+      // de arriba sí puede pedir America/Mexico_City pero estos getters no.
+      // Intl.DateTimeFormat sí respeta timeZone, así que se usa para extraer
+      // la hora/minuto reales en México, sin depender del reloj del
+      // dispositivo del paciente.
+      const partesHoraMx = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/Mexico_City', hour: '2-digit', minute: '2-digit', hour12: false,
+      }).formatToParts(hoy)
+      const horaMx = Number(partesHoraMx.find(p => p.type === 'hour')?.value ?? 0) % 24
+      const minutoMx = Number(partesHoraMx.find(p => p.type === 'minute')?.value ?? 0)
+      const ahoraMinutos = horaMx * 60 + minutoMx
       const bufferMinutos = 30
       const corteMinutos = ahoraMinutos + bufferMinutos
       return slots.filter(timeStr => {
