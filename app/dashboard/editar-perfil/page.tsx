@@ -137,6 +137,7 @@ interface Medico {
   insurance_names: string[]
   payment_methods: string[] | null
   factura_disponible: boolean | null
+  clinic_addresses: ConsultorioAdicional[] | null
   whatsapp_available: boolean
   whatsapp_phone: string | null
   clinic_phone: string | null
@@ -185,6 +186,29 @@ interface Condition {
   id: string
   condition_name: string
   category: string
+}
+
+// Un consultorio adicional dentro de doctors.clinic_addresses (jsonb array).
+// El consultorio principal sigue viviendo en las columnas planas de
+// `doctors` (clinic_name, street, etc.) -- nunca se migra aquí. Si ningún
+// elemento de este array trae is_primary: true, el principal implícito es
+// el de columnas planas.
+interface ConsultorioAdicional {
+  id: string
+  clinic_name: string
+  clinic_type: string
+  street: string
+  ext_number: string
+  int_number: string
+  floor: string
+  cp: string
+  colonia: string
+  ciudad: string
+  estado: string
+  clinic_lat: number | null
+  clinic_lng: number | null
+  clinic_phone: string
+  is_primary: boolean
 }
 
 const inputStyle: React.CSSProperties = {
@@ -257,6 +281,19 @@ export default function EditarPerfilPage() {
   const [conditions, setConditions] = useState<Condition[]>([])
   const [activeModal, setActiveModal] = useState<string | null>(null)
   const [activeStep, setActiveStep] = useState(1)
+  // Borrador de clinic_addresses mientras el modal de ubicación está
+  // abierto -- marcar la estrella de "principal" en ConsultoriosAdicionalesSection
+  // solo toca este estado (ver más abajo), nunca llama a onSave directo. El
+  // guardado real ocurre cuando el médico presiona "Guardar ubicación" en
+  // LocationForm, que ahora también envía este borrador. Se reinicia cada
+  // vez que se abre el modal para no arrastrar cambios sin guardar de una
+  // apertura anterior.
+  const [consultoriosAdicionalesBorrador, setConsultoriosAdicionalesBorrador] = useState<any[]>([])
+  useEffect(() => {
+    if (activeModal === 'location') {
+      setConsultoriosAdicionalesBorrador(Array.isArray(medico?.clinic_addresses) ? medico.clinic_addresses : [])
+    }
+  }, [activeModal, medico])
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [editingLicense, setEditingLicense] = useState(false)
@@ -726,6 +763,42 @@ export default function EditarPerfilPage() {
   const displayName = medico.display_name || medico.full_name
   const titlePrefix = medico.professional_title? `${medico.professional_title} ` : ''
 
+  // La tarjeta de "Ubicación del consultorio" debe mostrar el consultorio
+  // marcado como principal -- que puede ser el de columnas planas (default,
+  // cuando ningún elemento de clinic_addresses trae is_primary) o uno de
+  // los adicionales. clinic_addresses no guarda una dirección ya armada
+  // (ver ConsultorioAdicional), así que se arma aquí igual que hace
+  // LocationForm al guardar.
+  const consultorioPrincipalAdicional = Array.isArray(medico.clinic_addresses)
+    ? medico.clinic_addresses.find((c: any) => c?.is_primary)
+    : null
+
+  const ubicacionPrincipal = consultorioPrincipalAdicional
+    ? {
+        nombre: consultorioPrincipalAdicional.clinic_name,
+        direccion: [
+          [
+            consultorioPrincipalAdicional.street,
+            consultorioPrincipalAdicional.ext_number ? `#${consultorioPrincipalAdicional.ext_number}` : '',
+            consultorioPrincipalAdicional.int_number ? `${consultorioPrincipalAdicional.clinic_type === 'hospital' ? 'Consultorio' : 'Int.'} ${consultorioPrincipalAdicional.int_number}` : '',
+          ].filter(Boolean).join(' '),
+          consultorioPrincipalAdicional.colonia,
+          consultorioPrincipalAdicional.cp ? `CP ${consultorioPrincipalAdicional.cp}` : '',
+          consultorioPrincipalAdicional.ciudad,
+          consultorioPrincipalAdicional.estado,
+        ].filter(Boolean).join(', '),
+        lat: consultorioPrincipalAdicional.clinic_lat,
+        lng: consultorioPrincipalAdicional.clinic_lng,
+        esColumnasPlanas: false,
+      }
+    : {
+        nombre: medico.clinic_name,
+        direccion: medico.clinic_address,
+        lat: medico.clinic_lat,
+        lng: medico.clinic_lng,
+        esColumnasPlanas: true,
+      }
+
   return (
     <div style={{ minHeight: '100vh', background: '#F9FAFB', fontFamily: "'DM Sans', sans-serif", color: '#111827' }}>
       <style>{`
@@ -982,7 +1055,7 @@ export default function EditarPerfilPage() {
             </Card>
 
             <Card title="Ubicación del consultorio" onEdit={() => setActiveModal('location')}>
-  {medico.clinic_lat && medico.clinic_lng? (
+  {ubicacionPrincipal.lat && ubicacionPrincipal.lng? (
     <div>
       <div style={{ display: 'flex', gap: 12 }}>
         <div style={{ width: 36, height: 36, background: '#E8F7F5', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -990,10 +1063,10 @@ export default function EditarPerfilPage() {
         </div>
         <div style={{ flex: 1 }}>
           <p style={{ fontSize: 14, fontWeight: 700, color: '#111827', marginBottom: 4 }}>
-            {medico.clinic_name || 'Consultorio'}
+            {ubicacionPrincipal.nombre || 'Consultorio'}
           </p>
           <p style={{ fontSize: 13, color: '#374151', lineHeight: 1.5 }}>
-            {medico.clinic_address}
+            {ubicacionPrincipal.direccion}
           </p>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
             <CheckCircle size={14} color="#2A9D8F" />
@@ -1002,7 +1075,7 @@ export default function EditarPerfilPage() {
         </div>
       </div>
     </div>
-  ) : (
+  ) : ubicacionPrincipal.esColumnasPlanas ? (
     <div style={{ padding: '16px', background: '#FEF3C7', borderRadius: 10, border: '1px solid #FCD34D' }}>
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
         <div style={{ width: 32, height: 32, background: '#F59E0B', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -1015,6 +1088,21 @@ export default function EditarPerfilPage() {
             <br />Falta: calle, número y colonia específica
           </p>
           <p style={{ fontSize: 12, color: '#92400E' }}>Sin esto, no apareces en búsquedas "cerca de mí"</p>
+        </div>
+      </div>
+    </div>
+  ) : (
+    <div style={{ padding: '16px', background: '#FEF3C7', borderRadius: 10, border: '1px solid #FCD34D' }}>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+        <div style={{ width: 32, height: 32, background: '#F59E0B', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <MapPin size={16} color="#fff" />
+        </div>
+        <div style={{ flex: 1 }}>
+          <p style={{ fontSize: 14, fontWeight: 700, color: '#92400E', marginBottom: 4 }}>Completa la ubicación exacta</p>
+          <p style={{ fontSize: 13, color: '#78350F', lineHeight: 1.4, marginBottom: 8 }}>
+            Falta la ubicación exacta de "{ubicacionPrincipal.nombre || 'este consultorio'}"
+          </p>
+          <p style={{ fontSize: 12, color: '#92400E' }}>Sin esto, no aparece en el mapa de tu perfil público</p>
         </div>
       </div>
     </div>
@@ -1045,7 +1133,12 @@ export default function EditarPerfilPage() {
           {activeModal === 'education' && <EducationForm education={education} onAdd={handleAddEducation} onDelete={handleDeleteEducation} saving={saving} />}
           {activeModal === 'languages' && <LanguagesForm languages={medico.languages?? []} onSave={handleSaveBasicInfo} saving={saving} />}
           {activeModal === 'booking' && <BookingForm medico={medico} onSave={handleSaveBasicInfo} saving={saving} />}
-          {activeModal === 'location' && <LocationForm medico={medico} onSave={handleSaveBasicInfo} saving={saving} />}
+          {activeModal === 'location' && (
+            <>
+              <LocationForm medico={medico} onSave={handleSaveBasicInfo} saving={saving} consultoriosAdicionalesBorrador={consultoriosAdicionalesBorrador} />
+              <ConsultoriosAdicionalesSection medico={medico} onSave={handleSaveBasicInfo} saving={saving} consultorios={consultoriosAdicionalesBorrador} setConsultorios={setConsultoriosAdicionalesBorrador} />
+            </>
+          )}
         </Modal>
       )}
     </div>
@@ -1314,7 +1407,7 @@ function BasicInfoForm({ medico, onSave, saving }: any) {
   )
 }
 
-function LocationForm({ medico, onSave, saving }: any) {
+function LocationForm({ medico, onSave, saving, consultoriosAdicionalesBorrador }: any) {
   const { loading: loadingCP, error: cpError, cpData, search } = useCP()
 
   const [form, setForm] = useState({
@@ -1399,6 +1492,12 @@ function LocationForm({ medico, onSave, saving }: any) {
         estado: null,
         ciudad: null,
         colonia: null,
+        // "Guardar ubicación" es el único botón que de verdad persiste
+        // clinic_addresses -- marcar la estrella de principal en
+        // ConsultoriosAdicionalesSection solo actualiza este borrador en
+        // memoria (ver consultoriosAdicionalesBorrador en EditarPerfilPage),
+        // así que se incluye aquí para que ese cambio no se pierda.
+        clinic_addresses: consultoriosAdicionalesBorrador,
       })
       return
     }
@@ -1426,6 +1525,8 @@ function LocationForm({ medico, onSave, saving }: any) {
       estado: form.estado,
       ciudad: form.ciudad,
       colonia: form.colonia,
+      // Ver comentario en la rama isClearing de arriba.
+      clinic_addresses: consultoriosAdicionalesBorrador,
     })
   }
 
@@ -1553,6 +1654,325 @@ function LocationForm({ medico, onSave, saving }: any) {
         {editandoCP && <button type="button" onClick={() => setEditandoCP(false)} style={{ padding: '10px 14px', background: '#F3F4F6', color: '#374151', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Cancelar</button>}
       </div>
     </form>
+  )
+}
+
+// Mismo patrón de campos que LocationForm de arriba (toggle consultorio/
+// hospital, geocodificación automática en el onBlur de calle/número, pin
+// arrastrable) pero operando sobre un ConsultorioAdicional suelto en vez de
+// las columnas planas de `medico` -- por eso no reutiliza LocationForm
+// directamente, sino que replica su mismo formulario con un onSave propio.
+function ConsultorioAdicionalForm({ consultorio, onSave, onCancel, saving }: { consultorio: ConsultorioAdicional; onSave: (c: ConsultorioAdicional) => void; onCancel: () => void; saving: boolean }) {
+  const { loading: loadingCP, error: cpError, cpData, search } = useCP()
+
+  const [form, setForm] = useState({
+    clinic_type: consultorio.clinic_type || 'consultorio',
+    clinic_name: consultorio.clinic_name || '',
+    street: consultorio.street || '',
+    ext_number: consultorio.ext_number || '',
+    int_number: consultorio.int_number || '',
+    floor: consultorio.floor || '',
+    cp: consultorio.cp || '',
+    estado: consultorio.estado || '',
+    ciudad: consultorio.ciudad || '',
+    colonia: consultorio.colonia || '',
+    clinic_phone: consultorio.clinic_phone || '',
+  })
+  const [editandoCP, setEditandoCP] = useState(!form.cp)
+  const [pinCoords, setPinCoords] = useState<{ lat: number; lng: number } | null>(
+    consultorio.clinic_lat != null && consultorio.clinic_lng != null
+      ? { lat: consultorio.clinic_lat, lng: consultorio.clinic_lng }
+      : null
+  )
+  const [geocoding, setGeocoding] = useState(false)
+
+  useEffect(() => {
+    if (cpData) {
+      setForm(f => ({
+        ...f,
+        estado: cpData.estado,
+        ciudad: cpData.municipio,
+        colonia: cpData.colonias.length === 1 ? cpData.colonias[0].nombre : '',
+      }))
+      if (cpData.lat && cpData.lng) setPinCoords({ lat: cpData.lat, lng: cpData.lng })
+    }
+  }, [cpData])
+
+  const geocodeAddress = async () => {
+    const { street, ext_number, colonia, cp, ciudad } = form
+    if (!street || !colonia || !cp) return
+    setGeocoding(true)
+    try {
+      const q = `${street} ${ext_number}, ${colonia}, ${cp}, ${ciudad || 'México'}, México`
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1&countrycodes=mx`,
+        { headers: { 'User-Agent': 'Salurama/1.0 (salurama.com)' } }
+      )
+      const data = await res.json()
+      if (data[0]) setPinCoords({ lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) })
+    } catch { /* silently ignore — user can drag pin */ }
+    finally { setGeocoding(false) }
+  }
+
+  const useMyLocation = () => {
+    if (!navigator.geolocation) return
+    navigator.geolocation.getCurrentPosition(
+      pos => setPinCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => {}
+    )
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const isHospital = form.clinic_type === 'hospital'
+    onSave({
+      ...consultorio,
+      clinic_type: form.clinic_type,
+      clinic_name: form.clinic_name,
+      street: form.street,
+      ext_number: form.ext_number,
+      int_number: form.int_number,
+      floor: isHospital ? form.floor : '',
+      cp: form.cp,
+      estado: form.estado,
+      ciudad: form.ciudad,
+      colonia: form.colonia,
+      clinic_phone: form.clinic_phone,
+      clinic_lat: pinCoords?.lat ?? consultorio.clinic_lat ?? null,
+      clinic_lng: pinCoords?.lng ?? consultorio.clinic_lng ?? null,
+    })
+  }
+
+  return (
+    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: 14, background: '#F9FAFB', borderRadius: 10, border: '1px solid #E5E7EB' }}>
+      <div>
+        <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 8, color: '#374151' }}>Tipo de lugar</label>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          {['consultorio', 'hospital'].map(t => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setForm({...form, clinic_type: t })}
+              style={{ padding: '10px', border: `2px solid ${form.clinic_type===t?'#1E3A5F':'#E5E7EB'}`, borderRadius: 8, background: form.clinic_type===t?'#EEF2FF':'#fff', fontSize: 13, fontWeight: 600, color: form.clinic_type===t?'#1E3A5F':'#6B7280', cursor: 'pointer' }}
+            >
+              {t==='consultorio'?'Consultorio independiente':'Hospital/Clínica'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5, color: '#374151' }}>
+          Nombre del {form.clinic_type==='hospital'?'hospital/clínica':'consultorio'}
+        </label>
+        <input
+          type="text"
+          value={form.clinic_name}
+          onChange={e => setForm({...form, clinic_name: e.target.value})}
+          style={{ width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: 8, fontSize: 14 }}
+          placeholder={form.clinic_type==='hospital'?'Hospital Ángeles':'Consultorio Dr. Pérez'}
+          required
+        />
+      </div>
+
+      <div style={{ background: '#fff', padding: 12, borderRadius: 8, border: '1px solid #E5E7EB' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+          <p style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase' }}>Ubicación</p>
+          {!editandoCP && <button type="button" onClick={() => setEditandoCP(true)} style={{ fontSize: 11, color: '#1E3A5F', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>{form.cp?'Cambiar CP':'Agregar CP'}</button>}
+        </div>
+        {editandoCP ? (
+          <div>
+            <input type="text" value={form.cp} onChange={e => { const cp=e.target.value.replace(/\D/g,'').slice(0,5); setForm({...form, cp}); if(cp.length===5) search(cp) }} maxLength={5} placeholder="Código postal" style={{ width: '100px', padding: '6px 8px', border: '1px solid #D1D5DB', borderRadius: 6, fontSize: 13, marginBottom: 6 }} autoFocus />
+            {loadingCP && <span style={{ fontSize: 11, marginLeft: 8 }}>Buscando...</span>}
+            {!loadingCP && cpError && <span style={{ fontSize: 11, marginLeft: 8, color: '#DC2626' }}>{cpError}</span>}
+            {cpData && form.estado && <p style={{ fontSize: 12, color: '#374151', marginTop: 4 }}>{form.ciudad}, {form.estado}</p>}
+          </div>
+        ) : (
+          <div>
+            <p style={{ fontSize: 13, color: '#111827' }}><strong>CP:</strong> {form.cp || 'No definido'}</p>
+            <p style={{ fontSize: 13, color: '#374151' }}>{form.colonia}{form.colonia&&', '}{form.ciudad}{form.ciudad&&', '}{form.estado}</p>
+          </div>
+        )}
+      </div>
+
+      {editandoCP && cpData && cpData.colonias.length > 0 && (
+        <div>
+          <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5, color: '#374151' }}>Colonia</label>
+          <select value={form.colonia} onChange={e => setForm({...form, colonia: e.target.value})} style={{ width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: 8, fontSize: 14, background: '#fff' }} >
+            <option value="">Selecciona colonia</option>
+            {cpData.colonias.map((c: any) => <option key={c.nombre} value={c.nombre}>{c.nombre}</option>)}
+          </select>
+        </div>
+      )}
+
+      <div style={{ display: 'grid', gridTemplateColumns: form.clinic_type==='hospital'?'2fr 1fr 1fr 1fr':'2fr 1fr 1fr', gap: 10 }}>
+        <div>
+          <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5, color: '#374151' }}>Calle</label>
+          <input type="text" value={form.street} onChange={e => setForm({...form, street: e.target.value})} onBlur={geocodeAddress} style={{ width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: 8, fontSize: 14 }} placeholder="Av. Reforma" />
+        </div>
+        <div>
+          <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5, color: '#374151' }}>No. Ext</label>
+          <input type="text" value={form.ext_number} onChange={e => setForm({...form, ext_number: e.target.value})} onBlur={geocodeAddress} style={{ width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: 8, fontSize: 14 }} placeholder="222" />
+        </div>
+        {form.clinic_type==='hospital' && (
+          <div>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5, color: '#374151' }}>Piso</label>
+            <input type="text" value={form.floor} onChange={e => setForm({...form, floor: e.target.value})} style={{ width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: 8, fontSize: 14 }} placeholder="3" />
+          </div>
+        )}
+        <div>
+          <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5, color: '#374151' }}>{form.clinic_type==='hospital'?'Consultorio':'No. Int'}</label>
+          <input type="text" value={form.int_number} onChange={e => setForm({...form, int_number: e.target.value})} style={{ width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: 8, fontSize: 14 }} placeholder="305" />
+        </div>
+      </div>
+
+      <div>
+        <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5, color: '#374151' }}>Teléfono de este consultorio</label>
+        <input type="tel" value={form.clinic_phone} onChange={e => setForm({...form, clinic_phone: e.target.value})} style={{ width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: 8, fontSize: 14 }} placeholder="55 1234 5678" />
+      </div>
+
+      <button
+        type="button"
+        onClick={useMyLocation}
+        style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: '#1E3A5F', background: '#EEF2FF', border: '1px solid #C7D2FE', borderRadius: 8, padding: '8px 12px', cursor: 'pointer' }}
+      >
+        📍 Usar mi ubicación
+      </button>
+
+      {pinCoords && (
+        <div style={{ marginTop: 4 }}>
+          <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: '#374151' }}>
+            {geocoding ? '🔍 Buscando dirección…' : 'Arrastra el pin a la ubicación exacta de este consultorio'}
+          </p>
+          <LocationPicker
+            initialLat={pinCoords.lat}
+            initialLng={pinCoords.lng}
+            onLocationChange={(lat, lng) => setPinCoords({ lat, lng })}
+          />
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+        <button type="submit" disabled={saving} style={{...btnPrimary, flex: 1, opacity: saving?0.6:1}}><Save size={15}/> {saving?'Guardando...':'Guardar consultorio'}</button>
+        <button type="button" onClick={onCancel} disabled={saving} style={{ padding: '10px 14px', background: '#F3F4F6', color: '#374151', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Cancelar</button>
+      </div>
+    </form>
+  )
+}
+
+// Hasta 2 consultorios adicionales (3 en total contando el principal de
+// columnas planas). Un solo botón de estrella por fila decide cuál es el
+// principal -- is_primary: true en un elemento del array, o ninguno (el
+// principal implícito vuelve a ser el de columnas planas).
+function ConsultoriosAdicionalesSection({ medico, onSave, saving, consultorios, setConsultorios }: any) {
+  const [editandoId, setEditandoId] = useState<string | null>(null)
+  const [agregando, setAgregando] = useState(false)
+
+  const MAX_ADICIONALES = 2
+
+  // Agregar/editar/eliminar un consultorio sí persiste de inmediato -- cada
+  // uno tiene su propio botón explícito de "Guardar consultorio" (dentro de
+  // ConsultorioAdicionalForm) o de confirmación (eliminar), igual que
+  // siempre. Esto es distinto de marcar la estrella de "principal" (ver
+  // abajo), que NO tiene su propio botón de guardar -- por eso esa acción
+  // solo actualiza el borrador en memoria, sin persistir.
+  const persistir = async (nuevaLista: ConsultorioAdicional[]) => {
+    await onSave({ clinic_addresses: nuevaLista })
+    setConsultorios(nuevaLista)
+  }
+
+  const handleGuardarNuevo = async (c: ConsultorioAdicional) => {
+    await persistir([...consultorios, c])
+    setAgregando(false)
+  }
+
+  const handleActualizar = async (c: ConsultorioAdicional) => {
+    await persistir(consultorios.map((item: ConsultorioAdicional) => item.id === c.id ? c : item))
+    setEditandoId(null)
+  }
+
+  const handleEliminar = async (id: string) => {
+    if (!confirm('¿Eliminar este consultorio?')) return
+    await persistir(consultorios.filter((item: ConsultorioAdicional) => item.id !== id))
+  }
+
+  // Marcar un adicional como principal le quita is_primary a todos los
+  // demás adicionales; marcar "de vuelta" el de columnas planas simplemente
+  // limpia is_primary de todo el array (nadie más es principal). Ninguna de
+  // las dos llama a onSave ni cierra el modal -- solo actualizan el
+  // borrador en memoria; el guardado real ocurre al presionar "Guardar
+  // ubicación" en LocationForm (ver consultoriosAdicionalesBorrador).
+  const marcarPrincipalAdicional = (id: string) => {
+    setConsultorios(consultorios.map((item: ConsultorioAdicional) => ({ ...item, is_primary: item.id === id })))
+  }
+  const marcarPrincipalColumnasPlanas = () => {
+    setConsultorios(consultorios.map((item: ConsultorioAdicional) => ({ ...item, is_primary: false })))
+  }
+
+  const hayPrincipalAdicional = consultorios.some((c: ConsultorioAdicional) => c.is_primary)
+
+  // Fila "virtual" para el consultorio de columnas planas -- se intercala
+  // con los adicionales en `filasOrdenadas` para que el marcado is_primary
+  // (sea cual sea) quede siempre primero, igual que el patrón de
+  // "especialidad principal" del resto de este archivo.
+  const COLUMNAS_PLANAS_ID = '__principal__'
+  const filaColumnasPlanas = { id: COLUMNAS_PLANAS_ID } as const
+  const filasOrdenadas: Array<ConsultorioAdicional | typeof filaColumnasPlanas> = hayPrincipalAdicional
+    ? [...consultorios.filter((c: ConsultorioAdicional) => c.is_primary), filaColumnasPlanas, ...consultorios.filter((c: ConsultorioAdicional) => !c.is_primary)]
+    : [filaColumnasPlanas, ...consultorios]
+
+  return (
+    <div style={{ borderTop: '1px solid #E5E7EB', marginTop: 20, paddingTop: 20 }}>
+      <p style={{ fontSize: 15, fontWeight: 700, color: '#111827', marginBottom: 4 }}>Consultorios adicionales</p>
+      <p style={{ fontSize: 12, color: '#6B7280', marginBottom: 12 }}>Hasta {MAX_ADICIONALES} consultorios más, además del principal de arriba.</p>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 12 }}>
+        {filasOrdenadas.map(item => item.id === COLUMNAS_PLANAS_ID ? (
+          <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: '#F9FAFB', borderRadius: 8, border: '1px solid #E5E7EB' }}>
+            <button type="button" onClick={marcarPrincipalColumnasPlanas} disabled={!hayPrincipalAdicional} title="Marcar como principal"
+              style={{ background: 'none', border: 'none', color: '#D97706', cursor: hayPrincipalAdicional ? 'pointer' : 'default', padding: 2, display: 'inline-flex' }}>
+              <Star size={16} fill={hayPrincipalAdicional ? 'none' : '#D97706'} />
+            </button>
+            <div style={{ flex: 1 }}>
+              <p style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{medico.clinic_name || 'Consultorio principal'}</p>
+              <p style={{ fontSize: 11, color: '#9CA3AF' }}>Tu consultorio principal actual</p>
+            </div>
+          </div>
+        ) : (
+          <div key={item.id}>
+            {editandoId === item.id ? (
+              <ConsultorioAdicionalForm consultorio={item as ConsultorioAdicional} onSave={handleActualizar} onCancel={() => setEditandoId(null)} saving={saving} />
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: '#F9FAFB', borderRadius: 8, border: '1px solid #E5E7EB' }}>
+                <button type="button" onClick={() => marcarPrincipalAdicional(item.id)} title="Marcar como principal"
+                  style={{ background: 'none', border: 'none', color: '#D97706', cursor: 'pointer', padding: 2, display: 'inline-flex' }}>
+                  <Star size={16} fill={(item as ConsultorioAdicional).is_primary ? '#D97706' : 'none'} />
+                </button>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{(item as ConsultorioAdicional).clinic_name || 'Sin nombre'}</p>
+                  <p style={{ fontSize: 11, color: '#9CA3AF' }}>{[(item as ConsultorioAdicional).street, (item as ConsultorioAdicional).colonia, (item as ConsultorioAdicional).ciudad].filter(Boolean).join(', ') || 'Sin dirección'}</p>
+                </div>
+                <button type="button" onClick={() => setEditandoId(item.id)} style={{ background: 'none', border: 'none', color: '#1E3A5F', cursor: 'pointer', padding: 4 }}><Edit2 size={14} /></button>
+                <button type="button" onClick={() => handleEliminar(item.id)} style={{ background: 'none', border: 'none', color: '#DC2626', cursor: 'pointer', padding: 4 }}><Trash2 size={14} /></button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {agregando ? (
+        <ConsultorioAdicionalForm
+          consultorio={{ id: crypto.randomUUID(), clinic_name: '', clinic_type: 'consultorio', street: '', ext_number: '', int_number: '', floor: '', cp: '', colonia: '', ciudad: '', estado: '', clinic_lat: null, clinic_lng: null, clinic_phone: '', is_primary: false }}
+          onSave={handleGuardarNuevo}
+          onCancel={() => setAgregando(false)}
+          saving={saving}
+        />
+      ) : consultorios.length < MAX_ADICIONALES ? (
+        <button type="button" onClick={() => setAgregando(true)} style={btnGhost}><Plus size={15} /> Agregar consultorio</button>
+      ) : (
+        <p style={{ fontSize: 12, color: '#9CA3AF' }}>Ya tienes el máximo de {MAX_ADICIONALES} consultorios adicionales.</p>
+      )}
+    </div>
   )
 }
 

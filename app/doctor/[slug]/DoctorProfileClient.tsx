@@ -20,6 +20,27 @@ import { calculateProfileCompletion } from '@/hooks/useProfileCompletion'
 import BaculoEsculapio from '@/components/icons/BaculoEsculapio'
 import { proximoDiaDisponible } from '@/lib/proximaCitaDisponible'
 
+// Un consultorio adicional dentro de doctors.clinic_addresses (jsonb
+// array) -- ver editar-perfil/page.tsx, misma forma. El consultorio
+// principal (columnas planas de Medico) nunca vive aquí.
+export interface ConsultorioAdicionalPublico {
+  id: string
+  clinic_name: string | null
+  clinic_type: string | null
+  street: string | null
+  ext_number: string | null
+  int_number: string | null
+  floor: string | null
+  cp: string | null
+  colonia: string | null
+  ciudad: string | null
+  estado: string | null
+  clinic_lat: number | null
+  clinic_lng: number | null
+  clinic_phone: string | null
+  is_primary: boolean
+}
+
 export interface Medico {
   id: string
   slug: string | null
@@ -55,6 +76,7 @@ export interface Medico {
   accepts_insurance: boolean
   payment_methods: string[] | null
   factura_disponible: boolean | null
+  clinic_addresses: ConsultorioAdicionalPublico[] | null
   clinic_name: string | null
   clinic_lat: number | null
   clinic_lng: number | null
@@ -988,6 +1010,158 @@ function ReportarBoton({ tipo, id }: { tipo: 'review' | 'review_response'; id: s
   )
 }
 
+// Mismo cálculo que direccionCompleta/direccionExtendida/direccionNavegacion
+// más abajo en DoctorProfileClient, generalizado para operar sobre
+// cualquier consultorio (el principal de columnas planas o uno de
+// clinic_addresses) -- se usa solo en el modo de varios consultorios; el
+// modo de un solo consultorio sigue usando los consts originales tal cual,
+// sin pasar por aquí, para no arriesgar ningún cambio quiet en ese caso.
+interface ConsultorioParaDireccion {
+  street: string | null
+  ext_number: string | null
+  int_number: string | null
+  clinic_type: string | null
+  colonia: string | null
+  cp: string | null
+  ciudad: string | null
+  estado: string | null
+}
+
+function construirDireccionConsultorio(c: ConsultorioParaDireccion) {
+  const direccionCompleta = [
+    c.street,
+    c.ext_number ? `#${c.ext_number}` : '',
+    c.int_number ? `${c.clinic_type === 'hospital' ? 'Consultorio' : 'Int.'} ${c.int_number}` : '',
+  ].filter(Boolean).join(' ') || ''
+
+  const direccionExtendida = [
+    direccionCompleta,
+    c.colonia,
+    c.cp ? `CP ${c.cp}` : '',
+    c.ciudad,
+    c.estado ? getStateLabel(c.estado) : c.estado,
+  ].filter(Boolean).join(', ')
+
+  const direccionNavegacion = encodeURIComponent([
+    direccionCompleta, c.colonia, c.cp, c.ciudad, c.estado, 'México',
+  ].filter(Boolean).join(', '))
+
+  return { direccionCompleta, direccionExtendida, direccionNavegacion }
+}
+
+interface ConsultorioParaTabs extends ConsultorioParaDireccion {
+  id: string
+  clinic_name: string | null
+  floor: string | null
+  clinic_lat: number | null
+  clinic_lng: number | null
+}
+
+// Perfil público con más de un consultorio: mismo contenido que la tarjeta
+// de un solo consultorio (mapa OpenStreetMap + modal "Cómo llegar" con
+// Google Maps/Waze/Apple Maps, idéntico al de abajo), pero detrás de tabs
+// "Consultorio 1/2/3". El orden de `consultorios` ya viene resuelto por
+// quien llama (el marcado is_primary, o el de columnas planas si ninguno
+// lo está, va primero) -- este componente solo pinta tabs sobre ese orden.
+function UbicacionConsultorios({ consultorios }: { consultorios: ConsultorioParaTabs[] }) {
+  const [tabActivo, setTabActivo] = useState(0)
+  const activo = consultorios[tabActivo] ?? consultorios[0]
+  const { direccionCompleta, direccionNavegacion } = construirDireccionConsultorio(activo)
+
+  const lat = activo.clinic_lat
+  const lng = activo.clinic_lng
+  const tieneCoordenadas = lat != null && lng != null && !isNaN(Number(lat)) && !isNaN(Number(lng))
+  const latNum = Number(lat)
+  const lngNum = Number(lng)
+
+  const handleNavigate = () => {
+    const sheet = document.createElement('div')
+    sheet.style.cssText = 'position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,0.5);display:flex;align-items:flex-end'
+    sheet.innerHTML = `
+      <div style="background:#fff;width:100%;border-radius:20px 20px 0 0;padding:24px;animation:slideUp 0.3s">
+        <div style="width:40px;height:4px;background:#E5E7EB;border-radius:2px;margin:0 auto 20px"></div>
+        <h3 style="font-size:18px;font-weight:700;margin-bottom:16px">Cómo llegar</h3>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <a href="https://www.google.com/maps/dir/?api=1&destination=${latNum},${lngNum}&destination_place_id=&query=${direccionNavegacion}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:12px;padding:14px;background:#F9FAFB;border-radius:12px;text-decoration:none;color:#111" onclick="setTimeout(()=>this.closest('div[style*=fixed]').remove(),300)">
+            <div style="width:40px;height:40px;background:#4285F4;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700">G</div>
+            <div><div style="font-weight:600">Google Maps</div><div style="font-size:12px;color:#6B7280">Navegación paso a paso</div></div>
+          </a>
+          <a href="https://waze.com/ul?ll=${latNum},${lngNum}&navigate=yes" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:12px;padding:14px;background:#F9FAFB;border-radius:12px;text-decoration:none;color:#111" onclick="setTimeout(()=>this.closest('div[style*=fixed]').remove(),300)">
+            <div style="width:40px;height:40px;background:#33CCFF;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700">W</div>
+            <div><div style="font-weight:600">Waze</div><div style="font-size:12px;color:#6B7280">Tráfico en tiempo real</div></div>
+          </a>
+          <a href="https://maps.apple.com/?daddr=${latNum},${lngNum}&q=${direccionNavegacion}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:12px;padding:14px;background:#F9FAFB;border-radius:12px;textDecoration:none;color:#111" onclick="setTimeout(()=>this.closest('div[style*=fixed]').remove(),300)">
+            <div style="width:40px;height:40px;background:#000;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700"></div>
+            <div><div style="font-weight:600">Apple Maps</div><div style="font-size:12px;color:#6B7280">Para iPhone</div></div>
+          </a>
+        </div>
+        <button onclick="this.closest('div[style*=fixed]').remove()" style="width:100%;margin-top:16px;padding:12px;background:none;border:none;color:#6B7280;font-weight:600">Cancelar</button>
+      </div>
+    `
+    sheet.onclick = (ev) => { if (ev.target === sheet) sheet.remove() }
+    document.body.appendChild(sheet)
+  }
+
+  return (
+    <div className="fade-up" style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #E5E7EB' }}>
+      <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1E3A5F', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <MapPin size={16} /> Ubicación
+      </h3>
+
+      <div className="no-scrollbar" style={{ display: 'flex', gap: 6, overflowX: 'auto', marginBottom: 14 }}>
+        {consultorios.map((c, i) => (
+          <button
+            key={c.id}
+            type="button"
+            onClick={() => setTabActivo(i)}
+            style={{ flexShrink: 0, padding: '6px 14px', borderRadius: 20, border: i === tabActivo ? '1.5px solid #1E3A5F' : '1.5px solid #E5E7EB', background: i === tabActivo ? '#EEF2FF' : '#fff', color: i === tabActivo ? '#1E3A5F' : '#6B7280', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+          >
+            Consultorio {i + 1}
+          </button>
+        ))}
+      </div>
+
+      {activo.clinic_name && <p style={{ fontSize: 13, fontWeight: 600, color: '#111827', marginBottom: 4 }}>{activo.clinic_name}</p>}
+      {direccionCompleta && <p style={{ fontSize: 13, color: '#4A5568', marginBottom: 2 }}>{direccionCompleta}</p>}
+      {activo.floor && <p style={{ fontSize: 13, color: '#4A5568', marginBottom: 2 }}>Piso {activo.floor}</p>}
+      {activo.colonia && <p style={{ fontSize: 13, color: '#4A5568', marginBottom: 2 }}>Col. {activo.colonia}</p>}
+      <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 12 }}>
+        {[
+          activo.cp ? `CP ${activo.cp}` : '',
+          activo.ciudad,
+          activo.estado ? getStateLabel(activo.estado) : activo.estado,
+        ].filter(Boolean).join(', ')}
+      </p>
+
+      {!tieneCoordenadas ? (
+        <div style={{ padding: '14px', background: '#FEF3C7', borderRadius: 10, border: '1px solid #FCD34D', textAlign: 'center' }}>
+          <p style={{ fontSize: 12, color: '#92400E' }}>Ubicación exacta no configurada</p>
+        </div>
+      ) : (
+        <>
+          <div style={{ width: '100%', height: 200, borderRadius: 12, overflow: 'hidden', marginBottom: 12, border: '1px solid #E5E7EB' }}>
+            <iframe
+              width="100%"
+              height="100%"
+              frameBorder="0"
+              scrolling="no"
+              src={`https://www.openstreetmap.org/export/embed.html?bbox=${lngNum - 0.01}%2C${latNum - 0.01}%2C${lngNum + 0.01}%2C${latNum + 0.01}&layer=mapnik&marker=${latNum}%2C${lngNum}`}
+              style={{ border: 0 }}
+              title="Mapa ubicación"
+            />
+          </div>
+          <button
+            onClick={handleNavigate}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', background: '#1E3A5F', color: '#fff', padding: '10px 16px', borderRadius: 10, fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer' }}
+          >
+            <Navigation size={14} /> Cómo llegar
+          </button>
+        </>
+      )}
+    </div>
+  )
+}
+
 // Tarjeta de una reseña -- se usa tal cual tanto en el carrusel móvil como
 // en el grid de escritorio (ver sección "Reseñas de pacientes" más abajo),
 // para no duplicar el markup entre los dos layouts.
@@ -1261,6 +1435,32 @@ export default function DoctorProfileClient({
     medico?.estado,
     'México',
   ].filter(Boolean).join(', '))
+
+  // Si no hay consultorios adicionales, la tarjeta de Ubicación de abajo
+  // sigue exactamente como siempre (usa direccionCompleta/direccionExtendida
+  // de arriba, sin pasar por aquí). Con adicionales, se arma la lista para
+  // las tabs: el marcado is_primary (o el de columnas planas si ninguno lo
+  // está) va primero.
+  const consultoriosAdicionalesPublico = Array.isArray(medico?.clinic_addresses) ? medico.clinic_addresses : []
+  const hayPrincipalAdicional = consultoriosAdicionalesPublico.some(c => c?.is_primary)
+  const consultorioPrincipalColumnas: ConsultorioParaTabs = {
+    id: '__principal__',
+    clinic_name: medico?.clinic_name ?? null,
+    clinic_type: medico?.clinic_type ?? null,
+    street: medico?.street ?? null,
+    ext_number: medico?.ext_number ?? null,
+    int_number: medico?.int_number ?? null,
+    floor: medico?.floor ?? null,
+    cp: medico?.cp ?? null,
+    colonia: medico?.colonia ?? null,
+    ciudad: medico?.ciudad ?? null,
+    estado: medico?.estado ?? null,
+    clinic_lat: medico?.clinic_lat ?? null,
+    clinic_lng: medico?.clinic_lng ?? null,
+  }
+  const listaConsultoriosParaTabs: ConsultorioParaTabs[] = hayPrincipalAdicional
+    ? [...consultoriosAdicionalesPublico.filter(c => c.is_primary), consultorioPrincipalColumnas, ...consultoriosAdicionalesPublico.filter(c => !c.is_primary)]
+    : [consultorioPrincipalColumnas, ...consultoriosAdicionalesPublico]
 
   const horarioParsed = (() => {
     if (!medico?.horario) return null
@@ -1765,7 +1965,9 @@ export default function DoctorProfileClient({
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
             {/* Ubicación */}
-            {direccionExtendida && (
+            {consultoriosAdicionalesPublico.length > 0 ? (
+              <UbicacionConsultorios consultorios={listaConsultoriosParaTabs} />
+            ) : direccionExtendida && (
               <div className="fade-up" style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #E5E7EB' }}>
                 <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1E3A5F', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
                   <MapPin size={16} /> Ubicación
