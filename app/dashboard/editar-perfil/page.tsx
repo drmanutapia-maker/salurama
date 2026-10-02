@@ -209,6 +209,7 @@ interface ConsultorioAdicional {
   clinic_lng: number | null
   clinic_phone: string
   is_primary: boolean
+  horario?: Record<string, { activo: boolean; inicio: string; fin: string }> | null
 }
 
 const inputStyle: React.CSSProperties = {
