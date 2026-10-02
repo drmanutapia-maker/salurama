@@ -112,6 +112,31 @@ const haversine = (la1: number, lo1: number, la2: number, lo2: number): number =
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
+// Los 4 chips de orden ('ninos' es un filtro de inclusión aparte, no entra
+// aquí) ahora pueden combinarse: el último activado en `filtros` manda como
+// criterio principal, el penúltimo desempata. Cada uno vive como su propio
+// comparador en vez de una cadena if/else que solo dejaba ganar a uno.
+const CRITERIOS_ORDEN = ['cerca', 'experiencia', 'precio', 'valorados'] as const
+type CriterioOrden = typeof CRITERIOS_ORDEN[number]
+
+function comparadorDeCriterio(criterio: CriterioOrden, userLocation: { lat: number; lng: number } | null) {
+  return (a: any, b: any): number => {
+    switch (criterio) {
+      case 'cerca':
+        if (!userLocation) return 0
+        return (a.distance ?? 9999) - (b.distance ?? 9999)
+      case 'experiencia':
+        return (b.years_experience ?? 0) - (a.years_experience ?? 0)
+      case 'precio':
+        return (a.consultation_price_general ?? 99999) - (b.consultation_price_general ?? 99999)
+      case 'valorados':
+        // Desempate por número de reseñas: a igual promedio, más reseñas
+        // es una señal más confiable que una sola calificación.
+        return (b.rating_avg ?? 0) - (a.rating_avg ?? 0) || (b.rating_count ?? 0) - (a.rating_count ?? 0)
+    }
+  }
+}
+
 // ─── Estilos globales ──────────────────────────────────────────────────────────
 
 const PAGE_STYLES = `
@@ -454,24 +479,31 @@ function BuscarContent({ initialMedicos, heroTitulo, heroTexto, articulosRelacio
       })
     }
 
-    if (filtros.includes('cerca') && userLocation) {
-      r = r
-        .map(m => ({
-          ...m,
-          distance: (m.clinic_lat !== null && m.clinic_lng !== null)
-            ? haversine(userLocation.lat, userLocation.lng, m.clinic_lat, m.clinic_lng)
-            : 9999,
-        }))
-        .sort((a, b) => (a.distance ?? 9999) - (b.distance ?? 9999))
-    } else if (filtros.includes('experiencia')) {
-      r.sort((a, b) => (b.years_experience ?? 0) - (a.years_experience ?? 0))
-    } else if (filtros.includes('precio')) {
-      r.sort((a, b) => (a.consultation_price_general ?? 99999) - (b.consultation_price_general ?? 99999))
-    } else if (filtros.includes('valorados')) {
-      // Antes era decorativo (el chip existía pero nada lo conectaba a
-      // ningún orden). Desempate por número de reseñas: a igual promedio,
-      // más reseñas es una señal más confiable que una sola calificación.
-      r.sort((a, b) => (b.rating_avg ?? 0) - (a.rating_avg ?? 0) || (b.rating_count ?? 0) - (a.rating_count ?? 0))
+    // Orden de aparición en `filtros` = prioridad: el último chip de orden
+    // activado es el criterio principal, el penúltimo es el desempate. Así
+    // los 4 chips de orden se combinan en vez de pisarse entre sí.
+    const criteriosActivos = filtros.filter((f): f is CriterioOrden => (CRITERIOS_ORDEN as readonly string[]).includes(f))
+
+    if (criteriosActivos.includes('cerca') && userLocation) {
+      r = r.map(m => ({
+        ...m,
+        distance: (m.clinic_lat !== null && m.clinic_lng !== null)
+          ? haversine(userLocation.lat, userLocation.lng, m.clinic_lat, m.clinic_lng)
+          : 9999,
+      }))
+    }
+
+    const principal = criteriosActivos[criteriosActivos.length - 1]
+    const secundario = criteriosActivos[criteriosActivos.length - 2]
+
+    if (principal) {
+      const compararPrincipal = comparadorDeCriterio(principal, userLocation)
+      const compararSecundario = secundario ? comparadorDeCriterio(secundario, userLocation) : null
+      r.sort((a, b) => {
+        const resultado = compararPrincipal(a, b)
+        if (resultado !== 0 || !compararSecundario) return resultado
+        return compararSecundario(a, b)
+      })
     }
 
     return r
@@ -517,7 +549,10 @@ function BuscarContent({ initialMedicos, heroTitulo, heroTexto, articulosRelacio
             console.error('Error buscando doctores cercanos:', err)
           }
 
-          setFiltros(prev => [...prev.filter(f => f !== 'precio' && f !== 'experiencia'), 'cerca'])
+          // Ya no excluye 'precio'/'experiencia' -- los 4 chips de orden
+          // coexisten en el arreglo; cuál manda lo decide el useMemo de
+          // arriba por orden de activación (último = principal).
+          setFiltros(prev => [...prev, 'cerca'])
           setLocating(false)
         },
         (err) => {
@@ -533,7 +568,9 @@ function BuscarContent({ initialMedicos, heroTitulo, heroTexto, articulosRelacio
       return
     }
 
-    setFiltros(prev => [...prev.filter(f => f !== 'cerca'), id])
+    // Ya no excluye 'cerca' -- mismo motivo que arriba, los chips de orden
+    // coexisten y el useMemo decide cuál manda por orden de activación.
+    setFiltros(prev => [...prev, id])
   }, [filtros])
 
   // ── Limpiar todo — sin reload ─────────────────────────────────────────────────
