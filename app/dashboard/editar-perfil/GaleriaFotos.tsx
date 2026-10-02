@@ -22,6 +22,26 @@ export default function GaleriaFotos({ doctorId, doctorSlug }: { doctorId: strin
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
   const [photoToDelete, setPhotoToDelete] = useState<GalleryPhoto | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const deleteModalRef = useRef<HTMLDivElement>(null)
+
+  // Quirk conocido de navegadores móviles (sobre todo iOS Safari): un
+  // elemento position:fixed recién insertado en el DOM mientras la página
+  // ya está scrolleada a veces no se ancla de inmediato al viewport visible
+  // -- se pinta como si la página no estuviera scrolleada, apareciendo muy
+  // abajo hasta el siguiente scroll/reflow (bug reportado: el modal de
+  // "¿Eliminar esta foto?" aparecía fuera de la vista en móvil). No se pudo
+  // confirmar el mecanismo exacto en un dispositivo real, así que este es
+  // un fix defensivo, no invasivo: en el siguiente frame tras montar el
+  // modal, se lee offsetHeight (fuerza un reflow síncrono) justo antes de
+  // que el navegador pinte, dándole al motor de render la oportunidad de
+  // recalcular la capa fixed contra el scroll actual.
+  useEffect(() => {
+    if (!photoToDelete) return
+    const frame = requestAnimationFrame(() => {
+      void deleteModalRef.current?.offsetHeight
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [photoToDelete])
 
   const showToast = (msg: string, type: 'success' | 'error') => {
     setToast({ msg, type })
@@ -161,6 +181,7 @@ export default function GaleriaFotos({ doctorId, doctorSlug }: { doctorId: strin
 
   const DeleteModal = photoToDelete && (
     <div
+      ref={deleteModalRef}
       onClick={(e) => { if (e.target === e.currentTarget) setPhotoToDelete(null) }}
       style={{ position: 'fixed', inset: 0, background: 'rgba(17,24,39,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
     >
