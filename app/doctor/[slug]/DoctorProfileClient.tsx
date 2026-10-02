@@ -18,6 +18,7 @@ import { useInstalarAppElegibilidad } from '@/hooks/useInstalarAppElegibilidad'
 import { getStateLabel } from '@/lib/locations'
 import { calculateProfileCompletion } from '@/hooks/useProfileCompletion'
 import BaculoEsculapio from '@/components/icons/BaculoEsculapio'
+import { proximoDiaDisponible } from '@/lib/proximaCitaDisponible'
 
 export interface Medico {
   id: string
@@ -687,16 +688,43 @@ function AppointmentModal({
                 Hora disponible - {dayName}
                 {isDayClosed && <span style={{ color: '#DC2626', fontWeight: 400 }}> (cerrado)</span>}
               </label>
-              {isDayClosed ? (
-                <div style={{ padding: '24px', background: '#FEF2F2', borderRadius: 12, textAlign: 'center' }}>
-                  <p style={{ fontSize: 14, color: '#DC2626', fontWeight: 600 }}>
-                    {esHoy ? 'No hay horarios disponibles hoy' : 'No hay horarios disponibles este día'}
-                  </p>
-                  <p style={{ fontSize: 12, color: '#991B1B', marginTop: 4 }}>
-                    {esHoy ? 'Selecciona mañana' : 'Selecciona otra fecha'}
-                  </p>
-                </div>
-              ) : (
+              {isDayClosed ? (() => {
+                // Misma aproximación a nivel día que usa la tarjeta de
+                // /buscar (lib/proximaCitaDisponible.ts) -- no es un hueco
+                // verificado hora por hora, solo el primer día dentro de la
+                // ventana en que el horario semanal del médico indica que
+                // atiende y que no está bloqueado.
+                const proximaDisponibilidad = proximoDiaDisponible(medico.horario, fechasBloqueadas)
+                if (!proximaDisponibilidad) {
+                  return (
+                    <div style={{ padding: '24px', background: '#F9FAFB', borderRadius: 12, textAlign: 'center' }}>
+                      <p style={{ fontSize: 14, color: '#6B7280', fontWeight: 600 }}>
+                        Sin disponibilidad próxima. Contacta al médico directamente.
+                      </p>
+                    </div>
+                  )
+                }
+                const fechaObj = new Date(proximaDisponibilidad.fecha + 'T00:00:00')
+                const fechaTxt = fechaObj.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })
+                const [h, m] = proximaDisponibilidad.horaInicio.split(':').map(Number)
+                const horaTxt = new Date(2000, 0, 1, h, m || 0).toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit', hour12: true })
+                const irAProximaDisponibilidad = () => {
+                  setMesCalendario(new Date(fechaObj.getFullYear(), fechaObj.getMonth(), 1))
+                  setFormData({ ...formData, requested_date: proximaDisponibilidad.fecha, requested_time: '' })
+                }
+                return (
+                  <button
+                    type="button"
+                    onClick={irAProximaDisponibilidad}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '14px', background: '#ECFDF5', border: '1px solid #A7F3D0', borderRadius: 12, cursor: 'pointer', textAlign: 'left' }}
+                  >
+                    <Calendar size={16} color="#2A9D8F" style={{ flexShrink: 0 }} />
+                    <span style={{ fontSize: 13, color: '#1D6F65', fontWeight: 600, lineHeight: 1.4 }}>
+                      Próxima disponibilidad: {fechaTxt}, {horaTxt}
+                    </span>
+                  </button>
+                )
+              })() : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
                   {timeSlots.map(time => (
                     <button key={time} type="button" onClick={() => setFormData({ ...formData, requested_time: time })} style={{ padding: '8px 6px', border: formData.requested_time === time ? '2px solid #8B5CF6' : '1px solid #E5E7EB', borderRadius: 8, background: formData.requested_time === time ? '#F5F3FF' : '#fff', color: formData.requested_time === time ? '#8B5CF6' : '#4A5568', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
