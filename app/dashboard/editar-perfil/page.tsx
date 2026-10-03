@@ -2098,7 +2098,7 @@ function HorarioConsultorioForm({ horarioInicial, duracionInicial, onGuardar, ti
 // directamente, sino que replica su mismo formulario con un onSave propio.
 function ConsultorioAdicionalForm({ consultorio, onSave, onCancel, onEliminar, esPrincipal, onMarcarPrincipal, registrarControl, saving }: {
   consultorio: ConsultorioAdicional
-  onSave: (c: ConsultorioAdicional) => void
+  onSave?: (c: ConsultorioAdicional) => void
   onCancel?: () => void
   onEliminar?: () => void
   esPrincipal?: boolean
@@ -2199,7 +2199,7 @@ function ConsultorioAdicionalForm({ consultorio, onSave, onCancel, onEliminar, e
       alert('Corrige el horario marcado en rojo antes de guardar')
       return
     }
-    onSave(construirActual())
+    onSave?.(construirActual())
   }
 
   // Para el "Guardar cambios" global y la detección de cambios de
@@ -2409,10 +2409,6 @@ function UbicacionTabs({ medico, onSave, saving, consultorios, setConsultorios, 
     setTabActivo(c.id)
   }
 
-  const handleActualizar = async (c: ConsultorioAdicional) => {
-    await persistir(consultorios.map((item: ConsultorioAdicional) => item.id === c.id ? c : item))
-  }
-
   const handleEliminar = async (id: string) => {
     if (!confirm('¿Eliminar este consultorio?')) return
     await persistir(consultorios.filter((item: ConsultorioAdicional) => item.id !== id))
@@ -2421,12 +2417,9 @@ function UbicacionTabs({ medico, onSave, saving, consultorios, setConsultorios, 
 
   // Avisos verdes que desaparecen a los 2 segundos.
   const [avisoPrincipal, setAvisoPrincipal] = useState(false)
-  const [avisoGuardado, setAvisoGuardado] = useState(false)
   const avisoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const avisoGuardadoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => () => {
     if (avisoTimerRef.current) clearTimeout(avisoTimerRef.current)
-    if (avisoGuardadoTimerRef.current) clearTimeout(avisoGuardadoTimerRef.current)
   }, [])
 
   // Marcar "principal" se guarda de inmediato (clinic_addresses completo con
@@ -2515,9 +2508,6 @@ function UbicacionTabs({ medico, onSave, saving, consultorios, setConsultorios, 
       setNuevoConsultorio(null)
       setTabActivo(nuevoAgregado.id)
     }
-    setAvisoGuardado(true)
-    if (avisoGuardadoTimerRef.current) clearTimeout(avisoGuardadoTimerRef.current)
-    avisoGuardadoTimerRef.current = setTimeout(() => setAvisoGuardado(false), 2000)
     return true
   }
 
@@ -2644,7 +2634,6 @@ function UbicacionTabs({ medico, onSave, saving, consultorios, setConsultorios, 
           <div key={c.id} role="tabpanel" style={estiloPanel(idActivo === c.id)}>
             <ConsultorioAdicionalForm
               consultorio={c}
-              onSave={handleActualizar}
               onEliminar={() => handleEliminar(c.id)}
               esPrincipal={!!c.is_primary}
               onMarcarPrincipal={() => marcarPrincipalAdicional(c.id)}
@@ -2671,12 +2660,9 @@ function UbicacionTabs({ medico, onSave, saving, consultorios, setConsultorios, 
           "Guardar consultorio" de su propio formulario. */}
       {idActivo !== TAB_NUEVO_ID && (
         <div style={{ marginTop: 20 }}>
-          {avisoGuardado && (
-            <p role="status" style={{ fontSize: 12, fontWeight: 600, color: '#059669', marginBottom: 8 }}>✓ Cambios guardados</p>
-          )}
           <button
             type="button"
-            onClick={() => { guardarTodo() }}
+            onClick={async () => { if (await guardarTodo()) onCerrar() }}
             disabled={saving}
             style={{ ...btnPrimary, width: '100%', opacity: saving ? 0.6 : 1 }}
           >
