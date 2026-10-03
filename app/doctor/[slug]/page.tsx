@@ -58,6 +58,28 @@ const resolveDoctor = cache(async (slugParam: string): Promise<Medico | null> =>
   return data
 })
 
+// Privacidad del teléfono del consultorio: select('*') trae clinic_phone y
+// todo clinic_addresses (con el clinic_phone de cada consultorio adicional),
+// y todo lo que se pasa al componente cliente viaja serializado al navegador
+// aunque la interfaz lo oculte. Por eso el filtrado se hace aquí, en el
+// servidor: si el médico no marcó "Mostrar en perfil público"
+// (clinic_phone_visible false o null), el teléfono se pone en null. Los
+// campos no se eliminan, solo se vacían, para no romper tipos.
+function ocultarTelefonosPrivados(doctor: Medico): Medico {
+  return {
+    ...doctor,
+    clinic_phone: doctor.clinic_phone_visible === true ? doctor.clinic_phone : null,
+    // Mismo criterio para WhatsApp: sin whatsapp_available el número no sale.
+    whatsapp_phone: doctor.whatsapp_available === true ? doctor.whatsapp_phone : null,
+    clinic_addresses: Array.isArray(doctor.clinic_addresses)
+      ? doctor.clinic_addresses.map(c => ({
+          ...c,
+          clinic_phone: c?.clinic_phone_visible === true ? c.clinic_phone : null,
+        }))
+      : doctor.clinic_addresses,
+  }
+}
+
 // Resto de la data pública del perfil (licencias, educación, experiencia,
 // condiciones, reseñas, credenciales, galería) — se resuelve en el servidor
 // para que el HTML inicial (y el JSON-LD) traigan el contenido real, en vez
@@ -174,5 +196,5 @@ export default async function DoctorPage({
 
   const profileData = await getDoctorProfileData(doctor.id)
 
-  return <DoctorProfileClient medico={doctor} {...profileData} />
+  return <DoctorProfileClient medico={ocultarTelefonosPrivados(doctor)} {...profileData} />
 }

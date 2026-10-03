@@ -38,6 +38,8 @@ export interface ConsultorioAdicionalPublico {
   clinic_lat: number | null
   clinic_lng: number | null
   clinic_phone: string | null
+  clinic_phone_visible?: boolean | null
+  horario?: Record<string, any> | null
   is_primary: boolean
 }
 
@@ -82,6 +84,7 @@ export interface Medico {
   clinic_lng: number | null
   clinic_address: string | null
   clinic_phone: string | null
+  clinic_phone_visible?: boolean | null
   whatsapp_available: boolean
   whatsapp_phone: string | null
   facebook_url: string | null
@@ -165,6 +168,57 @@ const parseLangs = (raw: string[] | string | null): string[] => {
 const DIAS_SEMANA = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']
 const DIAS_LABELS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 const DIAS_LABELS_FULL = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+
+// Resumen comprimido de un horario (doctors.horario o el `horario` de un
+// consultorio de clinic_addresses): agrupa días CONSECUTIVOS (lunes primero,
+// igual que diasAtencionTexto en AppointmentModal -- así se describe
+// normalmente un horario médico, aunque DIAS_SEMANA empiece en domingo) con
+// el mismo rango en una sola línea ("Lunes a Viernes: 09:00 - 18:00"), y
+// omite los días cerrados por completo en vez de listarlos como "Cerrado".
+// Lo usan la tarjeta "Horario" del sidebar y cada tab de UbicacionConsultorios.
+function calcularResumenHorario(horarioRaw: unknown): { label: string; rango: string }[] {
+  if (!horarioRaw) return []
+  let horario: any = horarioRaw
+  if (typeof horario === 'string') {
+    try { horario = JSON.parse(horario) } catch { return [] }
+  }
+  if (!horario || typeof horario !== 'object') return []
+  const horarioParsed: Record<string, any> = {}
+  Object.keys(horario).forEach(key => {
+    const keyNormalizada = key.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+    horarioParsed[keyNormalizada] = horario[key]
+  })
+
+  const ordenLunesPrimero = [1, 2, 3, 4, 5, 6, 0]
+  const diasAbiertos = ordenLunesPrimero
+    .map(idx => {
+      const horarioDia = horarioParsed[DIAS_SEMANA[idx]]
+      const inicio = horarioDia?.inicio || horarioDia?.start
+      const fin = horarioDia?.fin || horarioDia?.end
+      const abierto = horarioDia?.abierto ?? horarioDia?.open ?? horarioDia?.activo ?? !!(inicio && fin)
+      return abierto && inicio && fin ? { idx, pos: ordenLunesPrimero.indexOf(idx), inicio, fin } : null
+    })
+    .filter((d): d is { idx: number; pos: number; inicio: string; fin: string } => d !== null)
+
+  const grupos: { idxs: number[]; posFinal: number; inicio: string; fin: string }[] = []
+  diasAbiertos.forEach(d => {
+    const ultimo = grupos[grupos.length - 1]
+    const esConsecutivo = ultimo && ultimo.inicio === d.inicio && ultimo.fin === d.fin && d.pos === ultimo.posFinal + 1
+    if (esConsecutivo) {
+      ultimo.idxs.push(d.idx)
+      ultimo.posFinal = d.pos
+    } else {
+      grupos.push({ idxs: [d.idx], posFinal: d.pos, inicio: d.inicio, fin: d.fin })
+    }
+  })
+
+  return grupos.map(g => ({
+    label: g.idxs.length === 1
+      ? DIAS_LABELS_FULL[g.idxs[0]]
+      : `${DIAS_LABELS_FULL[g.idxs[0]]} a ${DIAS_LABELS_FULL[g.idxs[g.idxs.length - 1]]}`,
+    rango: `${g.inicio} - ${g.fin}`,
+  }))
+}
 
 const identLabelStyle = { display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#374151', cursor: 'pointer' } as const
 const identAvisoStyle = { fontSize: 12, color: '#6B7280', background: '#F9FAFB', padding: '8px 12px', borderRadius: 8, margin: 0, lineHeight: 1.5 } as const
@@ -1055,6 +1109,11 @@ interface ConsultorioParaTabs extends ConsultorioParaDireccion {
   floor: string | null
   clinic_lat: number | null
   clinic_lng: number | null
+  // Ya vienen filtrados desde el servidor (page.tsx): clinic_phone llega en
+  // null si el médico no lo marcó como visible.
+  clinic_phone: string | null
+  clinic_phone_visible?: boolean | null
+  horario?: Record<string, any> | null
 }
 
 // Perfil público con más de un consultorio: mismo contenido que la tarjeta
@@ -1067,6 +1126,7 @@ function UbicacionConsultorios({ consultorios }: { consultorios: ConsultorioPara
   const [tabActivo, setTabActivo] = useState(0)
   const activo = consultorios[tabActivo] ?? consultorios[0]
   const { direccionCompleta, direccionNavegacion } = construirDireccionConsultorio(activo)
+  const resumenHorarioActivo = calcularResumenHorario(activo.horario)
 
   const lat = activo.clinic_lat
   const lng = activo.clinic_lng
@@ -1132,6 +1192,33 @@ function UbicacionConsultorios({ consultorios }: { consultorios: ConsultorioPara
           activo.estado ? getStateLabel(activo.estado) : activo.estado,
         ].filter(Boolean).join(', ')}
       </p>
+
+      {/* El teléfono ya viene filtrado desde el servidor (null si el médico
+          no lo marcó como visible), así que aquí solo se muestra si existe. */}
+      {activo.clinic_phone && (
+        <a
+          href={`tel:${activo.clinic_phone}`}
+          style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 40, marginBottom: 12, fontSize: 14, fontWeight: 600, color: '#1E3A5F', textDecoration: 'none' }}
+        >
+          <Phone size={15} aria-hidden="true" /> {activo.clinic_phone}
+        </a>
+      )}
+
+      {resumenHorarioActivo.length > 0 && (
+        <div style={{ marginBottom: 12 }}>
+          <p style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, color: '#1E3A5F', marginBottom: 6 }}>
+            <Clock size={14} aria-hidden="true" /> Horario
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {resumenHorarioActivo.map(g => (
+              <div key={g.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 13, color: '#6B7280', fontWeight: 500 }}>{g.label}</span>
+                <span style={{ fontSize: 13, color: '#111827', fontWeight: 600 }}>{g.rango}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {!tieneCoordenadas ? (
         <div style={{ padding: '14px', background: '#FEF3C7', borderRadius: 10, border: '1px solid #FCD34D', textAlign: 'center' }}>
@@ -1457,63 +1544,17 @@ export default function DoctorProfileClient({
     estado: medico?.estado ?? null,
     clinic_lat: medico?.clinic_lat ?? null,
     clinic_lng: medico?.clinic_lng ?? null,
+    clinic_phone: medico?.clinic_phone ?? null,
+    clinic_phone_visible: medico?.clinic_phone_visible ?? null,
+    horario: medico?.horario ?? null,
   }
   const listaConsultoriosParaTabs: ConsultorioParaTabs[] = hayPrincipalAdicional
     ? [...consultoriosAdicionalesPublico.filter(c => c.is_primary), consultorioPrincipalColumnas, ...consultoriosAdicionalesPublico.filter(c => !c.is_primary)]
     : [consultorioPrincipalColumnas, ...consultoriosAdicionalesPublico]
 
-  const horarioParsed = (() => {
-    if (!medico?.horario) return null
-    let horario = medico.horario
-    if (typeof horario === 'string') {
-      try { horario = JSON.parse(horario) } catch { return null }
-    }
-    const normalizado: Record<string, any> = {}
-    Object.keys(horario).forEach(key => {
-      const keyNormalizada = key.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
-      normalizado[keyNormalizada] = horario[key]
-    })
-    return normalizado
-  })()
-
-  // Resumen comprimido del horario para la tarjeta del sidebar: agrupa días
-  // CONSECUTIVOS (lunes primero, igual que diasAtencionTexto en
-  // AppointmentModal -- así se describe normalmente un horario médico,
-  // aunque DIAS_SEMANA empiece en domingo) con el mismo rango en una sola
-  // línea ("Lun a Vie: 09:00 - 18:00"), y omite los días cerrados por
-  // completo en vez de listarlos como "Cerrado".
-  const resumenHorario = (() => {
-    if (!horarioParsed) return []
-    const ordenLunesPrimero = [1, 2, 3, 4, 5, 6, 0]
-    const diasAbiertos = ordenLunesPrimero
-      .map(idx => {
-        const horarioDia = horarioParsed[DIAS_SEMANA[idx]]
-        const inicio = horarioDia?.inicio || horarioDia?.start
-        const fin = horarioDia?.fin || horarioDia?.end
-        const abierto = horarioDia?.abierto ?? horarioDia?.open ?? horarioDia?.activo ?? !!(inicio && fin)
-        return abierto && inicio && fin ? { idx, pos: ordenLunesPrimero.indexOf(idx), inicio, fin } : null
-      })
-      .filter((d): d is { idx: number; pos: number; inicio: string; fin: string } => d !== null)
-
-    const grupos: { idxs: number[]; posFinal: number; inicio: string; fin: string }[] = []
-    diasAbiertos.forEach(d => {
-      const ultimo = grupos[grupos.length - 1]
-      const esConsecutivo = ultimo && ultimo.inicio === d.inicio && ultimo.fin === d.fin && d.pos === ultimo.posFinal + 1
-      if (esConsecutivo) {
-        ultimo.idxs.push(d.idx)
-        ultimo.posFinal = d.pos
-      } else {
-        grupos.push({ idxs: [d.idx], posFinal: d.pos, inicio: d.inicio, fin: d.fin })
-      }
-    })
-
-    return grupos.map(g => ({
-      label: g.idxs.length === 1
-        ? DIAS_LABELS_FULL[g.idxs[0]]
-        : `${DIAS_LABELS_FULL[g.idxs[0]]} a ${DIAS_LABELS_FULL[g.idxs[g.idxs.length - 1]]}`,
-      rango: `${g.inicio} - ${g.fin}`,
-    }))
-  })()
+  // Resumen comprimido del horario para la tarjeta del sidebar (ver
+  // calcularResumenHorario, que también usa cada tab de UbicacionConsultorios).
+  const resumenHorario = calcularResumenHorario(medico?.horario)
 
   // Schema.org para Google (estrellas en resultados de búsqueda)
   const doctorSchema = medico ? {
@@ -1550,6 +1591,8 @@ export default function DoctorProfileClient({
       },
       datePublished: r.created_at,
     })),
+    // clinic_phone ya llega en null desde el servidor si el médico no lo
+    // marcó como visible, así que sin teléfono visible cae a whatsapp_phone.
     telephone: medico.clinic_phone || medico.whatsapp_phone || undefined,
     url: profileUrl,
   } : null
@@ -1982,6 +2025,17 @@ export default function DoctorProfileClient({
                     medico.estado ? getStateLabel(medico.estado) : medico.estado,
                   ].filter(Boolean).join(', ')}
                 </p>
+                {/* Ya filtrado en el servidor: null si no es visible. Con un
+                    solo consultorio no hay tabs, así que el teléfono se
+                    muestra aquí (antes vivía en la tarjeta Contacto). */}
+                {medico.clinic_phone && (
+                  <a
+                    href={`tel:${medico.clinic_phone}`}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 40, marginBottom: 12, fontSize: 14, fontWeight: 600, color: '#1E3A5F', textDecoration: 'none' }}
+                  >
+                    <Phone size={15} aria-hidden="true" /> {medico.clinic_phone}
+                  </a>
+                )}
                 {(() => {
                   const lat = medico.clinic_lat
                   const lng = medico.clinic_lng
@@ -2083,29 +2137,19 @@ export default function DoctorProfileClient({
             )}
 
             {/* Contacto */}
-            {(medico.whatsapp_available || medico.clinic_phone) && (
+            {medico.whatsapp_available && medico.whatsapp_phone && (
               <div className="fade-up" style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #E5E7EB' }}>
                 <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1E3A5F', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Phone size={16} /> Contacto
                 </h3>
-                {medico.whatsapp_available && medico.whatsapp_phone && (
-                  <a
-                    href={`https://wa.me/52${medico.whatsapp_phone.replace(/\D/g, '')}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: '#25D366', color: '#fff', borderRadius: 10, textDecoration: 'none', fontWeight: 600, fontSize: 13, justifyContent: 'center', marginBottom: medico.clinic_phone ? 8 : 0 }}
-                  >
-                    <MessageCircle size={16} /> WhatsApp
-                  </a>
-                )}
-                {medico.clinic_phone && (
-                  <a
-                    href={`tel:${medico.clinic_phone}`}
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: '#1E3A5F', color: '#fff', borderRadius: 10, textDecoration: 'none', fontWeight: 600, fontSize: 13, justifyContent: 'center' }}
-                  >
-                    <Phone size={16} /> {medico.clinic_phone}
-                  </a>
-                )}
+                <a
+                  href={`https://wa.me/52${medico.whatsapp_phone.replace(/\D/g, '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: '#25D366', color: '#fff', borderRadius: 10, textDecoration: 'none', fontWeight: 600, fontSize: 13, justifyContent: 'center' }}
+                >
+                  <MessageCircle size={16} /> WhatsApp
+                </a>
               </div>
             )}
           </div>
