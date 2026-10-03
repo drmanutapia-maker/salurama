@@ -2385,10 +2385,46 @@ const MAX_CONSULTORIOS = 3
 const TAB_PRINCIPAL_ID = '__principal__'
 const TAB_NUEVO_ID = '__nuevo__'
 
+// Franjas de atención de un día. Si tiene hora de comida válida (dentro del
+// horario y bien ordenada) el día se parte en dos franjas, porque durante la
+// comida el médico no está en ese consultorio y puede estar en otro. Un día
+// inactivo no tiene franjas.
+function franjasDelDia(dia: HorarioDia): { inicio: string; fin: string }[] {
+  if (!dia.activo) return []
+  const { inicio, fin, descanso_inicio: di, descanso_fin: df } = dia
+  if (di && df && inicio < di && di < df && df < fin) return [{ inicio, fin: di }, { inicio: df, fin }]
+  return [{ inicio, fin }]
+}
+
+// Primer par de consultorios (en el orden recibido) cuyos horarios se
+// cruzan, o null si no hay cruces: para cada par y cada día activo en ambos,
+// dos franjas se cruzan si inicio1 < fin2 && inicio2 < fin1 -- las horas son
+// "HH:MM" de ancho fijo, así que comparar como texto equivale a compararlas
+// como minutos.
+function detectarSolapamiento(entradas: { nombre: string; horario: Horario }[]): { a: string; b: string } | null {
+  for (let i = 0; i < entradas.length; i++) {
+    for (let j = i + 1; j < entradas.length; j++) {
+      const a = entradas[i]
+      const b = entradas[j]
+      for (const { key } of DIAS) {
+        for (const x of franjasDelDia(a.horario[key])) {
+          for (const y of franjasDelDia(b.horario[key])) {
+            if (x.inicio < y.fin && y.inicio < x.fin) return { a: a.nombre, b: b.nombre }
+          }
+        }
+      }
+    }
+  }
+  return null
+}
+
 function UbicacionTabs({ medico, onSave, saving, consultorios, setConsultorios, horarioBorradorRef, onCerrar, controlRef }: any) {
   const [tabActivo, setTabActivo] = useState<string>(TAB_PRINCIPAL_ID)
   const [nuevoConsultorio, setNuevoConsultorio] = useState<ConsultorioAdicional | null>(null)
   const [confirmarSalida, setConfirmarSalida] = useState(false)
+  // Primer par de consultorios con horarios que se cruzan, detectado al
+  // intentar guardar (se limpia en cada intento de "Guardar cambios").
+  const [conflictoSolapamiento, setConflictoSolapamiento] = useState<{ a: string; b: string } | null>(null)
 
   // Controles que cada formulario registra para poder leerlos desde aquí.
   const locationControlRef = useRef<{ construirCambios: () => { cambios: Record<string, any> }; hayCambios: () => boolean } | null>(null)
@@ -2456,6 +2492,7 @@ function UbicacionTabs({ medico, onSave, saving, consultorios, setConsultorios, 
   // Guarda todo en un solo update. Devuelve true si se guardó (o si no había
   // nada que guardar) y false si hubo un error de validación o de guardado.
   const guardarTodo = async (): Promise<boolean> => {
+    setConflictoSolapamiento(null)
     const cambios: Record<string, any> = {}
 
     // Principal: dirección + teléfono.
@@ -2499,6 +2536,32 @@ function UbicacionTabs({ medico, onSave, saving, consultorios, setConsultorios, 
     if (JSON.stringify(lista) !== JSON.stringify(medico.clinic_addresses ?? [])) cambios.clinic_addresses = lista
 
     if (Object.keys(cambios).length === 0) return true
+
+    // Cruces de horario entre consultorios, con el horario vigente de cada
+    // uno (en edición o guardado), nombrados como en los tabs.
+    const hayPrincipalEnAdicionales = (consultorios as ConsultorioAdicional[]).some(c => c.is_primary)
+    const idsEnOrdenDeTabs: string[] = hayPrincipalEnAdicionales
+      ? [
+          ...(consultorios as ConsultorioAdicional[]).filter(c => c.is_primary).map(c => c.id),
+          TAB_PRINCIPAL_ID,
+          ...(consultorios as ConsultorioAdicional[]).filter(c => !c.is_primary).map(c => c.id),
+        ]
+      : [TAB_PRINCIPAL_ID, ...(consultorios as ConsultorioAdicional[]).map(c => c.id)]
+    if (nuevoAgregado) idsEnOrdenDeTabs.push(nuevoAgregado.id)
+    const entradasHorario = idsEnOrdenDeTabs.map((id, pos) => {
+      const nombrePorDefecto = `Consultorio ${pos + 1}`
+      if (id === TAB_PRINCIPAL_ID) {
+        const nombrePrincipal = loc ? loc.construirCambios().cambios.clinic_name : medico.clinic_name
+        return { nombre: nombrePrincipal || nombrePorDefecto, horario: (borradorHorario?.horario ?? normalizarHorario(medico.horario)) as Horario }
+      }
+      const c = lista.find(x => x.id === id)!
+      return { nombre: c.clinic_name || nombrePorDefecto, horario: normalizarHorario(c.horario) }
+    })
+    const conflicto = detectarSolapamiento(entradasHorario)
+    if (conflicto) {
+      setConflictoSolapamiento(conflicto)
+      return false
+    }
 
     const ok = await onSave(cambios)
     if (ok === false) return false
@@ -2660,6 +2723,12 @@ function UbicacionTabs({ medico, onSave, saving, consultorios, setConsultorios, 
           "Guardar consultorio" de su propio formulario. */}
       {idActivo !== TAB_NUEVO_ID && (
         <div style={{ marginTop: 20 }}>
+          {conflictoSolapamiento && (
+            <p role="alert" style={{ display: 'flex', alignItems: 'flex-start', gap: 6, background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 10, padding: '10px 12px', marginBottom: 12, color: '#DC2626', fontSize: 12, fontWeight: 600 }}>
+              <AlertTriangle size={14} style={{ flexShrink: 0, marginTop: 1 }} aria-hidden="true" />
+              Los horarios de {conflictoSolapamiento.a} y {conflictoSolapamiento.b} se cruzan. Ajusta los días o las horas.
+            </p>
+          )}
           <button
             type="button"
             onClick={async () => { if (await guardarTodo()) onCerrar() }}
