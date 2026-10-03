@@ -1252,7 +1252,7 @@ function UbicacionConsultorios({ consultorios }: { consultorios: ConsultorioPara
 // Tarjeta de una reseña -- se usa tal cual tanto en el carrusel móvil como
 // en el grid de escritorio (ver sección "Reseñas de pacientes" más abajo),
 // para no duplicar el markup entre los dos layouts.
-function ReviewCard({ r, doctorName }: { r: any; doctorName: string }) {
+function ReviewCard({ r }: { r: any }) {
   return (
     // scroll-margin-top libra el Navbar fijo (72px) al hacer scroll por JS
     // hasta acá, ej. desde el link del correo de aviso de respuesta
@@ -1276,7 +1276,7 @@ function ReviewCard({ r, doctorName }: { r: any; doctorName: string }) {
       {r.respuesta && (
         <div style={{ marginTop: 12, padding: 14, background: '#F0F4F8', borderRadius: 12, borderLeft: '3px solid #1E3A5F' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, gap: 8 }}>
-            <p style={{ fontSize: 12, fontWeight: 700, color: '#1E3A5F' }}>{doctorName}</p>
+            <p style={{ fontSize: 12, fontWeight: 700, color: '#1E3A5F' }}>Respuesta</p>
             {r.respuestaId && <ReportarBoton tipo="review_response" id={r.respuestaId} />}
           </div>
           <p style={{ fontSize: 14, color: '#374151', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{r.respuesta}</p>
@@ -1408,10 +1408,6 @@ export default function DoctorProfileClient({
   const precioSubsecuente = medico?.consultation_price_general || null
   const displayName = medico?.display_name || medico?.full_name || ''
   const titlePrefix = medico?.professional_title ? `${medico.professional_title} ` : ''
-  // Título + primer nombre + primer apellido (ej. "Dr. Manuel Tapia") en vez
-  // del nombre completo -- usado en la firma de la respuesta del médico
-  // dentro de cada reseña.
-  const nombreCortoMedico = `${titlePrefix}${displayName.trim().split(/\s+/).slice(0, 2).join(' ')}`.trim()
   // Mismo cálculo que el checklist de completitud del dashboard del médico
   // (hooks/useProfileCompletion.ts) — reutilizado tal cual, sin ajustes: los
   // datos que necesita ya llegan como props en este perfil público.
@@ -1552,9 +1548,10 @@ export default function DoctorProfileClient({
     ? [...consultoriosAdicionalesPublico.filter(c => c.is_primary), consultorioPrincipalColumnas, ...consultoriosAdicionalesPublico.filter(c => !c.is_primary)]
     : [consultorioPrincipalColumnas, ...consultoriosAdicionalesPublico]
 
-  // Resumen comprimido del horario para la tarjeta del sidebar (ver
-  // calcularResumenHorario, que también usa cada tab de UbicacionConsultorios).
-  const resumenHorario = calcularResumenHorario(medico?.horario)
+  // Horario resumido del consultorio principal para la tarjeta de ubicación
+  // de un solo consultorio (con tabs lo calcula cada tab, ver
+  // UbicacionConsultorios).
+  const resumenHorarioPrincipal = calcularResumenHorario(medico?.horario)
 
   // Schema.org para Google (estrellas en resultados de búsqueda)
   const doctorSchema = medico ? {
@@ -2036,6 +2033,21 @@ export default function DoctorProfileClient({
                     <Phone size={15} aria-hidden="true" /> {medico.clinic_phone}
                   </a>
                 )}
+                {resumenHorarioPrincipal.length > 0 && (
+                  <div style={{ marginBottom: 12 }}>
+                    <p style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, color: '#1E3A5F', marginBottom: 6 }}>
+                      <Clock size={14} aria-hidden="true" /> Horario
+                    </p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {resumenHorarioPrincipal.map(g => (
+                        <div key={g.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 13, color: '#6B7280', fontWeight: 500 }}>{g.label}</span>
+                          <span style={{ fontSize: 13, color: '#111827', fontWeight: 600 }}>{g.rango}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {(() => {
                   const lat = medico.clinic_lat
                   const lng = medico.clinic_lng
@@ -2105,23 +2117,6 @@ export default function DoctorProfileClient({
               </div>
             )}
 
-            {/* Horario */}
-            {resumenHorario.length > 0 && (
-              <div className="fade-up" style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #E5E7EB' }}>
-                <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1E3A5F', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Clock size={16} /> Horario
-                </h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {resumenHorario.map((g, idx) => (
-                    <div key={g.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8, borderBottom: idx < resumenHorario.length - 1 ? '1px solid #F3F4F6' : 'none' }}>
-                      <span style={{ fontSize: 13, color: '#6B7280', fontWeight: 500 }}>{g.label}</span>
-                      <span style={{ fontSize: 13, color: '#111827', fontWeight: 600 }}>{g.rango}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {/* Seguros */}
             {medico.accepts_insurance && Array.isArray(medico.insurance_names) && medico.insurance_names.length > 0 && (
               <div className="fade-up" style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #E5E7EB' }}>
@@ -2173,7 +2168,7 @@ export default function DoctorProfileClient({
         >
           {reviews.map((r: any) => (
             <div key={r.id} style={{ flex: '0 0 100%', minWidth: 0, width: '100%', scrollSnapAlign: 'start' }}>
-              <ReviewCard r={r} doctorName={nombreCortoMedico} />
+              <ReviewCard r={r} />
             </div>
           ))}
         </div>
@@ -2213,7 +2208,7 @@ export default function DoctorProfileClient({
 
     <div className="desktop-only" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
       {reviews.map((r: any) => (
-        <ReviewCard key={r.id} r={r} doctorName={nombreCortoMedico} />
+        <ReviewCard key={r.id} r={r} />
       ))}
     </div>
   </section>
