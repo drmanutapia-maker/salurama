@@ -292,12 +292,10 @@ export default function EditarPerfilPage() {
   const [bloqueos, setBloqueos] = useState<BloqueoFecha[]>([])
   const [bloqueosError, setBloqueosError] = useState(false)
   // Borrador de clinic_addresses mientras el modal de ubicación está
-  // abierto -- marcar "consultorio principal" en UbicacionTabs
-  // solo toca este estado (ver más abajo), nunca llama a onSave directo. El
-  // guardado real ocurre cuando el médico presiona "Guardar ubicación" en
-  // LocationForm, que ahora también envía este borrador. Se reinicia cada
-  // vez que se abre el modal para no arrastrar cambios sin guardar de una
-  // apertura anterior.
+  // abierto -- UbicacionTabs lo lee para armar los tabs y lo actualiza al
+  // marcar "consultorio principal" (que se guarda al instante). Se reinicia
+  // cada vez que se abre el modal o que `medico` cambia, para no arrastrar
+  // cambios sin guardar de una apertura anterior.
   const [consultoriosAdicionalesBorrador, setConsultoriosAdicionalesBorrador] = useState<any[]>([])
   useEffect(() => {
     if (activeModal === 'location') {
@@ -306,10 +304,14 @@ export default function EditarPerfilPage() {
   }, [activeModal, medico])
   // Borrador del horario del consultorio principal mientras el modal de
   // ubicación está abierto. HorarioConsultorioForm lo actualiza en cada
-  // cambio (sin re-render del padre) y LocationForm lo lee al presionar
-  // "Guardar ubicación". null = el médico no ha tocado el horario, así que
+  // cambio (sin re-render del padre) y UbicacionTabs lo lee al presionar
+  // "Guardar cambios". null = el médico no ha tocado el horario, así que
   // no se envía nada de horario/duración en ese guardado.
   const horarioBorradorRef = useRef<{ horario: Horario; duracion: number; valido: boolean } | null>(null)
+  // UbicacionTabs registra aquí intentarCerrar() para que X / clic fuera /
+  // Escape del modal de ubicación pidan confirmación si hay cambios sin
+  // guardar (ver Modal onClose más abajo).
+  const controlUbicacionRef = useRef<{ intentarCerrar: () => void } | null>(null)
   useEffect(() => {
     if (activeModal !== 'location') horarioBorradorRef.current = null
   }, [activeModal])
@@ -1159,7 +1161,7 @@ export default function EditarPerfilPage() {
       </div>
 
       {activeModal && (
-        <Modal onClose={() => setActiveModal(null)} title={{ basic: 'Información básica', intro: 'Biografía', specialties: 'Especialidades', conditions: 'Enfermedades', experience: 'Experiencia', education: 'Formación', languages: 'Idiomas', booking: 'Precios y contacto', location: 'Ubicación del consultorio', bloqueos: 'Bloquear fechas de consulta' }[activeModal] || 'Editar'}>
+        <Modal onClose={() => { if (activeModal === 'location' && controlUbicacionRef.current) controlUbicacionRef.current.intentarCerrar(); else setActiveModal(null) }} title={{ basic: 'Información básica', intro: 'Biografía', specialties: 'Especialidades', conditions: 'Enfermedades', experience: 'Experiencia', education: 'Formación', languages: 'Idiomas', booking: 'Precios y contacto', location: 'Ubicación del consultorio', bloqueos: 'Bloquear fechas de consulta' }[activeModal] || 'Editar'}>
           {activeModal === 'basic' && <BasicInfoForm medico={medico} onSave={handleSaveBasicInfo} saving={saving} />}
           {activeModal === 'intro' && <IntroForm aboutMe={medico.about_me} onSave={handleSaveBasicInfo} saving={saving} />}
           {activeModal === 'specialties' && <SpecialtiesForm specialties={specialties} specialty={medico.specialty} councilMap={councilMap} onAdd={handleAddSpecialty} onDelete={handleDeleteSpecialty} saving={saving} />}
@@ -1177,6 +1179,8 @@ export default function EditarPerfilPage() {
               consultorios={consultoriosAdicionalesBorrador}
               setConsultorios={setConsultoriosAdicionalesBorrador}
               horarioBorradorRef={horarioBorradorRef}
+              onCerrar={() => setActiveModal(null)}
+              controlRef={controlUbicacionRef}
             />
           )}
         </Modal>
@@ -1467,10 +1471,12 @@ function ControlPrincipal({ esPrincipal, onMarcar }: { esPrincipal: boolean; onM
   )
 }
 
-function LocationForm({ medico, onSave, saving, consultoriosAdicionalesBorrador, horarioBorradorRef, esPrincipal, onMarcarPrincipal }: any) {
-  const { loading: loadingCP, error: cpError, cpData, search } = useCP()
-
-  const [form, setForm] = useState({
+// Valores del formulario del consultorio principal a partir de `medico`.
+// Se usa tanto para el estado inicial de LocationForm como de referencia para
+// detectar cambios sin guardar (se compara contra el `medico` vigente, así
+// que después de guardar el formulario vuelve a quedar "sin cambios").
+function formDesdeMedico(medico: any) {
+  return {
     clinic_type: medico.clinic_type || 'consultorio',
     street: medico.street || '',
     ext_number: medico.ext_number || '',
@@ -1485,7 +1491,58 @@ function LocationForm({ medico, onSave, saving, consultoriosAdicionalesBorrador,
     hospital_floor: medico.clinic_type === 'hospital'? (medico.floor || '') : '',
     clinic_phone: medico.clinic_phone || '',
     clinic_phone_visible: !!medico.clinic_phone && medico.clinic_phone_visible === true,
+  }
+}
+
+// Redondeo a 6 decimales (~10 cm) para comparar coordenadas sin falsos
+// positivos por ruido de punto flotante.
+const redondearCoord = (n: unknown) => (n == null || n === '' ? null : Math.round(Number(n) * 1e6) / 1e6)
+
+// ¿El horario del consultorio principal que está en el borrador difiere del
+// guardado? El borrador solo existe si el médico tocó el editor.
+function horarioPrincipalCambio(medico: any, borrador: { horario: Horario; duracion: number } | null): boolean {
+  if (!borrador) return false
+  return JSON.stringify(borrador.horario) !== JSON.stringify(normalizarHorario(medico.horario))
+    || borrador.duracion !== (medico.duracion_cita_minutos || 30)
+}
+
+// Lo que cada formulario de consultorio adicional expone a UbicacionTabs
+// para el botón "Guardar cambios" global y la detección de cambios.
+type ControlAdicional = {
+  construir: () => { consultorio: ConsultorioAdicional } | { error: string }
+  hayCambios: () => boolean
+}
+
+// Subconjunto comparable de un consultorio adicional (null/''/undefined se
+// tratan igual) para saber si el formulario difiere de lo guardado.
+function firmaConsultorio(c: ConsultorioAdicional): string {
+  return JSON.stringify({
+    clinic_type: c.clinic_type || 'consultorio',
+    clinic_name: c.clinic_name || '',
+    street: c.street || '',
+    ext_number: c.ext_number || '',
+    int_number: c.int_number || '',
+    floor: c.floor || '',
+    cp: c.cp || '',
+    estado: c.estado || '',
+    ciudad: c.ciudad || '',
+    colonia: c.colonia || '',
+    clinic_phone: (c.clinic_phone || '').trim(),
+    clinic_phone_visible: !!(c.clinic_phone || '').trim() && c.clinic_phone_visible === true,
+    clinic_lat: redondearCoord(c.clinic_lat),
+    clinic_lng: redondearCoord(c.clinic_lng),
+    horario: c.horario ?? null,
   })
+}
+
+// El guardado ya no vive aquí: "Guardar cambios" (al final del modal, en
+// UbicacionTabs) llama a controlRef.current.construirCambios() para armar los
+// campos de dirección y teléfono del consultorio principal, y a hayCambios()
+// para saber si hay algo sin guardar.
+function LocationForm({ medico, controlRef, esPrincipal, onMarcarPrincipal }: any) {
+  const { loading: loadingCP, error: cpError, cpData, search } = useCP()
+
+  const [form, setForm] = useState(() => formDesdeMedico(medico))
 
   const [editandoCP, setEditandoCP] = useState(!form.cp)
   const [pinCoords, setPinCoords] = useState<{ lat: number; lng: number } | null>(null)
@@ -1529,21 +1586,10 @@ function LocationForm({ medico, onSave, saving, consultoriosAdicionalesBorrador,
     )
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    // Horario del consultorio principal (HorarioConsultorioForm, que vive
-    // fuera de este <form> pero comparte este botón de guardado). Solo se
-    // envía si el médico lo tocó; con un horario inválido no se guarda nada.
-    const borradorHorario = horarioBorradorRef?.current ?? null
-    if (borradorHorario && !borradorHorario.valido) {
-      alert('Corrige el horario marcado en rojo antes de guardar')
-      return
-    }
-    const camposHorario = borradorHorario
-      ? { horario: borradorHorario.horario, duracion_cita_minutos: borradorHorario.duracion }
-      : {}
-
+  // Campos de doctors que salen de este formulario (dirección + teléfono del
+  // consultorio principal). El horario, clinic_addresses y el guardado en sí
+  // los maneja UbicacionTabs.
+  const construirCambios = (): { cambios: Record<string, any> } => {
     // Teléfono del consultorio principal (columna plana clinic_phone). El
     // flag de visibilidad solo se envía si doctors ya tiene esa columna
     // (select('*') solo trae las que existen); si no, mandarlo haría fallar
@@ -1563,28 +1609,23 @@ function LocationForm({ medico, onSave, saving, consultoriosAdicionalesBorrador,
     const isClearing =!currentName
 
     if (isClearing) {
-      await onSave({
-        clinic_name: null,
-        clinic_address: null,
-        clinic_lat: null,
-        clinic_lng: null,
-        street: null,
-        ext_number: null,
-        int_number: null,
-        floor: null,
-        cp: null,
-        estado: null,
-        ciudad: null,
-        colonia: null,
-        // Marcar "consultorio principal" (ControlPrincipal) solo actualiza
-        // el borrador en memoria (ver consultoriosAdicionalesBorrador en
-        // EditarPerfilPage), así que se incluye aquí para que ese cambio no
-        // se pierda al guardar el principal.
-        clinic_addresses: consultoriosAdicionalesBorrador,
-        ...camposHorario,
-        ...camposTelefono,
-      })
-      return
+      return {
+        cambios: {
+          clinic_name: null,
+          clinic_address: null,
+          clinic_lat: null,
+          clinic_lng: null,
+          street: null,
+          ext_number: null,
+          int_number: null,
+          floor: null,
+          cp: null,
+          estado: null,
+          ciudad: null,
+          colonia: null,
+          ...camposTelefono,
+        },
+      }
     }
 
     const lat = pinCoords?.lat ?? medico.clinic_lat ?? null
@@ -1596,33 +1637,45 @@ function LocationForm({ medico, onSave, saving, consultoriosAdicionalesBorrador,
       : `${form.street} ${form.ext_number}${currentInt? ` ${intLabel} ${currentInt}` : ''}`
     const direccionCompleta = `${streetPart}, ${form.colonia}, ${form.cp}, ${form.ciudad}, ${form.estado}`
 
-    await onSave({
-      clinic_type: form.clinic_type,
-      clinic_name: currentName,
-      clinic_address: direccionCompleta,
-      clinic_lat: lat,
-      clinic_lng: lng,
-      street: form.street,
-      ext_number: form.ext_number,
-      int_number: currentInt || null,
-      floor: isHospital? (currentFloor || null) : null,
-      cp: form.cp,
-      estado: form.estado,
-      ciudad: form.ciudad,
-      colonia: form.colonia,
-      // Ver comentario en la rama isClearing de arriba.
-      clinic_addresses: consultoriosAdicionalesBorrador,
-      ...camposHorario,
-      ...camposTelefono,
-    })
+    return {
+      cambios: {
+        clinic_type: form.clinic_type,
+        clinic_name: currentName,
+        clinic_address: direccionCompleta,
+        clinic_lat: lat,
+        clinic_lng: lng,
+        street: form.street,
+        ext_number: form.ext_number,
+        int_number: currentInt || null,
+        floor: isHospital? (currentFloor || null) : null,
+        cp: form.cp,
+        estado: form.estado,
+        ciudad: form.ciudad,
+        colonia: form.colonia,
+        ...camposTelefono,
+      },
+    }
   }
+
+  // ¿Hay algo distinto de lo guardado? Campos del formulario contra el
+  // `medico` vigente, y el pin contra las coordenadas guardadas.
+  const hayCambios = (): boolean => {
+    if (JSON.stringify(form) !== JSON.stringify(formDesdeMedico(medico))) return true
+    if (pinCoords) {
+      return redondearCoord(pinCoords.lat) !== redondearCoord(medico.clinic_lat)
+        || redondearCoord(pinCoords.lng) !== redondearCoord(medico.clinic_lng)
+    }
+    return false
+  }
+
+  if (controlRef) controlRef.current = { construirCambios, hayCambios }
 
   const currentName = form.clinic_type === 'hospital'? form.hospital_name : form.consultorio_name
   const currentInt = form.clinic_type === 'hospital'? form.hospital_int : form.consultorio_int
   const currentFloor = form.hospital_floor
 
   return (
-    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <form onSubmit={e => e.preventDefault()} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <ControlPrincipal esPrincipal={!!esPrincipal} onMarcar={onMarcarPrincipal} />
 
       <div>
@@ -1753,10 +1806,11 @@ function LocationForm({ medico, onSave, saving, consultoriosAdicionalesBorrador,
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-        <button type="submit" disabled={saving} style={{...btnPrimary, flex: 1, opacity: saving?0.6:1}}><Save size={15}/> {saving?'Guardando...':'Guardar ubicación'}</button>
-        {editandoCP && <button type="button" onClick={() => setEditandoCP(false)} style={{ padding: '10px 14px', background: '#F3F4F6', color: '#374151', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Cancelar</button>}
-      </div>
+      {editandoCP && (
+        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+          <button type="button" onClick={() => setEditandoCP(false)} style={{ padding: '10px 14px', background: '#F3F4F6', color: '#374151', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Cancelar</button>
+        </div>
+      )}
     </form>
   )
 }
@@ -2042,13 +2096,14 @@ function HorarioConsultorioForm({ horarioInicial, duracionInicial, onGuardar, ti
 // arrastrable) pero operando sobre un ConsultorioAdicional suelto en vez de
 // las columnas planas de `medico` -- por eso no reutiliza LocationForm
 // directamente, sino que replica su mismo formulario con un onSave propio.
-function ConsultorioAdicionalForm({ consultorio, onSave, onCancel, onEliminar, esPrincipal, onMarcarPrincipal, saving }: {
+function ConsultorioAdicionalForm({ consultorio, onSave, onCancel, onEliminar, esPrincipal, onMarcarPrincipal, registrarControl, saving }: {
   consultorio: ConsultorioAdicional
   onSave: (c: ConsultorioAdicional) => void
   onCancel?: () => void
   onEliminar?: () => void
   esPrincipal?: boolean
   onMarcarPrincipal?: () => void
+  registrarControl?: (control: ControlAdicional | null) => void
   saving: boolean
 }) {
   const { loading: loadingCP, error: cpError, cpData, search } = useCP()
@@ -2115,14 +2170,10 @@ function ConsultorioAdicionalForm({ consultorio, onSave, onCancel, onEliminar, e
     )
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!horarioValido) {
-      alert('Corrige el horario marcado en rojo antes de guardar')
-      return
-    }
+  // El consultorio tal como quedaría con lo que hay hoy en el formulario.
+  const construirActual = (): ConsultorioAdicional => {
     const isHospital = form.clinic_type === 'hospital'
-    onSave({
+    return {
       ...consultorio,
       horario: horarioConsultorio,
       clinic_type: form.clinic_type,
@@ -2139,8 +2190,32 @@ function ConsultorioAdicionalForm({ consultorio, onSave, onCancel, onEliminar, e
       clinic_phone_visible: form.clinic_phone.trim() !== '' && form.clinic_phone_visible,
       clinic_lat: pinCoords?.lat ?? consultorio.clinic_lat ?? null,
       clinic_lng: pinCoords?.lng ?? consultorio.clinic_lng ?? null,
-    })
+    }
   }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!horarioValido) {
+      alert('Corrige el horario marcado en rojo antes de guardar')
+      return
+    }
+    onSave(construirActual())
+  }
+
+  // Para el "Guardar cambios" global y la detección de cambios de
+  // UbicacionTabs: se vuelve a registrar en cada render (siempre apunta al
+  // estado vigente) y se da de baja al desmontarse.
+  useEffect(() => {
+    registrarControl?.({
+      construir: () => {
+        if (!horarioValido) return { error: 'Corrige el horario marcado en rojo antes de guardar' }
+        if (!form.clinic_name.trim()) return { error: 'Ponle nombre al consultorio antes de guardar' }
+        return { consultorio: construirActual() }
+      },
+      hayCambios: () => firmaConsultorio(construirActual()) !== firmaConsultorio(consultorio),
+    })
+    return () => registrarControl?.(null)
+  })
 
   return (
     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -2271,26 +2346,36 @@ function ConsultorioAdicionalForm({ consultorio, onSave, onCancel, onEliminar, e
         onGuardar={(horario, _duracion, valido) => { setHorarioConsultorio(horario); setHorarioValido(valido) }}
       />
 
-      <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-        <button type="submit" disabled={saving} style={{...btnPrimary, flex: 1, opacity: saving?0.6:1}}><Save size={15}/> {saving?'Guardando...':'Guardar consultorio'}</button>
-        {onCancel && <button type="button" onClick={onCancel} disabled={saving} style={{ padding: '10px 14px', background: '#F3F4F6', color: '#374151', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Cancelar</button>}
-        {onEliminar && <button type="button" onClick={onEliminar} disabled={saving} aria-label="Eliminar este consultorio" style={{ padding: '10px 14px', background: '#FEF2F2', color: '#DC2626', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}><Trash2 size={14} /> Eliminar</button>}
-      </div>
+      {/* Un consultorio que ya existe se guarda con el "Guardar cambios"
+          global de UbicacionTabs; solo el nuevo (onCancel = flujo de
+          creación) tiene su propio botón de confirmación. Eliminar no se
+          ofrece si es el principal. */}
+      {(onCancel || (onEliminar && !esPrincipal)) && (
+        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+          {onCancel && <button type="submit" disabled={saving} style={{...btnPrimary, flex: 1, opacity: saving?0.6:1}}><Save size={15}/> {saving?'Guardando...':'Guardar consultorio'}</button>}
+          {onCancel && <button type="button" onClick={onCancel} disabled={saving} style={{ padding: '10px 14px', background: '#F3F4F6', color: '#374151', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Cancelar</button>}
+          {onEliminar && !esPrincipal && <button type="button" onClick={onEliminar} disabled={saving} aria-label="Eliminar este consultorio" style={{ padding: '10px 14px', background: '#FEF2F2', color: '#DC2626', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}><Trash2 size={14} /> Eliminar</button>}
+        </div>
+      )}
     </form>
   )
 }
 
 // Modal de ubicación con tabs: un tab por consultorio (máximo 3 en total: el
 // principal de columnas planas de `doctors` + hasta 2 de clinic_addresses),
-// más un tab "+ Agregar consultorio" mientras haya lugar. Reemplaza a la
-// antigua lista expandible (ConsultoriosAdicionalesSection).
+// más un tab "+ Agregar consultorio" mientras haya lugar.
 //
-// La persistencia no cambia: el consultorio de columnas planas se guarda con
-// "Guardar ubicación" (LocationForm, que también manda el borrador de
-// clinic_addresses y el horario), y los adicionales con "Guardar consultorio"
-// (persistir -> clinic_addresses completo). Marcar "principal" se guarda al
-// instante (guardarPrincipal), actualizando el borrador
+// Guardado: el botón "Guardar cambios" del final guarda todo junto --
+// dirección y teléfono del principal (LocationForm), su horario
+// (horarioBorradorRef), y los consultorios adicionales editados o nuevos
+// (clinic_addresses) -- en un solo update a `doctors`. Solo el consultorio
+// nuevo tiene su propio "Guardar consultorio". Marcar "principal" se
+// guarda al instante (guardarPrincipal), actualizando el borrador
 // (consultoriosAdicionalesBorrador, que vive en EditarPerfilPage).
+//
+// Salir: X / clic fuera / Escape llaman a controlRef.current.intentarCerrar()
+// (ver EditarPerfilPage). Si hay cambios sin guardar -- formularios contra lo
+// guardado -- se pide confirmación; si no, se cierra directo.
 //
 // Todos los paneles se mantienen montados -- los inactivos se sacan del flujo
 // pero conservan su tamaño, para no perder lo que el médico ya escribió al
@@ -2300,9 +2385,18 @@ const MAX_CONSULTORIOS = 3
 const TAB_PRINCIPAL_ID = '__principal__'
 const TAB_NUEVO_ID = '__nuevo__'
 
-function UbicacionTabs({ medico, onSave, saving, consultorios, setConsultorios, horarioBorradorRef }: any) {
+function UbicacionTabs({ medico, onSave, saving, consultorios, setConsultorios, horarioBorradorRef, onCerrar, controlRef }: any) {
   const [tabActivo, setTabActivo] = useState<string>(TAB_PRINCIPAL_ID)
   const [nuevoConsultorio, setNuevoConsultorio] = useState<ConsultorioAdicional | null>(null)
+  const [confirmarSalida, setConfirmarSalida] = useState(false)
+
+  // Controles que cada formulario registra para poder leerlos desde aquí.
+  const locationControlRef = useRef<{ construirCambios: () => { cambios: Record<string, any> }; hayCambios: () => boolean } | null>(null)
+  const controlesAdicionalesRef = useRef<Record<string, ControlAdicional>>({})
+  const registrarControlAdicional = (id: string) => (control: ControlAdicional | null) => {
+    if (control) controlesAdicionalesRef.current[id] = control
+    else delete controlesAdicionalesRef.current[id]
+  }
 
   const persistir = async (nuevaLista: ConsultorioAdicional[]) => {
     await onSave({ clinic_addresses: nuevaLista })
@@ -2325,13 +2419,19 @@ function UbicacionTabs({ medico, onSave, saving, consultorios, setConsultorios, 
     setTabActivo(TAB_PRINCIPAL_ID)
   }
 
+  // Avisos verdes que desaparecen a los 2 segundos.
+  const [avisoPrincipal, setAvisoPrincipal] = useState(false)
+  const [avisoGuardado, setAvisoGuardado] = useState(false)
+  const avisoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const avisoGuardadoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => {
+    if (avisoTimerRef.current) clearTimeout(avisoTimerRef.current)
+    if (avisoGuardadoTimerRef.current) clearTimeout(avisoGuardadoTimerRef.current)
+  }, [])
+
   // Marcar "principal" se guarda de inmediato (clinic_addresses completo con
   // is_primary actualizado) y muestra un aviso verde por 2 segundos. Si el
   // guardado falla, se regresa el borrador a como estaba.
-  const [avisoPrincipal, setAvisoPrincipal] = useState(false)
-  const avisoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  useEffect(() => () => { if (avisoTimerRef.current) clearTimeout(avisoTimerRef.current) }, [])
-
   const guardarPrincipal = async (nuevaLista: ConsultorioAdicional[]) => {
     const anterior = consultorios
     setConsultorios(nuevaLista)
@@ -2351,6 +2451,83 @@ function UbicacionTabs({ medico, onSave, saving, consultorios, setConsultorios, 
   const marcarPrincipalColumnasPlanas = () => {
     guardarPrincipal(consultorios.map((item: ConsultorioAdicional) => ({ ...item, is_primary: false })))
   }
+
+  // ¿Hay algo sin guardar? Formulario del principal, horario del principal,
+  // y cada consultorio adicional (incluido el nuevo) contra lo guardado.
+  const hayCambiosPendientes = (): boolean => {
+    if (locationControlRef.current?.hayCambios()) return true
+    if (horarioPrincipalCambio(medico, horarioBorradorRef.current)) return true
+    return Object.values(controlesAdicionalesRef.current).some(c => c.hayCambios())
+  }
+
+  // Guarda todo en un solo update. Devuelve true si se guardó (o si no había
+  // nada que guardar) y false si hubo un error de validación o de guardado.
+  const guardarTodo = async (): Promise<boolean> => {
+    const cambios: Record<string, any> = {}
+
+    // Principal: dirección + teléfono.
+    const loc = locationControlRef.current
+    if (loc?.hayCambios()) Object.assign(cambios, loc.construirCambios().cambios)
+
+    // Principal: horario y duración.
+    const borradorHorario = horarioBorradorRef.current
+    if (horarioPrincipalCambio(medico, borradorHorario)) {
+      if (!borradorHorario.valido) {
+        setTabActivo(TAB_PRINCIPAL_ID)
+        alert('Corrige el horario marcado en rojo antes de guardar')
+        return false
+      }
+      cambios.horario = borradorHorario.horario
+      cambios.duracion_cita_minutos = borradorHorario.duracion
+    }
+
+    // Adicionales existentes (con sus ediciones) + el nuevo, si lo hay.
+    let lista: ConsultorioAdicional[] = []
+    for (const item of consultorios as ConsultorioAdicional[]) {
+      const ctl = controlesAdicionalesRef.current[item.id]
+      if (ctl?.hayCambios()) {
+        const r = ctl.construir()
+        if ('error' in r) { setTabActivo(item.id); alert(r.error); return false }
+        lista.push(r.consultorio)
+      } else {
+        lista.push(item)
+      }
+    }
+    let nuevoAgregado: ConsultorioAdicional | null = null
+    if (nuevoConsultorio) {
+      const ctlNuevo = controlesAdicionalesRef.current[nuevoConsultorio.id]
+      if (ctlNuevo?.hayCambios()) {
+        const r = ctlNuevo.construir()
+        if ('error' in r) { setTabActivo(TAB_NUEVO_ID); alert(r.error); return false }
+        nuevoAgregado = r.consultorio
+        lista.push(nuevoAgregado)
+      }
+    }
+    if (JSON.stringify(lista) !== JSON.stringify(medico.clinic_addresses ?? [])) cambios.clinic_addresses = lista
+
+    if (Object.keys(cambios).length === 0) return true
+
+    const ok = await onSave(cambios)
+    if (ok === false) return false
+
+    if ('clinic_addresses' in cambios) setConsultorios(lista)
+    if (nuevoAgregado) {
+      setNuevoConsultorio(null)
+      setTabActivo(nuevoAgregado.id)
+    }
+    setAvisoGuardado(true)
+    if (avisoGuardadoTimerRef.current) clearTimeout(avisoGuardadoTimerRef.current)
+    avisoGuardadoTimerRef.current = setTimeout(() => setAvisoGuardado(false), 2000)
+    return true
+  }
+
+  // Lo llama el modal al tocar X, hacer clic fuera o presionar Escape.
+  const intentarCerrar = () => {
+    if (hayCambiosPendientes()) setConfirmarSalida(true)
+    else onCerrar()
+  }
+  if (controlRef) controlRef.current = { intentarCerrar }
+  useEffect(() => () => { if (controlRef) controlRef.current = null }, [controlRef])
 
   const hayPrincipalAdicional = consultorios.some((c: ConsultorioAdicional) => c.is_primary)
 
@@ -2451,10 +2628,7 @@ function UbicacionTabs({ medico, onSave, saving, consultorios, setConsultorios, 
         <div role="tabpanel" style={estiloPanel(idActivo === TAB_PRINCIPAL_ID)}>
           <LocationForm
             medico={medico}
-            onSave={onSave}
-            saving={saving}
-            consultoriosAdicionalesBorrador={consultorios}
-            horarioBorradorRef={horarioBorradorRef}
+            controlRef={locationControlRef}
             esPrincipal={!hayPrincipalAdicional}
             onMarcarPrincipal={marcarPrincipalColumnasPlanas}
           />
@@ -2474,6 +2648,7 @@ function UbicacionTabs({ medico, onSave, saving, consultorios, setConsultorios, 
               onEliminar={() => handleEliminar(c.id)}
               esPrincipal={!!c.is_primary}
               onMarcarPrincipal={() => marcarPrincipalAdicional(c.id)}
+              registrarControl={registrarControlAdicional(c.id)}
               saving={saving}
             />
           </div>
@@ -2485,11 +2660,55 @@ function UbicacionTabs({ medico, onSave, saving, consultorios, setConsultorios, 
               consultorio={nuevoConsultorio}
               onSave={handleGuardarNuevo}
               onCancel={cancelarNuevo}
+              registrarControl={registrarControlAdicional(nuevoConsultorio.id)}
               saving={saving}
             />
           </div>
         )}
       </div>
+
+      {/* Creando un consultorio nuevo, su único botón de guardado es el
+          "Guardar consultorio" de su propio formulario. */}
+      {idActivo !== TAB_NUEVO_ID && (
+        <div style={{ marginTop: 20 }}>
+          {avisoGuardado && (
+            <p role="status" style={{ fontSize: 12, fontWeight: 600, color: '#059669', marginBottom: 8 }}>✓ Cambios guardados</p>
+          )}
+          <button
+            type="button"
+            onClick={() => { guardarTodo() }}
+            disabled={saving}
+            style={{ ...btnPrimary, width: '100%', opacity: saving ? 0.6 : 1 }}
+          >
+            <Save size={15} /> {saving ? 'Guardando...' : 'Guardar cambios'}
+          </button>
+        </div>
+      )}
+
+      {confirmarSalida && (
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget) setConfirmarSalida(false) }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(17,24,39,0.5)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+        >
+          <div role="alertdialog" aria-modal="true" aria-labelledby="titulo-salir-ubicacion" style={{ background: '#fff', borderRadius: 16, padding: 24, maxWidth: 340, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center' }}>
+            <h3 id="titulo-salir-ubicacion" style={{ fontSize: 17, fontWeight: 700, color: '#111827', margin: 0 }}>Tienes cambios sin guardar</h3>
+            <button
+              type="button"
+              onClick={() => setConfirmarSalida(false)}
+              style={{ width: '100%', minHeight: 44, padding: '10px 16px', background: '#1E3A5F', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+            >
+              Seguir editando
+            </button>
+            <button
+              type="button"
+              onClick={() => { setConfirmarSalida(false); onCerrar() }}
+              style={{ background: 'none', border: 'none', padding: '8px 12px', minHeight: 40, color: '#DC2626', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+            >
+              Salir
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
