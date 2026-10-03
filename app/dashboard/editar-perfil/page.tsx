@@ -12,6 +12,8 @@ import { useCP } from '@/hooks/useCP'
 import TitleSelect from '@/components/TitleSelect'
 import imageCompression from 'browser-image-compression'
 import GaleriaFotos from './GaleriaFotos'
+import FechasBloqueadas, { type BloqueoFecha } from '@/components/FechasBloqueadas'
+import { fechaISOLocal } from '@/lib/citas/fechas'
 
 const UNIVERSIDADES_MEXICO = [
   'Benemérita Universidad Autónoma de Puebla (BUAP)',
@@ -285,6 +287,10 @@ export default function EditarPerfilPage() {
   const [conditions, setConditions] = useState<Condition[]>([])
   const [activeModal, setActiveModal] = useState<string | null>(null)
   const [activeStep, setActiveStep] = useState(1)
+  // Fechas bloqueadas próximas (doctor_blocked_dates). bloqueosError evita
+  // que un fallo de lectura se muestre como "Sin fechas bloqueadas".
+  const [bloqueos, setBloqueos] = useState<BloqueoFecha[]>([])
+  const [bloqueosError, setBloqueosError] = useState(false)
   // Borrador de clinic_addresses mientras el modal de ubicación está
   // abierto -- marcar "consultorio principal" en UbicacionTabs
   // solo toca este estado (ver más abajo), nunca llama a onSave directo. El
@@ -380,13 +386,16 @@ export default function EditarPerfilPage() {
       setMedico(medicoData)
 
       const doctorId = medicoData.id
-      const [specRes, eduRes, expRes, condRes, primaryCredRes] = await Promise.all([
+      const [specRes, eduRes, expRes, condRes, primaryCredRes, bloqueosRes] = await Promise.all([
         supabase.from('doctor_specialties').select('*').eq('doctor_id', doctorId),
         supabase.from('doctor_education').select('*').eq('doctor_id', doctorId).order('graduation_year', { ascending: false }),
         supabase.from('doctor_experience').select('*').eq('doctor_id', doctorId).order('is_current', { ascending: false }),
         supabase.from('doctor_conditions').select('*').eq('doctor_id', doctorId).order('category'),
         supabase.from('doctor_specialty_credentials').select('id, vigencia_hasta').eq('doctor_id', doctorId).eq('is_primary', true).maybeSingle(),
+        supabase.from('doctor_blocked_dates').select('id, fecha, motivo, created_at').eq('doctor_id', doctorId).gte('fecha', fechaISOLocal(new Date())).order('fecha', { ascending: true }),
       ])
+      setBloqueos(bloqueosRes.data ?? [])
+      setBloqueosError(!!bloqueosRes.error)
 
       setSpecialties(specRes.data?? [])
       setEducation(eduRes.data?? [])
@@ -1127,6 +1136,14 @@ export default function EditarPerfilPage() {
   )}
 </Card>
 
+            <Card title="Bloquear fechas" onEdit={() => setActiveModal('bloqueos')}>
+              {bloqueosError
+                ? <p style={{ fontSize: 13, color: '#DC2626' }}>No se pudieron cargar tus fechas bloqueadas.</p>
+                : bloqueos.length > 0
+                  ? <p style={{ fontSize: 14, color: '#374151' }}>{bloqueos.length} {bloqueos.length === 1 ? 'fecha bloqueada' : 'fechas bloqueadas'} próximamente</p>
+                  : <p style={{ fontSize: 13, color: '#9CA3AF', fontStyle: 'italic' }}>Sin fechas bloqueadas</p>}
+            </Card>
+
             <Card title="Precios y contacto" onEdit={() => setActiveModal('booking')}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {medico.consultation_price_first_time && <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><DollarSign size={15} color="#1E3A5F" /><span style={{ fontSize: 14, color: '#374151' }}>Primera vez: <strong style={{ color: '#111827' }}>${medico.consultation_price_first_time} MXN</strong></span></div>}
@@ -1142,7 +1159,7 @@ export default function EditarPerfilPage() {
       </div>
 
       {activeModal && (
-        <Modal onClose={() => setActiveModal(null)} title={{ basic: 'Información básica', intro: 'Biografía', specialties: 'Especialidades', conditions: 'Enfermedades', experience: 'Experiencia', education: 'Formación', languages: 'Idiomas', booking: 'Precios y contacto', location: 'Ubicación del consultorio' }[activeModal] || 'Editar'}>
+        <Modal onClose={() => setActiveModal(null)} title={{ basic: 'Información básica', intro: 'Biografía', specialties: 'Especialidades', conditions: 'Enfermedades', experience: 'Experiencia', education: 'Formación', languages: 'Idiomas', booking: 'Precios y contacto', location: 'Ubicación del consultorio', bloqueos: 'Bloquear fechas de consulta' }[activeModal] || 'Editar'}>
           {activeModal === 'basic' && <BasicInfoForm medico={medico} onSave={handleSaveBasicInfo} saving={saving} />}
           {activeModal === 'intro' && <IntroForm aboutMe={medico.about_me} onSave={handleSaveBasicInfo} saving={saving} />}
           {activeModal === 'specialties' && <SpecialtiesForm specialties={specialties} specialty={medico.specialty} councilMap={councilMap} onAdd={handleAddSpecialty} onDelete={handleDeleteSpecialty} saving={saving} />}
@@ -1151,6 +1168,7 @@ export default function EditarPerfilPage() {
           {activeModal === 'education' && <EducationForm education={education} onAdd={handleAddEducation} onDelete={handleDeleteEducation} saving={saving} />}
           {activeModal === 'languages' && <LanguagesForm languages={medico.languages?? []} onSave={handleSaveBasicInfo} saving={saving} />}
           {activeModal === 'booking' && <BookingForm medico={medico} onSave={handleSaveBasicInfo} saving={saving} />}
+          {activeModal === 'bloqueos' && <FechasBloqueadas doctorId={medico.id} bloqueos={bloqueos} onChange={setBloqueos} sinMarco />}
           {activeModal === 'location' && (
             <UbicacionTabs
               medico={medico}
@@ -2667,6 +2685,12 @@ function BookingForm({ medico, onSave, saving }: any) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer', color: '#374151' }}><input type="checkbox" checked={form.whatsapp_available} onChange={e => setForm(p => ({...p, whatsapp_available: e.target.checked }))} style={{ accentColor: '#2A9D8F' }} /><MessageCircle size={15} color="#2A9D8F" /> WhatsApp</label>
           {form.whatsapp_available && <div><label style={{ display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 4, color: '#6B7280', textTransform: 'uppercase' }}>Número WhatsApp</label><input type="tel" value={form.whatsapp_phone} onChange={e => setForm(p => ({...p, whatsapp_phone: e.target.value }))} style={inputStyle} placeholder="55 1234 5678" /></div>}
+          {form.whatsapp_available && (
+            <p style={{ display: 'flex', alignItems: 'flex-start', gap: 6, padding: '8px 10px', background: '#FEF3C7', border: '1px solid #FCD34D', borderRadius: 8, fontSize: 12, color: '#92400E', margin: 0 }}>
+              <AlertTriangle size={14} style={{ flexShrink: 0, marginTop: 1 }} aria-hidden="true" />
+              Recomendamos no compartir tu número personal. Al activar esta opción será visible públicamente en tu perfil.
+            </p>
+          )}
         </div>
       </div>
       <button type="submit" disabled={saving} style={{...btnPrimary, opacity: saving? 0.6 : 1 }}><Save size={15} /> {saving? 'Guardando...' : 'Guardar'}</button>
