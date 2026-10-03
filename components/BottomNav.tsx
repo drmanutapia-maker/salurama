@@ -7,7 +7,7 @@ import { isManuelEmail } from '@/lib/manuelOnly'
 import { contarMensajesSinLeerTotal, EVENTO_CHAT_LEIDO } from '@/lib/chat/sinLeer'
 import {
   Search, Heart, Calendar, User,
-  Home, Clock, MessageCircle, MessageCircleQuestion
+  Home, MessageCircle, MessageCircleQuestion
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -83,7 +83,6 @@ export default function BottomNav() {
 
   const doctorNav: NavItem[] = [
     { href: '/dashboard', label: 'Inicio', icon: Home, exact: true },
-    { href: '/dashboard/horario', label: 'Horarios', icon: Clock },
     { href: '/dashboard/citas', label: 'Citas', icon: Calendar },
     { href: '/dashboard/chat', label: 'Chat', icon: MessageCircle, badge: sinLeer },
     // MSL Virtual: oculto salvo para la cuenta de Manuel — ver lib/manuelOnly.ts

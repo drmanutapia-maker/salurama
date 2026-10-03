@@ -294,7 +294,7 @@ export default function DashboardMedico() {
           descripcion: 'Los pacientes solo agendan cuando ven disponibilidad',
           impacto: '+35% más citas',
           cta: 'Configurar',
-          link: '/dashboard/horario',
+          link: '/dashboard/editar-perfil',
           color: '#8B5CF6'
         })
         // 5. Precios

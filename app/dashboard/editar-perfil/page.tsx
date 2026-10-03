@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import {
   X, Edit2, Save, Plus, Trash2, Phone, MessageCircle,
-  DollarSign, Shield, Camera, Eye, CheckCircle, MapPin, Star, Globe
+  DollarSign, Shield, Camera, Eye, CheckCircle, MapPin, Star, Globe, AlertTriangle
 } from 'lucide-react'
 import dynamic from 'next/dynamic'
 const LocationPicker = dynamic(() => import('@/components/LocationPicker'), { ssr: false })
@@ -141,6 +141,7 @@ interface Medico {
   whatsapp_available: boolean
   whatsapp_phone: string | null
   clinic_phone: string | null
+  clinic_phone_visible?: boolean | null
   clinic_name: string | null
   clinic_address: string | null
   clinic_lat: number | null
@@ -150,6 +151,7 @@ interface Medico {
   years_experience: number | null
   languages: string[]
   horario: Record<string, unknown> | null
+  duracion_cita_minutos: number | null
   atiende_ninos: boolean
   min_patient_age: number | null
   max_patient_age: number | null
@@ -209,7 +211,8 @@ interface ConsultorioAdicional {
   clinic_lng: number | null
   clinic_phone: string
   is_primary: boolean
-  horario?: Record<string, { activo: boolean; inicio: string; fin: string }> | null
+  clinic_phone_visible?: boolean
+  horario?: Record<string, { activo: boolean; inicio: string; fin: string; descanso_inicio?: string; descanso_fin?: string }> | null
 }
 
 const inputStyle: React.CSSProperties = {
@@ -283,7 +286,7 @@ export default function EditarPerfilPage() {
   const [activeModal, setActiveModal] = useState<string | null>(null)
   const [activeStep, setActiveStep] = useState(1)
   // Borrador de clinic_addresses mientras el modal de ubicación está
-  // abierto -- marcar la estrella de "principal" en ConsultoriosAdicionalesSection
+  // abierto -- marcar "consultorio principal" en UbicacionTabs
   // solo toca este estado (ver más abajo), nunca llama a onSave directo. El
   // guardado real ocurre cuando el médico presiona "Guardar ubicación" en
   // LocationForm, que ahora también envía este borrador. Se reinicia cada
@@ -295,6 +298,15 @@ export default function EditarPerfilPage() {
       setConsultoriosAdicionalesBorrador(Array.isArray(medico?.clinic_addresses) ? medico.clinic_addresses : [])
     }
   }, [activeModal, medico])
+  // Borrador del horario del consultorio principal mientras el modal de
+  // ubicación está abierto. HorarioConsultorioForm lo actualiza en cada
+  // cambio (sin re-render del padre) y LocationForm lo lee al presionar
+  // "Guardar ubicación". null = el médico no ha tocado el horario, así que
+  // no se envía nada de horario/duración en ese guardado.
+  const horarioBorradorRef = useRef<{ horario: Horario; duracion: number; valido: boolean } | null>(null)
+  useEffect(() => {
+    if (activeModal !== 'location') horarioBorradorRef.current = null
+  }, [activeModal])
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [editingLicense, setEditingLicense] = useState(false)
@@ -339,8 +351,11 @@ export default function EditarPerfilPage() {
 
   useEffect(() => { window.scrollTo(0, 0) }, [])
 
-  const loadData = useCallback(async () => {
-    setLoading(true)
+  // silencioso: recarga sin pasar por la pantalla de carga -- se usa al
+  // guardar desde el modal de ubicación, que debe seguir abierto (con su tab
+  // activo y los borradores de los demás tabs) en vez de desmontarse.
+  const loadData = useCallback(async (silencioso = false) => {
+    if (!silencioso) setLoading(true)
     try {
       const { data: { user }, error: authError } = await supabase.auth.getUser()
       if (authError ||!user) {
@@ -382,7 +397,7 @@ export default function EditarPerfilPage() {
       console.error('Error:', err)
       alert('Error cargando perfil')
     } finally {
-      setLoading(false)
+      if (!silencioso) setLoading(false)
     }
   }, [router])
 
@@ -460,8 +475,8 @@ export default function EditarPerfilPage() {
     }
   }
 
-  const handleSaveBasicInfo = async (data: Partial<Medico>) => {
-  if (!medico) return
+  const handleSaveBasicInfo = async (data: Partial<Medico>, opts?: { mantenerModal?: boolean }) => {
+  if (!medico) return false
   // Segunda barrera, independiente de que BasicInfoForm mantenga su botón
   // "Guardar" deshabilitado -- este es el único lugar donde estos campos
   // de verdad llegan a la base de datos (esta función también la comparten
@@ -471,34 +486,36 @@ export default function EditarPerfilPage() {
   // checks no hacen nada.
   if (data.facebook_url && !esLinkDeRedSocial(data.facebook_url, ['facebook.com', 'fb.com'])) {
     alert('Este campo solo acepta links de Facebook')
-    return
+    return false
   }
   if (data.instagram_url && !esLinkDeRedSocial(data.instagram_url, ['instagram.com'])) {
     alert('Este campo solo acepta links de Instagram')
-    return
+    return false
   }
   if (data.tiktok_url && !esLinkDeRedSocial(data.tiktok_url, ['tiktok.com'])) {
     alert('Este campo solo acepta links de TikTok')
-    return
+    return false
   }
   if (data.linkedin_url && !esLinkDeRedSocial(data.linkedin_url, ['linkedin.com'])) {
     alert('Este campo solo acepta links de LinkedIn')
-    return
+    return false
   }
   if (data.website_url && marcaCompetidoraEn(data.website_url)) {
     alert('Este campo solo acepta tu propia página web')
-    return
+    return false
   }
   setSaving(true)
   try {
     const { error } = await supabase.from('doctors').update(data).eq('id', medico.id)
     if (error) throw error
     setMedico(prev => prev? ({...prev,...data }) : null)
-    await loadData()
-    setActiveModal(null)
+    await loadData(!!opts?.mantenerModal)
+    if (!opts?.mantenerModal) setActiveModal(null)
+    return true
   } catch (err) {
     console.error('Error:', err)
     alert('Error al guardar')
+    return false
   } finally {
     setSaving(false)
   }
@@ -1034,6 +1051,15 @@ export default function EditarPerfilPage() {
               )) : <p style={{ fontSize: 13, color: '#9CA3AF', fontStyle: 'italic' }}>Sin formación.</p>}
             </Card>
 
+            <Card title="Experiencia profesional" onEdit={() => setActiveModal('experience')}>
+              {experience.length > 0? experience.map(exp => (
+                <div key={exp.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #F3F4F6' }}>
+                  <div><p style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{exp.institution_name}</p><p style={{ fontSize: 13, color: '#6B7280' }}>{exp.position}{exp.location? ` · ${exp.location}` : ''}{exp.is_current? ' · Actual' : ''}</p></div>
+                  <button onClick={() => handleDeleteExperience(exp.id)} style={{ background: 'none', border: 'none', color: '#DC2626', cursor: 'pointer', padding: 4 }}><Trash2 size={15} /></button>
+                </div>
+              )) : <p style={{ fontSize: 13, color: '#9CA3AF', fontStyle: 'italic' }}>Sin experiencia.</p>}
+            </Card>
+
             <Card title="Idiomas" onEdit={() => setActiveModal('languages')}>
               {Array.isArray(medico.languages) && medico.languages.length > 0? <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>{medico.languages.map((lang, i) => <span key={i} style={{ padding: '4px 12px', background: '#E8F7F5', borderRadius: 20, fontSize: 13, color: '#1E3A5F', fontWeight: 500 }}>{lang}</span>)}</div> : <p style={{ fontSize: 13, color: '#9CA3AF', fontStyle: 'italic' }}>Sin idiomas.</p>}
             </Card>
@@ -1046,15 +1072,6 @@ export default function EditarPerfilPage() {
 
         {activeStep === 3 && (
           <>
-            <Card title="Experiencia profesional" onEdit={() => setActiveModal('experience')}>
-              {experience.length > 0? experience.map(exp => (
-                <div key={exp.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #F3F4F6' }}>
-                  <div><p style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{exp.institution_name}</p><p style={{ fontSize: 13, color: '#6B7280' }}>{exp.position}{exp.location? ` · ${exp.location}` : ''}{exp.is_current? ' · Actual' : ''}</p></div>
-                  <button onClick={() => handleDeleteExperience(exp.id)} style={{ background: 'none', border: 'none', color: '#DC2626', cursor: 'pointer', padding: 4 }}><Trash2 size={15} /></button>
-                </div>
-              )) : <p style={{ fontSize: 13, color: '#9CA3AF', fontStyle: 'italic' }}>Sin experiencia.</p>}
-            </Card>
-
             <Card title="Ubicación del consultorio" onEdit={() => setActiveModal('location')}>
   {ubicacionPrincipal.lat && ubicacionPrincipal.lng? (
     <div>
@@ -1135,10 +1152,14 @@ export default function EditarPerfilPage() {
           {activeModal === 'languages' && <LanguagesForm languages={medico.languages?? []} onSave={handleSaveBasicInfo} saving={saving} />}
           {activeModal === 'booking' && <BookingForm medico={medico} onSave={handleSaveBasicInfo} saving={saving} />}
           {activeModal === 'location' && (
-            <>
-              <LocationForm medico={medico} onSave={handleSaveBasicInfo} saving={saving} consultoriosAdicionalesBorrador={consultoriosAdicionalesBorrador} />
-              <ConsultoriosAdicionalesSection medico={medico} onSave={handleSaveBasicInfo} saving={saving} consultorios={consultoriosAdicionalesBorrador} setConsultorios={setConsultoriosAdicionalesBorrador} />
-            </>
+            <UbicacionTabs
+              medico={medico}
+              onSave={(d: Partial<Medico>) => handleSaveBasicInfo(d, { mantenerModal: true })}
+              saving={saving}
+              consultorios={consultoriosAdicionalesBorrador}
+              setConsultorios={setConsultoriosAdicionalesBorrador}
+              horarioBorradorRef={horarioBorradorRef}
+            />
           )}
         </Modal>
       )}
@@ -1408,7 +1429,27 @@ function BasicInfoForm({ medico, onSave, saving }: any) {
   )
 }
 
-function LocationForm({ medico, onSave, saving, consultoriosAdicionalesBorrador }: any) {
+// Indicador/acción de "consultorio principal" dentro del formulario de cada
+// consultorio (la estrella ya no vive en la fila de la lista). El principal
+// actual solo muestra su estado; los demás ofrecen marcarse como principal
+// -- ver UbicacionTabs, que decide qué hace onMarcar.
+function ControlPrincipal({ esPrincipal, onMarcar }: { esPrincipal: boolean; onMarcar?: () => void }) {
+  if (esPrincipal) {
+    return (
+      <p style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: '#B45309', background: '#FEF3C7', borderRadius: 8, padding: '8px 12px' }}>
+        <Star size={14} fill="#D97706" color="#D97706" /> Consultorio principal — se muestra primero en tu perfil
+      </p>
+    )
+  }
+  if (!onMarcar) return null
+  return (
+    <button type="button" onClick={onMarcar} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: '#B45309', background: '#fff', border: '1px solid #FCD34D', borderRadius: 8, padding: '8px 12px', cursor: 'pointer', textAlign: 'left' }}>
+      <Star size={14} color="#D97706" /> Marcar como consultorio principal
+    </button>
+  )
+}
+
+function LocationForm({ medico, onSave, saving, consultoriosAdicionalesBorrador, horarioBorradorRef, esPrincipal, onMarcarPrincipal }: any) {
   const { loading: loadingCP, error: cpError, cpData, search } = useCP()
 
   const [form, setForm] = useState({
@@ -1424,6 +1465,8 @@ function LocationForm({ medico, onSave, saving, consultoriosAdicionalesBorrador 
     hospital_name: medico.clinic_type === 'hospital'? (medico.clinic_name || '') : '',
     hospital_int: medico.clinic_type === 'hospital'? (medico.int_number || '') : '',
     hospital_floor: medico.clinic_type === 'hospital'? (medico.floor || '') : '',
+    clinic_phone: medico.clinic_phone || '',
+    clinic_phone_visible: !!medico.clinic_phone && medico.clinic_phone_visible === true,
   })
 
   const [editandoCP, setEditandoCP] = useState(!form.cp)
@@ -1471,6 +1514,28 @@ function LocationForm({ medico, onSave, saving, consultoriosAdicionalesBorrador 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    // Horario del consultorio principal (HorarioConsultorioForm, que vive
+    // fuera de este <form> pero comparte este botón de guardado). Solo se
+    // envía si el médico lo tocó; con un horario inválido no se guarda nada.
+    const borradorHorario = horarioBorradorRef?.current ?? null
+    if (borradorHorario && !borradorHorario.valido) {
+      alert('Corrige el horario marcado en rojo antes de guardar')
+      return
+    }
+    const camposHorario = borradorHorario
+      ? { horario: borradorHorario.horario, duracion_cita_minutos: borradorHorario.duracion }
+      : {}
+
+    // Teléfono del consultorio principal (columna plana clinic_phone). El
+    // flag de visibilidad solo se envía si doctors ya tiene esa columna
+    // (select('*') solo trae las que existen); si no, mandarlo haría fallar
+    // todo el guardado de ubicación.
+    const telefono = form.clinic_phone.trim()
+    const camposTelefono = {
+      clinic_phone: telefono || null,
+      ...('clinic_phone_visible' in medico ? { clinic_phone_visible: telefono !== '' && form.clinic_phone_visible } : {}),
+    }
+
     const isHospital = form.clinic_type === 'hospital'
     const currentName = isHospital? form.hospital_name : form.consultorio_name
     const currentInt = isHospital? form.hospital_int : form.consultorio_int
@@ -1493,12 +1558,13 @@ function LocationForm({ medico, onSave, saving, consultoriosAdicionalesBorrador 
         estado: null,
         ciudad: null,
         colonia: null,
-        // "Guardar ubicación" es el único botón que de verdad persiste
-        // clinic_addresses -- marcar la estrella de principal en
-        // ConsultoriosAdicionalesSection solo actualiza este borrador en
-        // memoria (ver consultoriosAdicionalesBorrador en EditarPerfilPage),
-        // así que se incluye aquí para que ese cambio no se pierda.
+        // Marcar "consultorio principal" (ControlPrincipal) solo actualiza
+        // el borrador en memoria (ver consultoriosAdicionalesBorrador en
+        // EditarPerfilPage), así que se incluye aquí para que ese cambio no
+        // se pierda al guardar el principal.
         clinic_addresses: consultoriosAdicionalesBorrador,
+        ...camposHorario,
+        ...camposTelefono,
       })
       return
     }
@@ -1528,6 +1594,8 @@ function LocationForm({ medico, onSave, saving, consultoriosAdicionalesBorrador 
       colonia: form.colonia,
       // Ver comentario en la rama isClearing de arriba.
       clinic_addresses: consultoriosAdicionalesBorrador,
+      ...camposHorario,
+      ...camposTelefono,
     })
   }
 
@@ -1537,6 +1605,8 @@ function LocationForm({ medico, onSave, saving, consultoriosAdicionalesBorrador 
 
   return (
     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <ControlPrincipal esPrincipal={!!esPrincipal} onMarcar={onMarcarPrincipal} />
+
       <div>
         <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 8, color: '#374151' }}>Tipo de lugar</label>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
@@ -1629,6 +1699,21 @@ function LocationForm({ medico, onSave, saving, consultoriosAdicionalesBorrador 
         </div>
       </div>
 
+      <div>
+        <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5, color: '#374151' }}>Teléfono del consultorio</label>
+        <input type="tel" value={form.clinic_phone} onChange={e => setForm({...form, clinic_phone: e.target.value, clinic_phone_visible: e.target.value.trim() === '' ? false : form.clinic_phone_visible})} style={{ width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: 8, fontSize: 14 }} placeholder="55 1234 5678" />
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, marginTop: 8, color: form.clinic_phone.trim() === '' ? '#9CA3AF' : '#374151', cursor: form.clinic_phone.trim() === '' ? 'not-allowed' : 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={form.clinic_phone_visible}
+            disabled={form.clinic_phone.trim() === ''}
+            onChange={e => setForm({...form, clinic_phone_visible: e.target.checked})}
+            style={{ accentColor: '#1E3A5F' }}
+          />
+          Mostrar en perfil público
+        </label>
+      </div>
+
       <button
         type="button"
         onClick={useMyLocation}
@@ -1658,12 +1743,296 @@ function LocationForm({ medico, onSave, saving, consultoriosAdicionalesBorrador 
   )
 }
 
+// ---------------------------------------------------------------------
+// Editor de horario por consultorio. Tipos, constantes y validarDia son
+// copia tal cual de app/dashboard/horario/page.tsx.
+// ---------------------------------------------------------------------
+type DiaSemana = 'lunes' | 'martes' | 'miercoles' | 'jueves' | 'viernes' | 'sabado' | 'domingo'
+
+interface HorarioDia {
+  activo: boolean
+  inicio: string
+  fin: string
+  descanso_inicio?: string
+  descanso_fin?: string
+}
+
+type Horario = Record<DiaSemana, HorarioDia>
+
+const DIAS: { key: DiaSemana; label: string }[] = [
+  { key: 'lunes', label: 'Lunes' },
+  { key: 'martes', label: 'Martes' },
+  { key: 'miercoles', label: 'Miércoles' },
+  { key: 'jueves', label: 'Jueves' },
+  { key: 'viernes', label: 'Viernes' },
+  { key: 'sabado', label: 'Sábado' },
+  { key: 'domingo', label: 'Domingo' },
+]
+
+const HORAS = Array.from({ length: 48 }, (_, i) => {
+  const h = Math.floor(i / 2).toString().padStart(2, '0')
+  const m = i % 2 === 0 ? '00' : '30'
+  return `${h}:${m}`
+})
+
+// Las horas son strings "HH:MM" de 2 dígitos, así que compararlas como
+// texto da el mismo resultado que compararlas como minutos.
+function validarDia(dia: HorarioDia): string | null {
+  if (!dia.activo) return null
+  if (dia.fin <= dia.inicio) return 'La hora de cierre debe ser después de la hora de apertura'
+  if (dia.descanso_inicio && dia.descanso_fin && dia.descanso_fin <= dia.descanso_inicio) {
+    return 'La hora de fin de comida debe ser después de la hora de inicio'
+  }
+  return null
+}
+
+const HORARIO_DEFAULT: Horario = DIAS.reduce((acc, { key }) => {
+  acc[key] = {
+    activo: false,
+    inicio: '09:00',
+    fin: '18:00'
+  }
+  return acc
+}, {} as Horario)
+
+// Misma normalización de formatos viejos que hace loadHorario en
+// /dashboard/horario (abierto/open/activo, start/end, lunch_*/comida_*).
+// Sin horario guardado (null), arranca con todos los días inactivos.
+function normalizarHorario(rawHorario: unknown): Horario {
+  const horarioCargado = { ...HORARIO_DEFAULT }
+  if (!rawHorario || typeof rawHorario !== 'object') return horarioCargado
+  const raw = rawHorario as Record<string, any>
+  DIAS.forEach(({ key }) => {
+    if (raw[key]) {
+      horarioCargado[key] = {
+        activo: raw[key].abierto ?? raw[key].open ?? raw[key].activo ?? !!(raw[key].inicio || raw[key].start),
+        inicio: raw[key].inicio || raw[key].start || '09:00',
+        fin: raw[key].fin || raw[key].end || '18:00',
+        descanso_inicio: raw[key].descanso_inicio || raw[key].lunch_start || raw[key].comida_inicio,
+        descanso_fin: raw[key].descanso_fin || raw[key].lunch_end || raw[key].comida_fin,
+      }
+    }
+  })
+  return horarioCargado
+}
+
+// Sin autoguardado ni botón propio: cada cambio se reporta al padre con
+// onGuardar(horario, duracion, valido) -- es solo un borrador. El padre es
+// quien persiste cuando el médico presiona su botón de guardado ("Guardar
+// ubicación" o "Guardar consultorio"). No dispara nada al montarse, así que
+// un horario que el médico no tocó no se reescribe. sinDuracion oculta el
+// selector de duración (doctors.duracion_cita_minutos es una sola columna
+// por médico, no por consultorio).
+function HorarioConsultorioForm({ horarioInicial, duracionInicial, onGuardar, titulo, sinDuracion }: {
+  horarioInicial: unknown
+  duracionInicial: number | null | undefined
+  onGuardar: (horario: Horario, duracion: number, valido: boolean) => void
+  titulo?: string
+  sinDuracion?: boolean
+}) {
+  const [horario, setHorario] = useState<Horario>(() => normalizarHorario(horarioInicial))
+  const [duracion, setDuracion] = useState<number>(duracionInicial || 30)
+
+  const onGuardarRef = useRef(onGuardar)
+  onGuardarRef.current = onGuardar
+  const primerRenderRef = useRef(true)
+
+  const updateDia = (dia: DiaSemana, campo: keyof HorarioDia, valor: any) => {
+    setHorario(prev => ({ ...prev, [dia]: { ...prev[dia], [campo]: valor } }))
+  }
+
+  const toggleDia = (dia: DiaSemana) => updateDia(dia, 'activo', !horario[dia].activo)
+
+  const toggleDescanso = (dia: DiaSemana, checked: boolean) => {
+    setHorario(prev => ({
+      ...prev,
+      [dia]: {
+        ...prev[dia],
+        descanso_inicio: checked ? '14:00' : undefined,
+        descanso_fin: checked ? '15:00' : undefined
+      }
+    }))
+  }
+
+  const copiarATodos = (diaOrigen: DiaSemana) => {
+    const origen = horario[diaOrigen]
+    const nuevo = { ...horario }
+    DIAS.forEach(({ key }) => { if (key !== diaOrigen) nuevo[key] = { ...origen } })
+    setHorario(nuevo)
+  }
+
+  const erroresPorDia = DIAS.reduce((acc, { key }) => {
+    const err = validarDia(horario[key])
+    if (err) acc[key] = err
+    return acc
+  }, {} as Partial<Record<DiaSemana, string>>)
+  const hayErroresValidacion = Object.keys(erroresPorDia).length > 0
+
+  // Agrupa corridas de días consecutivos con el mismo inicio/fin (misma
+  // lógica que segmentosVistaPrevia en /dashboard/horario).
+  const segmentosVistaPrevia = (() => {
+    const activos = DIAS.map((d, idx) => ({ ...d, idx })).filter(d => horario[d.key].activo)
+    const segmentos: string[] = []
+    let i = 0
+    while (i < activos.length) {
+      let j = i
+      const { inicio, fin } = horario[activos[i].key]
+      while (
+        j + 1 < activos.length &&
+        activos[j + 1].idx === activos[j].idx + 1 &&
+        horario[activos[j + 1].key].inicio === inicio &&
+        horario[activos[j + 1].key].fin === fin
+      ) {
+        j++
+      }
+      segmentos.push(
+        j > i
+          ? `${activos[i].label} a ${activos[j].label}: ${inicio}–${fin}`
+          : `${activos[i].label.slice(0, 3)}: ${inicio}–${fin}`
+      )
+      i = j + 1
+    }
+    return segmentos
+  })()
+
+  useEffect(() => {
+    if (primerRenderRef.current) { primerRenderRef.current = false; return }
+    onGuardarRef.current(horario, duracion, !hayErroresValidacion)
+  }, [horario, duracion, hayErroresValidacion])
+
+  const selectHora: React.CSSProperties = { padding: '8px 10px', border: '1.5px solid #E5E7EB', borderRadius: 8, fontSize: 13, background: '#fff' }
+  const selectHoraChico: React.CSSProperties = { padding: '6px 8px', border: '1px solid #E5E7EB', borderRadius: 6, fontSize: 12, background: '#fff' }
+
+  return (
+    <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <p style={{ fontSize: 13, fontWeight: 700, color: '#1E3A5F', display: 'flex', alignItems: 'center', gap: 6 }}>
+        {titulo || 'Horario de atención'}
+      </p>
+
+      {!sinDuracion && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <label style={{ fontSize: 13, color: '#374151', fontWeight: 500 }}>Duración de cada cita:</label>
+          <select value={duracion} onChange={(e) => setDuracion(Number(e.target.value))} style={{ ...selectHora, padding: '8px 12px' }}>
+            <option value={15}>15 minutos</option>
+            <option value={20}>20 minutos</option>
+            <option value={30}>30 minutos</option>
+            <option value={45}>45 minutos</option>
+            <option value={60}>60 minutos</option>
+          </select>
+        </div>
+      )}
+
+      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', overflow: 'hidden' }}>
+        {DIAS.map(({ key, label }) => {
+          const dia = horario[key]
+          const errorDia = erroresPorDia[key]
+          return (
+            <div key={key} style={{ padding: '14px 16px', borderBottom: '1px solid #F3F4F6', background: errorDia ? '#FEF2F2' : undefined }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 130 }}>
+                  <button
+                    type="button"
+                    onClick={() => toggleDia(key)}
+                    style={{
+                      width: 44, height: 26, borderRadius: 13,
+                      background: dia.activo ? '#1E3A5F' : '#D1D5DB',
+                      border: 'none', cursor: 'pointer', position: 'relative',
+                      transition: 'background 0.2s', flexShrink: 0
+                    }}
+                    aria-label={`${dia.activo ? 'Desactivar' : 'Activar'} ${label}`}
+                  >
+                    <span style={{
+                      position: 'absolute', top: 2, left: dia.activo ? 20 : 2,
+                      width: 22, height: 22, borderRadius: '50%', background: '#fff',
+                      transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                    }} />
+                  </button>
+                  <span style={{ fontWeight: 600, fontSize: 14, color: dia.activo ? '#111827' : '#6B7280' }}>{label}</span>
+                </div>
+
+                {dia.activo ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                    <select value={dia.inicio} onChange={(e) => updateDia(key, 'inicio', e.target.value)} style={selectHora}>
+                      {HORAS.map(h => <option key={h} value={h}>{h}</option>)}
+                    </select>
+                    <span style={{ color: '#6B7280' }}>—</span>
+                    <select value={dia.fin} onChange={(e) => updateDia(key, 'fin', e.target.value)} style={selectHora}>
+                      {HORAS.map(h => <option key={h} value={h}>{h}</option>)}
+                    </select>
+                    <button type="button" onClick={() => copiarATodos(key)} style={{ background: 'none', border: 'none', color: '#1E3A5F', fontSize: 12, fontWeight: 600, cursor: 'pointer', marginLeft: 4 }}>
+                      Copiar a todos
+                    </button>
+                  </div>
+                ) : (
+                  <span style={{ fontSize: 13, color: '#6B7280' }}>No disponible</span>
+                )}
+              </div>
+
+              {dia.activo && (
+                <div style={{ marginTop: 10, marginLeft: 56, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13, color: '#6B7280' }}>
+                    <input
+                      type="checkbox"
+                      checked={!!dia.descanso_inicio}
+                      onChange={(e) => toggleDescanso(key, e.target.checked)}
+                      style={{ accentColor: '#1E3A5F', width: 16, height: 16 }}
+                    />
+                    Agregar hora de comida
+                  </label>
+                  {dia.descanso_inicio && (
+                    <>
+                      <select value={dia.descanso_inicio} onChange={(e) => updateDia(key, 'descanso_inicio', e.target.value)} style={selectHoraChico}>
+                        {HORAS.map(h => <option key={h} value={h}>{h}</option>)}
+                      </select>
+                      <span style={{ fontSize: 12, color: '#6B7280' }}>—</span>
+                      <select value={dia.descanso_fin} onChange={(e) => updateDia(key, 'descanso_fin', e.target.value)} style={selectHoraChico}>
+                        {HORAS.map(h => <option key={h} value={h}>{h}</option>)}
+                      </select>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {errorDia && (
+                <p role="alert" style={{ marginTop: 8, marginLeft: 56, fontSize: 12, color: '#DC2626', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <AlertTriangle size={14} aria-hidden="true" /> {errorDia}
+                </p>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      <div style={{ background: '#F0F4FF', borderRadius: 12, padding: 14, border: '1px solid #C7D2FE' }}>
+        <p style={{ fontSize: 13, fontWeight: 700, color: '#1E3A5F', marginBottom: 6 }}>Vista previa para pacientes</p>
+        <p style={{ fontSize: 13, color: '#374151', margin: 0, lineHeight: 1.6 }}>
+          {segmentosVistaPrevia.length > 0 ? segmentosVistaPrevia.join('  •  ') : 'Sin horario configurado'}
+        </p>
+      </div>
+
+      {hayErroresValidacion && (
+        <p style={{ fontSize: 12, color: '#D97706', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <AlertTriangle size={14} aria-hidden="true" /> No se podrá guardar hasta corregir el horario marcado en rojo
+        </p>
+      )}
+    </div>
+  )
+}
+
 // Mismo patrón de campos que LocationForm de arriba (toggle consultorio/
 // hospital, geocodificación automática en el onBlur de calle/número, pin
 // arrastrable) pero operando sobre un ConsultorioAdicional suelto en vez de
 // las columnas planas de `medico` -- por eso no reutiliza LocationForm
 // directamente, sino que replica su mismo formulario con un onSave propio.
-function ConsultorioAdicionalForm({ consultorio, onSave, onCancel, saving }: { consultorio: ConsultorioAdicional; onSave: (c: ConsultorioAdicional) => void; onCancel: () => void; saving: boolean }) {
+function ConsultorioAdicionalForm({ consultorio, onSave, onCancel, onEliminar, esPrincipal, onMarcarPrincipal, saving }: {
+  consultorio: ConsultorioAdicional
+  onSave: (c: ConsultorioAdicional) => void
+  onCancel?: () => void
+  onEliminar?: () => void
+  esPrincipal?: boolean
+  onMarcarPrincipal?: () => void
+  saving: boolean
+}) {
   const { loading: loadingCP, error: cpError, cpData, search } = useCP()
 
   const [form, setForm] = useState({
@@ -1678,6 +2047,7 @@ function ConsultorioAdicionalForm({ consultorio, onSave, onCancel, saving }: { c
     ciudad: consultorio.ciudad || '',
     colonia: consultorio.colonia || '',
     clinic_phone: consultorio.clinic_phone || '',
+    clinic_phone_visible: !!consultorio.clinic_phone && consultorio.clinic_phone_visible === true,
   })
   const [editandoCP, setEditandoCP] = useState(!form.cp)
   const [pinCoords, setPinCoords] = useState<{ lat: number; lng: number } | null>(
@@ -1686,6 +2056,10 @@ function ConsultorioAdicionalForm({ consultorio, onSave, onCancel, saving }: { c
       : null
   )
   const [geocoding, setGeocoding] = useState(false)
+  // Borrador del horario de este consultorio (ver HorarioConsultorioForm).
+  // Sin tocar el editor se conserva lo que ya traía el consultorio (o null).
+  const [horarioConsultorio, setHorarioConsultorio] = useState<ConsultorioAdicional['horario']>(consultorio.horario ?? null)
+  const [horarioValido, setHorarioValido] = useState(true)
 
   useEffect(() => {
     if (cpData) {
@@ -1725,9 +2099,14 @@ function ConsultorioAdicionalForm({ consultorio, onSave, onCancel, saving }: { c
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    if (!horarioValido) {
+      alert('Corrige el horario marcado en rojo antes de guardar')
+      return
+    }
     const isHospital = form.clinic_type === 'hospital'
     onSave({
       ...consultorio,
+      horario: horarioConsultorio,
       clinic_type: form.clinic_type,
       clinic_name: form.clinic_name,
       street: form.street,
@@ -1739,13 +2118,16 @@ function ConsultorioAdicionalForm({ consultorio, onSave, onCancel, saving }: { c
       ciudad: form.ciudad,
       colonia: form.colonia,
       clinic_phone: form.clinic_phone,
+      clinic_phone_visible: form.clinic_phone.trim() !== '' && form.clinic_phone_visible,
       clinic_lat: pinCoords?.lat ?? consultorio.clinic_lat ?? null,
       clinic_lng: pinCoords?.lng ?? consultorio.clinic_lng ?? null,
     })
   }
 
   return (
-    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: 14, background: '#F9FAFB', borderRadius: 10, border: '1px solid #E5E7EB' }}>
+    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <ControlPrincipal esPrincipal={!!esPrincipal} onMarcar={onMarcarPrincipal} />
+
       <div>
         <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 8, color: '#374151' }}>Tipo de lugar</label>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
@@ -1776,7 +2158,7 @@ function ConsultorioAdicionalForm({ consultorio, onSave, onCancel, saving }: { c
         />
       </div>
 
-      <div style={{ background: '#fff', padding: 12, borderRadius: 8, border: '1px solid #E5E7EB' }}>
+      <div style={{ background: '#F9FAFB', padding: 12, borderRadius: 8, border: '1px solid #E5E7EB' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
           <p style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase' }}>Ubicación</p>
           {!editandoCP && <button type="button" onClick={() => setEditandoCP(true)} style={{ fontSize: 11, color: '#1E3A5F', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>{form.cp?'Cambiar CP':'Agregar CP'}</button>}
@@ -1829,7 +2211,17 @@ function ConsultorioAdicionalForm({ consultorio, onSave, onCancel, saving }: { c
 
       <div>
         <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5, color: '#374151' }}>Teléfono de este consultorio</label>
-        <input type="tel" value={form.clinic_phone} onChange={e => setForm({...form, clinic_phone: e.target.value})} style={{ width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: 8, fontSize: 14 }} placeholder="55 1234 5678" />
+        <input type="tel" value={form.clinic_phone} onChange={e => setForm({...form, clinic_phone: e.target.value, clinic_phone_visible: e.target.value.trim() === '' ? false : form.clinic_phone_visible})} style={{ width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: 8, fontSize: 14 }} placeholder="55 1234 5678" />
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, marginTop: 8, color: form.clinic_phone.trim() === '' ? '#9CA3AF' : '#374151', cursor: form.clinic_phone.trim() === '' ? 'not-allowed' : 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={form.clinic_phone_visible}
+            disabled={form.clinic_phone.trim() === ''}
+            onChange={e => setForm({...form, clinic_phone_visible: e.target.checked})}
+            style={{ accentColor: '#1E3A5F' }}
+          />
+          Mostrar en perfil público
+        </label>
       </div>
 
       <button
@@ -1853,30 +2245,47 @@ function ConsultorioAdicionalForm({ consultorio, onSave, onCancel, saving }: { c
         </div>
       )}
 
+      <HorarioConsultorioForm
+        titulo="Horario de este consultorio"
+        horarioInicial={consultorio.horario}
+        duracionInicial={null}
+        sinDuracion
+        onGuardar={(horario, _duracion, valido) => { setHorarioConsultorio(horario); setHorarioValido(valido) }}
+      />
+
       <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
         <button type="submit" disabled={saving} style={{...btnPrimary, flex: 1, opacity: saving?0.6:1}}><Save size={15}/> {saving?'Guardando...':'Guardar consultorio'}</button>
-        <button type="button" onClick={onCancel} disabled={saving} style={{ padding: '10px 14px', background: '#F3F4F6', color: '#374151', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Cancelar</button>
+        {onCancel && <button type="button" onClick={onCancel} disabled={saving} style={{ padding: '10px 14px', background: '#F3F4F6', color: '#374151', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Cancelar</button>}
+        {onEliminar && <button type="button" onClick={onEliminar} disabled={saving} aria-label="Eliminar este consultorio" style={{ padding: '10px 14px', background: '#FEF2F2', color: '#DC2626', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}><Trash2 size={14} /> Eliminar</button>}
       </div>
     </form>
   )
 }
 
-// Hasta 2 consultorios adicionales (3 en total contando el principal de
-// columnas planas). Un solo botón de estrella por fila decide cuál es el
-// principal -- is_primary: true en un elemento del array, o ninguno (el
-// principal implícito vuelve a ser el de columnas planas).
-function ConsultoriosAdicionalesSection({ medico, onSave, saving, consultorios, setConsultorios }: any) {
-  const [editandoId, setEditandoId] = useState<string | null>(null)
-  const [agregando, setAgregando] = useState(false)
+// Modal de ubicación con tabs: un tab por consultorio (máximo 3 en total: el
+// principal de columnas planas de `doctors` + hasta 2 de clinic_addresses),
+// más un tab "+ Agregar consultorio" mientras haya lugar. Reemplaza a la
+// antigua lista expandible (ConsultoriosAdicionalesSection).
+//
+// La persistencia no cambia: el consultorio de columnas planas se guarda con
+// "Guardar ubicación" (LocationForm, que también manda el borrador de
+// clinic_addresses y el horario), y los adicionales con "Guardar consultorio"
+// (persistir -> clinic_addresses completo). Marcar "principal" se guarda al
+// instante (guardarPrincipal), actualizando el borrador
+// (consultoriosAdicionalesBorrador, que vive en EditarPerfilPage).
+//
+// Todos los paneles se mantienen montados -- los inactivos se sacan del flujo
+// pero conservan su tamaño, para no perder lo que el médico ya escribió al
+// cambiar de tab y para que el mapa (Leaflet) no se inicialice a 0 px de
+// ancho.
+const MAX_CONSULTORIOS = 3
+const TAB_PRINCIPAL_ID = '__principal__'
+const TAB_NUEVO_ID = '__nuevo__'
 
-  const MAX_ADICIONALES = 2
+function UbicacionTabs({ medico, onSave, saving, consultorios, setConsultorios, horarioBorradorRef }: any) {
+  const [tabActivo, setTabActivo] = useState<string>(TAB_PRINCIPAL_ID)
+  const [nuevoConsultorio, setNuevoConsultorio] = useState<ConsultorioAdicional | null>(null)
 
-  // Agregar/editar/eliminar un consultorio sí persiste de inmediato -- cada
-  // uno tiene su propio botón explícito de "Guardar consultorio" (dentro de
-  // ConsultorioAdicionalForm) o de confirmación (eliminar), igual que
-  // siempre. Esto es distinto de marcar la estrella de "principal" (ver
-  // abajo), que NO tiene su propio botón de guardar -- por eso esa acción
-  // solo actualiza el borrador en memoria, sin persistir.
   const persistir = async (nuevaLista: ConsultorioAdicional[]) => {
     await onSave({ clinic_addresses: nuevaLista })
     setConsultorios(nuevaLista)
@@ -1884,95 +2293,185 @@ function ConsultoriosAdicionalesSection({ medico, onSave, saving, consultorios, 
 
   const handleGuardarNuevo = async (c: ConsultorioAdicional) => {
     await persistir([...consultorios, c])
-    setAgregando(false)
+    setNuevoConsultorio(null)
+    setTabActivo(c.id)
   }
 
   const handleActualizar = async (c: ConsultorioAdicional) => {
     await persistir(consultorios.map((item: ConsultorioAdicional) => item.id === c.id ? c : item))
-    setEditandoId(null)
   }
 
   const handleEliminar = async (id: string) => {
     if (!confirm('¿Eliminar este consultorio?')) return
     await persistir(consultorios.filter((item: ConsultorioAdicional) => item.id !== id))
+    setTabActivo(TAB_PRINCIPAL_ID)
+  }
+
+  // Marcar "principal" se guarda de inmediato (clinic_addresses completo con
+  // is_primary actualizado) y muestra un aviso verde por 2 segundos. Si el
+  // guardado falla, se regresa el borrador a como estaba.
+  const [avisoPrincipal, setAvisoPrincipal] = useState(false)
+  const avisoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => { if (avisoTimerRef.current) clearTimeout(avisoTimerRef.current) }, [])
+
+  const guardarPrincipal = async (nuevaLista: ConsultorioAdicional[]) => {
+    const anterior = consultorios
+    setConsultorios(nuevaLista)
+    const ok = await onSave({ clinic_addresses: nuevaLista })
+    if (ok === false) { setConsultorios(anterior); return }
+    setAvisoPrincipal(true)
+    if (avisoTimerRef.current) clearTimeout(avisoTimerRef.current)
+    avisoTimerRef.current = setTimeout(() => setAvisoPrincipal(false), 2000)
   }
 
   // Marcar un adicional como principal le quita is_primary a todos los
-  // demás adicionales; marcar "de vuelta" el de columnas planas simplemente
-  // limpia is_primary de todo el array (nadie más es principal). Ninguna de
-  // las dos llama a onSave ni cierra el modal -- solo actualizan el
-  // borrador en memoria; el guardado real ocurre al presionar "Guardar
-  // ubicación" en LocationForm (ver consultoriosAdicionalesBorrador).
+  // demás adicionales; marcar "de vuelta" el de columnas planas limpia
+  // is_primary de todo el array (nadie más es principal).
   const marcarPrincipalAdicional = (id: string) => {
-    setConsultorios(consultorios.map((item: ConsultorioAdicional) => ({ ...item, is_primary: item.id === id })))
+    guardarPrincipal(consultorios.map((item: ConsultorioAdicional) => ({ ...item, is_primary: item.id === id })))
   }
   const marcarPrincipalColumnasPlanas = () => {
-    setConsultorios(consultorios.map((item: ConsultorioAdicional) => ({ ...item, is_primary: false })))
+    guardarPrincipal(consultorios.map((item: ConsultorioAdicional) => ({ ...item, is_primary: false })))
   }
 
   const hayPrincipalAdicional = consultorios.some((c: ConsultorioAdicional) => c.is_primary)
 
-  // Fila "virtual" para el consultorio de columnas planas -- se intercala
-  // con los adicionales en `filasOrdenadas` para que el marcado is_primary
-  // (sea cual sea) quede siempre primero, igual que el patrón de
-  // "especialidad principal" del resto de este archivo.
-  const COLUMNAS_PLANAS_ID = '__principal__'
-  const filaColumnasPlanas = { id: COLUMNAS_PLANAS_ID } as const
-  const filasOrdenadas: Array<ConsultorioAdicional | typeof filaColumnasPlanas> = hayPrincipalAdicional
-    ? [...consultorios.filter((c: ConsultorioAdicional) => c.is_primary), filaColumnasPlanas, ...consultorios.filter((c: ConsultorioAdicional) => !c.is_primary)]
-    : [filaColumnasPlanas, ...consultorios]
+  // Orden de los tabs: el marcado como principal (sea cual sea) siempre
+  // primero, igual que en el perfil público.
+  type TabInfo = { id: string; label: string; esPrincipal: boolean }
+  const tabColumnasPlanas = (idx: number): TabInfo => ({
+    id: TAB_PRINCIPAL_ID,
+    label: medico.clinic_name || `Consultorio ${idx + 1}`,
+    esPrincipal: !hayPrincipalAdicional,
+  })
+  const tabAdicional = (c: ConsultorioAdicional, idx: number): TabInfo => ({
+    id: c.id,
+    label: c.clinic_name || `Consultorio ${idx + 1}`,
+    esPrincipal: !!c.is_primary,
+  })
+  const adicionalesPrincipales = consultorios.filter((c: ConsultorioAdicional) => c.is_primary)
+  const adicionalesRestantes = consultorios.filter((c: ConsultorioAdicional) => !c.is_primary)
+  const tabs: TabInfo[] = hayPrincipalAdicional
+    ? [
+        ...adicionalesPrincipales.map((c: ConsultorioAdicional, i: number) => tabAdicional(c, i)),
+        tabColumnasPlanas(adicionalesPrincipales.length),
+        ...adicionalesRestantes.map((c: ConsultorioAdicional, i: number) => tabAdicional(c, adicionalesPrincipales.length + 1 + i)),
+      ]
+    : [tabColumnasPlanas(0), ...consultorios.map((c: ConsultorioAdicional, i: number) => tabAdicional(c, i + 1))]
+
+  const totalConsultorios = consultorios.length + 1
+  const puedeAgregar = totalConsultorios < MAX_CONSULTORIOS && !nuevoConsultorio
+
+  const idActivo = tabActivo === TAB_NUEVO_ID && nuevoConsultorio
+    ? TAB_NUEVO_ID
+    : tabs.some(t => t.id === tabActivo) ? tabActivo : TAB_PRINCIPAL_ID
+
+  const abrirNuevo = () => {
+    setNuevoConsultorio({ id: crypto.randomUUID(), clinic_name: '', clinic_type: 'consultorio', street: '', ext_number: '', int_number: '', floor: '', cp: '', colonia: '', ciudad: '', estado: '', clinic_lat: null, clinic_lng: null, clinic_phone: '', is_primary: false })
+    setTabActivo(TAB_NUEVO_ID)
+  }
+
+  const cancelarNuevo = () => {
+    setNuevoConsultorio(null)
+    setTabActivo(TAB_PRINCIPAL_ID)
+  }
+
+  const estiloTab = (activo: boolean): React.CSSProperties => ({
+    flexShrink: 0,
+    minHeight: 40,
+    maxWidth: 200,
+    padding: '8px 14px',
+    borderRadius: 20,
+    border: activo ? '1.5px solid #1E3A5F' : '1.5px solid #E5E7EB',
+    background: activo ? '#EEF2FF' : '#fff',
+    color: activo ? '#1E3A5F' : '#6B7280',
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+  })
+
+  // Panel inactivo: fuera del flujo y sin interacción, pero con ancho real.
+  const estiloPanel = (activo: boolean): React.CSSProperties => activo
+    ? {}
+    : { position: 'absolute', top: 0, left: 0, width: '100%', height: 0, overflow: 'hidden', visibility: 'hidden', pointerEvents: 'none' }
 
   return (
-    <div style={{ borderTop: '1px solid #E5E7EB', marginTop: 20, paddingTop: 20 }}>
-      <p style={{ fontSize: 15, fontWeight: 700, color: '#111827', marginBottom: 4 }}>Consultorios adicionales</p>
-      <p style={{ fontSize: 12, color: '#6B7280', marginBottom: 12 }}>Hasta {MAX_ADICIONALES} consultorios más, además del principal de arriba.</p>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 12 }}>
-        {filasOrdenadas.map(item => item.id === COLUMNAS_PLANAS_ID ? (
-          <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: '#F9FAFB', borderRadius: 8, border: '1px solid #E5E7EB' }}>
-            <button type="button" onClick={marcarPrincipalColumnasPlanas} disabled={!hayPrincipalAdicional} title="Marcar como principal"
-              style={{ background: 'none', border: 'none', color: '#D97706', cursor: hayPrincipalAdicional ? 'pointer' : 'default', padding: 2, display: 'inline-flex' }}>
-              <Star size={16} fill={hayPrincipalAdicional ? 'none' : '#D97706'} />
-            </button>
-            <div style={{ flex: 1 }}>
-              <p style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{medico.clinic_name || 'Consultorio principal'}</p>
-              <p style={{ fontSize: 11, color: '#9CA3AF' }}>Tu consultorio principal actual</p>
-            </div>
-          </div>
-        ) : (
-          <div key={item.id}>
-            {editandoId === item.id ? (
-              <ConsultorioAdicionalForm consultorio={item as ConsultorioAdicional} onSave={handleActualizar} onCancel={() => setEditandoId(null)} saving={saving} />
-            ) : (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: '#F9FAFB', borderRadius: 8, border: '1px solid #E5E7EB' }}>
-                <button type="button" onClick={() => marcarPrincipalAdicional(item.id)} title="Marcar como principal"
-                  style={{ background: 'none', border: 'none', color: '#D97706', cursor: 'pointer', padding: 2, display: 'inline-flex' }}>
-                  <Star size={16} fill={(item as ConsultorioAdicional).is_primary ? '#D97706' : 'none'} />
-                </button>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{(item as ConsultorioAdicional).clinic_name || 'Sin nombre'}</p>
-                  <p style={{ fontSize: 11, color: '#9CA3AF' }}>{[(item as ConsultorioAdicional).street, (item as ConsultorioAdicional).colonia, (item as ConsultorioAdicional).ciudad].filter(Boolean).join(', ') || 'Sin dirección'}</p>
-                </div>
-                <button type="button" onClick={() => setEditandoId(item.id)} style={{ background: 'none', border: 'none', color: '#1E3A5F', cursor: 'pointer', padding: 4 }}><Edit2 size={14} /></button>
-                <button type="button" onClick={() => handleEliminar(item.id)} style={{ background: 'none', border: 'none', color: '#DC2626', cursor: 'pointer', padding: 4 }}><Trash2 size={14} /></button>
-              </div>
-            )}
-          </div>
+    <div>
+      {avisoPrincipal && (
+        <p role="status" style={{ fontSize: 12, fontWeight: 600, color: '#059669', marginBottom: 8 }}>✓ Consultorio principal actualizado</p>
+      )}
+      <div role="tablist" aria-label="Consultorios" style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 6, marginBottom: 16 }}>
+        {tabs.map(t => (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            aria-selected={idActivo === t.id}
+            onClick={() => setTabActivo(t.id)}
+            style={estiloTab(idActivo === t.id)}
+          >
+            {t.esPrincipal && <Star size={13} fill="#D97706" color="#D97706" style={{ flexShrink: 0 }} aria-label="Consultorio principal" />}
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.label}</span>
+          </button>
         ))}
+        {nuevoConsultorio && (
+          <button type="button" role="tab" aria-selected={idActivo === TAB_NUEVO_ID} onClick={() => setTabActivo(TAB_NUEVO_ID)} style={estiloTab(idActivo === TAB_NUEVO_ID)}>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nuevoConsultorio.clinic_name || 'Nuevo consultorio'}</span>
+          </button>
+        )}
+        {puedeAgregar && (
+          <button type="button" onClick={abrirNuevo} style={{ ...estiloTab(false), color: '#1E3A5F', borderStyle: 'dashed' }}>
+            <Plus size={14} /> Agregar consultorio
+          </button>
+        )}
       </div>
 
-      {agregando ? (
-        <ConsultorioAdicionalForm
-          consultorio={{ id: crypto.randomUUID(), clinic_name: '', clinic_type: 'consultorio', street: '', ext_number: '', int_number: '', floor: '', cp: '', colonia: '', ciudad: '', estado: '', clinic_lat: null, clinic_lng: null, clinic_phone: '', is_primary: false }}
-          onSave={handleGuardarNuevo}
-          onCancel={() => setAgregando(false)}
-          saving={saving}
-        />
-      ) : consultorios.length < MAX_ADICIONALES ? (
-        <button type="button" onClick={() => setAgregando(true)} style={btnGhost}><Plus size={15} /> Agregar consultorio</button>
-      ) : (
-        <p style={{ fontSize: 12, color: '#9CA3AF' }}>Ya tienes el máximo de {MAX_ADICIONALES} consultorios adicionales.</p>
-      )}
+      <div style={{ position: 'relative' }}>
+        <div role="tabpanel" style={estiloPanel(idActivo === TAB_PRINCIPAL_ID)}>
+          <LocationForm
+            medico={medico}
+            onSave={onSave}
+            saving={saving}
+            consultoriosAdicionalesBorrador={consultorios}
+            horarioBorradorRef={horarioBorradorRef}
+            esPrincipal={!hayPrincipalAdicional}
+            onMarcarPrincipal={marcarPrincipalColumnasPlanas}
+          />
+          <HorarioConsultorioForm
+            titulo="Horario de este consultorio"
+            horarioInicial={medico.horario}
+            duracionInicial={medico.duracion_cita_minutos}
+            onGuardar={(horario, duracion, valido) => { horarioBorradorRef.current = { horario, duracion, valido } }}
+          />
+        </div>
+
+        {consultorios.map((c: ConsultorioAdicional) => (
+          <div key={c.id} role="tabpanel" style={estiloPanel(idActivo === c.id)}>
+            <ConsultorioAdicionalForm
+              consultorio={c}
+              onSave={handleActualizar}
+              onEliminar={() => handleEliminar(c.id)}
+              esPrincipal={!!c.is_primary}
+              onMarcarPrincipal={() => marcarPrincipalAdicional(c.id)}
+              saving={saving}
+            />
+          </div>
+        ))}
+
+        {nuevoConsultorio && (
+          <div role="tabpanel" style={estiloPanel(idActivo === TAB_NUEVO_ID)}>
+            <ConsultorioAdicionalForm
+              consultorio={nuevoConsultorio}
+              onSave={handleGuardarNuevo}
+              onCancel={cancelarNuevo}
+              saving={saving}
+            />
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -2117,7 +2616,6 @@ function BookingForm({ medico, onSave, saving }: any) {
     factura_disponible: medico.factura_disponible || false,
     whatsapp_available: medico.whatsapp_available || false,
     whatsapp_phone: medico.whatsapp_phone || '',
-    clinic_phone: medico.clinic_phone || '',
   })
   const toggleInsurance = (seg: string) => setForm(prev => ({...prev, insurance_names: prev.insurance_names.includes(seg)? prev.insurance_names.filter((s: string) => s !== seg) : [...prev.insurance_names, seg] }))
   const togglePaymentMethod = (metodo: string) => setForm(prev => ({...prev, payment_methods: prev.payment_methods.includes(metodo)? prev.payment_methods.filter((m: string) => m !== metodo) : [...prev.payment_methods, metodo] }))
@@ -2134,7 +2632,6 @@ function BookingForm({ medico, onSave, saving }: any) {
       factura_disponible: form.factura_disponible,
       whatsapp_available: form.whatsapp_available,
       whatsapp_phone: form.whatsapp_phone || null,
-      clinic_phone: form.clinic_phone || null,
     })
   }
   return (
@@ -2168,7 +2665,6 @@ function BookingForm({ medico, onSave, saving }: any) {
       <div>
         <p style={{ fontSize: 13, fontWeight: 700, color: '#1E3A5F', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><Phone size={15} /> Contacto</p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div><label style={{ display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 4, color: '#6B7280', textTransform: 'uppercase' }}>Teléfono consultorio</label><input type="tel" value={form.clinic_phone} onChange={e => setForm(p => ({...p, clinic_phone: e.target.value }))} style={inputStyle} placeholder="55 1234 5678" /></div>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer', color: '#374151' }}><input type="checkbox" checked={form.whatsapp_available} onChange={e => setForm(p => ({...p, whatsapp_available: e.target.checked }))} style={{ accentColor: '#2A9D8F' }} /><MessageCircle size={15} color="#2A9D8F" /> WhatsApp</label>
           {form.whatsapp_available && <div><label style={{ display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 4, color: '#6B7280', textTransform: 'uppercase' }}>Número WhatsApp</label><input type="tel" value={form.whatsapp_phone} onChange={e => setForm(p => ({...p, whatsapp_phone: e.target.value }))} style={inputStyle} placeholder="55 1234 5678" /></div>}
         </div>

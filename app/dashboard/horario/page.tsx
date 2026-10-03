@@ -10,71 +10,14 @@ import { PageErrorState, classifyError, type PageErrorType } from '@/components/
 import { AlertTriangle, CalendarOff, X, Plus } from 'lucide-react'
 import { fechaISOLocal } from '@/lib/citas/fechas'
 
-type DiaSemana = 'lunes' | 'martes' | 'miercoles' | 'jueves' | 'viernes' | 'sabado' | 'domingo'
-
-interface HorarioDia {
-  activo: boolean
-  inicio: string
-  fin: string
-  descanso_inicio?: string
-  descanso_fin?: string
-}
-
-type Horario = Record<DiaSemana, HorarioDia>
-
-const DIAS: { key: DiaSemana; label: string }[] = [
-  { key: 'lunes', label: 'Lunes' },
-  { key: 'martes', label: 'Martes' },
-  { key: 'miercoles', label: 'Miércoles' },
-  { key: 'jueves', label: 'Jueves' },
-  { key: 'viernes', label: 'Viernes' },
-  { key: 'sabado', label: 'Sábado' },
-  { key: 'domingo', label: 'Domingo' },
-]
-
-const HORAS = Array.from({ length: 48 }, (_, i) => {
-  const h = Math.floor(i / 2).toString().padStart(2, '0')
-  const m = i % 2 === 0 ? '00' : '30'
-  return `${h}:${m}`
-})
-
-// Las horas son strings "HH:MM" de 2 dígitos, así que compararlas como
-// texto da el mismo resultado que compararlas como minutos -- se aprovecha
-// eso para no tener que parsear cada vez.
-function validarDia(dia: HorarioDia): string | null {
-  if (!dia.activo) return null
-  if (dia.fin <= dia.inicio) return 'La hora de cierre debe ser después de la hora de apertura'
-  if (dia.descanso_inicio && dia.descanso_fin && dia.descanso_fin <= dia.descanso_inicio) {
-    return 'La hora de fin de comida debe ser después de la hora de inicio'
-  }
-  return null
-}
-
-const HORARIO_DEFAULT: Horario = DIAS.reduce((acc, { key }) => {
-  acc[key] = {
-    activo: false,
-    inicio: '09:00',
-    fin: '18:00'
-  }
-  return acc
-}, {} as Horario)
-
 export default function HorarioDoctor() {
   const router = useRouter()
-  const [horario, setHorario] = useState<Horario>(HORARIO_DEFAULT)
-  const [duracion, setDuracion] = useState(30)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<PageErrorType | null>(null)
   const [saving, setSaving] = useState(false)
   const cancelRef = useRef(false)
   const initialCheckDoneRef = useRef(false)
-  const userIdRef = useRef<string | null>(null)
   const doctorIdRef = useRef<string | null>(null)
-  // En true hasta que loadHorario() termina de poblar `horario`/`duracion` --
-  // evita que el efecto de guardado automático (más abajo) dispare un
-  // guardado innecesario apenas se cargan los datos existentes.
-  const skipNextAutosaveRef = useRef(true)
-  const [saveError, setSaveError] = useState<PageErrorType | null>(null)
   const [bloqueos, setBloqueos] = useState<{ id: string; fecha: string; motivo: string | null; created_at: string }[]>([])
   const [nuevaFechaBloqueo, setNuevaFechaBloqueo] = useState('')
   const [motivoBloqueo, setMotivoBloqueo] = useState('')
@@ -91,14 +34,13 @@ export default function HorarioDoctor() {
   //
   // También antes ignoraba el `error` de la consulta y se quedaba con
   // doctor=undefined en silencio — eso hacía que un fallo real de red o del
-  // servidor se viera igual que "no tienes horario configurado todavía"
-  // (todos los días desactivados), mostrando un estado falso en vez de un
-  // error. Ahora si la consulta falla, se relanza para que `load()` lo
-  // clasifique y muestre el error real.
+  // servidor se viera igual que "no tienes fechas bloqueadas", mostrando un
+  // estado falso en vez de un error. Ahora si la consulta falla, se relanza
+  // para que `load()` lo clasifique y muestre el error real.
   const loadHorario = useCallback(async (userId: string) => {
     const { data: doctor, error: doctorErr } = await supabase
       .from('doctors')
-      .select('id, horario, duracion_cita_minutos')
+      .select('id')
       .eq('user_id', userId)
       .single()
 
@@ -117,39 +59,16 @@ export default function HorarioDoctor() {
       if (bloqueosErr) throw bloqueosErr
       setBloqueos(bloqueosData || [])
     }
-
-    if (doctor?.horario && typeof doctor.horario === 'object') {
-      const horarioCargado = { ...HORARIO_DEFAULT }
-      const raw = doctor.horario as Record<string, any>
-
-      DIAS.forEach(({ key }) => {
-        if (raw[key]) {
-          horarioCargado[key] = {
-            activo: raw[key].abierto ?? raw[key].open ?? raw[key].activo ?? !!(raw[key].inicio || raw[key].start),
-            inicio: raw[key].inicio || raw[key].start || '09:00',
-            fin: raw[key].fin || raw[key].end || '18:00',
-            descanso_inicio: raw[key].descanso_inicio || raw[key].lunch_start || raw[key].comida_inicio,
-            descanso_fin: raw[key].descanso_fin || raw[key].lunch_end || raw[key].comida_fin,
-          }
-        }
-      })
-
-      setHorario(horarioCargado)
-    }
-
-    setDuracion(doctor?.duracion_cita_minutos || 30)
   }, [])
 
   const load = useCallback(async () => {
     cancelRef.current = false
-    skipNextAutosaveRef.current = true
     setLoading(true)
     setError(null)
     const { user, networkError } = await getUserSafe(supabase)
     initialCheckDoneRef.current = true
     if (networkError) { if (!cancelRef.current) { setError('network'); setLoading(false) }; return }
     if (!user) { router.push('/login'); return }
-    userIdRef.current = user.id
 
     try {
       await loadHorario(user.id)
@@ -175,40 +94,6 @@ export default function HorarioDoctor() {
 
     return () => { cancelRef.current = true; subscription.unsubscribe() }
   }, [load])
-
-  const updateDia = (dia: DiaSemana, campo: keyof HorarioDia, valor: any) => {
-    setHorario(prev => ({ ...prev, [dia]: { ...prev[dia], [campo]: valor } }))
-  }
-
-  const toggleDia = (dia: DiaSemana) => updateDia(dia, 'activo', !horario[dia].activo)
-
-  const toggleDescanso = (dia: DiaSemana, checked: boolean) => {
-    setHorario(prev => ({
-      ...prev,
-      [dia]: {
-        ...prev[dia],
-        descanso_inicio: checked ? '14:00' : undefined,
-        descanso_fin: checked ? '15:00' : undefined
-      }
-    }))
-  }
-
-  const copiarATodos = (diaOrigen: DiaSemana) => {
-    const origen = horario[diaOrigen]
-    const nuevo = { ...horario }
-    DIAS.forEach(({ key }) => { if (key !== diaOrigen) nuevo[key] = { ...origen } })
-    setHorario(nuevo)
-    toast.success('Horario copiado a todos los días')
-  }
-
-  // Se recalcula en cada render a partir de `horario` -- no hace falta
-  // estado propio, y así el aviso aparece/desaparece en cuanto el médico
-  // corrige el campo, sin esperar a que intente guardar.
-  const erroresPorDia = DIAS.reduce((acc, { key }) => {
-    const err = validarDia(horario[key])
-    if (err) acc[key] = err
-    return acc
-  }, {} as Partial<Record<DiaSemana, string>>)
 
   // Agrupa filas de doctor_blocked_dates que vinieron del mismo "Bloquear
   // rango" en /dashboard/horario, para mostrarlas como un solo renglón en
@@ -254,103 +139,6 @@ export default function HorarioDoctor() {
     return `${inicioTxt} al ${dFin.getDate()} de ${mesFin} de ${dFin.getFullYear()}`
   }
 
-  // Misma lógica de "bloque continuo" que ya usa DoctorProfileClient.tsx
-  // para el resumen público (diasAtencionTexto), adaptada para incluir
-  // horarios: agrupa corridas de días consecutivos (DIAS ya está en orden
-  // lunes→domingo, así que la adyacencia en el arreglo ES la adyacencia de
-  // la semana) que además comparten el mismo inicio/fin -- si dos días
-  // consecutivos están activos pero con horas distintas, no se combinan,
-  // para no mostrar una hora que no aplica a todo el rango.
-  const segmentosVistaPrevia = (() => {
-    // Se guarda el índice original de cada día (0=lunes..6=domingo) porque
-    // filtrar por "activo" rompe la adyacencia por posición en el arreglo
-    // filtrado -- lunes y miércoles quedarían "seguidos" en `activos` aunque
-    // martes (inactivo) esté entre ellos.
-    const activos = DIAS.map((d, idx) => ({ ...d, idx })).filter(d => horario[d.key].activo)
-    const segmentos: string[] = []
-    let i = 0
-    while (i < activos.length) {
-      let j = i
-      const { inicio, fin } = horario[activos[i].key]
-      while (
-        j + 1 < activos.length &&
-        activos[j + 1].idx === activos[j].idx + 1 &&
-        horario[activos[j + 1].key].inicio === inicio &&
-        horario[activos[j + 1].key].fin === fin
-      ) {
-        j++
-      }
-      segmentos.push(
-        j > i
-          ? `${activos[i].label} a ${activos[j].label}: ${inicio}–${fin}`
-          : `${activos[i].label.slice(0, 3)}: ${inicio}–${fin}`
-      )
-      i = j + 1
-    }
-    return segmentos
-  })()
-
-  const hayErroresValidacion = Object.keys(erroresPorDia).length > 0
-
-  // Guardado real de horario/duración -- lo dispara el efecto de guardado
-  // automático de abajo (debounce), y también el botón "Reintentar" del
-  // aviso de error si el intento anterior falló por red/servidor.
-  const guardarHorarioYDuracion = useCallback(async () => {
-    // Reusa el user_id ya confirmado por getUserSafe en load() en vez de
-    // pedirlo de nuevo con getUser() crudo -- evita el user!.id (non-null
-    // assertion) de antes, que podía tronar sin control si la sesión ya
-    // había expirado justo al momento de guardar.
-    const userId = userIdRef.current
-    if (!userId) { setSaveError('auth'); setSaving(false); return }
-
-    setSaving(true)
-    setSaveError(null)
-    try {
-      const { error } = await supabase
-        .from('doctors')
-        .update({
-          horario,
-          duracion_cita_minutos: duracion,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', userId)
-      if (error) throw error
-    } catch (err) {
-      // Antes esto era un toast.error genérico -- si fallaba (ej. sin
-      // internet), el médico no tenía forma de saber qué pasó ni de
-      // reintentar sin perder sus cambios (que siguen en `horario`/`duracion`
-      // en memoria, así que reintentar no los pierde).
-      setSaveError(classifyError(err))
-    } finally {
-      setSaving(false)
-    }
-  }, [horario, duracion])
-
-  // Guardado automático: espera 500ms sin cambios nuevos antes de guardar,
-  // para no mandar un guardado por cada clic mientras el médico sigue
-  // ajustando. `saving` se pone en true de inmediato (no hasta que arranca
-  // la llamada de red) para que el indicador nunca diga "Guardado" durante
-  // esa espera, cuando en realidad todavía no se guardó nada.
-  //
-  // Si hay un horario inválido (ver erroresPorDia), NO se agenda ningún
-  // guardado -- el aviso rojo por día ya construido es la señal, y en
-  // cuanto se corrija este efecto vuelve a correr (horario cambió) y
-  // agenda el guardado normal.
-  useEffect(() => {
-    if (loading) return
-    if (skipNextAutosaveRef.current) { skipNextAutosaveRef.current = false; return }
-
-    if (hayErroresValidacion) {
-      setSaving(false)
-      return
-    }
-
-    setSaving(true)
-    const timer = setTimeout(() => { guardarHorarioYDuracion() }, 500)
-    return () => clearTimeout(timer)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [horario, duracion, loading])
-
   // Genera el rango de fechas ISO (YYYY-MM-DD) entre inicio y fin, ambos
   // incluidos -- comparación como texto, ya funciona porque el formato es
   // siempre de ancho fijo.
@@ -373,9 +161,9 @@ export default function HorarioDoctor() {
     // agrega), pero antes esto no tocaba el indicador compartido de abajo
     // -- ese indicador se quedaba mostrando lo que fuera que el guardado de
     // horario había dejado, sin importar si en verdad se estaba bloqueando
-    // una fecha en ese momento. Ahora participa del mismo indicador que
-    // horario/duración, con el mismo try/finally que garantiza que nunca
-    // se quede pegado en "Guardando...".
+    // una fecha en ese momento. Ahora participa del mismo indicador, con el
+    // mismo try/finally que garantiza que nunca se quede pegado en
+    // "Guardando...".
     setAgregandoBloqueo(true)
     setSaving(true)
     try {
@@ -450,110 +238,10 @@ export default function HorarioDoctor() {
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', padding: '24px 16px 80px', fontFamily: "'DM Sans', sans-serif", color: '#111827' }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@600;900&family=DM+Sans:wght@400;500;600;700&display=swap');`}</style>
-      
+
       <div style={{ marginBottom: 32 }}>
-        <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 28, fontWeight: 900, color: '#111827', marginBottom: 4 }}>Horario de atención</h1>
-        <p style={{ fontSize: 14, color: '#6B7280' }}>Define cuándo pueden agendar citas tus pacientes</p>
-      </div>
-
-      {/* Duración */}
-      <div style={{ background: '#fff', borderRadius: 16, padding: 24, border: '1px solid #E5E7EB', marginBottom: 16 }}>
-        <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16, color: '#111827' }}>Configuración general</h2>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <label style={{ fontSize: 14, color: '#374151', fontWeight: 500 }}>Duración de cada cita:</label>
-          <select
-            value={duracion}
-            onChange={(e) => setDuracion(Number(e.target.value))}
-            style={{ padding: '10px 14px', border: '1.5px solid #E5E7EB', borderRadius: 10, fontSize: 14, background: '#fff', fontFamily: "'DM Sans', sans-serif", cursor: 'pointer' }}
-          >
-            <option value={15}>15 minutos</option>
-            <option value={20}>20 minutos</option>
-            <option value={30}>30 minutos</option>
-            <option value={45}>45 minutos</option>
-            <option value={60}>60 minutos</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Días */}
-      <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #E5E7EB', overflow: 'hidden', marginBottom: 16 }}>
-        {DIAS.map(({ key, label }) => {
-          const dia = horario[key]
-          const errorDia = erroresPorDia[key]
-          return (
-            <div key={key} style={{ padding: '18px 20px', borderBottom: '1px solid #F3F4F6', background: errorDia ? '#FEF2F2' : undefined }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 140 }}>
-                  <button
-                    onClick={() => toggleDia(key)}
-                    style={{
-                      width: 44, height: 26, borderRadius: 13,
-                      background: dia.activo ? '#1E3A5F' : '#D1D5DB',
-                      border: 'none', cursor: 'pointer', position: 'relative',
-                      transition: 'background 0.2s', flexShrink: 0
-                    }}
-                    aria-label={`${dia.activo ? 'Desactivar' : 'Activar'} ${label}`}
-                  >
-                    <span style={{
-                      position: 'absolute', top: 2, left: dia.activo ? 20 : 2,
-                      width: 22, height: 22, borderRadius: '50%', background: '#fff',
-                      transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
-                    }} />
-                  </button>
-                  <span style={{ fontWeight: 600, fontSize: 15, color: dia.activo ? '#111827' : '#6B7280' }}>{label}</span>
-                </div>
-
-                {dia.activo ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                    <select value={dia.inicio} onChange={(e) => updateDia(key, 'inicio', e.target.value)} style={{ padding: '8px 10px', border: '1.5px solid #E5E7EB', borderRadius: 8, fontSize: 13, background: '#fff', fontFamily: "'DM Sans', sans-serif" }}>
-                      {HORAS.map(h => <option key={h} value={h}>{h}</option>)}
-                    </select>
-                    <span style={{ color: '#6B7280' }}>—</span>
-                    <select value={dia.fin} onChange={(e) => updateDia(key, 'fin', e.target.value)} style={{ padding: '8px 10px', border: '1.5px solid #E5E7EB', borderRadius: 8, fontSize: 13, background: '#fff', fontFamily: "'DM Sans', sans-serif" }}>
-                      {HORAS.map(h => <option key={h} value={h}>{h}</option>)}
-                    </select>
-                    <button onClick={() => copiarATodos(key)} style={{ background: 'none', border: 'none', color: '#1E3A5F', fontSize: 12, fontWeight: 600, cursor: 'pointer', marginLeft: 8 }}>
-                      Copiar a todos
-                    </button>
-                  </div>
-                ) : (
-                  <span style={{ fontSize: 13, color: '#6B7280' }}>No disponible</span>
-                )}
-              </div>
-
-              {dia.activo && (
-                <div style={{ marginTop: 12, marginLeft: 56, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13, color: '#6B7280' }}>
-                    <input
-                      type="checkbox"
-                      checked={!!dia.descanso_inicio}
-                      onChange={(e) => toggleDescanso(key, e.target.checked)}
-                      style={{ accentColor: '#1E3A5F', width: 16, height: 16 }}
-                    />
-                    Agregar hora de comida
-                  </label>
-                  {dia.descanso_inicio && (
-                    <>
-                      <select value={dia.descanso_inicio} onChange={(e) => updateDia(key, 'descanso_inicio', e.target.value)} style={{ padding: '6px 8px', border: '1px solid #E5E7EB', borderRadius: 6, fontSize: 12, background: '#fff' }}>
-                        {HORAS.map(h => <option key={h} value={h}>{h}</option>)}
-                      </select>
-                      <span style={{ fontSize: 12, color: '#6B7280' }}>—</span>
-                      <select value={dia.descanso_fin} onChange={(e) => updateDia(key, 'descanso_fin', e.target.value)} style={{ padding: '6px 8px', border: '1px solid #E5E7EB', borderRadius: 6, fontSize: 12, background: '#fff' }}>
-                        {HORAS.map(h => <option key={h} value={h}>{h}</option>)}
-                      </select>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {errorDia && (
-                <p role="alert" style={{ marginTop: 10, marginLeft: 56, fontSize: 12, color: '#DC2626', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <AlertTriangle size={14} aria-hidden="true" /> {errorDia}
-                </p>
-              )}
-            </div>
-          )
-        })}
+        <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 28, fontWeight: 900, color: '#111827', marginBottom: 4 }}>Fechas bloqueadas</h1>
+        <p style={{ fontSize: 14, color: '#6B7280' }}>Define los días en que tus pacientes no podrán agendar citas</p>
       </div>
 
       {/* Fechas bloqueadas */}
@@ -712,57 +400,26 @@ export default function HorarioDoctor() {
         )}
       </div>
 
-      {/* Vista previa */}
-      <div style={{ background: '#F0F4FF', borderRadius: 16, padding: 20, border: '1px solid #C7D2FE', marginBottom: 16 }}>
-        <h3 style={{ fontSize: 14, fontWeight: 700, color: '#1E3A5F', marginBottom: 8 }}>Vista previa para pacientes</h3>
-        <p style={{ fontSize: 14, color: '#374151', margin: 0, lineHeight: 1.6 }}>
-          {segmentosVistaPrevia.length > 0 ? segmentosVistaPrevia.join('  •  ') : 'Sin horario configurado'}
-        </p>
-      </div>
-
-      {/* Estado de guardado -- automático, sin botón. Prioridad: un error
-          real (red/servidor) gana sobre todo; si no, mientras haya un
-          horario inválido no se intenta guardar y se avisa que falta
-          corregir (el aviso rojo por día ya lo explica); si no, se refleja
-          si hay un guardado en curso o si ya se guardó todo. */}
-      {saveError ? (
-        <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #FECACA' }}>
-          <PageErrorState
-            type={saveError}
-            onRetry={guardarHorarioYDuracion}
-            compact
-            title="No se pudo guardar tu horario"
-            message={
-              saveError === 'network' ? 'No pudimos conectar con el servidor para guardar tus cambios. Revisa tu conexión e intenta de nuevo -- no se perdieron.'
-              : saveError === 'auth' ? 'Tu sesión expiró mientras editabas. Inicia sesión de nuevo -- tus cambios no se perdieron, pero necesitas volver a entrar para guardarlos.'
-              : 'Tuvimos un problema al guardar tus cambios. Intenta de nuevo -- no se perdieron.'
-            }
-          />
-        </div>
-      ) : (
+      {/* Estado de guardado de fechas bloqueadas -- refleja si hay un
+          bloqueo agregándose/quitándose en curso o si ya se guardó todo. */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }} role="status" aria-live="polite">
-        {hayErroresValidacion ? (
-          <span style={{ fontSize: 13, color: '#D97706', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
-            <AlertTriangle size={14} aria-hidden="true" /> Sin guardar — corrige el horario marcado en rojo
-          </span>
-        ) : saving ? (
+        {saving ? (
           <span style={{ fontSize: 13, color: '#6B7280' }}>Guardando...</span>
         ) : (
           <span style={{ fontSize: 13, color: '#059669', display: 'flex', alignItems: 'center', gap: 4 }}>✓ Guardado</span>
         )}
       </div>
-      )}
     </div>
   )
 }
 
-// Skeleton de Horario — mantiene la misma estructura (config general, lista
-// de 7 días, vista previa) para que la carga no cambie de layout.
+// Skeleton de Fechas bloqueadas — mantiene la misma estructura (encabezado
+// y tarjeta de fechas bloqueadas) para que la carga no cambie de layout.
 function HorarioSkeleton() {
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', padding: '24px 16px 80px', fontFamily: "'DM Sans', sans-serif" }} aria-busy="true">
       <span style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0 }}>
-        Cargando tu horario…
+        Cargando tus fechas bloqueadas…
       </span>
       <div style={{ marginBottom: 32 }}>
         <Skeleton width={260} height={28} style={{ marginBottom: 8 }} />
@@ -771,29 +428,7 @@ function HorarioSkeleton() {
 
       <div style={{ background: '#fff', borderRadius: 16, padding: 24, border: '1px solid #E5E7EB', marginBottom: 16 }}>
         <Skeleton width={180} height={16} style={{ marginBottom: 16 }} />
-        <Skeleton width={260} height={40} radius={10} />
-      </div>
-
-      <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #E5E7EB', overflow: 'hidden', marginBottom: 16 }}>
-        {DIAS.map(({ key }) => (
-          <div key={key} style={{ padding: '18px 20px', borderBottom: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <Skeleton width={44} height={26} radius={13} />
-              <Skeleton width={80} height={16} />
-            </div>
-            <Skeleton width={160} height={32} radius={8} />
-          </div>
-        ))}
-      </div>
-
-      <div style={{ background: '#fff', borderRadius: 16, padding: 24, border: '1px solid #E5E7EB', marginBottom: 16 }}>
-        <Skeleton width={180} height={16} style={{ marginBottom: 16 }} />
         <Skeleton width="100%" height={40} radius={8} />
-      </div>
-
-      <div style={{ background: '#F0F4FF', borderRadius: 16, padding: 20, border: '1px solid #C7D2FE' }}>
-        <Skeleton width={220} height={14} style={{ marginBottom: 10 }} />
-        <Skeleton width="90%" height={14} />
       </div>
     </div>
   )

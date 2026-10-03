@@ -278,7 +278,6 @@ export default function DashboardNavClient({ children }: { children: React.React
 
   const links = [
     { href: '/dashboard', label: 'Inicio', active: pathname === '/dashboard' },
-    { href: '/dashboard/horario', label: 'Horarios', active: pathname.startsWith('/dashboard/horario') },
     { href: '/dashboard/citas', label: 'Citas', badge: pendientes, active: pathname.startsWith('/dashboard/citas') },
     { href: '/dashboard/chat', label: 'Chat', badge: sinLeer, active: pathname.startsWith('/dashboard/chat') },
     // MSL Virtual: oculto salvo para la cuenta de Manuel — ver lib/manuelOnly.ts
