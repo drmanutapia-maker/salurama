@@ -408,10 +408,10 @@ export default function AdminMedicos() {
   async function cargarMedicos() {
     setLoading(true)
     try {
-      const [{ data, error }, credRes, historialRes] = await Promise.all([
+      const [{ data, error }, credRes, historialRes, contactoRes] = await Promise.all([
         supabase
           .from('doctors')
-          .select('id, slug, full_name, email, specialty, professional_license, created_at, review_status, is_active, verification_status, license_verified')
+          .select('id, slug, full_name, specialty, professional_license, created_at, review_status, is_active, verification_status, license_verified')
           .order('created_at', { ascending: false }),
         supabase
           .from('doctor_specialty_credentials')
@@ -419,9 +419,16 @@ export default function AdminMedicos() {
         supabase
           .from('doctor_constancia_audit_log')
           .select('doctor_id'),
+        // El email de cada médico ya no es legible desde la tabla: solo lo
+        // devuelve esta función, que además exige ser admin.
+        supabase.rpc('get_doctors_contacto_admin'),
       ])
       if (error) throw error
-      setMedicos(data || [])
+      if (contactoRes.error) console.error('[admin] get_doctors_contacto_admin:', contactoRes.error)
+      const emailPorId = new Map<string, string>(
+        ((contactoRes.data || []) as { id: string; email: string | null }[]).map(c => [c.id, c.email ?? ''])
+      )
+      setMedicos((data || []).map((m: any) => ({ ...m, email: emailPorId.get(m.id) ?? '' })))
 
       const grouped: Record<string, SpecialtyCredentialRow[]> = {}
       for (const r of (credRes.data || []) as any[]) {
@@ -462,9 +469,18 @@ export default function AdminMedicos() {
     try {
       const { data: docs, error } = await supabase
         .from('doctors')
-        .select('id, full_name, specialty, ciudad, estado, slug, email, is_active, verification_status, has_aviso_funcionamiento, cofepris_aviso_numero, created_at, photo_url, about_me, clinic_lat, clinic_lng, horario, consultation_price_first_time, consultation_price_general, phone, clinic_phone, whatsapp_phone, languages, rating_avg, rating_count')
+        .select('id, full_name, specialty, ciudad, estado, slug, is_active, verification_status, has_aviso_funcionamiento, cofepris_aviso_numero, created_at, photo_url, about_me, clinic_lat, clinic_lng, horario, consultation_price_first_time, consultation_price_general, languages, rating_avg, rating_count')
       if (error) throw error
       const doctors = docs || []
+
+      // email y "tiene algún teléfono" (sin los números) de todos los médicos:
+      // ya no se leen de la tabla, solo por esta función de admin.
+      const { data: contactoData, error: contactoError } = await supabase.rpc('get_doctors_contacto_admin')
+      if (contactoError) console.error('[admin] get_doctors_contacto_admin:', contactoError)
+      const contactoPorId = new Map<string, { email: string; tiene_telefono: boolean }>(
+        ((contactoData || []) as { id: string; email: string | null; tiene_telefono: boolean }[])
+          .map(c => [c.id, { email: c.email ?? '', tiene_telefono: !!c.tiene_telefono }])
+      )
 
       const [expRes, eduRes, condRes, citasRes] = await Promise.all([
         supabase.from('doctor_experience').select('doctor_id'),
@@ -497,7 +513,7 @@ export default function AdminMedicos() {
       const rows: DoctorStatsRow[] = doctors.map(d => {
         const tieneHorarioActivo = !!(d.horario && Object.values(d.horario).some((h: any) => h?.activo || h?.abierto))
         const tieneUbicacion = !!(d.clinic_lat && d.clinic_lng)
-        const tieneTelefono = !!(d.phone || d.clinic_phone || d.whatsapp_phone)
+        const tieneTelefono = contactoPorId.get(d.id)?.tiene_telefono ?? false
         const checks = [
           !!d.photo_url,
           !!(d.about_me && d.about_me.length > 100),
@@ -515,7 +531,7 @@ export default function AdminMedicos() {
 
         return {
           id: d.id, full_name: d.full_name, specialty: d.specialty, ciudad: d.ciudad, estado: d.estado,
-          slug: d.slug, email: d.email, is_active: d.is_active, verification_status: d.verification_status,
+          slug: d.slug, email: contactoPorId.get(d.id)?.email ?? '', is_active: d.is_active, verification_status: d.verification_status,
           has_aviso_funcionamiento: d.has_aviso_funcionamiento, cofepris_aviso_numero: d.cofepris_aviso_numero,
           created_at: d.created_at, completitud,
           citasTotales: citas.total, citasConfirmadas: citas.confirmadas,
@@ -611,12 +627,11 @@ export default function AdminMedicos() {
     if (!confirm(`¿Confirmas ${label}?`)) return
     setProcesando(m.id + '_review')
     try {
-      const { error } = await supabase
-        .from('doctors').update({
-          review_status: status,
-          last_reviewed_at: new Date().toISOString(),
-          last_reviewed_by: adminEmail || 'admin@salurama.com',
-        }).eq('id', m.id)
+      const { error } = await supabase.rpc('admin_actualizar_revision_medico', {
+        p_doctor_id: m.id,
+        p_review_status: status,
+        p_reviewed_by: adminEmail || 'admin@salurama.com',
+      })
       if (error) throw error
       setMedicos(prev => prev.map(x => x.id === m.id ? { ...x, review_status: status } : x))
       registrarAccionAdmin(status === 'revisado' ? 'aprobar_cedula' : 'rechazar_cedula', m)
@@ -640,14 +655,13 @@ export default function AdminMedicos() {
     if (!confirm(`¿Confirmas verificar y aprobar la cédula de ${m.full_name}?`)) return
     setProcesando(m.id + '_review')
     try {
-      const { error } = await supabase
-        .from('doctors')
-        .update({
-          review_status: 'revisado', verification_status: 'verificado', license_verified: true,
-          last_reviewed_at: new Date().toISOString(),
-          last_reviewed_by: adminEmail || 'admin@salurama.com',
-        })
-        .eq('id', m.id)
+      const { error } = await supabase.rpc('admin_actualizar_revision_medico', {
+        p_doctor_id: m.id,
+        p_review_status: 'revisado',
+        p_verification_status: 'verificado',
+        p_license_verified: true,
+        p_reviewed_by: adminEmail || 'admin@salurama.com',
+      })
       if (error) throw error
       setMedicos(prev => prev.map(x => x.id === m.id
         ? { ...x, review_status: 'revisado', verification_status: 'verificado', license_verified: true }
@@ -1109,8 +1123,10 @@ export default function AdminMedicos() {
   async function toggleActivo(m: Medico) {
     setProcesando(m.id + '_activo')
     try {
-      const { error } = await supabase
-        .from('doctors').update({ is_active: !m.is_active }).eq('id', m.id)
+      const { error } = await supabase.rpc('admin_set_medico_activo', {
+        p_doctor_id: m.id,
+        p_activo: !m.is_active,
+      })
       if (error) throw error
       setMedicos(prev => prev.map(x => x.id === m.id ? { ...x, is_active: !x.is_active } : x))
       registrarAccionAdmin(!m.is_active ? 'activar' : 'desactivar', m)
