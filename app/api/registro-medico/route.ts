@@ -142,6 +142,37 @@ export async function POST(request: NextRequest) {
       throw doctorError
     }
 
+    // === CONSULTORIO PRINCIPAL ===
+    // Se crea junto con el médico. activo=false porque el médico arranca
+    // inactivo hasta confirmar su correo (auth/confirm/page.tsx lo activará).
+    // Si falla, el registro completo falla: se borran el doctor y el usuario Auth.
+    const { error: consultorioError } = await supabaseAdmin
+      .from('consultorios')
+      .insert({
+        doctor_id: doctor.id,
+        nombre: null,
+        tipo: 'consultorio',
+        street: data.direccion || null,
+        ext_number: null,
+        int_number: null,
+        floor: null,
+        cp: data.cp,
+        colonia: data.colonia,
+        ciudad: data.ciudad,
+        estado: data.estado,
+        formatted_address: fullAddress,
+        lat: lat,
+        lng: lng,
+        es_principal: true,
+        activo: false,
+      })
+
+    if (consultorioError) {
+      await supabaseAdmin.from('doctors').delete().eq('id', doctor.id)
+      await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
+      throw consultorioError
+    }
+
     await supabaseAdmin.from('doctor_license_audit_log').insert({
       doctor_id: doctor.id,
       professional_license: data.professional_license,
