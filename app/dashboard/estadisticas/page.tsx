@@ -68,7 +68,7 @@ export default function EstadisticasPage() {
 
       const { data: doc } = await supabase
         .from('doctors')
-        .select('id, full_name, photo_url, specialty, about_me, clinic_lat, clinic_lng, horario, consultation_price_first_time, consultation_price_general, phone, clinic_phone, whatsapp_phone, languages, pricing_tier')
+        .select('id, full_name, photo_url, specialty, about_me, clinic_lat, clinic_lng, horario, consultation_price_first_time, consultation_price_general, languages, pricing_tier')
         .eq('user_id', user.id)
         .single()
       if (!doc) { router.push('/dashboard'); return }
@@ -106,9 +106,20 @@ export default function EstadisticasPage() {
       setVisitasMesAnterior(visitasRes.mesAnterior || 0)
       setVistasPorMes(visitasRes.vistasPorMes || [])
 
+      // Los teléfonos ya no se leen de la tabla (no son legibles con la sesión
+      // del navegador): el criterio "Teléfono de contacto" de la completitud
+      // los toma de get_mi_doctor_datos_sensibles(), igual que /dashboard.
+      const { data: sensibles } = await supabase.rpc('get_mi_doctor_datos_sensibles')
+      const contacto = Array.isArray(sensibles) ? sensibles[0] : null
+
       // Calcular completitud con el hook compartido
       const result = calculateProfileCompletion({
-        medico: doc,
+        medico: {
+          ...doc,
+          phone: contacto?.phone ?? null,
+          clinic_phone: contacto?.clinic_phone ?? null,
+          whatsapp_phone: contacto?.whatsapp_phone ?? null,
+        },
         experienceCount: expRes.data?.length || 0,
         educationCount: eduRes.data?.length || 0,
         conditionsCount: condRes.data?.length || 0,

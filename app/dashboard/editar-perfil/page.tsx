@@ -115,23 +115,23 @@ interface Medico {
   full_name: string
   display_name: string | null
   professional_title: string | null
-  email: string
   specialty: string
   photo_url: string | null
-  phone: string
   facebook_url: string | null
   instagram_url: string | null
   tiktok_url: string | null
   linkedin_url: string | null
   website_url: string | null
-  location_city: string
-  location_state: string | null
-  location_neighborhood: string | null
+  // location_* / postal_code no son columnas reales de doctors (nunca llegaron
+  // con select): se dejan opcionales por el tipo heredado.
+  location_city?: string
+  location_state?: string | null
+  location_neighborhood?: string | null
   ciudad: string | null
   estado: string | null
   cp: string | null
-  postal_code: string | null
-  location_municipality: string | null
+  postal_code?: string | null
+  location_municipality?: string | null
   about_me: string | null
   consultation_price_first_time: number | null
   consultation_price_general: number | null
@@ -275,6 +275,13 @@ const btnGhost: React.CSSProperties = {
   fontFamily: "'DM Sans', sans-serif",
 }
 
+// Columnas de doctors que lee esta página: todas las legibles con la sesión
+// del navegador (GRANT SELECT de authenticated). Explícitas: email, phone,
+// whatsapp, clinic_phone, whatsapp_phone, address, admin_notes, last_reviewed_*,
+// pricing_period y stripe_* NO se pueden leer de la tabla; el teléfono del
+// consultorio y el WhatsApp propios se obtienen con get_mi_doctor_datos_sensibles().
+const COLUMNAS_EDITAR_PERFIL = 'id, created_at, updated_at, full_name, specialty, professional_license, license_verified, consultation_price, description, photo_url, is_active, gender, languages, hospital_affiliation, years_experience, education, schedule, rating_avg, rating_count, profile_views, slug, verification_status, symptoms, insurance_accepted, availability, specialty_council_url, license_issue_date, sub_specialty, license_visible, review_status, atiende_ninos, about_me, clinic_name, clinic_address, website_url, price_list, payment_methods, office_materials, patient_age_range, access_info, additional_info, consultation_price_general, consultation_price_followup, consultation_price_first_time, accepts_insurance, insurance_names, available_days, schedule_start, schedule_end, first_visit_requirements, wheelchair_accessible, has_elevator, has_parking, public_transport_nearby, min_patient_age, max_patient_age, best_contact_time, whatsapp_available, clinic_phone_visible, cancellation_policy, next_available_date, availability_status, availability_hours, availability_schedule, clinic_addresses, location_city_id, cp, horario, duracion_cita_minutos, user_id, license_not_current, clinic_lat, clinic_lng, clinic_formatted_address, display_name, professional_title, facebook_url, instagram_url, tiktok_url, x_url, linkedin_url, clinic_type, floor, estado, ciudad, colonia, street, ext_number, int_number, latitude, longitude, pricing_tier, cofepris_aviso_numero, cofepris_acuse_url, cofepris_aviso_fecha, has_aviso_funcionamiento, factura_disponible, webauthn_banner_declined, webauthn_migrado_dispositivo, pwa_banner_shown, cofepris_banner_declined'
+
 export default function EditarPerfilPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
@@ -287,6 +294,8 @@ export default function EditarPerfilPage() {
   const [conditions, setConditions] = useState<Condition[]>([])
   const [activeModal, setActiveModal] = useState<string | null>(null)
   const [activeStep, setActiveStep] = useState(1)
+  // Email de la cuenta (sesión): doctors.email ya no es legible desde el navegador.
+  const [emailSesion, setEmailSesion] = useState('')
   // Fechas bloqueadas próximas (doctor_blocked_dates). bloqueosError evita
   // que un fallo de lectura se muestre como "Sin fechas bloqueadas".
   const [bloqueos, setBloqueos] = useState<BloqueoFecha[]>([])
@@ -371,9 +380,9 @@ export default function EditarPerfilPage() {
         return
       }
 
-      const { data: medicoData, error: medicoError } = await supabase
+      const { data: medicoBase, error: medicoError } = await supabase
      .from('doctors')
-     .select('*')
+     .select(COLUMNAS_EDITAR_PERFIL)
      .eq('user_id', user.id)
      .single()
 
@@ -384,6 +393,17 @@ export default function EditarPerfilPage() {
       }
 
       if (medicoError) throw medicoError
+
+      setEmailSesion(user.email ?? '')
+
+      // Teléfono del consultorio y WhatsApp propios: por función, no por la tabla.
+      const { data: sensibles } = await supabase.rpc('get_mi_doctor_datos_sensibles')
+      const contacto = Array.isArray(sensibles) ? sensibles[0] : null
+      const medicoData = {
+        ...medicoBase,
+        clinic_phone: contacto?.clinic_phone ?? null,
+        whatsapp_phone: contacto?.whatsapp_phone ?? null,
+      }
 
       setMedico(medicoData)
 
@@ -891,7 +911,7 @@ export default function EditarPerfilPage() {
                 <div style={{ flex: 1 }}>
                   <p style={{ fontSize: 17, fontWeight: 700, marginBottom: 4, color: '#111827' }}>{titlePrefix}{displayName}</p>
                   <p style={{ fontSize: 14, color: '#6B7280', marginBottom: 2 }}>{medico.specialty}</p>
-                  <p style={{ fontSize: 13, color: '#9CA3AF' }}>{medico.email}</p>
+                  <p style={{ fontSize: 13, color: '#9CA3AF' }}>{emailSesion}</p>
                   {(medico.facebook_url || medico.instagram_url || medico.tiktok_url || medico.linkedin_url) && (
   <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
     {medico.facebook_url && (

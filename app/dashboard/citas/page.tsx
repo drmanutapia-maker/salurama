@@ -112,7 +112,7 @@ export default function CitasPage() {
     try {
       const { data: medicoData, error: medicoErr } = await supabase
         .from('doctors')
-        .select('id, full_name, specialty, clinic_lat, clinic_lng, clinic_phone')
+        .select('id, full_name, specialty, clinic_lat, clinic_lng')
         .eq('user_id', user.id)
         .single()
       if (medicoErr) throw medicoErr

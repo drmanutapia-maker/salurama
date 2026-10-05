@@ -20,5 +20,4 @@ export interface MedicoData {
   specialty: string
   clinic_lat: number | null
   clinic_lng: number | null
-  clinic_phone: string | null
 }

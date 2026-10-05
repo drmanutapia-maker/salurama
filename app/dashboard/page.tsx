@@ -18,11 +18,8 @@ interface Medico {
   id: string
   slug: string | null
   full_name: string
-  email: string
   specialty: string
   photo_url: string | null
-  phone: string | null
-  whatsapp_phone: string | null
   whatsapp_available: boolean
   is_active: boolean
   professional_license: string | null
@@ -63,6 +60,12 @@ interface Consejo {
   color: string
   completo?: boolean
 }
+
+// Columnas de doctors que usa el dashboard. Explícitas: email, phone,
+// clinic_phone y whatsapp_phone no son legibles con la sesión del navegador;
+// los teléfonos (solo para la completitud) vienen de
+// get_mi_doctor_datos_sensibles().
+const COLUMNAS_DASHBOARD = 'id, slug, user_id, full_name, specialty, photo_url, whatsapp_available, is_active, professional_license, about_me, horario, languages, consultation_price_first_time, consultation_price_general, clinic_address, ciudad, estado, clinic_lat, clinic_lng'
 
 export default function DashboardMedico() {
   const router = useRouter()
@@ -118,21 +121,23 @@ export default function DashboardMedico() {
 
       let { data: doctor, error: doctorErr } = await supabase
         .from('doctors')
-        .select('*')
+        .select(COLUMNAS_DASHBOARD)
         .eq('user_id', user.id)
         .maybeSingle()
       if (doctorErr) throw doctorErr
 
+      // Cuenta anterior sin user_id: la vincula la base de datos con el médico
+      // registrado con el mismo email (antes el navegador buscaba por email y
+      // actualizaba user_id; ya no puede: esas columnas no son accesibles).
       if (!doctor) {
-        const { data: byEmail } = await supabase
-          .from('doctors')
-          .select('*')
-          .ilike('email', user.email || '')
-          .maybeSingle()
-
-        if (byEmail) {
-          await supabase.from('doctors').update({ user_id: user.id }).eq('id', byEmail.id)
-          doctor = { ...byEmail, user_id: user.id }
+        const { data: vinculadoId } = await supabase.rpc('vincular_mi_doctor_por_email')
+        if (vinculadoId) {
+          const { data: vinculado } = await supabase
+            .from('doctors')
+            .select(COLUMNAS_DASHBOARD)
+            .eq('user_id', user.id)
+            .maybeSingle()
+          doctor = vinculado
         }
       }
 
@@ -244,10 +249,18 @@ export default function DashboardMedico() {
         // ✅ NUEVO CÓDIGO (10 checks unificados)
         const tieneHorarioActivo = !!(doctor.horario && Object.values(doctor.horario).some((d: any) => d?.activo || d?.abierto))
         const tieneUbicacionVerificada = !!(doctor.clinic_lat && doctor.clinic_lng)
-        const tieneTelefono = !!(doctor.phone || doctor.clinic_phone || doctor.whatsapp_phone)
+        // Teléfonos propios: solo se leen por función (no por la tabla).
+        const { data: sensibles } = await supabase.rpc('get_mi_doctor_datos_sensibles')
+        const contacto = Array.isArray(sensibles) ? sensibles[0] : null
+        const tieneTelefono = !!(contacto?.phone || contacto?.clinic_phone || contacto?.whatsapp_phone)
 
         const { percentage: pct } = calculateProfileCompletion({
-          medico: doctor,
+          medico: {
+            ...doctor,
+            phone: contacto?.phone ?? null,
+            clinic_phone: contacto?.clinic_phone ?? null,
+            whatsapp_phone: contacto?.whatsapp_phone ?? null,
+          },
           experienceCount: expRes.data?.length || 0,
           educationCount: eduRes.data?.length || 0,
           conditionsCount: condRes.data?.length || 0,

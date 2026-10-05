@@ -191,13 +191,15 @@ function BannerCofepris() {
       if (networkError || !user) return
       const { data: medico } = await supabase
         .from('doctors')
-        .select('cofepris_aviso_numero, cofepris_banner_declined, email')
+        .select('cofepris_aviso_numero, cofepris_banner_declined')
         .eq('user_id', user.id)
         .maybeSingle()
       if (!medico || cancelado) return
       setAvisoNumero(medico.cofepris_aviso_numero)
       setBannerDeclined(medico.cofepris_banner_declined)
-      setEsManuel(isManuelEmail(medico.email))
+      // El email sale de la sesión (auth.user), no de doctors: esa columna ya
+      // no es legible desde el navegador.
+      setEsManuel(isManuelEmail(user.email))
       setCargado(true)
     }
     revisar()
