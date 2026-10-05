@@ -24,11 +24,9 @@ interface Medico {
   is_active: boolean
   professional_license: string | null
   about_me: string | null
-  horario: any
   languages: string[] | string | null
   consultation_price_first_time: number | null
   consultation_price_general: number | null
-  clinic_address: string | null
   ciudad: string | null
   estado: string | null
   user_id?: string
@@ -64,8 +62,9 @@ interface Consejo {
 // Columnas de doctors que usa el dashboard. Explícitas: email, phone,
 // clinic_phone y whatsapp_phone no son legibles con la sesión del navegador;
 // los teléfonos (solo para la completitud) vienen de
-// get_mi_doctor_datos_sensibles().
-const COLUMNAS_DASHBOARD = 'id, slug, user_id, full_name, specialty, photo_url, whatsapp_available, is_active, professional_license, about_me, horario, languages, consultation_price_first_time, consultation_price_general, clinic_address, ciudad, estado, clinic_lat, clinic_lng'
+// get_mi_doctor_datos_sensibles(). horario, clinic_lat, clinic_lng y
+// clinic_address vienen del consultorio principal (consultorios).
+const COLUMNAS_DASHBOARD = 'id, slug, user_id, full_name, specialty, photo_url, whatsapp_available, is_active, professional_license, about_me, languages, consultation_price_first_time, consultation_price_general, ciudad, estado'
 
 export default function DashboardMedico() {
   const router = useRouter()
@@ -148,6 +147,16 @@ export default function DashboardMedico() {
 
       if (cancelRef.current) return
       setMedico(doctor)
+
+        // Consultorio principal: horario, lat/lng para completitud y consejos.
+        // La política consultorios_owner_select permite leer el propio consultorio
+        // aunque is_active=false (el dueño siempre puede verlo).
+        const { data: consultorio } = await supabase
+          .from('consultorios')
+          .select('lat, lng, horario')
+          .eq('doctor_id', doctor.id)
+          .eq('es_principal', true)
+          .maybeSingle()
 
         const hoy = fechaISOLocal(new Date())
         const inicioMes = new Date()
@@ -247,8 +256,8 @@ export default function DashboardMedico() {
         })
 
         // ✅ NUEVO CÓDIGO (10 checks unificados)
-        const tieneHorarioActivo = !!(doctor.horario && Object.values(doctor.horario).some((d: any) => d?.activo || d?.abierto))
-        const tieneUbicacionVerificada = !!(doctor.clinic_lat && doctor.clinic_lng)
+        const tieneHorarioActivo = !!(consultorio?.horario && Object.values(consultorio.horario as Record<string, any>).some((d: any) => d?.activo || d?.abierto))
+        const tieneUbicacionVerificada = !!(consultorio?.lat && consultorio?.lng)
         // Teléfonos propios: solo se leen por función (no por la tabla).
         const { data: sensibles } = await supabase.rpc('get_mi_doctor_datos_sensibles')
         const contacto = Array.isArray(sensibles) ? sensibles[0] : null
@@ -257,6 +266,9 @@ export default function DashboardMedico() {
         const { percentage: pct } = calculateProfileCompletion({
           medico: {
             ...doctor,
+            clinic_lat: consultorio?.lat ?? null,
+            clinic_lng: consultorio?.lng ?? null,
+            horario: (consultorio?.horario as Record<string, any> | null) ?? null,
             phone: contacto?.phone ?? null,
             clinic_phone: contacto?.clinic_phone ?? null,
             whatsapp_phone: contacto?.whatsapp_phone ?? null,

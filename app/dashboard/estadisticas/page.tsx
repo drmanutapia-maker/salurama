@@ -68,11 +68,19 @@ export default function EstadisticasPage() {
 
       const { data: doc } = await supabase
         .from('doctors')
-        .select('id, full_name, photo_url, specialty, about_me, clinic_lat, clinic_lng, horario, consultation_price_first_time, consultation_price_general, languages, pricing_tier')
+        .select('id, full_name, photo_url, specialty, about_me, consultation_price_first_time, consultation_price_general, languages, pricing_tier')
         .eq('user_id', user.id)
         .single()
       if (!doc) { router.push('/dashboard'); return }
       setMedico(doc)
+
+      // Consultorio principal: horario y lat/lng para la completitud.
+      const { data: consultorio } = await supabase
+        .from('consultorios')
+        .select('lat, lng, horario')
+        .eq('doctor_id', doc.id)
+        .eq('es_principal', true)
+        .maybeSingle()
 
       // Vistas — misma fuente que /dashboard: cuenta real desde la tabla
       // profile_views vía /api/track-visit, no la columna doctors.profile_views
@@ -119,6 +127,9 @@ export default function EstadisticasPage() {
           phone: contacto?.phone ?? null,
           clinic_phone: contacto?.clinic_phone ?? null,
           whatsapp_phone: contacto?.whatsapp_phone ?? null,
+          clinic_lat: consultorio?.lat ?? null,
+          clinic_lng: consultorio?.lng ?? null,
+          horario: (consultorio?.horario as Record<string, any> | null) ?? null,
         },
         experienceCount: expRes.data?.length || 0,
         educationCount: eduRes.data?.length || 0,

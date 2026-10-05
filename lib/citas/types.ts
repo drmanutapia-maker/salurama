@@ -18,6 +18,4 @@ export interface MedicoData {
   id: string
   full_name: string
   specialty: string
-  clinic_lat: number | null
-  clinic_lng: number | null
 }

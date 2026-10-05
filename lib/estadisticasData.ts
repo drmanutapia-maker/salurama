@@ -140,11 +140,18 @@ export async function getEstadisticasData(userId: string): Promise<{ data: Estad
 
   const { data: doctor } = await db
     .from('doctors')
-    .select('id, full_name, photo_url, about_me, clinic_lat, clinic_lng, horario, consultation_price_first_time, consultation_price_general, phone, clinic_phone, whatsapp_phone, languages, pricing_tier, specialty, ciudad')
+    .select('id, full_name, photo_url, about_me, consultation_price_first_time, consultation_price_general, phone, clinic_phone, whatsapp_phone, languages, pricing_tier, specialty, ciudad')
     .eq('user_id', userId)
     .single()
 
   if (!doctor) return null
+
+  const { data: consultorio } = await db
+    .from('consultorios')
+    .select('lat, lng, horario')
+    .eq('doctor_id', doctor.id)
+    .eq('es_principal', true)
+    .maybeSingle()
 
   // Límites de "este mes" / "mes anterior" — mismo criterio que
   // app/dashboard/page.tsx (inicio de mes calendario, no 30 días rodantes).
@@ -228,7 +235,12 @@ export async function getEstadisticasData(userId: string): Promise<{ data: Estad
   }))
 
   const { checks, percentage: completionPct } = calculateProfileCompletion({
-    medico: doctor,
+    medico: {
+      ...doctor,
+      clinic_lat: consultorio?.lat ?? null,
+      clinic_lng: consultorio?.lng ?? null,
+      horario: (consultorio?.horario as Record<string, any> | null) ?? null,
+    },
     experienceCount: expRes.data?.length || 0,
     educationCount: eduRes.data?.length || 0,
     conditionsCount: condRes.data?.length || 0,

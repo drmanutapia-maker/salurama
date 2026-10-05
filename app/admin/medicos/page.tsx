@@ -469,9 +469,16 @@ export default function AdminMedicos() {
     try {
       const { data: docs, error } = await supabase
         .from('doctors')
-        .select('id, full_name, specialty, ciudad, estado, slug, is_active, verification_status, has_aviso_funcionamiento, cofepris_aviso_numero, created_at, photo_url, about_me, clinic_lat, clinic_lng, horario, consultation_price_first_time, consultation_price_general, languages, rating_avg, rating_count')
+        .select('id, full_name, specialty, ciudad, estado, slug, is_active, verification_status, has_aviso_funcionamiento, cofepris_aviso_numero, created_at, photo_url, about_me, consultation_price_first_time, consultation_price_general, languages, rating_avg, rating_count')
       if (error) throw error
       const doctors = docs || []
+
+      // Consultorios: horario y lat/lng para los checks de completitud.
+      const doctorIds = doctors.map(d => d.id)
+      const { data: consultoriosData } = doctorIds.length > 0
+        ? await supabase.from('consultorios').select('doctor_id, lat, lng, horario').in('doctor_id', doctorIds).eq('es_principal', true)
+        : { data: [] as { doctor_id: string; lat: number | null; lng: number | null; horario: unknown }[] }
+      const consultorioPorDoctor = new Map((consultoriosData ?? []).map(c => [c.doctor_id, c]))
 
       // email y "tiene algún teléfono" (sin los números) de todos los médicos:
       // ya no se leen de la tabla, solo por esta función de admin.
@@ -511,8 +518,9 @@ export default function AdminMedicos() {
       // médico (Paso 3) se derivan de este mismo array vía useMemo, filtrado
       // en el cliente -- ver doctorStatsFiltrados/estadisticas más abajo.
       const rows: DoctorStatsRow[] = doctors.map(d => {
-        const tieneHorarioActivo = !!(d.horario && Object.values(d.horario).some((h: any) => h?.activo || h?.abierto))
-        const tieneUbicacion = !!(d.clinic_lat && d.clinic_lng)
+        const consultorio = consultorioPorDoctor.get(d.id)
+        const tieneHorarioActivo = !!(consultorio?.horario && Object.values(consultorio.horario as Record<string, any>).some((h: any) => h?.activo || h?.abierto))
+        const tieneUbicacion = !!(consultorio?.lat && consultorio?.lng)
         const tieneTelefono = contactoPorId.get(d.id)?.tiene_telefono ?? false
         const checks = [
           !!d.photo_url,
