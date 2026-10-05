@@ -6,6 +6,7 @@ import {
   X, Edit2, Save, Plus, Trash2, Phone, MessageCircle,
   DollarSign, Shield, Camera, Eye, CheckCircle, MapPin, Star, Globe, AlertTriangle
 } from 'lucide-react'
+import ConsultorioCard, { type ConsultorioRow } from './ConsultorioCard'
 import dynamic from 'next/dynamic'
 const LocationPicker = dynamic(() => import('@/components/LocationPicker'), { ssr: false })
 import { useCP } from '@/hooks/useCP'
@@ -306,17 +307,29 @@ export default function EditarPerfilPage() {
   // que un fallo de lectura se muestre como "Sin fechas bloqueadas".
   const [bloqueos, setBloqueos] = useState<BloqueoFecha[]>([])
   const [bloqueosError, setBloqueosError] = useState(false)
-  // Borrador de clinic_addresses mientras el modal de ubicación está
-  // abierto -- UbicacionTabs lo lee para armar los tabs y lo actualiza al
-  // marcar "consultorio principal" (que se guarda al instante). Se reinicia
-  // cada vez que se abre el modal o que `medico` cambia, para no arrastrar
-  // cambios sin guardar de una apertura anterior.
+  // Lista plana de todos los consultorios del médico (principal + adicionales).
+  // Es la fuente de verdad para la sección "Mis consultorios".
+  const [consultorios, setConsultorios] = useState<ConsultorioRow[]>([])
+  // ID del consultorio que se está editando en el modal 'consultorio_edit'.
+  // '__nuevo__' = se está agregando uno nuevo.
+  const [editandoConsultorioId, setEditandoConsultorioId] = useState<string | null>(null)
+  // ID del consultorio sobre el que se está ejecutando una operación async
+  // (toggle activo / eliminar) para deshabilitar sus botones.
+  const [guardandoConsultorioId, setGuardandoConsultorioId] = useState<string | null>(null)
+
+  // Borrador de clinic_addresses mientras el modal de ubicación (principal)
+  // está abierto. Se resetea al abrir el modal.
   const [consultoriosAdicionalesBorrador, setConsultoriosAdicionalesBorrador] = useState<any[]>([])
   useEffect(() => {
     if (activeModal === 'location') {
-      setConsultoriosAdicionalesBorrador(Array.isArray(medico?.clinic_addresses) ? medico.clinic_addresses : [])
+      setConsultoriosAdicionalesBorrador([])
+      if (!consultorioPrincipalIdRef.current) {
+        console.warn('[editar-perfil] Modal de ubicación abierto pero consultorioPrincipalIdRef es null — loadData no encontró el consultorio principal.')
+      } else {
+        console.log('[editar-perfil] Modal de ubicación — consultorioPrincipalId:', consultorioPrincipalIdRef.current)
+      }
     }
-  }, [activeModal, medico])
+  }, [activeModal])
   // Borrador del horario del consultorio principal mientras el modal de
   // ubicación está abierto. HorarioConsultorioForm lo actualiza en cada
   // cambio (sin re-render del padre) y UbicacionTabs lo lee al presionar
@@ -406,8 +419,8 @@ export default function EditarPerfilPage() {
       setEmailSesion(user.email ?? '')
 
       // Teléfono del consultorio y WhatsApp propios: por función, no por la tabla.
-      // Consultorio principal y adicionales: ahora en la tabla consultorios.
-      const [sensiblesRes, consultorioPrincipalRes, consultoriosAdicionalesRes] = await Promise.all([
+      // Consultorio principal y lista completa: ahora en la tabla consultorios.
+      const [sensiblesRes, consultorioPrincipalRes, todosConsultoriosRes] = await Promise.all([
         supabase.rpc('get_mi_doctor_datos_sensibles'),
         supabase.from('consultorios')
           .select('id, nombre, tipo, street, ext_number, int_number, floor, colonia, ciudad, estado, cp, formatted_address, lat, lng, telefono_visible, horario')
@@ -415,37 +428,41 @@ export default function EditarPerfilPage() {
           .eq('es_principal', true)
           .maybeSingle(),
         supabase.from('consultorios')
-          .select('id, nombre, tipo, street, ext_number, int_number, floor, colonia, ciudad, estado, cp, formatted_address, lat, lng, telefono, telefono_visible, horario')
+          .select('id, nombre, tipo, street, ext_number, int_number, floor, colonia, ciudad, estado, cp, formatted_address, lat, lng, telefono, telefono_visible, horario, es_principal, activo, orden')
           .eq('doctor_id', medicoBase.id)
-          .eq('es_principal', false)
-          .eq('activo', true)
-          .order('orden'),
+          .order('orden', { ascending: true }),
       ])
       const contacto = Array.isArray(sensiblesRes.data) ? sensiblesRes.data[0] : null
       const cp = consultorioPrincipalRes.data
 
       consultorioPrincipalIdRef.current = cp?.id ?? null
 
-      // Consultorios adicionales mapeados a ConsultorioAdicional[]
-      const adicionales: ConsultorioAdicional[] = (consultoriosAdicionalesRes.data ?? []).map((c: any) => ({
-        id: c.id,
-        clinic_name: c.nombre ?? '',
-        clinic_type: c.tipo ?? 'consultorio',
-        street: c.street ?? '',
-        ext_number: c.ext_number ?? '',
-        int_number: c.int_number ?? '',
-        floor: c.floor ?? '',
-        cp: c.cp ?? '',
-        colonia: c.colonia ?? '',
-        ciudad: c.ciudad ?? '',
-        estado: c.estado ?? '',
-        clinic_lat: c.lat != null ? Number(c.lat) : null,
-        clinic_lng: c.lng != null ? Number(c.lng) : null,
-        clinic_phone: c.telefono ?? '',
-        is_primary: false,
-        clinic_phone_visible: c.telefono_visible ?? false,
-        horario: c.horario ?? null,
-      }))
+      // Lista plana para la sección "Mis consultorios": principal primero.
+      const todosRows: ConsultorioRow[] = ((todosConsultoriosRes.data ?? []) as any[])
+        .map(c => ({
+          id: c.id,
+          nombre: c.nombre ?? null,
+          tipo: c.tipo ?? null,
+          street: c.street ?? null,
+          ext_number: c.ext_number ?? null,
+          int_number: c.int_number ?? null,
+          floor: c.floor ?? null,
+          cp: c.cp ?? null,
+          colonia: c.colonia ?? null,
+          ciudad: c.ciudad ?? null,
+          estado: c.estado ?? null,
+          formatted_address: c.formatted_address ?? null,
+          lat: c.lat != null ? Number(c.lat) : null,
+          lng: c.lng != null ? Number(c.lng) : null,
+          telefono: c.telefono ?? null,
+          telefono_visible: c.telefono_visible ?? false,
+          horario: c.horario ?? null,
+          es_principal: c.es_principal ?? false,
+          activo: c.activo ?? true,
+          orden: c.orden ?? 0,
+        }))
+        .sort((a, b) => (b.es_principal ? 1 : 0) - (a.es_principal ? 1 : 0))
+      setConsultorios(todosRows)
 
       const medicoData = {
         ...medicoBase,
@@ -466,7 +483,7 @@ export default function EditarPerfilPage() {
         cp: cp?.cp ?? null,
         colonia: cp?.colonia ?? null,
         // ciudad/estado siguen en doctors (sincronizados por trigger desde consultorios)
-        clinic_addresses: adicionales,
+        clinic_addresses: [],
       }
 
       setMedico(medicoData)
@@ -724,11 +741,20 @@ export default function EditarPerfilPage() {
       }
 
       // 1. Update consultorio principal (fuente de verdad)
-      if (Object.keys(consultorioRow).length > 0 && consultorioPrincipalIdRef.current) {
-        const { error } = await supabase.from('consultorios')
+      if (Object.keys(consultorioRow).length > 0) {
+        if (!consultorioPrincipalIdRef.current) {
+          throw new Error('No se encontró el ID del consultorio principal. Recarga la página e inténtalo de nuevo.')
+        }
+        console.log('[handleSaveLocation] ANTES UPDATE — consultorioPrincipalId:', consultorioPrincipalIdRef.current, '| consultorioRow:', JSON.stringify(consultorioRow))
+        const { data: updated, error } = await supabase.from('consultorios')
           .update(consultorioRow)
           .eq('id', consultorioPrincipalIdRef.current)
+          .select('id')
+        console.log('[handleSaveLocation] DESPUÉS UPDATE — data:', JSON.stringify(updated), '| error:', JSON.stringify(error))
         if (error) throw error
+        if (!updated || updated.length === 0) {
+          throw new Error('El consultorio no se actualizó (0 filas afectadas). Verifica tu sesión y vuelve a intentarlo.')
+        }
       }
 
       // 2. Update doctors (solo duracion_cita_minutos u otros campos propios)
@@ -739,10 +765,8 @@ export default function EditarPerfilPage() {
         if (error) throw error
       }
 
-      // 3. Consultorios adicionales
-      if ('clinic_addresses' in data) {
-        await saveConsultoriosAdicionales(data.clinic_addresses ?? [])
-      }
+      // Adicionales se gestionan individualmente desde ConsultorioCard,
+      // no desde este modal. No tocar clinic_addresses aquí.
 
       // Actualizar estado local optimistamente y recargar
       setMedico(prev => prev ? { ...prev, ...data } : null)
@@ -757,6 +781,108 @@ export default function EditarPerfilPage() {
       setSaving(false)
     }
   }
+
+  // ── Gestión de consultorios adicionales (Subfase 3.3) ──────────────────
+
+  const handleToggleActivo = async (id: string) => {
+    const c = consultorios.find(x => x.id === id)
+    if (!c || c.es_principal) return
+    setGuardandoConsultorioId(id)
+    try {
+      const { error } = await supabase.from('consultorios').update({ activo: !c.activo }).eq('id', id)
+      if (error) throw error
+      setConsultorios(prev => prev.map(x => x.id === id ? { ...x, activo: !x.activo } : x))
+    } catch {
+      alert('Error al actualizar consultorio')
+    } finally {
+      setGuardandoConsultorioId(null)
+    }
+  }
+
+  const handleEliminarConsultorio = async (id: string) => {
+    setGuardandoConsultorioId(id)
+    try {
+      const { count } = await supabase.from('citas')
+        .select('id', { count: 'exact', head: true })
+        .eq('consultorio_id', id)
+      const tieneCitas = (count ?? 0) > 0
+      if (tieneCitas) {
+        const { error } = await supabase.from('consultorios').update({ activo: false }).eq('id', id)
+        if (error) throw error
+        setConsultorios(prev => prev.map(x => x.id === id ? { ...x, activo: false } : x))
+      } else {
+        const { error } = await supabase.from('consultorios').delete().eq('id', id)
+        if (error) throw error
+        setConsultorios(prev => prev.filter(x => x.id !== id))
+      }
+    } catch {
+      alert('Error al eliminar consultorio')
+    } finally {
+      setGuardandoConsultorioId(null)
+    }
+  }
+
+  const handleEditarConsultorio = (id: string) => {
+    setEditandoConsultorioId(id)
+    setActiveModal('consultorio_edit')
+  }
+
+  const handleAgregarConsultorio = () => {
+    setEditandoConsultorioId('__nuevo__')
+    setActiveModal('consultorio_edit')
+  }
+
+  // Guarda un consultorio adicional nuevo o editado (desde el modal 'consultorio_edit').
+  const handleSaveConsultorioEdit = async (c: ConsultorioAdicional) => {
+    if (!medico || !editandoConsultorioId) return
+    setSaving(true)
+    try {
+      const isHospital = c.clinic_type === 'hospital'
+      const streetPart = isHospital
+        ? `${c.street} ${c.ext_number}${c.floor ? `, Piso ${c.floor}` : ''}${c.int_number ? `, Consultorio ${c.int_number}` : ''}`
+        : `${c.street} ${c.ext_number}${c.int_number ? ` Int. ${c.int_number}` : ''}`
+      const row: Record<string, any> = {
+        doctor_id: medico.id,
+        nombre: c.clinic_name || null,
+        tipo: c.clinic_type,
+        street: c.street || null,
+        ext_number: c.ext_number || null,
+        int_number: c.int_number || null,
+        floor: isHospital ? (c.floor || null) : null,
+        cp: c.cp || null,
+        colonia: c.colonia || null,
+        ciudad: c.ciudad || null,
+        estado: c.estado || null,
+        formatted_address: [streetPart, c.colonia, c.cp, c.ciudad, c.estado].filter(Boolean).join(', ') || null,
+        lat: c.clinic_lat ?? null,
+        lng: c.clinic_lng ?? null,
+        telefono: c.clinic_phone || null,
+        telefono_visible: !!(c.clinic_phone) && c.clinic_phone_visible === true,
+        horario: c.horario ?? null,
+        es_principal: false,
+        activo: true,
+      }
+
+      if (editandoConsultorioId === '__nuevo__') {
+        const siguienteOrden = consultorios.filter(x => !x.es_principal).length + 1
+        row.orden = siguienteOrden
+        const { error } = await supabase.from('consultorios').insert(row)
+        if (error) throw error
+      } else {
+        const { error } = await supabase.from('consultorios').update(row).eq('id', editandoConsultorioId)
+        if (error) throw error
+      }
+
+      setActiveModal(null)
+      await loadData(true)
+    } catch {
+      alert('Error al guardar consultorio')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // ───────────────────────────────────────────────────────────────────────
 
   const handleStartEditLicense = () => {
     setLicenseInput(medico?.professional_license || '')
@@ -1018,41 +1144,8 @@ export default function EditarPerfilPage() {
   const displayName = medico.display_name || medico.full_name
   const titlePrefix = medico.professional_title? `${medico.professional_title} ` : ''
 
-  // La tarjeta de "Ubicación del consultorio" debe mostrar el consultorio
-  // marcado como principal -- que puede ser el de columnas planas (default,
-  // cuando ningún elemento de clinic_addresses trae is_primary) o uno de
-  // los adicionales. clinic_addresses no guarda una dirección ya armada
-  // (ver ConsultorioAdicional), así que se arma aquí igual que hace
-  // LocationForm al guardar.
-  const consultorioPrincipalAdicional = Array.isArray(medico.clinic_addresses)
-    ? medico.clinic_addresses.find((c: any) => c?.is_primary)
-    : null
-
-  const ubicacionPrincipal = consultorioPrincipalAdicional
-    ? {
-        nombre: consultorioPrincipalAdicional.clinic_name,
-        direccion: [
-          [
-            consultorioPrincipalAdicional.street,
-            consultorioPrincipalAdicional.ext_number ? `#${consultorioPrincipalAdicional.ext_number}` : '',
-            consultorioPrincipalAdicional.int_number ? `${consultorioPrincipalAdicional.clinic_type === 'hospital' ? 'Consultorio' : 'Int.'} ${consultorioPrincipalAdicional.int_number}` : '',
-          ].filter(Boolean).join(' '),
-          consultorioPrincipalAdicional.colonia,
-          consultorioPrincipalAdicional.cp ? `CP ${consultorioPrincipalAdicional.cp}` : '',
-          consultorioPrincipalAdicional.ciudad,
-          consultorioPrincipalAdicional.estado,
-        ].filter(Boolean).join(', '),
-        lat: consultorioPrincipalAdicional.clinic_lat,
-        lng: consultorioPrincipalAdicional.clinic_lng,
-        esColumnasPlanas: false,
-      }
-    : {
-        nombre: medico.clinic_name,
-        direccion: medico.clinic_address,
-        lat: medico.clinic_lat,
-        lng: medico.clinic_lng,
-        esColumnasPlanas: true,
-      }
+  // Lista de consultorios para la sección "Mis consultorios".
+  // consultorios ya viene del estado; si aún no cargó, mostrar vacío.
 
   return (
     <div style={{ minHeight: '100vh', background: '#F9FAFB', fontFamily: "'DM Sans', sans-serif", color: '#111827' }}>
@@ -1309,60 +1402,43 @@ export default function EditarPerfilPage() {
 
         {activeStep === 3 && (
           <>
-            <Card title="Ubicación del consultorio" onEdit={() => setActiveModal('location')}>
-  {ubicacionPrincipal.lat && ubicacionPrincipal.lng? (
-    <div>
-      <div style={{ display: 'flex', gap: 12 }}>
-        <div style={{ width: 36, height: 36, background: '#E8F7F5', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <MapPin size={18} color="#2A9D8F" />
-        </div>
-        <div style={{ flex: 1 }}>
-          <p style={{ fontSize: 14, fontWeight: 700, color: '#111827', marginBottom: 4 }}>
-            {ubicacionPrincipal.nombre || 'Consultorio'}
-          </p>
-          <p style={{ fontSize: 13, color: '#374151', lineHeight: 1.5 }}>
-            {ubicacionPrincipal.direccion}
-          </p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
-            <CheckCircle size={14} color="#2A9D8F" />
-            <span style={{ fontSize: 12, color: '#2A9D8F', fontWeight: 600 }}>Ubicación verificada para "Cerca de mí"</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  ) : ubicacionPrincipal.esColumnasPlanas ? (
-    <div style={{ padding: '16px', background: '#FEF3C7', borderRadius: 10, border: '1px solid #FCD34D' }}>
-      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-        <div style={{ width: 32, height: 32, background: '#F59E0B', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <MapPin size={16} color="#fff" />
-        </div>
-        <div style={{ flex: 1 }}>
-          <p style={{ fontSize: 14, fontWeight: 700, color: '#92400E', marginBottom: 4 }}>Completa tu dirección exacta</p>
-          <p style={{ fontSize: 13, color: '#78350F', lineHeight: 1.4, marginBottom: 8 }}>
-            Tienes registrado: <strong>CP {medico.cp || medico.postal_code}</strong> · {medico.ciudad || medico.location_city || ''}
-            <br />Falta: calle, número y colonia específica
-          </p>
-          <p style={{ fontSize: 12, color: '#92400E' }}>Sin esto, no apareces en búsquedas "cerca de mí"</p>
-        </div>
-      </div>
-    </div>
-  ) : (
-    <div style={{ padding: '16px', background: '#FEF3C7', borderRadius: 10, border: '1px solid #FCD34D' }}>
-      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-        <div style={{ width: 32, height: 32, background: '#F59E0B', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <MapPin size={16} color="#fff" />
-        </div>
-        <div style={{ flex: 1 }}>
-          <p style={{ fontSize: 14, fontWeight: 700, color: '#92400E', marginBottom: 4 }}>Completa la ubicación exacta</p>
-          <p style={{ fontSize: 13, color: '#78350F', lineHeight: 1.4, marginBottom: 8 }}>
-            Falta la ubicación exacta de "{ubicacionPrincipal.nombre || 'este consultorio'}"
-          </p>
-          <p style={{ fontSize: 12, color: '#92400E' }}>Sin esto, no aparece en el mapa de tu perfil público</p>
-        </div>
-      </div>
-    </div>
-  )}
-</Card>
+            {/* ── Mis consultorios ── */}
+            <div style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1.5px solid #E5E7EB' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <h3 style={{ fontSize: 15, fontWeight: 700, color: '#111827' }}>Mis consultorios</h3>
+                <button
+                  onClick={consultorios.length < 3 ? handleAgregarConsultorio : undefined}
+                  disabled={consultorios.length >= 3}
+                  title={consultorios.length >= 3 ? 'Límite de 3 consultorios alcanzado' : 'Agregar consultorio'}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                    background: consultorios.length >= 3 ? '#F3F4F6' : '#1E3A5F',
+                    color: consultorios.length >= 3 ? '#9CA3AF' : '#fff',
+                    border: 'none', borderRadius: 8, padding: '8px 14px',
+                    fontSize: 13, fontWeight: 600, cursor: consultorios.length >= 3 ? 'not-allowed' : 'pointer',
+                    fontFamily: "'DM Sans', sans-serif",
+                  }}
+                >
+                  <Plus size={14} />
+                  {consultorios.length >= 3 ? 'Límite alcanzado' : 'Agregar consultorio'}
+                </button>
+              </div>
+              {consultorios.length === 0 && (
+                <p style={{ fontSize: 13, color: '#9CA3AF', fontStyle: 'italic', paddingTop: 12 }}>Cargando consultorios…</p>
+              )}
+              {consultorios.map((c, i) => (
+                <ConsultorioCard
+                  key={c.id}
+                  consultorio={c}
+                  esPrincipal={c.es_principal}
+                  index={i}
+                  onEdit={() => handleEditarConsultorio(c.id)}
+                  onToggleActivo={() => handleToggleActivo(c.id)}
+                  onDelete={() => handleEliminarConsultorio(c.id)}
+                  guardando={guardandoConsultorioId === c.id}
+                />
+              ))}
+            </div>
 
             <Card title="Bloquear fechas" onEdit={() => setActiveModal('bloqueos')}>
               {bloqueosError
@@ -1386,7 +1462,7 @@ export default function EditarPerfilPage() {
         )}
       </div>
 
-      {activeModal && (
+      {activeModal && activeModal !== 'consultorio_edit' && (
         <Modal onClose={() => { if (activeModal === 'location' && controlUbicacionRef.current) controlUbicacionRef.current.intentarCerrar(); else setActiveModal(null) }} title={{ basic: 'Información básica', intro: 'Biografía', specialties: 'Especialidades', conditions: 'Enfermedades', experience: 'Experiencia', education: 'Formación', languages: 'Idiomas', booking: 'Precios y contacto', location: 'Ubicación del consultorio', bloqueos: 'Bloquear fechas de consulta' }[activeModal] || 'Editar'}>
           {activeModal === 'basic' && <BasicInfoForm medico={medico} onSave={handleSaveBasicInfo} saving={saving} />}
           {activeModal === 'intro' && <IntroForm aboutMe={medico.about_me} onSave={handleSaveBasicInfo} saving={saving} />}
@@ -1411,6 +1487,55 @@ export default function EditarPerfilPage() {
           )}
         </Modal>
       )}
+
+      {/* Modal de edición / creación de un consultorio (adicional o nuevo) */}
+      {activeModal === 'consultorio_edit' && editandoConsultorioId && (() => {
+        const esNuevo = editandoConsultorioId === '__nuevo__'
+        const row = esNuevo ? null : consultorios.find(x => x.id === editandoConsultorioId) ?? null
+        const consultorioParaForm: ConsultorioAdicional = row
+          ? {
+              id: row.id,
+              clinic_name: row.nombre ?? '',
+              clinic_type: row.tipo ?? 'consultorio',
+              street: row.street ?? '',
+              ext_number: row.ext_number ?? '',
+              int_number: row.int_number ?? '',
+              floor: row.floor ?? '',
+              cp: row.cp ?? '',
+              colonia: row.colonia ?? '',
+              ciudad: row.ciudad ?? '',
+              estado: row.estado ?? '',
+              clinic_lat: row.lat,
+              clinic_lng: row.lng,
+              clinic_phone: row.telefono ?? '',
+              is_primary: false,
+              clinic_phone_visible: row.telefono_visible,
+              horario: row.horario ?? null,
+            }
+          : {
+              id: crypto.randomUUID(),
+              clinic_name: '',
+              clinic_type: 'consultorio',
+              street: '', ext_number: '', int_number: '', floor: '',
+              cp: '', colonia: '', ciudad: '', estado: '',
+              clinic_lat: null, clinic_lng: null,
+              clinic_phone: '', is_primary: false,
+              clinic_phone_visible: false, horario: null,
+            }
+        return (
+          <Modal
+            onClose={() => setActiveModal(null)}
+            title={esNuevo ? 'Agregar consultorio' : 'Editar consultorio'}
+          >
+            <ConsultorioAdicionalForm
+              consultorio={consultorioParaForm}
+              onSave={handleSaveConsultorioEdit}
+              onCancel={() => setActiveModal(null)}
+              saving={saving}
+            />
+          </Modal>
+        )
+      })()}
     </div>
   )
 }
