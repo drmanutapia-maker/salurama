@@ -280,7 +280,13 @@ const btnGhost: React.CSSProperties = {
 // whatsapp, clinic_phone, whatsapp_phone, address, admin_notes, last_reviewed_*,
 // pricing_period y stripe_* NO se pueden leer de la tabla; el teléfono del
 // consultorio y el WhatsApp propios se obtienen con get_mi_doctor_datos_sensibles().
-const COLUMNAS_EDITAR_PERFIL = 'id, created_at, updated_at, full_name, specialty, professional_license, license_verified, consultation_price, description, photo_url, is_active, gender, languages, hospital_affiliation, years_experience, education, schedule, rating_avg, rating_count, profile_views, slug, verification_status, symptoms, insurance_accepted, availability, specialty_council_url, license_issue_date, sub_specialty, license_visible, review_status, atiende_ninos, about_me, clinic_name, clinic_address, website_url, price_list, payment_methods, office_materials, patient_age_range, access_info, additional_info, consultation_price_general, consultation_price_followup, consultation_price_first_time, accepts_insurance, insurance_names, available_days, schedule_start, schedule_end, first_visit_requirements, wheelchair_accessible, has_elevator, has_parking, public_transport_nearby, min_patient_age, max_patient_age, best_contact_time, whatsapp_available, clinic_phone_visible, cancellation_policy, next_available_date, availability_status, availability_hours, availability_schedule, clinic_addresses, location_city_id, cp, horario, duracion_cita_minutos, user_id, license_not_current, clinic_lat, clinic_lng, clinic_formatted_address, display_name, professional_title, facebook_url, instagram_url, tiktok_url, x_url, linkedin_url, clinic_type, floor, estado, ciudad, colonia, street, ext_number, int_number, latitude, longitude, pricing_tier, cofepris_aviso_numero, cofepris_acuse_url, cofepris_aviso_fecha, has_aviso_funcionamiento, factura_disponible, webauthn_banner_declined, webauthn_migrado_dispositivo, pwa_banner_shown, cofepris_banner_declined'
+// Campos que ahora viven en consultorios y se leen por separado en loadData():
+// clinic_name, clinic_address, clinic_type, clinic_lat, clinic_lng,
+// clinic_formatted_address, clinic_phone_visible, horario,
+// street, ext_number, int_number, floor, cp, colonia.
+// ciudad y estado siguen en doctors (sincronizados por trigger desde consultorios).
+// duracion_cita_minutos sigue en doctors (decisión de diseño).
+const COLUMNAS_EDITAR_PERFIL = 'id, created_at, updated_at, full_name, specialty, professional_license, license_verified, consultation_price, description, photo_url, is_active, gender, languages, hospital_affiliation, years_experience, education, schedule, rating_avg, rating_count, profile_views, slug, verification_status, symptoms, insurance_accepted, availability, specialty_council_url, license_issue_date, sub_specialty, license_visible, review_status, atiende_ninos, about_me, website_url, price_list, payment_methods, office_materials, patient_age_range, access_info, additional_info, consultation_price_general, consultation_price_followup, consultation_price_first_time, accepts_insurance, insurance_names, available_days, schedule_start, schedule_end, first_visit_requirements, wheelchair_accessible, has_elevator, has_parking, public_transport_nearby, min_patient_age, max_patient_age, best_contact_time, whatsapp_available, cancellation_policy, next_available_date, availability_status, availability_hours, availability_schedule, location_city_id, duracion_cita_minutos, user_id, license_not_current, display_name, professional_title, facebook_url, instagram_url, tiktok_url, x_url, linkedin_url, estado, ciudad, latitude, longitude, pricing_tier, cofepris_aviso_numero, cofepris_acuse_url, cofepris_aviso_fecha, has_aviso_funcionamiento, factura_disponible, webauthn_banner_declined, webauthn_migrado_dispositivo, pwa_banner_shown, cofepris_banner_declined'
 
 export default function EditarPerfilPage() {
   const router = useRouter()
@@ -321,6 +327,9 @@ export default function EditarPerfilPage() {
   // Escape del modal de ubicación pidan confirmación si hay cambios sin
   // guardar (ver Modal onClose más abajo).
   const controlUbicacionRef = useRef<{ intentarCerrar: () => void } | null>(null)
+  // ID del consultorio principal en la tabla consultorios — se rellena en
+  // loadData() y se usa en handleSaveLocation() para el UPDATE.
+  const consultorioPrincipalIdRef = useRef<string | null>(null)
   useEffect(() => {
     if (activeModal !== 'location') horarioBorradorRef.current = null
   }, [activeModal])
@@ -397,12 +406,67 @@ export default function EditarPerfilPage() {
       setEmailSesion(user.email ?? '')
 
       // Teléfono del consultorio y WhatsApp propios: por función, no por la tabla.
-      const { data: sensibles } = await supabase.rpc('get_mi_doctor_datos_sensibles')
-      const contacto = Array.isArray(sensibles) ? sensibles[0] : null
+      // Consultorio principal y adicionales: ahora en la tabla consultorios.
+      const [sensiblesRes, consultorioPrincipalRes, consultoriosAdicionalesRes] = await Promise.all([
+        supabase.rpc('get_mi_doctor_datos_sensibles'),
+        supabase.from('consultorios')
+          .select('id, nombre, tipo, street, ext_number, int_number, floor, colonia, ciudad, estado, cp, formatted_address, lat, lng, telefono_visible, horario')
+          .eq('doctor_id', medicoBase.id)
+          .eq('es_principal', true)
+          .maybeSingle(),
+        supabase.from('consultorios')
+          .select('id, nombre, tipo, street, ext_number, int_number, floor, colonia, ciudad, estado, cp, formatted_address, lat, lng, telefono, telefono_visible, horario')
+          .eq('doctor_id', medicoBase.id)
+          .eq('es_principal', false)
+          .eq('activo', true)
+          .order('orden'),
+      ])
+      const contacto = Array.isArray(sensiblesRes.data) ? sensiblesRes.data[0] : null
+      const cp = consultorioPrincipalRes.data
+
+      consultorioPrincipalIdRef.current = cp?.id ?? null
+
+      // Consultorios adicionales mapeados a ConsultorioAdicional[]
+      const adicionales: ConsultorioAdicional[] = (consultoriosAdicionalesRes.data ?? []).map((c: any) => ({
+        id: c.id,
+        clinic_name: c.nombre ?? '',
+        clinic_type: c.tipo ?? 'consultorio',
+        street: c.street ?? '',
+        ext_number: c.ext_number ?? '',
+        int_number: c.int_number ?? '',
+        floor: c.floor ?? '',
+        cp: c.cp ?? '',
+        colonia: c.colonia ?? '',
+        ciudad: c.ciudad ?? '',
+        estado: c.estado ?? '',
+        clinic_lat: c.lat != null ? Number(c.lat) : null,
+        clinic_lng: c.lng != null ? Number(c.lng) : null,
+        clinic_phone: c.telefono ?? '',
+        is_primary: false,
+        clinic_phone_visible: c.telefono_visible ?? false,
+        horario: c.horario ?? null,
+      }))
+
       const medicoData = {
         ...medicoBase,
         clinic_phone: contacto?.clinic_phone ?? null,
         whatsapp_phone: contacto?.whatsapp_phone ?? null,
+        // Campos del consultorio principal (sobrescriben cualquier columna plana residual)
+        clinic_name: cp?.nombre ?? null,
+        clinic_type: cp?.tipo ?? null,
+        clinic_address: cp?.formatted_address ?? null,
+        clinic_lat: cp?.lat != null ? Number(cp.lat) : null,
+        clinic_lng: cp?.lng != null ? Number(cp.lng) : null,
+        clinic_phone_visible: cp?.telefono_visible ?? null,
+        horario: cp?.horario ?? null,
+        street: cp?.street ?? null,
+        ext_number: cp?.ext_number ?? null,
+        int_number: cp?.int_number ?? null,
+        floor: cp?.floor ?? null,
+        cp: cp?.cp ?? null,
+        colonia: cp?.colonia ?? null,
+        // ciudad/estado siguen en doctors (sincronizados por trigger desde consultorios)
+        clinic_addresses: adicionales,
       }
 
       setMedico(medicoData)
@@ -551,6 +615,148 @@ export default function EditarPerfilPage() {
     setSaving(false)
   }
 }
+
+  // Mapeo de nombres UI → columnas en consultorios
+  const CONSULTORIO_FIELDS_MAP: Record<string, string> = {
+    clinic_name: 'nombre',
+    clinic_type: 'tipo',
+    clinic_address: 'formatted_address',
+    clinic_lat: 'lat',
+    clinic_lng: 'lng',
+    clinic_phone: 'telefono',
+    clinic_phone_visible: 'telefono_visible',
+    horario: 'horario',
+    street: 'street',
+    ext_number: 'ext_number',
+    int_number: 'int_number',
+    floor: 'floor',
+    cp: 'cp',
+    estado: 'estado',
+    ciudad: 'ciudad',
+    colonia: 'colonia',
+  }
+
+  // Guarda consultorios adicionales en la tabla consultorios.
+  // INSERT para nuevos, UPDATE para existentes, DELETE/soft-delete para eliminados.
+  const saveConsultoriosAdicionales = async (nuevaLista: ConsultorioAdicional[]) => {
+    if (!medico) return
+
+    const { data: actualesDb } = await supabase.from('consultorios')
+      .select('id')
+      .eq('doctor_id', medico.id)
+      .eq('es_principal', false)
+      .eq('activo', true)
+
+    const idsActualesDb = new Set((actualesDb ?? []).map((c: any) => c.id as string))
+    const idsNuevaLista = new Set(nuevaLista.map(c => c.id))
+
+    // UPSERT: INSERT nuevos, UPDATE existentes
+    for (const c of nuevaLista) {
+      const isHospital = c.clinic_type === 'hospital'
+      const streetPart = isHospital
+        ? `${c.street} ${c.ext_number}${c.floor ? `, Piso ${c.floor}` : ''}${c.int_number ? `, Consultorio ${c.int_number}` : ''}`
+        : `${c.street} ${c.ext_number}${c.int_number ? ` Int. ${c.int_number}` : ''}`
+      const row = {
+        doctor_id: medico.id,
+        nombre: c.clinic_name,
+        tipo: c.clinic_type,
+        street: c.street,
+        ext_number: c.ext_number,
+        int_number: c.int_number || null,
+        floor: isHospital ? (c.floor || null) : null,
+        cp: c.cp,
+        colonia: c.colonia,
+        ciudad: c.ciudad,
+        estado: c.estado,
+        formatted_address: [streetPart, c.colonia, c.cp, c.ciudad, c.estado].filter(Boolean).join(', '),
+        lat: c.clinic_lat,
+        lng: c.clinic_lng,
+        telefono: c.clinic_phone || null,
+        telefono_visible: !!(c.clinic_phone) && c.clinic_phone_visible === true,
+        horario: c.horario ?? null,
+        es_principal: false,
+        activo: true,
+      }
+
+      if (idsActualesDb.has(c.id)) {
+        const { error } = await supabase.from('consultorios').update(row).eq('id', c.id)
+        if (error) throw error
+      } else {
+        const { error } = await supabase.from('consultorios').insert({ id: c.id, ...row })
+        if (error) throw error
+      }
+    }
+
+    // DELETE/soft-delete eliminados
+    for (const id of idsActualesDb) {
+      if (!idsNuevaLista.has(id)) {
+        const { count } = await supabase.from('citas')
+          .select('id', { count: 'exact', head: true })
+          .eq('consultorio_id', id)
+        if (count && count > 0) {
+          await supabase.from('consultorios').update({ activo: false }).eq('id', id)
+        } else {
+          await supabase.from('consultorios').delete().eq('id', id)
+        }
+      }
+    }
+  }
+
+  // Guarda cambios del modal de ubicación: campos de consultorio principal
+  // van a consultorios; duracion_cita_minutos va a doctors.
+  // clinic_addresses → saveConsultoriosAdicionales().
+  const handleSaveLocation = async (data: Record<string, any>, opts?: { mantenerModal?: boolean }): Promise<boolean> => {
+    if (!medico) return false
+    setSaving(true)
+    try {
+      // Construir fila para consultorios
+      const consultorioRow: Record<string, any> = {}
+      const doctorsRow: Record<string, any> = {}
+
+      for (const [key, val] of Object.entries(data)) {
+        if (key === 'clinic_addresses') continue
+        if (key in CONSULTORIO_FIELDS_MAP) {
+          consultorioRow[CONSULTORIO_FIELDS_MAP[key]] = val
+        } else if (key === 'duracion_cita_minutos') {
+          doctorsRow[key] = val
+        }
+        // Ignorar otras llaves silenciosamente
+      }
+
+      // 1. Update consultorio principal (fuente de verdad)
+      if (Object.keys(consultorioRow).length > 0 && consultorioPrincipalIdRef.current) {
+        const { error } = await supabase.from('consultorios')
+          .update(consultorioRow)
+          .eq('id', consultorioPrincipalIdRef.current)
+        if (error) throw error
+      }
+
+      // 2. Update doctors (solo duracion_cita_minutos u otros campos propios)
+      if (Object.keys(doctorsRow).length > 0) {
+        const { error } = await supabase.from('doctors')
+          .update(doctorsRow)
+          .eq('id', medico.id)
+        if (error) throw error
+      }
+
+      // 3. Consultorios adicionales
+      if ('clinic_addresses' in data) {
+        await saveConsultoriosAdicionales(data.clinic_addresses ?? [])
+      }
+
+      // Actualizar estado local optimistamente y recargar
+      setMedico(prev => prev ? { ...prev, ...data } : null)
+      await loadData(!!opts?.mantenerModal)
+      if (!opts?.mantenerModal) setActiveModal(null)
+      return true
+    } catch (err) {
+      console.error('Error al guardar ubicación:', err)
+      alert('Error al guardar')
+      return false
+    } finally {
+      setSaving(false)
+    }
+  }
 
   const handleStartEditLicense = () => {
     setLicenseInput(medico?.professional_license || '')
@@ -1194,7 +1400,7 @@ export default function EditarPerfilPage() {
           {activeModal === 'location' && (
             <UbicacionTabs
               medico={medico}
-              onSave={(d: Partial<Medico>) => handleSaveBasicInfo(d, { mantenerModal: true })}
+              onSave={(d: Record<string, any>) => handleSaveLocation(d, { mantenerModal: true })}
               saving={saving}
               consultorios={consultoriosAdicionalesBorrador}
               setConsultorios={setConsultoriosAdicionalesBorrador}
