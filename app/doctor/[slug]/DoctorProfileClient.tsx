@@ -20,9 +20,8 @@ import { calculateProfileCompletion } from '@/hooks/useProfileCompletion'
 import BaculoEsculapio from '@/components/icons/BaculoEsculapio'
 import { proximoDiaDisponible } from '@/lib/proximaCitaDisponible'
 
-// Un consultorio adicional dentro de doctors.clinic_addresses (jsonb
-// array) -- ver editar-perfil/page.tsx, misma forma. El consultorio
-// principal (columnas planas de Medico) nunca vive aquí.
+// Un consultorio adicional (tabla consultorios, es_principal=false).
+// El principal se carga por separado en page.tsx y se monta en Medico.
 export interface ConsultorioAdicionalPublico {
   id: string
   clinic_name: string | null

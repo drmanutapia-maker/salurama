@@ -119,18 +119,39 @@ export async function calcularCompletitudPorDoctorServidor(
 export async function getEspecialistasDestacados(): Promise<EspecialistaHomepage[]> {
   const supabase = getSupabase()
 
+  // clinic_name, horario y clinic_phone ya no vienen de doctors: se leen del
+  // consultorio principal y se montan sobre cada registro antes de calcular
+  // completitud. phone y whatsapp_phone siguen en doctors.
   const { data: doctors, error } = await supabase
     .from('doctors')
-    .select(`id, slug, full_name, specialty, photo_url, ciudad, estado, clinic_name,
-      consultation_price_general, whatsapp_available, about_me, clinic_lat, clinic_lng,
-      horario, consultation_price_first_time, phone, clinic_phone, whatsapp_phone, languages,
+    .select(`id, slug, full_name, specialty, photo_url, ciudad, estado,
+      consultation_price_general, whatsapp_available, about_me,
+      consultation_price_first_time, phone, whatsapp_phone, languages,
       rating_avg, rating_count`)
     .eq('is_active', true)
 
   if (error || !doctors) return []
 
-  const completitudPorId = await calcularCompletitudPorDoctor(supabase, doctors)
-  const elegibles = doctors
+  const doctorIds = doctors.map(d => d.id)
+  const { data: consultoriosData } = doctorIds.length > 0
+    ? await supabase
+        .from('consultorios')
+        .select('doctor_id, nombre, horario, telefono')
+        .in('doctor_id', doctorIds)
+        .eq('es_principal', true)
+        .eq('activo', true)
+    : { data: [] as { doctor_id: string; nombre: string | null; horario: unknown; telefono: string | null }[] }
+  const consultorioPorDoctor = new Map((consultoriosData ?? []).map(c => [c.doctor_id, c]))
+
+  const doctorsConConsultorio = doctors.map(d => ({
+    ...d,
+    clinic_name: consultorioPorDoctor.get(d.id)?.nombre ?? null,
+    horario: consultorioPorDoctor.get(d.id)?.horario ?? null,
+    clinic_phone: consultorioPorDoctor.get(d.id)?.telefono ?? null,
+  }))
+
+  const completitudPorId = await calcularCompletitudPorDoctor(supabase, doctorsConConsultorio)
+  const elegibles = doctorsConConsultorio
     .map(d => ({ ...d, completitud: completitudPorId.get(d.id) ?? 0 }))
     .filter(d => d.completitud >= UMBRAL_ELEGIBILIDAD)
 

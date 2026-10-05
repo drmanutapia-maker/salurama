@@ -132,18 +132,40 @@ export default async function BuscarPage({
   // se piden con la clave anónima (no son legibles públicamente): la
   // completitud los lee aparte con service_role, ver
   // calcularCompletitudPorDoctorServidor.
+  // clinic_lat, clinic_lng y horario ya no vienen de doctors: se leen del
+  // consultorio principal y se montan sobre cada registro antes de calcular
+  // completitud, proximaCita y construir el array de Medico.
   const { data } = await supabase
     .from('doctors')
     .select(`id, slug, full_name, specialty, photo_url, ciudad, estado,
            consultation_price_general, years_experience, min_patient_age, max_patient_age, atiende_ninos,
-           clinic_lat, clinic_lng, hospital_affiliation, languages, insurance_accepted, professional_license,
+           hospital_affiliation, languages, insurance_accepted, professional_license,
            professional_title, rating_avg, rating_count, created_at,
-           about_me, horario, consultation_price_first_time`)
+           about_me, consultation_price_first_time`)
     .eq('is_active', true)
     .limit(100)
 
   const doctorsRaw = data ?? []
   const doctorIds = doctorsRaw.map(d => d.id)
+
+  // Consultorios principales: lat, lng y horario para el buscador.
+  const { data: consultoriosData } = doctorIds.length > 0
+    ? await supabase
+        .from('consultorios')
+        .select('doctor_id, lat, lng, horario')
+        .in('doctor_id', doctorIds)
+        .eq('es_principal', true)
+        .eq('activo', true)
+    : { data: [] as { doctor_id: string; lat: number | null; lng: number | null; horario: unknown }[] }
+  const consultorioPorDoctor = new Map((consultoriosData ?? []).map(c => [c.doctor_id, c]))
+
+  // Merge de campos de consultorio sobre cada doctor antes de completitud y orden.
+  const doctorsConConsultorio = doctorsRaw.map(d => ({
+    ...d,
+    clinic_lat: consultorioPorDoctor.get(d.id)?.lat ?? null,
+    clinic_lng: consultorioPorDoctor.get(d.id)?.lng ?? null,
+    horario: consultorioPorDoctor.get(d.id)?.horario ?? null,
+  }))
 
   // Especialidades adicionales certificadas (no la principal, que ya viene
   // en `specialty`) -- solo para que el buscador encuentre al médico
@@ -173,8 +195,8 @@ export default async function BuscarPage({
   // rating con mínimo de reseñas → alfabético) -- antes esta lista se
   // ordenaba por fecha de registro más reciente primero, inconsistente con
   // el resto de la plataforma.
-  const completitudPorId = await calcularCompletitudPorDoctorServidor(doctorsRaw)
-  const doctorsOrdenados = doctorsRaw
+  const completitudPorId = await calcularCompletitudPorDoctorServidor(doctorsConConsultorio)
+  const doctorsOrdenados = doctorsConConsultorio
     .map(d => ({ ...d, completitud: completitudPorId.get(d.id) ?? 0 }))
     .sort(compararPorMerito)
 
@@ -205,8 +227,8 @@ export default async function BuscarPage({
     min_patient_age: d.min_patient_age,
     max_patient_age: d.max_patient_age,
     atiende_ninos: d.atiende_ninos,
-    clinic_lat: d.clinic_lat,
-    clinic_lng: d.clinic_lng,
+    clinic_lat: (d as any).clinic_lat,
+    clinic_lng: (d as any).clinic_lng,
     hospital_affiliation: d.hospital_affiliation,
     languages: d.languages,
     insurance_accepted: d.insurance_accepted,

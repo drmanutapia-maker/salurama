@@ -102,9 +102,11 @@ export default async function EspecialidadEstadoPage({ params }: { params: Promi
   const estadoLabel = getStateLabel(combinacion.estado)
 
   const supabase = getSupabase()
+  // clinic_lat y clinic_lng ya no vienen de doctors: se leen del consultorio
+  // principal y se montan sobre cada registro antes de armar el array de Medico.
   const SELECT_COLS = `id, slug, full_name, specialty, photo_url, ciudad, estado,
              consultation_price_general, years_experience, min_patient_age, max_patient_age,
-             clinic_lat, clinic_lng, hospital_affiliation, languages, insurance_accepted, professional_license, created_at`
+             hospital_affiliation, languages, insurance_accepted, professional_license, created_at`
 
   // Médicos que califican por esta especialidad como SECUNDARIA certificada
   // (verificada) -- la principal se resuelve aparte, con el `.eq('specialty', ...)`
@@ -136,9 +138,27 @@ export default async function EspecialidadEstadoPage({ params }: { params: Promi
   // (is_primary es mutuamente excluyente por diseño), pero por si acaso se
   // deduplica igual antes de ordenar.
   const vistos = new Set<string>()
-  const medicos = [...(porPrincipal ?? []), ...((secundariaRes as any).data ?? [])]
+  const medicosBase = [...(porPrincipal ?? []), ...((secundariaRes as any).data ?? [])]
     .filter(d => (vistos.has(d.id) ? false : (vistos.add(d.id), true)))
-    .sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? '')) as Medico[]
+    .sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''))
+
+  // Merge de lat/lng desde consultorios principal.
+  const medicosIds = medicosBase.map((d: any) => d.id as string)
+  const { data: consultoriosData } = medicosIds.length > 0
+    ? await supabase
+        .from('consultorios')
+        .select('doctor_id, lat, lng')
+        .in('doctor_id', medicosIds)
+        .eq('es_principal', true)
+        .eq('activo', true)
+    : { data: [] as { doctor_id: string; lat: number | null; lng: number | null }[] }
+  const consultorioPorDoctor = new Map((consultoriosData ?? []).map(c => [c.doctor_id, c]))
+
+  const medicos = medicosBase.map((d: any) => ({
+    ...d,
+    clinic_lat: consultorioPorDoctor.get(d.id)?.lat ?? null,
+    clinic_lng: consultorioPorDoctor.get(d.id)?.lng ?? null,
+  })) as Medico[]
 
   // Defensa en profundidad: si entre resolverPorSlugs() y esta query el
   // roster cambió y ya no llega al umbral, no serví una página delgada.

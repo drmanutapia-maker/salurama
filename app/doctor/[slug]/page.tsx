@@ -48,17 +48,20 @@ function getSupabaseServiceRole() {
 // anónima; el teléfono y el WhatsApp se piden aparte por función
 // (get_doctor_clinic_phone / get_doctor_whatsapp), que solo los devuelven si
 // el médico los marcó como visibles. user_id se usa para isOwner.
+// clinic_type, clinic_name, clinic_address, clinic_lat, clinic_lng, clinic_addresses,
+// clinic_phone_visible y horario ya no vienen de doctors: se leen del consultorio
+// principal (consultorios WHERE es_principal=true AND activo=true) y se montan
+// sobre el objeto medico antes de pasar a DoctorProfileClient.
 const COLUMNAS_DOCTOR_PUBLICO = [
   'id', 'slug', 'is_active', 'user_id', 'full_name', 'display_name', 'professional_title',
   'specialty', 'sub_specialty', 'ciudad', 'estado', 'colonia', 'cp', 'street', 'ext_number',
-  'int_number', 'floor', 'clinic_type', 'clinic_name', 'clinic_address', 'clinic_lat',
-  'clinic_lng', 'clinic_addresses', 'clinic_phone_visible', 'consultation_price_general',
+  'int_number', 'floor', 'consultation_price_general',
   'consultation_price_first_time', 'consultation_price_followup', 'photo_url', 'about_me',
   'rating_avg', 'rating_count', 'years_experience', 'hospital_affiliation', 'languages',
   'insurance_names', 'accepts_insurance', 'payment_methods', 'factura_disponible',
   'whatsapp_available', 'facebook_url', 'instagram_url', 'tiktok_url', 'linkedin_url',
   'website_url', 'professional_license', 'review_status', 'min_patient_age',
-  'max_patient_age', 'horario', 'duracion_cita_minutos', 'pricing_tier',
+  'max_patient_age', 'duracion_cita_minutos', 'pricing_tier',
 ].join(', ')
 
 // Este mismo lookup alimenta tanto generateMetadata como el perfil completo
@@ -77,21 +80,19 @@ const resolveDoctor = cache(async (slugParam: string): Promise<Medico | null> =>
   return data as unknown as Medico | null
 })
 
-// clinic_addresses es una columna JSON pública que guarda el teléfono de cada
-// consultorio adicional junto con su flag de visibilidad. Es la única vía por
-// la que un teléfono sigue viajando en doctors, así que se vacía aquí (en el
-// servidor, antes de pasar nada al cliente) el de los consultorios que el
-// médico no marcó como visibles. El teléfono y el WhatsApp del consultorio
-// principal ya no vienen de esta fila: se piden por función.
-function ocultarTelefonosDeAdicionales(doctor: Medico): Medico {
-  if (!Array.isArray(doctor.clinic_addresses)) return doctor
-  return {
-    ...doctor,
-    clinic_addresses: doctor.clinic_addresses.map(c => ({
-      ...c,
-      clinic_phone: c?.clinic_phone_visible === true ? c.clinic_phone : null,
-    })),
-  }
+// Campos de ubicación, horario y visibilidad del teléfono leídos del
+// consultorio principal (Fase 3 / Subfase 2, paso 2.3). Los consultorios
+// adicionales se leerán de la tabla consultorios con una query separada
+// cuando haya más de uno (pendiente); mientras tanto se pasa null.
+async function getConsultorioPrincipal(doctorId: string) {
+  const { data } = await getSupabase()
+    .from('consultorios')
+    .select('nombre, tipo, formatted_address, lat, lng, telefono_visible, horario')
+    .eq('doctor_id', doctorId)
+    .eq('es_principal', true)
+    .eq('activo', true)
+    .maybeSingle()
+  return data
 }
 
 // Teléfono y WhatsApp públicos del consultorio principal: solo los devuelve la
@@ -224,10 +225,23 @@ export default async function DoctorPage({
     permanentRedirect(`/doctor/${doctor.slug}${queryString ? `?${queryString}` : ''}`)
   }
 
-  const [profileData, contacto] = await Promise.all([
+  const [profileData, contacto, consultorio] = await Promise.all([
     getDoctorProfileData(doctor.id),
     getContactoPublico(doctor.id),
+    getConsultorioPrincipal(doctor.id),
   ])
 
-  return <DoctorProfileClient medico={ocultarTelefonosDeAdicionales(doctor)} {...profileData} {...contacto} />
+  const medicoConConsultorio: Medico = {
+    ...doctor,
+    clinic_name: consultorio?.nombre ?? null,
+    clinic_type: consultorio?.tipo ?? null,
+    clinic_address: consultorio?.formatted_address ?? null,
+    clinic_lat: consultorio?.lat ?? null,
+    clinic_lng: consultorio?.lng ?? null,
+    clinic_phone_visible: consultorio?.telefono_visible ?? null,
+    horario: consultorio?.horario ?? null,
+    clinic_addresses: null,
+  }
+
+  return <DoctorProfileClient medico={medicoConConsultorio} {...profileData} {...contacto} />
 }
