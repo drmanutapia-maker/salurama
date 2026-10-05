@@ -42,41 +42,71 @@ function getSupabaseServiceRole() {
   )
 }
 
-// select('*') porque este mismo lookup alimenta tanto generateMetadata como
-// el perfil completo (envuelto en cache() de React para que, aunque Next
-// invoque esta función por separado en cada uno, solo se ejecute una query
-// por request). No filtra is_active: un perfil inactivo (ej. correo aún sin
-// confirmar) debe tratarse como no encontrado, no simplemente omitirse de
-// listados, así que el chequeo se hace explícito donde se usa este lookup.
+// Columnas públicas de doctors que usa el perfil (todas dentro del GRANT de
+// anon). Explícitas a propósito: NO incluyen email, phone, whatsapp,
+// clinic_phone ni whatsapp_phone -- esos no son legibles con la clave
+// anónima; el teléfono y el WhatsApp se piden aparte por función
+// (get_doctor_clinic_phone / get_doctor_whatsapp), que solo los devuelven si
+// el médico los marcó como visibles. user_id se usa para isOwner.
+const COLUMNAS_DOCTOR_PUBLICO = [
+  'id', 'slug', 'is_active', 'user_id', 'full_name', 'display_name', 'professional_title',
+  'specialty', 'sub_specialty', 'ciudad', 'estado', 'colonia', 'cp', 'street', 'ext_number',
+  'int_number', 'floor', 'clinic_type', 'clinic_name', 'clinic_address', 'clinic_lat',
+  'clinic_lng', 'clinic_addresses', 'clinic_phone_visible', 'consultation_price_general',
+  'consultation_price_first_time', 'consultation_price_followup', 'photo_url', 'about_me',
+  'rating_avg', 'rating_count', 'years_experience', 'hospital_affiliation', 'languages',
+  'insurance_names', 'accepts_insurance', 'payment_methods', 'factura_disponible',
+  'whatsapp_available', 'facebook_url', 'instagram_url', 'tiktok_url', 'linkedin_url',
+  'website_url', 'professional_license', 'review_status', 'min_patient_age',
+  'max_patient_age', 'horario', 'duracion_cita_minutos', 'pricing_tier',
+].join(', ')
+
+// Este mismo lookup alimenta tanto generateMetadata como el perfil completo
+// (envuelto en cache() de React para que, aunque Next invoque esta función
+// por separado en cada uno, solo se ejecute una query por request). No filtra
+// is_active: un perfil inactivo (ej. correo aún sin confirmar) debe tratarse
+// como no encontrado, no simplemente omitirse de listados, así que el chequeo
+// se hace explícito donde se usa este lookup.
 const resolveDoctor = cache(async (slugParam: string): Promise<Medico | null> => {
   const column = isUuid(slugParam) ? 'id' : 'slug'
   const { data } = await getSupabase()
     .from('doctors')
-    .select('*')
+    .select(COLUMNAS_DOCTOR_PUBLICO)
     .eq(column, slugParam)
     .maybeSingle()
-  return data
+  return data as unknown as Medico | null
 })
 
-// Privacidad del teléfono del consultorio: select('*') trae clinic_phone y
-// todo clinic_addresses (con el clinic_phone de cada consultorio adicional),
-// y todo lo que se pasa al componente cliente viaja serializado al navegador
-// aunque la interfaz lo oculte. Por eso el filtrado se hace aquí, en el
-// servidor: si el médico no marcó "Mostrar en perfil público"
-// (clinic_phone_visible false o null), el teléfono se pone en null. Los
-// campos no se eliminan, solo se vacían, para no romper tipos.
-function ocultarTelefonosPrivados(doctor: Medico): Medico {
+// clinic_addresses es una columna JSON pública que guarda el teléfono de cada
+// consultorio adicional junto con su flag de visibilidad. Es la única vía por
+// la que un teléfono sigue viajando en doctors, así que se vacía aquí (en el
+// servidor, antes de pasar nada al cliente) el de los consultorios que el
+// médico no marcó como visibles. El teléfono y el WhatsApp del consultorio
+// principal ya no vienen de esta fila: se piden por función.
+function ocultarTelefonosDeAdicionales(doctor: Medico): Medico {
+  if (!Array.isArray(doctor.clinic_addresses)) return doctor
   return {
     ...doctor,
-    clinic_phone: doctor.clinic_phone_visible === true ? doctor.clinic_phone : null,
-    // Mismo criterio para WhatsApp: sin whatsapp_available el número no sale.
-    whatsapp_phone: doctor.whatsapp_available === true ? doctor.whatsapp_phone : null,
-    clinic_addresses: Array.isArray(doctor.clinic_addresses)
-      ? doctor.clinic_addresses.map(c => ({
-          ...c,
-          clinic_phone: c?.clinic_phone_visible === true ? c.clinic_phone : null,
-        }))
-      : doctor.clinic_addresses,
+    clinic_addresses: doctor.clinic_addresses.map(c => ({
+      ...c,
+      clinic_phone: c?.clinic_phone_visible === true ? c.clinic_phone : null,
+    })),
+  }
+}
+
+// Teléfono y WhatsApp públicos del consultorio principal: solo los devuelve la
+// base de datos si el médico los marcó como visibles (clinic_phone_visible /
+// whatsapp_available); si no, null. Un fallo de la función no debe tumbar el
+// perfil: se trata como "sin teléfono".
+async function getContactoPublico(doctorId: string) {
+  const supabase = getSupabase()
+  const [telefonoRes, whatsappRes] = await Promise.all([
+    supabase.rpc('get_doctor_clinic_phone', { p_doctor_id: doctorId }),
+    supabase.rpc('get_doctor_whatsapp', { p_doctor_id: doctorId }),
+  ])
+  return {
+    telefonoVisible: telefonoRes.error ? null : ((telefonoRes.data as string | null) ?? null),
+    whatsappVisible: whatsappRes.error ? null : ((whatsappRes.data as string | null) ?? null),
   }
 }
 
@@ -87,10 +117,10 @@ function ocultarTelefonosPrivados(doctor: Medico): Medico {
 async function getDoctorProfileData(doctorId: string) {
   const supabase = getSupabase()
   const [licRes, eduRes, expRes, condRes, revRes, credRes, galRes, citaCompletadaRes] = await Promise.all([
-    supabase.from('doctor_licenses').select('*').eq('doctor_id', doctorId),
-    supabase.from('doctor_education').select('*').eq('doctor_id', doctorId).order('graduation_year', { ascending: false }),
-    supabase.from('doctor_experience').select('*').eq('doctor_id', doctorId).order('is_current', { ascending: false }),
-    supabase.from('doctor_conditions').select('*').eq('doctor_id', doctorId).order('category'),
+    supabase.from('doctor_licenses').select('id, license_number, license_type, institution').eq('doctor_id', doctorId),
+    supabase.from('doctor_education').select('id, institution, degree, field_of_study, graduation_year').eq('doctor_id', doctorId).order('graduation_year', { ascending: false }),
+    supabase.from('doctor_experience').select('id, institution_name, position, location, start_date, end_date, is_current').eq('doctor_id', doctorId).order('is_current', { ascending: false }),
+    supabase.from('doctor_conditions').select('id, condition_name, category').eq('doctor_id', doctorId).order('category'),
     // Columnas explícitas (no '*'): moderation_reason/moderation_flagged_by
     // son solo para la bandeja interna del admin, nunca deben llegar al HTML
     // público de esta página.
@@ -194,7 +224,10 @@ export default async function DoctorPage({
     permanentRedirect(`/doctor/${doctor.slug}${queryString ? `?${queryString}` : ''}`)
   }
 
-  const profileData = await getDoctorProfileData(doctor.id)
+  const [profileData, contacto] = await Promise.all([
+    getDoctorProfileData(doctor.id),
+    getContactoPublico(doctor.id),
+  ])
 
-  return <DoctorProfileClient medico={ocultarTelefonosPrivados(doctor)} {...profileData} />
+  return <DoctorProfileClient medico={ocultarTelefonosDeAdicionales(doctor)} {...profileData} {...contacto} />
 }

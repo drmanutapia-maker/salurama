@@ -4,7 +4,7 @@ import BuscarClient, { type Medico } from './BuscarClient'
 import { getStateLabel } from '@/lib/locations'
 import { getArticulosPorEspecialidadTexto } from '@/lib/blog'
 import { esCombinacionCalificada, especialidadSlug, estadoSlug } from '@/lib/especialidadEstado'
-import { calcularCompletitudPorDoctor, compararPorMerito } from '@/lib/homepageEspecialistas'
+import { calcularCompletitudPorDoctorServidor, compararPorMerito } from '@/lib/homepageEspecialistas'
 import { proximoDiaDisponible } from '@/lib/proximaCitaDisponible'
 import { filtrarMedicos } from '@/lib/buscarMedicos'
 
@@ -124,19 +124,21 @@ export default async function BuscarPage({
   // el navegador porque depende de la geolocalización del usuario.
   //
   // Se piden más columnas de las que la tarjeta pinta directamente: about_me,
-  // horario, consultation_price_first_time, phone, clinic_phone y
-  // whatsapp_phone solo se usan aquí, server-side, para calcular la
-  // completitud del perfil (mismo criterio que la home,
+  // horario y consultation_price_first_time solo se usan aquí, server-side,
+  // para calcular la completitud del perfil (mismo criterio que la home,
   // lib/homepageEspecialistas.ts) y la "próxima cita disponible" -- nunca se
   // mandan al cliente tal cual (ver el recorte al construir `medicos` más
-  // abajo), para no exponer de más en el payload público.
+  // abajo), para no exponer de más en el payload público. Los teléfonos NO
+  // se piden con la clave anónima (no son legibles públicamente): la
+  // completitud los lee aparte con service_role, ver
+  // calcularCompletitudPorDoctorServidor.
   const { data } = await supabase
     .from('doctors')
     .select(`id, slug, full_name, specialty, photo_url, ciudad, estado,
            consultation_price_general, years_experience, min_patient_age, max_patient_age, atiende_ninos,
            clinic_lat, clinic_lng, hospital_affiliation, languages, insurance_accepted, professional_license,
            professional_title, rating_avg, rating_count, created_at,
-           about_me, horario, consultation_price_first_time, phone, clinic_phone, whatsapp_phone`)
+           about_me, horario, consultation_price_first_time`)
     .eq('is_active', true)
     .limit(100)
 
@@ -171,7 +173,7 @@ export default async function BuscarPage({
   // rating con mínimo de reseñas → alfabético) -- antes esta lista se
   // ordenaba por fecha de registro más reciente primero, inconsistente con
   // el resto de la plataforma.
-  const completitudPorId = await calcularCompletitudPorDoctor(supabase, doctorsRaw)
+  const completitudPorId = await calcularCompletitudPorDoctorServidor(doctorsRaw)
   const doctorsOrdenados = doctorsRaw
     .map(d => ({ ...d, completitud: completitudPorId.get(d.id) ?? 0 }))
     .sort(compararPorMerito)

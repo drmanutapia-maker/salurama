@@ -84,6 +84,31 @@ export async function calcularCompletitudPorDoctor(
   return mapa
 }
 
+// Variante para páginas que consultan `doctors` con la clave anónima (ej.
+// /buscar): esa clave ya no puede leer phone / clinic_phone / whatsapp_phone,
+// pero la completitud necesita saber si el médico tiene ALGÚN teléfono (es
+// uno de los 10 criterios). Aquí se leen esas tres columnas con service_role
+// -- solo en el servidor, solo para calcular el porcentaje -- y se mezclan en
+// los datos antes de calcular; nunca se devuelven ni se mandan al cliente.
+export async function calcularCompletitudPorDoctorServidor(
+  doctors: (NonNullable<ProfileCompletionData['medico']> & { id: string })[]
+): Promise<Map<string, number>> {
+  const supabase = getSupabase()
+  const ids = doctors.map(d => d.id)
+  const { data: contacto } = ids.length > 0
+    ? await supabase.from('doctors').select('id, phone, clinic_phone, whatsapp_phone').in('id', ids)
+    : { data: [] as { id: string; phone: string | null; clinic_phone: string | null; whatsapp_phone: string | null }[] }
+  const contactoPorId = new Map((contacto ?? []).map(c => [c.id, c]))
+
+  return calcularCompletitudPorDoctor(
+    supabase,
+    doctors.map(d => {
+      const c = contactoPorId.get(d.id)
+      return { ...d, phone: c?.phone ?? null, clinic_phone: c?.clinic_phone ?? null, whatsapp_phone: c?.whatsapp_phone ?? null }
+    })
+  )
+}
+
 // Elegibilidad: perfil con completitud >= 30%. Por debajo de eso el médico
 // sigue accesible normal por /buscar y su perfil directo — solo se omite de
 // esta sección de la home. Orden: completitud desc; empate → rating desc

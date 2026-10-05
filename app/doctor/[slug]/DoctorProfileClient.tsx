@@ -48,9 +48,9 @@ export interface Medico {
   slug: string | null
   is_active: boolean
   full_name: string
+  user_id: string | null
   display_name: string | null
   professional_title: string | null
-  email: string
   specialty: string
   sub_specialty: string | null
   ciudad: string | null
@@ -62,7 +62,6 @@ export interface Medico {
   int_number: string | null
   floor: string | null
   clinic_type: string | null
-  address: string
   consultation_price_general: number | null
   consultation_price_first_time: number | null
   consultation_price_followup: number | null
@@ -71,7 +70,6 @@ export interface Medico {
   rating_avg: number
   rating_count: number
   years_experience: number | null
-  years_of_experience: number | null
   hospital_affiliation: string | null
   languages: string[] | string | null
   insurance_names: string[] | null
@@ -83,10 +81,8 @@ export interface Medico {
   clinic_lat: number | null
   clinic_lng: number | null
   clinic_address: string | null
-  clinic_phone: string | null
   clinic_phone_visible?: boolean | null
   whatsapp_available: boolean
-  whatsapp_phone: string | null
   facebook_url: string | null
   instagram_url: string | null
   tiktok_url: string | null
@@ -1302,6 +1298,8 @@ export default function DoctorProfileClient({
   reviews,
   galleryPhotos,
   tieneConsultaCompletada,
+  telefonoVisible,
+  whatsappVisible,
 }: {
   medico: Medico
   licenses: License[]
@@ -1312,6 +1310,11 @@ export default function DoctorProfileClient({
   reviews: Review[]
   galleryPhotos: GalleryPhoto[]
   tieneConsultaCompletada: boolean
+  // Teléfono y WhatsApp del consultorio principal, ya filtrados por la base de
+  // datos: solo vienen si el médico los marcó como visibles (ver
+  // getContactoPublico en page.tsx).
+  telefonoVisible: string | null
+  whatsappVisible: string | null
 }) {
   const id = medico.id
   const router = useRouter()
@@ -1398,11 +1401,11 @@ export default function DoctorProfileClient({
       body:    JSON.stringify({ doctorId: id }),
     }).catch(() => {})
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user?.email === medico.email) setIsOwner(true)
+      if (user && medico.user_id && user.id === medico.user_id) setIsOwner(true)
     })
-  }, [id, medico.email])
+  }, [id, medico.user_id])
 
-  const yearsExp = medico?.years_experience ?? medico?.years_of_experience ?? null
+  const yearsExp = medico?.years_experience ?? null
   const langs = parseLangs(medico?.languages ?? null)
   const precioPrimera = medico?.consultation_price_first_time || null
   const precioSubsecuente = medico?.consultation_price_general || null
@@ -1540,7 +1543,7 @@ export default function DoctorProfileClient({
     estado: medico?.estado ?? null,
     clinic_lat: medico?.clinic_lat ?? null,
     clinic_lng: medico?.clinic_lng ?? null,
-    clinic_phone: medico?.clinic_phone ?? null,
+    clinic_phone: telefonoVisible ?? null,
     clinic_phone_visible: medico?.clinic_phone_visible ?? null,
     horario: medico?.horario ?? null,
   }
@@ -1588,9 +1591,9 @@ export default function DoctorProfileClient({
       },
       datePublished: r.created_at,
     })),
-    // clinic_phone ya llega en null desde el servidor si el médico no lo
-    // marcó como visible, así que sin teléfono visible cae a whatsapp_phone.
-    telephone: medico.clinic_phone || medico.whatsapp_phone || undefined,
+    // telefonoVisible / whatsappVisible ya llegan en null si el médico no los
+    // marcó como visibles, así que sin teléfono visible cae al WhatsApp visible.
+    telephone: telefonoVisible || whatsappVisible || undefined,
     url: profileUrl,
   } : null
 
@@ -2025,12 +2028,12 @@ export default function DoctorProfileClient({
                 {/* Ya filtrado en el servidor: null si no es visible. Con un
                     solo consultorio no hay tabs, así que el teléfono se
                     muestra aquí (antes vivía en la tarjeta Contacto). */}
-                {medico.clinic_phone && (
+                {telefonoVisible && (
                   <a
-                    href={`tel:${medico.clinic_phone}`}
+                    href={`tel:${telefonoVisible}`}
                     style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 40, marginBottom: 12, fontSize: 14, fontWeight: 600, color: '#1E3A5F', textDecoration: 'none' }}
                   >
-                    <Phone size={15} aria-hidden="true" /> {medico.clinic_phone}
+                    <Phone size={15} aria-hidden="true" /> {telefonoVisible}
                   </a>
                 )}
                 {resumenHorarioPrincipal.length > 0 && (
@@ -2132,13 +2135,13 @@ export default function DoctorProfileClient({
             )}
 
             {/* Contacto */}
-            {medico.whatsapp_available && medico.whatsapp_phone && (
+            {whatsappVisible && (
               <div className="fade-up" style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #E5E7EB' }}>
                 <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1E3A5F', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Phone size={16} /> Contacto
                 </h3>
                 <a
-                  href={`https://wa.me/52${medico.whatsapp_phone.replace(/\D/g, '')}`}
+                  href={`https://wa.me/52${whatsappVisible.replace(/\D/g, '')}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: '#25D366', color: '#fff', borderRadius: 10, textDecoration: 'none', fontWeight: 600, fontSize: 13, justifyContent: 'center' }}
