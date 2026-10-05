@@ -42,6 +42,34 @@ export interface ConsultorioAdicionalPublico {
   is_primary: boolean
 }
 
+// Consultorio leído directamente de la tabla consultorios (Subfase 3.3+).
+// Campos públicos — sin telefono (protegido por RLS de columna).
+export interface ConsultorioPublico {
+  id: string
+  nombre: string | null
+  tipo: string | null
+  street: string | null
+  ext_number: string | null
+  int_number: string | null
+  floor: string | null
+  colonia: string | null
+  ciudad: string | null
+  estado: string | null
+  cp: string | null
+  formatted_address: string | null
+  lat: number | null
+  lng: number | null
+  telefono_visible: boolean
+  horario: Record<string, any> | null
+  wheelchair_accessible: boolean
+  has_elevator: boolean
+  has_parking: boolean
+  public_transport_nearby: boolean
+  es_principal: boolean
+  activo: boolean
+  orden: number
+}
+
 export interface Medico {
   id: string
   slug: string | null
@@ -1163,18 +1191,20 @@ function UbicacionConsultorios({ consultorios }: { consultorios: ConsultorioPara
         <MapPin size={16} /> Ubicación
       </h3>
 
-      <div className="no-scrollbar" style={{ display: 'flex', gap: 6, overflowX: 'auto', marginBottom: 14 }}>
-        {consultorios.map((c, i) => (
-          <button
-            key={c.id}
-            type="button"
-            onClick={() => setTabActivo(i)}
-            style={{ flexShrink: 0, padding: '6px 14px', borderRadius: 20, border: i === tabActivo ? '1.5px solid #1E3A5F' : '1.5px solid #E5E7EB', background: i === tabActivo ? '#EEF2FF' : '#fff', color: i === tabActivo ? '#1E3A5F' : '#6B7280', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-          >
-            Consultorio {i + 1}
-          </button>
-        ))}
-      </div>
+      {consultorios.length > 1 && (
+        <div className="no-scrollbar" style={{ display: 'flex', gap: 6, overflowX: 'auto', marginBottom: 14 }}>
+          {consultorios.map((c, i) => (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => setTabActivo(i)}
+              style={{ flexShrink: 0, padding: '6px 14px', borderRadius: 20, border: i === tabActivo ? '1.5px solid #1E3A5F' : '1.5px solid #E5E7EB', background: i === tabActivo ? '#EEF2FF' : '#fff', color: i === tabActivo ? '#1E3A5F' : '#6B7280', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+            >
+              Consultorio {i + 1}
+            </button>
+          ))}
+        </div>
+      )}
 
       {activo.clinic_name && <p style={{ fontSize: 13, fontWeight: 600, color: '#111827', marginBottom: 4 }}>{activo.clinic_name}</p>}
       {direccionCompleta && <p style={{ fontSize: 13, color: '#4A5568', marginBottom: 2 }}>{direccionCompleta}</p>}
@@ -1289,6 +1319,7 @@ function ReviewCard({ r }: { r: any }) {
 // navegador (track-visit, isOwner) sigue cargándose del lado del cliente.
 export default function DoctorProfileClient({
   medico,
+  consultorios = [],
   licenses,
   specialtyCredentials,
   education,
@@ -1301,6 +1332,7 @@ export default function DoctorProfileClient({
   whatsappVisible,
 }: {
   medico: Medico
+  consultorios?: ConsultorioPublico[]
   licenses: License[]
   specialtyCredentials: SpecialtyCredential[]
   education: EducationItem[]
@@ -1521,34 +1553,49 @@ export default function DoctorProfileClient({
     'México',
   ].filter(Boolean).join(', '))
 
-  // Si no hay consultorios adicionales, la tarjeta de Ubicación de abajo
-  // sigue exactamente como siempre (usa direccionCompleta/direccionExtendida
-  // de arriba, sin pasar por aquí). Con adicionales, se arma la lista para
-  // las tabs: el marcado is_primary (o el de columnas planas si ninguno lo
-  // está) va primero.
-  const consultoriosAdicionalesPublico = Array.isArray(medico?.clinic_addresses) ? medico.clinic_addresses : []
-  const hayPrincipalAdicional = consultoriosAdicionalesPublico.some(c => c?.is_primary)
-  const consultorioPrincipalColumnas: ConsultorioParaTabs = {
-    id: '__principal__',
-    clinic_name: medico?.clinic_name ?? null,
-    clinic_type: medico?.clinic_type ?? null,
-    street: medico?.street ?? null,
-    ext_number: medico?.ext_number ?? null,
-    int_number: medico?.int_number ?? null,
-    floor: medico?.floor ?? null,
-    cp: medico?.cp ?? null,
-    colonia: medico?.colonia ?? null,
-    ciudad: medico?.ciudad ?? null,
-    estado: medico?.estado ?? null,
-    clinic_lat: medico?.clinic_lat ?? null,
-    clinic_lng: medico?.clinic_lng ?? null,
-    clinic_phone: telefonoVisible ?? null,
-    clinic_phone_visible: medico?.clinic_phone_visible ?? null,
-    horario: medico?.horario ?? null,
-  }
-  const listaConsultoriosParaTabs: ConsultorioParaTabs[] = hayPrincipalAdicional
-    ? [...consultoriosAdicionalesPublico.filter(c => c.is_primary), consultorioPrincipalColumnas, ...consultoriosAdicionalesPublico.filter(c => !c.is_primary)]
-    : [consultorioPrincipalColumnas, ...consultoriosAdicionalesPublico]
+  // Construir lista de tabs desde el array consultorios (Subfase 3.3+).
+  // El array ya viene ordenado (principal primero) desde page.tsx.
+  // El teléfono del principal viene en telefonoVisible (ya filtrado por
+  // visibilidad); los adicionales lo cargarán de get_consultorio_telefono
+  // en el cliente cuando se implemente ese flujo. Por ahora clinic_phone=null
+  // para adicionales.
+  const listaConsultoriosParaTabs: ConsultorioParaTabs[] = consultorios.length > 0
+    ? consultorios.map(c => ({
+        id: c.id,
+        clinic_name: c.nombre,
+        clinic_type: c.tipo,
+        street: c.street,
+        ext_number: c.ext_number,
+        int_number: c.int_number,
+        floor: c.floor,
+        cp: c.cp,
+        colonia: c.colonia,
+        ciudad: c.ciudad,
+        estado: c.estado,
+        clinic_lat: c.lat,
+        clinic_lng: c.lng,
+        clinic_phone: c.es_principal ? (telefonoVisible ?? null) : null,
+        clinic_phone_visible: c.telefono_visible,
+        horario: c.horario,
+      }))
+    : [{
+        id: '__principal__',
+        clinic_name: medico?.clinic_name ?? null,
+        clinic_type: medico?.clinic_type ?? null,
+        street: medico?.street ?? null,
+        ext_number: medico?.ext_number ?? null,
+        int_number: medico?.int_number ?? null,
+        floor: medico?.floor ?? null,
+        cp: medico?.cp ?? null,
+        colonia: medico?.colonia ?? null,
+        ciudad: medico?.ciudad ?? null,
+        estado: medico?.estado ?? null,
+        clinic_lat: medico?.clinic_lat ?? null,
+        clinic_lng: medico?.clinic_lng ?? null,
+        clinic_phone: telefonoVisible ?? null,
+        clinic_phone_visible: medico?.clinic_phone_visible ?? null,
+        horario: medico?.horario ?? null,
+      }]
 
   // Horario resumido del consultorio principal para la tarjeta de ubicación
   // de un solo consultorio (con tabs lo calcula cada tab, ver
@@ -2007,116 +2054,8 @@ export default function DoctorProfileClient({
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
             {/* Ubicación */}
-            {consultoriosAdicionalesPublico.length > 0 ? (
+            {listaConsultoriosParaTabs.length > 0 && (
               <UbicacionConsultorios consultorios={listaConsultoriosParaTabs} />
-            ) : direccionExtendida && (
-              <div className="fade-up" style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #E5E7EB' }}>
-                <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1E3A5F', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <MapPin size={16} /> Ubicación
-                </h3>
-                {medico.clinic_name && <p style={{ fontSize: 13, fontWeight: 600, color: '#111827', marginBottom: 4 }}>{medico.clinic_name}</p>}
-                {direccionCompleta && <p style={{ fontSize: 13, color: '#4A5568', marginBottom: 2 }}>{direccionCompleta}</p>}
-                {medico.colonia && <p style={{ fontSize: 13, color: '#4A5568', marginBottom: 2 }}>Col. {medico.colonia}</p>}
-                <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 12 }}>
-                  {[
-                    medico.cp ? `CP ${medico.cp}` : '',
-                    medico.ciudad,
-                    medico.estado ? getStateLabel(medico.estado) : medico.estado,
-                  ].filter(Boolean).join(', ')}
-                </p>
-                {/* Ya filtrado en el servidor: null si no es visible. Con un
-                    solo consultorio no hay tabs, así que el teléfono se
-                    muestra aquí (antes vivía en la tarjeta Contacto). */}
-                {telefonoVisible && (
-                  <a
-                    href={`tel:${telefonoVisible}`}
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 40, marginBottom: 12, fontSize: 14, fontWeight: 600, color: '#1E3A5F', textDecoration: 'none' }}
-                  >
-                    <Phone size={15} aria-hidden="true" /> {telefonoVisible}
-                  </a>
-                )}
-                {resumenHorarioPrincipal.length > 0 && (
-                  <div style={{ marginBottom: 12 }}>
-                    <p style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, color: '#1E3A5F', marginBottom: 6 }}>
-                      <Clock size={14} aria-hidden="true" /> Horario
-                    </p>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                      {resumenHorarioPrincipal.map(g => (
-                        <div key={g.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: 13, color: '#6B7280', fontWeight: 500 }}>{g.label}</span>
-                          <span style={{ fontSize: 13, color: '#111827', fontWeight: 600 }}>{g.rango}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {(() => {
-                  const lat = medico.clinic_lat
-                  const lng = medico.clinic_lng
-                  const tieneCoordenadas = lat != null && lng != null && !isNaN(Number(lat)) && !isNaN(Number(lng))
-
-                  if (!tieneCoordenadas) {
-                    return (
-                      <div style={{ padding: '14px', background: '#FEF3C7', borderRadius: 10, border: '1px solid #FCD34D', textAlign: 'center' }}>
-                        <p style={{ fontSize: 12, color: '#92400E' }}>Ubicación exacta no configurada</p>
-                      </div>
-                    )
-                  }
-
-                  const latNum = Number(lat)
-                  const lngNum = Number(lng)
-
-                  const handleNavigate = (e: React.MouseEvent) => {
-                    const sheet = document.createElement('div')
-                    sheet.style.cssText = 'position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,0.5);display:flex;align-items:flex-end'
-                    sheet.innerHTML = `
-                      <div style="background:#fff;width:100%;border-radius:20px 20px 0 0;padding:24px;animation:slideUp 0.3s">
-                        <div style="width:40px;height:4px;background:#E5E7EB;border-radius:2px;margin:0 auto 20px"></div>
-                        <h3 style="font-size:18px;font-weight:700;margin-bottom:16px">Cómo llegar</h3>
-                        <div style="display:flex;flex-direction:column;gap:12px">
-                          <a href="https://www.google.com/maps/dir/?api=1&destination=${latNum},${lngNum}&destination_place_id=&query=${direccionNavegacion}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:12px;padding:14px;background:#F9FAFB;border-radius:12px;text-decoration:none;color:#111" onclick="setTimeout(()=>this.closest('div[style*=fixed]').remove(),300)">
-                            <div style="width:40px;height:40px;background:#4285F4;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700">G</div>
-                            <div><div style="font-weight:600">Google Maps</div><div style="font-size:12px;color:#6B7280">Navegación paso a paso</div></div>
-                          </a>
-                          <a href="https://waze.com/ul?ll=${latNum},${lngNum}&navigate=yes" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:12px;padding:14px;background:#F9FAFB;border-radius:12px;text-decoration:none;color:#111" onclick="setTimeout(()=>this.closest('div[style*=fixed]').remove(),300)">
-                            <div style="width:40px;height:40px;background:#33CCFF;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700">W</div>
-                            <div><div style="font-weight:600">Waze</div><div style="font-size:12px;color:#6B7280">Tráfico en tiempo real</div></div>
-                          </a>
-                          <a href="https://maps.apple.com/?daddr=${latNum},${lngNum}&q=${direccionNavegacion}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:12px;padding:14px;background:#F9FAFB;border-radius:12px;textDecoration:none;color:#111" onclick="setTimeout(()=>this.closest('div[style*=fixed]').remove(),300)">
-                            <div style="width:40px;height:40px;background:#000;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700"></div>
-                            <div><div style="font-weight:600">Apple Maps</div><div style="font-size:12px;color:#6B7280">Para iPhone</div></div>
-                          </a>
-                        </div>
-                        <button onclick="this.closest('div[style*=fixed]').remove()" style="width:100%;margin-top:16px;padding:12px;background:none;border:none;color:#6B7280;font-weight:600">Cancelar</button>
-                      </div>
-                    `
-                    sheet.onclick = (ev) => { if (ev.target === sheet) sheet.remove() }
-                    document.body.appendChild(sheet)
-                  }
-
-                  return (
-                    <>
-                      <div style={{ width: '100%', height: 200, borderRadius: 12, overflow: 'hidden', marginBottom: 12, border: '1px solid #E5E7EB' }}>
-                        <iframe
-                          width="100%"
-                          height="100%"
-                          frameBorder="0"
-                          scrolling="no"
-                          src={`https://www.openstreetmap.org/export/embed.html?bbox=${lngNum - 0.01}%2C${latNum - 0.01}%2C${lngNum + 0.01}%2C${latNum + 0.01}&layer=mapnik&marker=${latNum}%2C${lngNum}`}
-                          style={{ border: 0 }}
-                          title="Mapa ubicación"
-                        />
-                      </div>
-                      <button
-                        onClick={handleNavigate}
-                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', background: '#1E3A5F', color: '#fff', padding: '10px 16px', borderRadius: 10, fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer' }}
-                      >
-                        <Navigation size={14} /> Cómo llegar
-                      </button>
-                    </>
-                  )
-                })()}
-              </div>
             )}
 
             {/* Seguros */}

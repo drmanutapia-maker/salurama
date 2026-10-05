@@ -12,6 +12,7 @@ import DoctorProfileClient, {
   type Review,
   type SpecialtyCredential,
   type GalleryPhoto,
+  type ConsultorioPublico,
 } from './DoctorProfileClient'
 
 // Sin ISR aquí a propósito: esta página lee `searchParams` (ver DoctorPage
@@ -80,19 +81,21 @@ const resolveDoctor = cache(async (slugParam: string): Promise<Medico | null> =>
   return data as unknown as Medico | null
 })
 
-// Campos de ubicación, horario y visibilidad del teléfono leídos del
-// consultorio principal (Fase 3 / Subfase 2, paso 2.3). Los consultorios
-// adicionales se leerán de la tabla consultorios con una query separada
-// cuando haya más de uno (pendiente); mientras tanto se pasa null.
-async function getConsultorioPrincipal(doctorId: string) {
+// Todos los consultorios activos del médico, ordenados por orden ASC,
+// principal primero. Solo columnas públicas (sin telefono).
+async function getConsultorios(doctorId: string): Promise<ConsultorioPublico[]> {
   const { data } = await getSupabase()
     .from('consultorios')
-    .select('nombre, tipo, formatted_address, lat, lng, telefono_visible, horario')
+    .select(
+      'id, nombre, tipo, street, ext_number, int_number, floor, colonia, ciudad, estado, cp, formatted_address, lat, lng, telefono_visible, horario, wheelchair_accessible, has_elevator, has_parking, public_transport_nearby, es_principal, activo, orden'
+    )
     .eq('doctor_id', doctorId)
-    .eq('es_principal', true)
     .eq('activo', true)
-    .maybeSingle()
-  return data
+    .order('orden', { ascending: true })
+  // Principal primero, luego adicionales por orden
+  const rows = (data ?? []) as ConsultorioPublico[]
+  rows.sort((a, b) => (b.es_principal ? 1 : 0) - (a.es_principal ? 1 : 0))
+  return rows
 }
 
 // Teléfono y WhatsApp públicos del consultorio principal: solo los devuelve la
@@ -225,23 +228,25 @@ export default async function DoctorPage({
     permanentRedirect(`/doctor/${doctor.slug}${queryString ? `?${queryString}` : ''}`)
   }
 
-  const [profileData, contacto, consultorio] = await Promise.all([
+  const [profileData, contacto, consultorios] = await Promise.all([
     getDoctorProfileData(doctor.id),
     getContactoPublico(doctor.id),
-    getConsultorioPrincipal(doctor.id),
+    getConsultorios(doctor.id),
   ])
+
+  const principal = consultorios.find(c => c.es_principal) ?? consultorios[0] ?? null
 
   const medicoConConsultorio: Medico = {
     ...doctor,
-    clinic_name: consultorio?.nombre ?? null,
-    clinic_type: consultorio?.tipo ?? null,
-    clinic_address: consultorio?.formatted_address ?? null,
-    clinic_lat: consultorio?.lat ?? null,
-    clinic_lng: consultorio?.lng ?? null,
-    clinic_phone_visible: consultorio?.telefono_visible ?? null,
-    horario: consultorio?.horario ?? null,
+    clinic_name: principal?.nombre ?? null,
+    clinic_type: principal?.tipo ?? null,
+    clinic_address: principal?.formatted_address ?? null,
+    clinic_lat: principal?.lat ?? null,
+    clinic_lng: principal?.lng ?? null,
+    clinic_phone_visible: principal?.telefono_visible ?? null,
+    horario: principal?.horario ?? null,
     clinic_addresses: null,
   }
 
-  return <DoctorProfileClient medico={medicoConConsultorio} {...profileData} {...contacto} />
+  return <DoctorProfileClient medico={medicoConConsultorio} consultorios={consultorios} {...profileData} {...contacto} />
 }
