@@ -173,20 +173,34 @@ export async function POST(request: NextRequest) {
 
     const { data: medico, error: medicoError } = await supabase
      .from('doctors')
-     .select('id, full_name, horario')
+     .select('id, full_name')
      .eq('id', medicoId)
      .eq('is_active', true)
      .single()
 
-    if (medicoError ||!medico) {
+    if (medicoError || !medico) {
       console.warn(`[${requestId}] Médico no encontrado: ${medicoId}`)
       return NextResponse.json({ error: 'Médico no disponible' }, { status: 404 })
+    }
+
+    const { data: consultorio, error: consultorioError } = await supabase
+      .from('consultorios')
+      .select('id, horario')
+      .eq('doctor_id', medicoId)
+      .eq('es_principal', true)
+      .eq('activo', true)
+      .maybeSingle()
+
+    if (consultorioError || !consultorio) {
+      console.warn(`[${requestId}] Sin consultorio principal activo: ${medicoId}`)
+      return NextResponse.json({ error: 'El médico no tiene consultorio disponible' }, { status: 404 })
     }
 
     const dayOfWeek = citaDate.getDay()
     const days = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'] as const
     const dayName = days[dayOfWeek]
-    const horarioDia = medico.horario?.[dayName]
+    const horario = consultorio.horario as Record<string, any> | null
+    const horarioDia = horario?.[dayName]
 
     const diaActivo = horarioDia?.abierto ?? horarioDia?.open ?? horarioDia?.activo ?? !!(horarioDia?.inicio && horarioDia?.fin)
     if (!diaActivo) {
@@ -246,6 +260,7 @@ export async function POST(request: NextRequest) {
       .from('citas')
       .insert({
         medico_id: medicoId,
+        consultorio_id: consultorio.id,
         paciente_nombre: nombreFinal,
         paciente_email: emailFinal,
         paciente_telefono: telefonoFinal || null,
