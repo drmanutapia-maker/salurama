@@ -236,6 +236,21 @@ export default async function DoctorPage({
 
   const principal = consultorios.find(c => c.es_principal) ?? consultorios[0] ?? null
 
+  // Teléfonos de consultorios adicionales (es_principal=false) con telefono_visible=true.
+  // Se obtienen en paralelo con get_consultorio_telefono (SECURITY DEFINER). Un fallo
+  // individual no tumba el perfil: se trata como sin teléfono para ese consultorio.
+  const adicionales = consultorios.filter(c => !c.es_principal && c.telefono_visible)
+  const telefonosAdicionales: Record<string, string | null> = {}
+  if (adicionales.length > 0) {
+    const supabase = getSupabase()
+    const resultados = await Promise.all(
+      adicionales.map(c => supabase.rpc('get_consultorio_telefono', { p_consultorio_id: c.id }))
+    )
+    adicionales.forEach((c, i) => {
+      telefonosAdicionales[c.id] = resultados[i].error ? null : ((resultados[i].data as string | null) ?? null)
+    })
+  }
+
   const medicoConConsultorio: Medico = {
     ...doctor,
     clinic_name: principal?.nombre ?? null,
@@ -247,5 +262,5 @@ export default async function DoctorPage({
     horario: principal?.horario ?? null,
   }
 
-  return <DoctorProfileClient medico={medicoConConsultorio} consultorios={consultorios} {...profileData} {...contacto} />
+  return <DoctorProfileClient medico={medicoConConsultorio} consultorios={consultorios} telefonosAdicionales={telefonosAdicionales} {...profileData} {...contacto} />
 }

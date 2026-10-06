@@ -1294,6 +1294,7 @@ function ReviewCard({ r }: { r: any }) {
 export default function DoctorProfileClient({
   medico,
   consultorios = [],
+  telefonosAdicionales = {},
   licenses,
   specialtyCredentials,
   education,
@@ -1307,6 +1308,9 @@ export default function DoctorProfileClient({
 }: {
   medico: Medico
   consultorios?: ConsultorioPublico[]
+  // Mapa consultorioId → teléfono para consultorios adicionales con telefono_visible=true.
+  // Ya filtrado por get_consultorio_telefono en page.tsx (devuelve null si no visible).
+  telefonosAdicionales?: Record<string, string | null>
   licenses: License[]
   specialtyCredentials: SpecialtyCredential[]
   education: EducationItem[]
@@ -1548,7 +1552,7 @@ export default function DoctorProfileClient({
         estado: c.estado,
         clinic_lat: c.lat,
         clinic_lng: c.lng,
-        clinic_phone: c.es_principal ? (telefonoVisible ?? null) : null,
+        clinic_phone: c.es_principal ? (telefonoVisible ?? null) : (telefonosAdicionales[c.id] ?? null),
         clinic_phone_visible: c.telefono_visible,
         horario: c.horario,
       }))
