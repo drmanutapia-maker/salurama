@@ -21,27 +21,6 @@ import BaculoEsculapio from '@/components/icons/BaculoEsculapio'
 import { proximoDiaDisponible } from '@/lib/proximaCitaDisponible'
 
 // Un consultorio adicional (tabla consultorios, es_principal=false).
-// El principal se carga por separado en page.tsx y se monta en Medico.
-export interface ConsultorioAdicionalPublico {
-  id: string
-  clinic_name: string | null
-  clinic_type: string | null
-  street: string | null
-  ext_number: string | null
-  int_number: string | null
-  floor: string | null
-  cp: string | null
-  colonia: string | null
-  ciudad: string | null
-  estado: string | null
-  clinic_lat: number | null
-  clinic_lng: number | null
-  clinic_phone: string | null
-  clinic_phone_visible?: boolean | null
-  horario?: Record<string, any> | null
-  is_primary: boolean
-}
-
 // Consultorio leído directamente de la tabla consultorios (Subfase 3.3+).
 // Campos públicos — sin telefono (protegido por RLS de columna).
 export interface ConsultorioPublico {
@@ -103,7 +82,6 @@ export interface Medico {
   accepts_insurance: boolean
   payment_methods: string[] | null
   factura_disponible: boolean | null
-  clinic_addresses: ConsultorioAdicionalPublico[] | null
   clinic_name: string | null
   clinic_lat: number | null
   clinic_lng: number | null
@@ -1087,12 +1065,8 @@ function ReportarBoton({ tipo, id }: { tipo: 'review' | 'review_response'; id: s
   )
 }
 
-// Mismo cálculo que direccionCompleta/direccionExtendida/direccionNavegacion
-// más abajo en DoctorProfileClient, generalizado para operar sobre
-// cualquier consultorio (el principal de columnas planas o uno de
-// clinic_addresses) -- se usa solo en el modo de varios consultorios; el
-// modo de un solo consultorio sigue usando los consts originales tal cual,
-// sin pasar por aquí, para no arriesgar ningún cambio quiet en ese caso.
+// Calcula direccionCompleta/direccionExtendida/direccionNavegacion para
+// cualquier consultorio del array. Se usa en UbicacionConsultorios.
 interface ConsultorioParaDireccion {
   street: string | null
   ext_number: string | null

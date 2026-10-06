@@ -245,7 +245,6 @@ export default async function DoctorPage({
     clinic_lng: principal?.lng ?? null,
     clinic_phone_visible: principal?.telefono_visible ?? null,
     horario: principal?.horario ?? null,
-    clinic_addresses: null,
   }
 
   return <DoctorProfileClient medico={medicoConConsultorio} consultorios={consultorios} {...profileData} {...contacto} />

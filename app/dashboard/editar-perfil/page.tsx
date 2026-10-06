@@ -140,7 +140,6 @@ interface Medico {
   insurance_names: string[]
   payment_methods: string[] | null
   factura_disponible: boolean | null
-  clinic_addresses: ConsultorioAdicional[] | null
   whatsapp_available: boolean
   whatsapp_phone: string | null
   clinic_phone: string | null
@@ -193,11 +192,7 @@ interface Condition {
   category: string
 }
 
-// Un consultorio adicional dentro de doctors.clinic_addresses (jsonb array).
-// El consultorio principal sigue viviendo en las columnas planas de
-// `doctors` (clinic_name, street, etc.) -- nunca se migra aquí. Si ningún
-// elemento de este array trae is_primary: true, el principal implícito es
-// el de columnas planas.
+// Un consultorio adicional (adicionales gestionados via tabla consultorios).
 interface ConsultorioAdicional {
   id: string
   clinic_name: string
@@ -317,17 +312,9 @@ export default function EditarPerfilPage() {
   // (toggle activo / eliminar) para deshabilitar sus botones.
   const [guardandoConsultorioId, setGuardandoConsultorioId] = useState<string | null>(null)
 
-  // Borrador de clinic_addresses mientras el modal de ubicación (principal)
-  // está abierto. Se resetea al abrir el modal.
-  const [consultoriosAdicionalesBorrador, setConsultoriosAdicionalesBorrador] = useState<any[]>([])
   useEffect(() => {
-    if (activeModal === 'location') {
-      setConsultoriosAdicionalesBorrador([])
-      if (!consultorioPrincipalIdRef.current) {
-        console.warn('[editar-perfil] Modal de ubicación abierto pero consultorioPrincipalIdRef es null — loadData no encontró el consultorio principal.')
-      } else {
-        console.log('[editar-perfil] Modal de ubicación — consultorioPrincipalId:', consultorioPrincipalIdRef.current)
-      }
+    if (activeModal === 'location' && !consultorioPrincipalIdRef.current) {
+      console.warn('[editar-perfil] Modal de ubicación abierto pero consultorioPrincipalIdRef es null — loadData no encontró el consultorio principal.')
     }
   }, [activeModal])
   // Borrador del horario del consultorio principal mientras el modal de
@@ -483,7 +470,6 @@ export default function EditarPerfilPage() {
         cp: cp?.cp ?? null,
         colonia: cp?.colonia ?? null,
         // ciudad/estado siguen en doctors (sincronizados por trigger desde consultorios)
-        clinic_addresses: [],
       }
 
       setMedico(medicoData)
@@ -653,75 +639,8 @@ export default function EditarPerfilPage() {
     colonia: 'colonia',
   }
 
-  // Guarda consultorios adicionales en la tabla consultorios.
-  // INSERT para nuevos, UPDATE para existentes, DELETE/soft-delete para eliminados.
-  const saveConsultoriosAdicionales = async (nuevaLista: ConsultorioAdicional[]) => {
-    if (!medico) return
-
-    const { data: actualesDb } = await supabase.from('consultorios')
-      .select('id')
-      .eq('doctor_id', medico.id)
-      .eq('es_principal', false)
-      .eq('activo', true)
-
-    const idsActualesDb = new Set((actualesDb ?? []).map((c: any) => c.id as string))
-    const idsNuevaLista = new Set(nuevaLista.map(c => c.id))
-
-    // UPSERT: INSERT nuevos, UPDATE existentes
-    for (const c of nuevaLista) {
-      const isHospital = c.clinic_type === 'hospital'
-      const streetPart = isHospital
-        ? `${c.street} ${c.ext_number}${c.floor ? `, Piso ${c.floor}` : ''}${c.int_number ? `, Consultorio ${c.int_number}` : ''}`
-        : `${c.street} ${c.ext_number}${c.int_number ? ` Int. ${c.int_number}` : ''}`
-      const row = {
-        doctor_id: medico.id,
-        nombre: c.clinic_name,
-        tipo: c.clinic_type,
-        street: c.street,
-        ext_number: c.ext_number,
-        int_number: c.int_number || null,
-        floor: isHospital ? (c.floor || null) : null,
-        cp: c.cp,
-        colonia: c.colonia,
-        ciudad: c.ciudad,
-        estado: c.estado,
-        formatted_address: [streetPart, c.colonia, c.cp, c.ciudad, c.estado].filter(Boolean).join(', '),
-        lat: c.clinic_lat,
-        lng: c.clinic_lng,
-        telefono: c.clinic_phone || null,
-        telefono_visible: !!(c.clinic_phone) && c.clinic_phone_visible === true,
-        horario: c.horario ?? null,
-        es_principal: false,
-        activo: true,
-      }
-
-      if (idsActualesDb.has(c.id)) {
-        const { error } = await supabase.from('consultorios').update(row).eq('id', c.id)
-        if (error) throw error
-      } else {
-        const { error } = await supabase.from('consultorios').insert({ id: c.id, ...row })
-        if (error) throw error
-      }
-    }
-
-    // DELETE/soft-delete eliminados
-    for (const id of idsActualesDb) {
-      if (!idsNuevaLista.has(id)) {
-        const { count } = await supabase.from('citas')
-          .select('id', { count: 'exact', head: true })
-          .eq('consultorio_id', id)
-        if (count && count > 0) {
-          await supabase.from('consultorios').update({ activo: false }).eq('id', id)
-        } else {
-          await supabase.from('consultorios').delete().eq('id', id)
-        }
-      }
-    }
-  }
-
   // Guarda cambios del modal de ubicación: campos de consultorio principal
   // van a consultorios; duracion_cita_minutos va a doctors.
-  // clinic_addresses → saveConsultoriosAdicionales().
   const handleSaveLocation = async (data: Record<string, any>, opts?: { mantenerModal?: boolean }): Promise<boolean> => {
     if (!medico) return false
     setSaving(true)
@@ -731,7 +650,6 @@ export default function EditarPerfilPage() {
       const doctorsRow: Record<string, any> = {}
 
       for (const [key, val] of Object.entries(data)) {
-        if (key === 'clinic_addresses') continue
         if (key in CONSULTORIO_FIELDS_MAP) {
           consultorioRow[CONSULTORIO_FIELDS_MAP[key]] = val
         } else if (key === 'duracion_cita_minutos') {
@@ -766,7 +684,7 @@ export default function EditarPerfilPage() {
       }
 
       // Adicionales se gestionan individualmente desde ConsultorioCard,
-      // no desde este modal. No tocar clinic_addresses aquí.
+      // Adicionales se gestionan individualmente desde ConsultorioCard.
 
       // Actualizar estado local optimistamente y recargar
       setMedico(prev => prev ? { ...prev, ...data } : null)
@@ -1478,8 +1396,6 @@ export default function EditarPerfilPage() {
               medico={medico}
               onSave={(d: Record<string, any>) => handleSaveLocation(d, { mantenerModal: true })}
               saving={saving}
-              consultorios={consultoriosAdicionalesBorrador}
-              setConsultorios={setConsultoriosAdicionalesBorrador}
               horarioBorradorRef={horarioBorradorRef}
               onCerrar={() => setActiveModal(null)}
               controlRef={controlUbicacionRef}
@@ -1938,7 +1854,7 @@ function LocationForm({ medico, controlRef, esPrincipal, onMarcarPrincipal }: an
   }
 
   // Campos de doctors que salen de este formulario (dirección + teléfono del
-  // consultorio principal). El horario, clinic_addresses y el guardado en sí
+  // consultorio principal). El horario y el guardado en sí
   // los maneja UbicacionTabs.
   const construirCambios = (): { cambios: Record<string, any> } => {
     // Teléfono del consultorio principal (columna plana clinic_phone). El
@@ -2712,30 +2628,11 @@ function ConsultorioAdicionalForm({ consultorio, onSave, onCancel, onEliminar, e
   )
 }
 
-// Modal de ubicación con tabs: un tab por consultorio (máximo 3 en total: el
-// principal de columnas planas de `doctors` + hasta 2 de clinic_addresses),
-// más un tab "+ Agregar consultorio" mientras haya lugar.
+// Modal de ubicación del consultorio principal: edita dirección, teléfono
+// y horario. Los adicionales se gestionan desde ConsultorioCard.
 //
-// Guardado: el botón "Guardar cambios" del final guarda todo junto --
-// dirección y teléfono del principal (LocationForm), su horario
-// (horarioBorradorRef), y los consultorios adicionales editados o nuevos
-// (clinic_addresses) -- en un solo update a `doctors`. Solo el consultorio
-// nuevo tiene su propio "Guardar consultorio". Marcar "principal" se
-// guarda al instante (guardarPrincipal), actualizando el borrador
-// (consultoriosAdicionalesBorrador, que vive en EditarPerfilPage).
-//
-// Salir: X / clic fuera / Escape llaman a controlRef.current.intentarCerrar()
-// (ver EditarPerfilPage). Si hay cambios sin guardar -- formularios contra lo
-// guardado -- se pide confirmación; si no, se cierra directo.
-//
-// Todos los paneles se mantienen montados -- los inactivos se sacan del flujo
-// pero conservan su tamaño, para no perder lo que el médico ya escribió al
-// cambiar de tab y para que el mapa (Leaflet) no se inicialice a 0 px de
-// ancho.
-const MAX_CONSULTORIOS = 3
-const TAB_PRINCIPAL_ID = '__principal__'
-const TAB_NUEVO_ID = '__nuevo__'
-
+// Salir: X / clic fuera / Escape llaman a controlRef.current.intentarCerrar().
+// Si hay cambios sin guardar se pide confirmación; si no, se cierra directo.
 // Franjas de atención de un día. Si tiene hora de comida válida (dentro del
 // horario y bien ordenada) el día se parte en dos franjas, porque durante la
 // comida el médico no está en ese consultorio y puede estar en otro. Un día
@@ -2769,92 +2666,25 @@ function detectarSolapamiento(entradas: { nombre: string; horario: Horario }[]):
   return null
 }
 
-function UbicacionTabs({ medico, onSave, saving, consultorios, setConsultorios, horarioBorradorRef, onCerrar, controlRef }: any) {
-  const [tabActivo, setTabActivo] = useState<string>(TAB_PRINCIPAL_ID)
-  const [nuevoConsultorio, setNuevoConsultorio] = useState<ConsultorioAdicional | null>(null)
+function UbicacionTabs({ medico, onSave, saving, horarioBorradorRef, onCerrar, controlRef }: any) {
   const [confirmarSalida, setConfirmarSalida] = useState(false)
-  // Primer par de consultorios con horarios que se cruzan, detectado al
-  // intentar guardar (se limpia en cada intento de "Guardar cambios").
-  const [conflictoSolapamiento, setConflictoSolapamiento] = useState<{ a: string; b: string } | null>(null)
-
-  // Controles que cada formulario registra para poder leerlos desde aquí.
   const locationControlRef = useRef<{ construirCambios: () => { cambios: Record<string, any> }; hayCambios: () => boolean } | null>(null)
-  const controlesAdicionalesRef = useRef<Record<string, ControlAdicional>>({})
-  const registrarControlAdicional = (id: string) => (control: ControlAdicional | null) => {
-    if (control) controlesAdicionalesRef.current[id] = control
-    else delete controlesAdicionalesRef.current[id]
-  }
 
-  const persistir = async (nuevaLista: ConsultorioAdicional[]) => {
-    await onSave({ clinic_addresses: nuevaLista })
-    setConsultorios(nuevaLista)
-  }
-
-  const handleGuardarNuevo = async (c: ConsultorioAdicional) => {
-    await persistir([...consultorios, c])
-    setNuevoConsultorio(null)
-    setTabActivo(c.id)
-  }
-
-  const handleEliminar = async (id: string) => {
-    if (!confirm('¿Eliminar este consultorio?')) return
-    await persistir(consultorios.filter((item: ConsultorioAdicional) => item.id !== id))
-    setTabActivo(TAB_PRINCIPAL_ID)
-  }
-
-  // Avisos verdes que desaparecen a los 2 segundos.
-  const [avisoPrincipal, setAvisoPrincipal] = useState(false)
-  const avisoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  useEffect(() => () => {
-    if (avisoTimerRef.current) clearTimeout(avisoTimerRef.current)
-  }, [])
-
-  // Marcar "principal" se guarda de inmediato (clinic_addresses completo con
-  // is_primary actualizado) y muestra un aviso verde por 2 segundos. Si el
-  // guardado falla, se regresa el borrador a como estaba.
-  const guardarPrincipal = async (nuevaLista: ConsultorioAdicional[]) => {
-    const anterior = consultorios
-    setConsultorios(nuevaLista)
-    const ok = await onSave({ clinic_addresses: nuevaLista })
-    if (ok === false) { setConsultorios(anterior); return }
-    setAvisoPrincipal(true)
-    if (avisoTimerRef.current) clearTimeout(avisoTimerRef.current)
-    avisoTimerRef.current = setTimeout(() => setAvisoPrincipal(false), 2000)
-  }
-
-  // Marcar un adicional como principal le quita is_primary a todos los
-  // demás adicionales; marcar "de vuelta" el de columnas planas limpia
-  // is_primary de todo el array (nadie más es principal).
-  const marcarPrincipalAdicional = (id: string) => {
-    guardarPrincipal(consultorios.map((item: ConsultorioAdicional) => ({ ...item, is_primary: item.id === id })))
-  }
-  const marcarPrincipalColumnasPlanas = () => {
-    guardarPrincipal(consultorios.map((item: ConsultorioAdicional) => ({ ...item, is_primary: false })))
-  }
-
-  // ¿Hay algo sin guardar? Formulario del principal, horario del principal,
-  // y cada consultorio adicional (incluido el nuevo) contra lo guardado.
   const hayCambiosPendientes = (): boolean => {
     if (locationControlRef.current?.hayCambios()) return true
     if (horarioPrincipalCambio(medico, horarioBorradorRef.current)) return true
-    return Object.values(controlesAdicionalesRef.current).some(c => c.hayCambios())
+    return false
   }
 
-  // Guarda todo en un solo update. Devuelve true si se guardó (o si no había
-  // nada que guardar) y false si hubo un error de validación o de guardado.
   const guardarTodo = async (): Promise<boolean> => {
-    setConflictoSolapamiento(null)
     const cambios: Record<string, any> = {}
 
-    // Principal: dirección + teléfono.
     const loc = locationControlRef.current
     if (loc?.hayCambios()) Object.assign(cambios, loc.construirCambios().cambios)
 
-    // Principal: horario y duración.
     const borradorHorario = horarioBorradorRef.current
     if (horarioPrincipalCambio(medico, borradorHorario)) {
       if (!borradorHorario.valido) {
-        setTabActivo(TAB_PRINCIPAL_ID)
         alert('Corrige el horario marcado en rojo antes de guardar')
         return false
       }
@@ -2862,70 +2692,12 @@ function UbicacionTabs({ medico, onSave, saving, consultorios, setConsultorios, 
       cambios.duracion_cita_minutos = borradorHorario.duracion
     }
 
-    // Adicionales existentes (con sus ediciones) + el nuevo, si lo hay.
-    let lista: ConsultorioAdicional[] = []
-    for (const item of consultorios as ConsultorioAdicional[]) {
-      const ctl = controlesAdicionalesRef.current[item.id]
-      if (ctl?.hayCambios()) {
-        const r = ctl.construir()
-        if ('error' in r) { setTabActivo(item.id); alert(r.error); return false }
-        lista.push(r.consultorio)
-      } else {
-        lista.push(item)
-      }
-    }
-    let nuevoAgregado: ConsultorioAdicional | null = null
-    if (nuevoConsultorio) {
-      const ctlNuevo = controlesAdicionalesRef.current[nuevoConsultorio.id]
-      if (ctlNuevo?.hayCambios()) {
-        const r = ctlNuevo.construir()
-        if ('error' in r) { setTabActivo(TAB_NUEVO_ID); alert(r.error); return false }
-        nuevoAgregado = r.consultorio
-        lista.push(nuevoAgregado)
-      }
-    }
-    if (JSON.stringify(lista) !== JSON.stringify(medico.clinic_addresses ?? [])) cambios.clinic_addresses = lista
-
     if (Object.keys(cambios).length === 0) return true
 
-    // Cruces de horario entre consultorios, con el horario vigente de cada
-    // uno (en edición o guardado), nombrados como en los tabs.
-    const hayPrincipalEnAdicionales = (consultorios as ConsultorioAdicional[]).some(c => c.is_primary)
-    const idsEnOrdenDeTabs: string[] = hayPrincipalEnAdicionales
-      ? [
-          ...(consultorios as ConsultorioAdicional[]).filter(c => c.is_primary).map(c => c.id),
-          TAB_PRINCIPAL_ID,
-          ...(consultorios as ConsultorioAdicional[]).filter(c => !c.is_primary).map(c => c.id),
-        ]
-      : [TAB_PRINCIPAL_ID, ...(consultorios as ConsultorioAdicional[]).map(c => c.id)]
-    if (nuevoAgregado) idsEnOrdenDeTabs.push(nuevoAgregado.id)
-    const entradasHorario = idsEnOrdenDeTabs.map((id, pos) => {
-      const nombrePorDefecto = `Consultorio ${pos + 1}`
-      if (id === TAB_PRINCIPAL_ID) {
-        const nombrePrincipal = loc ? loc.construirCambios().cambios.clinic_name : medico.clinic_name
-        return { nombre: nombrePrincipal || nombrePorDefecto, horario: (borradorHorario?.horario ?? normalizarHorario(medico.horario)) as Horario }
-      }
-      const c = lista.find(x => x.id === id)!
-      return { nombre: c.clinic_name || nombrePorDefecto, horario: normalizarHorario(c.horario) }
-    })
-    const conflicto = detectarSolapamiento(entradasHorario)
-    if (conflicto) {
-      setConflictoSolapamiento(conflicto)
-      return false
-    }
-
     const ok = await onSave(cambios)
-    if (ok === false) return false
-
-    if ('clinic_addresses' in cambios) setConsultorios(lista)
-    if (nuevoAgregado) {
-      setNuevoConsultorio(null)
-      setTabActivo(nuevoAgregado.id)
-    }
-    return true
+    return ok !== false
   }
 
-  // Lo llama el modal al tocar X, hacer clic fuera o presionar Escape.
   const intentarCerrar = () => {
     if (hayCambiosPendientes()) setConfirmarSalida(true)
     else onCerrar()
@@ -2933,163 +2705,30 @@ function UbicacionTabs({ medico, onSave, saving, consultorios, setConsultorios, 
   if (controlRef) controlRef.current = { intentarCerrar }
   useEffect(() => () => { if (controlRef) controlRef.current = null }, [controlRef])
 
-  const hayPrincipalAdicional = consultorios.some((c: ConsultorioAdicional) => c.is_primary)
-
-  // Orden de los tabs: el marcado como principal (sea cual sea) siempre
-  // primero, igual que en el perfil público.
-  type TabInfo = { id: string; label: string; esPrincipal: boolean }
-  const tabColumnasPlanas = (idx: number): TabInfo => ({
-    id: TAB_PRINCIPAL_ID,
-    label: medico.clinic_name || `Consultorio ${idx + 1}`,
-    esPrincipal: !hayPrincipalAdicional,
-  })
-  const tabAdicional = (c: ConsultorioAdicional, idx: number): TabInfo => ({
-    id: c.id,
-    label: c.clinic_name || `Consultorio ${idx + 1}`,
-    esPrincipal: !!c.is_primary,
-  })
-  const adicionalesPrincipales = consultorios.filter((c: ConsultorioAdicional) => c.is_primary)
-  const adicionalesRestantes = consultorios.filter((c: ConsultorioAdicional) => !c.is_primary)
-  const tabs: TabInfo[] = hayPrincipalAdicional
-    ? [
-        ...adicionalesPrincipales.map((c: ConsultorioAdicional, i: number) => tabAdicional(c, i)),
-        tabColumnasPlanas(adicionalesPrincipales.length),
-        ...adicionalesRestantes.map((c: ConsultorioAdicional, i: number) => tabAdicional(c, adicionalesPrincipales.length + 1 + i)),
-      ]
-    : [tabColumnasPlanas(0), ...consultorios.map((c: ConsultorioAdicional, i: number) => tabAdicional(c, i + 1))]
-
-  const totalConsultorios = consultorios.length + 1
-  const puedeAgregar = totalConsultorios < MAX_CONSULTORIOS && !nuevoConsultorio
-
-  const idActivo = tabActivo === TAB_NUEVO_ID && nuevoConsultorio
-    ? TAB_NUEVO_ID
-    : tabs.some(t => t.id === tabActivo) ? tabActivo : TAB_PRINCIPAL_ID
-
-  const abrirNuevo = () => {
-    setNuevoConsultorio({ id: crypto.randomUUID(), clinic_name: '', clinic_type: 'consultorio', street: '', ext_number: '', int_number: '', floor: '', cp: '', colonia: '', ciudad: '', estado: '', clinic_lat: null, clinic_lng: null, clinic_phone: '', is_primary: false })
-    setTabActivo(TAB_NUEVO_ID)
-  }
-
-  const cancelarNuevo = () => {
-    setNuevoConsultorio(null)
-    setTabActivo(TAB_PRINCIPAL_ID)
-  }
-
-  const estiloTab = (activo: boolean): React.CSSProperties => ({
-    flexShrink: 0,
-    minHeight: 40,
-    maxWidth: 200,
-    padding: '8px 14px',
-    borderRadius: 20,
-    border: activo ? '1.5px solid #1E3A5F' : '1.5px solid #E5E7EB',
-    background: activo ? '#EEF2FF' : '#fff',
-    color: activo ? '#1E3A5F' : '#6B7280',
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-  })
-
-  // Panel inactivo: fuera del flujo y sin interacción, pero con ancho real.
-  const estiloPanel = (activo: boolean): React.CSSProperties => activo
-    ? {}
-    : { position: 'absolute', top: 0, left: 0, width: '100%', height: 0, overflow: 'hidden', visibility: 'hidden', pointerEvents: 'none' }
-
   return (
     <div>
-      {avisoPrincipal && (
-        <p role="status" style={{ fontSize: 12, fontWeight: 600, color: '#059669', marginBottom: 8 }}>✓ Consultorio principal actualizado</p>
-      )}
-      <div role="tablist" aria-label="Consultorios" style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 6, marginBottom: 16 }}>
-        {tabs.map(t => (
-          <button
-            key={t.id}
-            type="button"
-            role="tab"
-            aria-selected={idActivo === t.id}
-            onClick={() => setTabActivo(t.id)}
-            style={estiloTab(idActivo === t.id)}
-          >
-            {t.esPrincipal && <Star size={13} fill="#D97706" color="#D97706" style={{ flexShrink: 0 }} aria-label="Consultorio principal" />}
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.label}</span>
-          </button>
-        ))}
-        {nuevoConsultorio && (
-          <button type="button" role="tab" aria-selected={idActivo === TAB_NUEVO_ID} onClick={() => setTabActivo(TAB_NUEVO_ID)} style={estiloTab(idActivo === TAB_NUEVO_ID)}>
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nuevoConsultorio.clinic_name || 'Nuevo consultorio'}</span>
-          </button>
-        )}
-        {puedeAgregar && (
-          <button type="button" onClick={abrirNuevo} style={{ ...estiloTab(false), color: '#1E3A5F', borderStyle: 'dashed' }}>
-            <Plus size={14} /> Agregar consultorio
-          </button>
-        )}
+      <LocationForm
+        medico={medico}
+        controlRef={locationControlRef}
+        esPrincipal={true}
+        onMarcarPrincipal={() => {}}
+      />
+      <HorarioConsultorioForm
+        titulo="Horario de este consultorio"
+        horarioInicial={medico.horario}
+        duracionInicial={medico.duracion_cita_minutos}
+        onGuardar={(horario: any, duracion: any, valido: any) => { horarioBorradorRef.current = { horario, duracion, valido } }}
+      />
+      <div style={{ marginTop: 20 }}>
+        <button
+          type="button"
+          onClick={async () => { if (await guardarTodo()) onCerrar() }}
+          disabled={saving}
+          style={{ ...btnPrimary, width: '100%', opacity: saving ? 0.6 : 1 }}
+        >
+          <Save size={15} /> {saving ? 'Guardando...' : 'Guardar cambios'}
+        </button>
       </div>
-
-      <div style={{ position: 'relative' }}>
-        <div role="tabpanel" style={estiloPanel(idActivo === TAB_PRINCIPAL_ID)}>
-          <LocationForm
-            medico={medico}
-            controlRef={locationControlRef}
-            esPrincipal={!hayPrincipalAdicional}
-            onMarcarPrincipal={marcarPrincipalColumnasPlanas}
-          />
-          <HorarioConsultorioForm
-            titulo="Horario de este consultorio"
-            horarioInicial={medico.horario}
-            duracionInicial={medico.duracion_cita_minutos}
-            onGuardar={(horario, duracion, valido) => { horarioBorradorRef.current = { horario, duracion, valido } }}
-          />
-        </div>
-
-        {consultorios.map((c: ConsultorioAdicional) => (
-          <div key={c.id} role="tabpanel" style={estiloPanel(idActivo === c.id)}>
-            <ConsultorioAdicionalForm
-              consultorio={c}
-              onEliminar={() => handleEliminar(c.id)}
-              esPrincipal={!!c.is_primary}
-              onMarcarPrincipal={() => marcarPrincipalAdicional(c.id)}
-              registrarControl={registrarControlAdicional(c.id)}
-              saving={saving}
-            />
-          </div>
-        ))}
-
-        {nuevoConsultorio && (
-          <div role="tabpanel" style={estiloPanel(idActivo === TAB_NUEVO_ID)}>
-            <ConsultorioAdicionalForm
-              consultorio={nuevoConsultorio}
-              onSave={handleGuardarNuevo}
-              onCancel={cancelarNuevo}
-              registrarControl={registrarControlAdicional(nuevoConsultorio.id)}
-              saving={saving}
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Creando un consultorio nuevo, su único botón de guardado es el
-          "Guardar consultorio" de su propio formulario. */}
-      {idActivo !== TAB_NUEVO_ID && (
-        <div style={{ marginTop: 20 }}>
-          {conflictoSolapamiento && (
-            <p role="alert" style={{ display: 'flex', alignItems: 'flex-start', gap: 6, background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 10, padding: '10px 12px', marginBottom: 12, color: '#DC2626', fontSize: 12, fontWeight: 600 }}>
-              <AlertTriangle size={14} style={{ flexShrink: 0, marginTop: 1 }} aria-hidden="true" />
-              Los horarios de {conflictoSolapamiento.a} y {conflictoSolapamiento.b} se cruzan. Ajusta los días o las horas.
-            </p>
-          )}
-          <button
-            type="button"
-            onClick={async () => { if (await guardarTodo()) onCerrar() }}
-            disabled={saving}
-            style={{ ...btnPrimary, width: '100%', opacity: saving ? 0.6 : 1 }}
-          >
-            <Save size={15} /> {saving ? 'Guardando...' : 'Guardar cambios'}
-          </button>
-        </div>
-      )}
 
       {confirmarSalida && (
         <div
