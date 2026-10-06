@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import {
   X, Edit2, Save, Plus, Trash2, Phone, MessageCircle,
-  DollarSign, Shield, Camera, Eye, CheckCircle, MapPin, Star, Globe, AlertTriangle
+  DollarSign, Shield, Camera, Eye, CheckCircle, Star, Globe, AlertTriangle
 } from 'lucide-react'
 import ConsultorioCard, { type ConsultorioRow } from './ConsultorioCard'
 import dynamic from 'next/dynamic'
@@ -421,8 +421,6 @@ export default function EditarPerfilPage() {
       ])
       const contacto = Array.isArray(sensiblesRes.data) ? sensiblesRes.data[0] : null
       const cp = consultorioPrincipalRes.data
-
-      console.log('[loadData] todosConsultoriosRes →', JSON.stringify({ data: todosConsultoriosRes.data, error: todosConsultoriosRes.error }))
 
       consultorioPrincipalIdRef.current = cp?.id ?? null
 
@@ -2635,39 +2633,6 @@ function ConsultorioAdicionalForm({ consultorio, onSave, onCancel, onEliminar, e
 //
 // Salir: X / clic fuera / Escape llaman a controlRef.current.intentarCerrar().
 // Si hay cambios sin guardar se pide confirmación; si no, se cierra directo.
-// Franjas de atención de un día. Si tiene hora de comida válida (dentro del
-// horario y bien ordenada) el día se parte en dos franjas, porque durante la
-// comida el médico no está en ese consultorio y puede estar en otro. Un día
-// inactivo no tiene franjas.
-function franjasDelDia(dia: HorarioDia): { inicio: string; fin: string }[] {
-  if (!dia.activo) return []
-  const { inicio, fin, descanso_inicio: di, descanso_fin: df } = dia
-  if (di && df && inicio < di && di < df && df < fin) return [{ inicio, fin: di }, { inicio: df, fin }]
-  return [{ inicio, fin }]
-}
-
-// Primer par de consultorios (en el orden recibido) cuyos horarios se
-// cruzan, o null si no hay cruces: para cada par y cada día activo en ambos,
-// dos franjas se cruzan si inicio1 < fin2 && inicio2 < fin1 -- las horas son
-// "HH:MM" de ancho fijo, así que comparar como texto equivale a compararlas
-// como minutos.
-function detectarSolapamiento(entradas: { nombre: string; horario: Horario }[]): { a: string; b: string } | null {
-  for (let i = 0; i < entradas.length; i++) {
-    for (let j = i + 1; j < entradas.length; j++) {
-      const a = entradas[i]
-      const b = entradas[j]
-      for (const { key } of DIAS) {
-        for (const x of franjasDelDia(a.horario[key])) {
-          for (const y of franjasDelDia(b.horario[key])) {
-            if (x.inicio < y.fin && y.inicio < x.fin) return { a: a.nombre, b: b.nombre }
-          }
-        }
-      }
-    }
-  }
-  return null
-}
-
 function UbicacionTabs({ medico, onSave, saving, horarioBorradorRef, onCerrar, controlRef }: any) {
   const [confirmarSalida, setConfirmarSalida] = useState(false)
   const locationControlRef = useRef<{ construirCambios: () => { cambios: Record<string, any> }; hayCambios: () => boolean } | null>(null)
