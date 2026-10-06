@@ -65,9 +65,9 @@ export interface Medico {
   languages: string[] | string | null
   insurance_accepted: string | null
   professional_license: string | null
-  // Campos del rediseño de tarjeta (2026-08-21) -- opcionales porque el
-  // refresco de "cerca de mí" viene de la RPC nearby_doctors, que hoy no
-  // los devuelve (ver auditoría del chip de geolocalización).
+  // nearby_doctors sí devuelve estos campos (migración 20261005000001);
+  // opcionales porque el listado estático del servidor los construye por
+  // separado y el type guard en ambos paths cubre la ausencia.
   professional_title?: string | null
   rating_avg?: number | null
   rating_count?: number | null
