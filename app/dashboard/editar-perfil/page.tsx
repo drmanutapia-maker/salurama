@@ -422,6 +422,8 @@ export default function EditarPerfilPage() {
       const contacto = Array.isArray(sensiblesRes.data) ? sensiblesRes.data[0] : null
       const cp = consultorioPrincipalRes.data
 
+      console.log('[loadData] todosConsultoriosRes →', JSON.stringify({ data: todosConsultoriosRes.data, error: todosConsultoriosRes.error }))
+
       consultorioPrincipalIdRef.current = cp?.id ?? null
 
       // Lista plana para la sección "Mis consultorios": principal primero.
