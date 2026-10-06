@@ -415,7 +415,7 @@ export default function EditarPerfilPage() {
           .eq('es_principal', true)
           .maybeSingle(),
         supabase.from('consultorios')
-          .select('id, nombre, tipo, street, ext_number, int_number, floor, colonia, ciudad, estado, cp, formatted_address, lat, lng, telefono, telefono_visible, horario, es_principal, activo, orden')
+          .select('id, nombre, tipo, street, ext_number, int_number, floor, colonia, ciudad, estado, cp, formatted_address, lat, lng, telefono_visible, horario, es_principal, activo, orden')
           .eq('doctor_id', medicoBase.id)
           .order('orden', { ascending: true }),
       ])
