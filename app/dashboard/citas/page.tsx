@@ -81,7 +81,7 @@ export default function CitasPage() {
   const cargarCitas = useCallback(async (docId: string) => {
     const { data, error } = await supabase
       .from('citas')
-      .select('*')
+      .select('*, consultorio:consultorios(nombre)')
       .eq('medico_id', docId)
       .order('fecha', { ascending: false })
       .order('hora', { ascending: true })

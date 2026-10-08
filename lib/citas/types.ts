@@ -12,6 +12,8 @@ export interface Cita {
   completed_at?: string | null
   review_token?: string | null
   rejection_reason?: string | null
+  consultorio_id?: string | null
+  consultorio?: { nombre: string | null } | null
 }
 
 export interface MedicoData {
