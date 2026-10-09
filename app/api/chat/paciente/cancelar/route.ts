@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { Redis } from '@upstash/redis'
 import { z } from 'zod'
 import { verificarToken } from '@/lib/chat/token'
-import { sendCitaCanceladaPorPacienteEmail } from '@/lib/email'
+import { sendCitaCanceladaPorPacienteEmail, sendCitaFueraDeVentanaEmail } from '@/lib/email'
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL!,
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
 
     const { data: cita, error: citaError } = await supabase
       .from('citas')
-      .select('id, fecha, hora, estado, paciente_nombre')
+      .select('id, fecha, hora, estado, paciente_nombre, consultorio_id')
       .eq('id', sesion.citaActualId)
       .maybeSingle()
 
@@ -98,14 +98,51 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Esta cita ya no se puede cancelar.' }, { status: 400, headers: securityHeaders })
     }
 
-    // Cálculo de las 24h en el servidor, con la hora del momento del click —
-    // nunca se confía en un cálculo hecho en el navegador del paciente.
+    // Lee la ventana de cancelación del consultorio (default 12h si no hay consultorio).
+    let ventanaHoras = 12
+    let whatsappRecepcion: string | null = null
+    if (cita.consultorio_id) {
+      const { data: consultorio } = await supabase
+        .from('consultorios')
+        .select('ventana_cancelacion_horas, whatsapp_recepcion')
+        .eq('id', cita.consultorio_id)
+        .maybeSingle()
+      if (consultorio) {
+        ventanaHoras = consultorio.ventana_cancelacion_horas ?? 12
+        whatsappRecepcion = consultorio.whatsapp_recepcion ?? null
+      }
+    }
+
+    // Cálculo de la ventana en el servidor — nunca se confía en el navegador.
     const citaDateTime = new Date(`${cita.fecha}T${cita.hora}`)
     const horasRestantes = (citaDateTime.getTime() - Date.now()) / (60 * 60 * 1000)
 
-    if (horasRestantes < 24) {
+    if (horasRestantes < ventanaHoras) {
+      // Notifica al médico que el paciente intentó cancelar fuera de plazo.
+      const { data: doctor } = await supabase
+        .from('doctors')
+        .select('email')
+        .eq('id', sesion.medicoId)
+        .maybeSingle()
+      if (doctor?.email) {
+        try {
+          await sendCitaFueraDeVentanaEmail(
+            doctor.email,
+            cita.paciente_nombre,
+            formatFechaHora(cita.fecha, cita.hora),
+            ventanaHoras
+          )
+        } catch (emailError) {
+          console.error(`[${requestId}] Error enviando correo fuera de ventana:`, emailError)
+        }
+      }
       return NextResponse.json(
-        { error: 'Ya no es posible cancelar esta cita, faltan menos de 24 horas para tu consulta.' },
+        {
+          error: 'fuera_de_ventana',
+          mensaje: 'Esta cita ya no puede cancelarse en línea.',
+          whatsapp_recepcion: whatsappRecepcion,
+          ventana_horas: ventanaHoras,
+        },
         { status: 400, headers: securityHeaders }
       )
     }
