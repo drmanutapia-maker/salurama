@@ -72,8 +72,7 @@ export interface PacienteCardData {
   pacienteNombre: string
   pacienteId: string | null
   totalCitas: number
-  proximaCita: Cita | null
-  esPrimeraVezProxima: boolean
+  proximasCitas: Cita[]
   historial: Cita[]
 }
 
@@ -82,25 +81,21 @@ export interface PacienteCardData {
 // en app/dashboard/citas/page.tsx (agrupación) para el contexto completo.
 export function construirPacienteCard(grupo: GrupoPaciente, pacienteId: string | null): PacienteCardData {
   const ahora = Date.now()
-  const candidatas = grupo.citas
+  const proximasCitas = grupo.citas
     .filter(c => (c.estado === 'pending_verification' || c.estado === 'confirmed') && datetimeCita(c) >= ahora)
     .sort((a, b) => datetimeCita(a) - datetimeCita(b))
-  const proximaCita = candidatas[0] || null
 
+  const proximaIds = new Set(proximasCitas.map(c => c.id))
   const historial = grupo.citas
-    .filter(c => c.id !== proximaCita?.id)
+    .filter(c => !proximaIds.has(c.id))
     .sort((a, b) => datetimeCita(b) - datetimeCita(a))
-
-  const masAntigua = [...grupo.citas].sort((a, b) => datetimeCita(a) - datetimeCita(b))[0]
-  const esPrimeraVezProxima = !!proximaCita && proximaCita.id === masAntigua.id
 
   return {
     clave: grupo.clave,
     pacienteNombre: grupo.pacienteNombre,
     pacienteId,
     totalCitas: grupo.citas.length,
-    proximaCita,
-    esPrimeraVezProxima,
+    proximasCitas,
     historial,
   }
 }
@@ -161,7 +156,7 @@ export default function PacienteCard({
   chatActivo,
 }: PacienteCardProps) {
   const router = useRouter()
-  const { pacienteNombre, pacienteId, totalCitas, proximaCita, esPrimeraVezProxima, historial } = data
+  const { pacienteNombre, pacienteId, totalCitas, proximasCitas, historial } = data
   const esProc = (citaId: string, suffix: string) => procesando === citaId + suffix
   const [confirmandoDeshacer, setConfirmandoDeshacer] = useState<string | null>(null)
 
@@ -240,115 +235,106 @@ export default function PacienteCard({
         </div>
       ))}
 
-      {proximaCita && (
-        <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 12, padding: 14 }}>
-          <p style={{ fontSize: 11, fontWeight: 700, color: '#1E3A5F', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8 }}>
-            Próxima cita
-          </p>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
-            <div>
-              <p style={{ fontSize: 15, fontWeight: 700, color: '#111827' }}>{formatFecha(proximaCita.fecha)}</p>
-              <p style={{ fontSize: 13, color: '#374151' }}>{proximaCita.hora?.slice(0, 5)}</p>
+      {proximasCitas.map((proxCita, idx) => {
+        const esPrimera = idx === 0 && historial.length === 0
+        const badge = proxCita.estado === 'confirmed'
+          ? { label: 'Confirmada', bg: '#DCFCE7', color: '#059669' }
+          : { label: 'Pendiente', bg: '#FEF3C7', color: '#92400E' }
+        return (
+          <div key={proxCita.id} style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 12, padding: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: '#1E3A5F', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                {idx === 0 ? 'Próxima cita' : 'Cita agendada'}
+              </p>
+              <span style={{ background: badge.bg, color: badge.color, padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700 }}>
+                {badge.label}
+              </span>
             </div>
-            <span style={{ background: '#fff', color: '#1E3A5F', padding: '3px 10px', borderRadius: 12, fontSize: 12, fontWeight: 600, border: '1px solid #BFDBFE' }}>
-              {esPrimeraVezProxima ? 'Primera vez' : 'Subsecuente'}
-            </span>
-          </div>
-
-          <div className="cita-actions" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {proximaCita.estado === 'pending_verification' && (
-              <>
-                <button className="action-btn" onClick={() => cambiarEstado(proximaCita.id, 'confirmed')} disabled={!!esProc(proximaCita.id, 'confirmed')} aria-busy={!!esProc(proximaCita.id, 'confirmed')} style={{ background: '#DCFCE7', color: '#059669' }}>
-                  {esProc(proximaCita.id, 'confirmed') ? <span aria-hidden="true" style={{ width: 13, height: 13, border: '2px solid #05966944', borderTopColor: '#059669', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> : <Check size={14} aria-hidden="true" />}
-                  Confirmar
-                </button>
-                <button className="action-btn" onClick={() => { setRechazando(proximaCita.id); setMotivoRechazo('') }} disabled={!!esProc(proximaCita.id, 'cancelled')} style={{ background: '#FEE2E2', color: '#DC2626' }}>
-                  <XCircle size={14} aria-hidden="true" />
-                  Rechazar
-                </button>
-              </>
-            )}
-            {proximaCita.estado === 'confirmed' && (
-              <>
-                <button className="action-btn" onClick={() => cambiarEstado(proximaCita.id, 'completed')} disabled={!!esProc(proximaCita.id, 'completed')} aria-busy={!!esProc(proximaCita.id, 'completed')} style={{ background: '#E0E7FF', color: '#3730A3' }}>
-                  {esProc(proximaCita.id, 'completed') ? <span aria-hidden="true" style={{ width: 13, height: 13, border: '2px solid #3730A344', borderTopColor: '#3730A3', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> : <CheckCircle size={14} aria-hidden="true" />}
-                  Marcar completada
-                </button>
-                <button className="action-btn" onClick={() => { setCancelandoConfirmada(proximaCita.id); setMotivoCancelacion('') }} disabled={!!esProc(proximaCita.id, 'cancelled')} style={{ background: '#FEE2E2', color: '#DC2626' }}>
-                  <XCircle size={14} aria-hidden="true" />
-                  Cancelar
-                </button>
-              </>
-            )}
-          </div>
-
-          {rechazando === proximaCita.id && (
-            <div style={{ marginTop: 12, padding: 14, background: '#FEF2F2', borderRadius: 10, border: '1px solid #FECACA' }}>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#991B1B', marginBottom: 6 }}>
-                Motivo del rechazo *
-              </label>
-              <textarea
-                value={motivoRechazo}
-                onChange={e => setMotivoRechazo(e.target.value)}
-                rows={3}
-                placeholder="Explícale al paciente por qué no puedes atender esta cita..."
-                style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #FECACA', borderRadius: 8, fontSize: 13, resize: 'vertical', fontFamily: 'inherit' }}
-              />
-              <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                <button
-                  className="action-btn"
-                  onClick={() => confirmarRechazo(proximaCita.id)}
-                  disabled={!motivoRechazo.trim() || enviandoRechazo}
-                  style={{ background: '#DC2626', color: '#fff', opacity: !motivoRechazo.trim() || enviandoRechazo ? 0.6 : 1 }}
-                >
-                  {enviandoRechazo ? 'Rechazando...' : 'Confirmar rechazo'}
-                </button>
-                <button
-                  className="action-btn"
-                  onClick={() => { setRechazando(null); setMotivoRechazo('') }}
-                  disabled={enviandoRechazo}
-                  style={{ background: '#F3F4F6', color: '#6B7280' }}
-                >
-                  Cancelar
-                </button>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+              <div>
+                <p style={{ fontSize: 15, fontWeight: 700, color: '#111827' }}>{formatFecha(proxCita.fecha)}</p>
+                <p style={{ fontSize: 13, color: '#374151' }}>{proxCita.hora?.slice(0, 5)}</p>
               </div>
+              <span style={{ background: '#fff', color: '#1E3A5F', padding: '3px 10px', borderRadius: 12, fontSize: 12, fontWeight: 600, border: '1px solid #BFDBFE' }}>
+                {esPrimera ? 'Primera vez' : 'Subsecuente'}
+              </span>
             </div>
-          )}
 
-          {cancelandoConfirmada === proximaCita.id && (
-            <div style={{ marginTop: 12, padding: 14, background: '#FEF2F2', borderRadius: 10, border: '1px solid #FECACA' }}>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#991B1B', marginBottom: 6 }}>
-                Motivo de la cancelación *
-              </label>
-              <textarea
-                value={motivoCancelacion}
-                onChange={e => setMotivoCancelacion(e.target.value)}
-                rows={3}
-                placeholder="Explícale al paciente por qué no puedes atender esta cita ya confirmada..."
-                style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #FECACA', borderRadius: 8, fontSize: 13, resize: 'vertical', fontFamily: 'inherit' }}
-              />
-              <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                <button
-                  className="action-btn"
-                  onClick={() => confirmarCancelacionConfirmada(proximaCita.id)}
-                  disabled={!motivoCancelacion.trim() || enviandoCancelacion}
-                  style={{ background: '#DC2626', color: '#fff', opacity: !motivoCancelacion.trim() || enviandoCancelacion ? 0.6 : 1 }}
-                >
-                  {enviandoCancelacion ? 'Cancelando...' : 'Confirmar cancelación'}
-                </button>
-                <button
-                  className="action-btn"
-                  onClick={() => { setCancelandoConfirmada(null); setMotivoCancelacion('') }}
-                  disabled={enviandoCancelacion}
-                  style={{ background: '#F3F4F6', color: '#6B7280' }}
-                >
-                  Cancelar
-                </button>
-              </div>
+            <div className="cita-actions" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {proxCita.estado === 'pending_verification' && (
+                <>
+                  <button className="action-btn" onClick={() => cambiarEstado(proxCita.id, 'confirmed')} disabled={!!esProc(proxCita.id, 'confirmed')} aria-busy={!!esProc(proxCita.id, 'confirmed')} style={{ background: '#DCFCE7', color: '#059669' }}>
+                    {esProc(proxCita.id, 'confirmed') ? <span aria-hidden="true" style={{ width: 13, height: 13, border: '2px solid #05966944', borderTopColor: '#059669', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> : <Check size={14} aria-hidden="true" />}
+                    Confirmar
+                  </button>
+                  <button className="action-btn" onClick={() => { setRechazando(proxCita.id); setMotivoRechazo('') }} disabled={!!esProc(proxCita.id, 'cancelled')} style={{ background: '#FEE2E2', color: '#DC2626' }}>
+                    <XCircle size={14} aria-hidden="true" />
+                    Rechazar
+                  </button>
+                </>
+              )}
+              {proxCita.estado === 'confirmed' && (
+                <>
+                  <button className="action-btn" onClick={() => cambiarEstado(proxCita.id, 'completed')} disabled={!!esProc(proxCita.id, 'completed')} aria-busy={!!esProc(proxCita.id, 'completed')} style={{ background: '#E0E7FF', color: '#3730A3' }}>
+                    {esProc(proxCita.id, 'completed') ? <span aria-hidden="true" style={{ width: 13, height: 13, border: '2px solid #3730A344', borderTopColor: '#3730A3', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> : <CheckCircle size={14} aria-hidden="true" />}
+                    Marcar completada
+                  </button>
+                  <button className="action-btn" onClick={() => { setCancelandoConfirmada(proxCita.id); setMotivoCancelacion('') }} disabled={!!esProc(proxCita.id, 'cancelled')} style={{ background: '#FEE2E2', color: '#DC2626' }}>
+                    <XCircle size={14} aria-hidden="true" />
+                    Cancelar
+                  </button>
+                </>
+              )}
             </div>
-          )}
-        </div>
-      )}
+
+            {rechazando === proxCita.id && (
+              <div style={{ marginTop: 12, padding: 14, background: '#FEF2F2', borderRadius: 10, border: '1px solid #FECACA' }}>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#991B1B', marginBottom: 6 }}>
+                  Motivo del rechazo *
+                </label>
+                <textarea
+                  value={motivoRechazo}
+                  onChange={e => setMotivoRechazo(e.target.value)}
+                  rows={3}
+                  placeholder="Explícale al paciente por qué no puedes atender esta cita..."
+                  style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #FECACA', borderRadius: 8, fontSize: 13, resize: 'vertical', fontFamily: 'inherit' }}
+                />
+                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                  <button className="action-btn" onClick={() => confirmarRechazo(proxCita.id)} disabled={!motivoRechazo.trim() || enviandoRechazo} style={{ background: '#DC2626', color: '#fff', opacity: !motivoRechazo.trim() || enviandoRechazo ? 0.6 : 1 }}>
+                    {enviandoRechazo ? 'Rechazando...' : 'Confirmar rechazo'}
+                  </button>
+                  <button className="action-btn" onClick={() => { setRechazando(null); setMotivoRechazo('') }} disabled={enviandoRechazo} style={{ background: '#F3F4F6', color: '#6B7280' }}>
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {cancelandoConfirmada === proxCita.id && (
+              <div style={{ marginTop: 12, padding: 14, background: '#FEF2F2', borderRadius: 10, border: '1px solid #FECACA' }}>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#991B1B', marginBottom: 6 }}>
+                  Motivo de la cancelación *
+                </label>
+                <textarea
+                  value={motivoCancelacion}
+                  onChange={e => setMotivoCancelacion(e.target.value)}
+                  rows={3}
+                  placeholder="Explícale al paciente por qué no puedes atender esta cita ya confirmada..."
+                  style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #FECACA', borderRadius: 8, fontSize: 13, resize: 'vertical', fontFamily: 'inherit' }}
+                />
+                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                  <button className="action-btn" onClick={() => confirmarCancelacionConfirmada(proxCita.id)} disabled={!motivoCancelacion.trim() || enviandoCancelacion} style={{ background: '#DC2626', color: '#fff', opacity: !motivoCancelacion.trim() || enviandoCancelacion ? 0.6 : 1 }}>
+                    {enviandoCancelacion ? 'Cancelando...' : 'Confirmar cancelación'}
+                  </button>
+                  <button className="action-btn" onClick={() => { setCancelandoConfirmada(null); setMotivoCancelacion('') }} disabled={enviandoCancelacion} style={{ background: '#F3F4F6', color: '#6B7280' }}>
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      })}
 
       {historial.length > 0 && (
         <div style={{ background: '#F9FAFB', borderRadius: 12, padding: 14 }}>

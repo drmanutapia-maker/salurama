@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { getUserSafe } from '@/lib/getUserSafe'
 import { Calendar, X, CheckCircle, XCircle } from 'lucide-react'
-import PacienteCard, { construirPacienteCard, chatActivoParaGrupo, type GrupoPaciente, type DeshacerInfo } from '@/components/citas/PacienteCard'
+import PacienteCard, { construirPacienteCard, chatActivoParaGrupo, datetimeCita, type GrupoPaciente, type DeshacerInfo } from '@/components/citas/PacienteCard'
 import ConfirmarUnionModal, { type GrupoComparable } from '@/components/citas/ConfirmarUnionModal'
 import CalendarioMensual from '@/components/citas/CalendarioMensual'
 import { Cita, MedicoData } from '@/lib/citas/types'
@@ -47,6 +47,9 @@ export default function CitasPage() {
   const [confirmandoUnion, setConfirmandoUnion] = useState<{ origen: GrupoComparable; destino: GrupoComparable } | null>(null)
   const [uniendoModal, setUniendoModal] = useState(false)
   const [deshaciendoId, setDeshaciendoId] = useState<string | null>(null)
+  const [verMasActivas, setVerMasActivas] = useState(false)
+  const [verMasFiltradas, setVerMasFiltradas] = useState(false)
+  const [mostrarHistorialPagina, setMostrarHistorialPagina] = useState(false)
 
   // Mismo patrón que DoctorProfileClient.tsx — misma página, sin ruta aparte.
   useEffect(() => {
@@ -55,6 +58,13 @@ export default function CitasPage() {
     window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
   }, [])
+
+  // Resetear paginación y sección historial al cambiar filtro o fecha.
+  useEffect(() => {
+    setVerMasActivas(false)
+    setVerMasFiltradas(false)
+    setMostrarHistorialPagina(false)
+  }, [tab, selectedDate])
 
   // Alto disponible medido en vivo (no un número fijo adivinado): el
   // calendario y la lista deben caber en pantalla sin scroll de página, y la
@@ -520,57 +530,138 @@ export default function CitasPage() {
     // Con próxima cita primero (la más próxima arriba); sin próxima cita
     // después, ordenados por su cita más reciente.
     tarjetas.sort((a, b) => {
-      const proximaA = a.proximaCita ? new Date(`${a.proximaCita.fecha}T${a.proximaCita.hora || '00:00'}`).getTime() : null
-      const proximaB = b.proximaCita ? new Date(`${b.proximaCita.fecha}T${b.proximaCita.hora || '00:00'}`).getTime() : null
+      const proximaA = a.proximasCitas[0] ? datetimeCita(a.proximasCitas[0]) : null
+      const proximaB = b.proximasCitas[0] ? datetimeCita(b.proximasCitas[0]) : null
       if (proximaA !== null && proximaB !== null) return proximaA - proximaB
       if (proximaA !== null) return -1
       if (proximaB !== null) return 1
-      const recienteA = a.historial[0] ? new Date(`${a.historial[0].fecha}T${a.historial[0].hora || '00:00'}`).getTime() : 0
-      const recienteB = b.historial[0] ? new Date(`${b.historial[0].fecha}T${b.historial[0].hora || '00:00'}`).getTime() : 0
+      const recienteA = a.historial[0] ? datetimeCita(a.historial[0]) : 0
+      const recienteB = b.historial[0] ? datetimeCita(b.historial[0]) : 0
       return recienteB - recienteA
     })
 
     return tarjetas
   }, [citasFiltradas, resolverClave])
 
-  const listaCitas = citasFiltradas.length === 0 ? (
-    <div style={{ background: '#fff', borderRadius: 16, padding: '60px 20px', border: '1px solid #E5E7EB', textAlign: 'center' }}>
-      <Calendar size={48} color="#D1D5DB" aria-hidden="true" style={{ margin: '0 auto 16px' }} />
-      <p style={{ fontSize: 16, color: '#374151', fontWeight: 700, marginBottom: 8 }}>
-        {selectedDate ? 'Sin citas ese día' : tab === 'pending_verification' ? 'Sin citas pendientes' : tab === 'confirmed' ? 'Sin citas confirmadas' : tab === 'completed' ? 'Sin citas completadas' : tab === 'cancelled' ? 'Sin citas canceladas' : 'Aún no tienes citas'}
-      </p>
-      <p style={{ fontSize: 14, color: '#6B7280' }}>
-        {selectedDate ? 'Elige otro día en el calendario.' : tab === 'todas' ? 'Cuando los pacientes soliciten citas, aparecerán aquí' : 'Cambia el filtro de arriba para ver otras citas'}
-      </p>
-    </div>
-  ) : (
-    gruposPorPaciente.map(data => (
-      <PacienteCard
-        key={data.clave}
-        data={data}
-        procesando={procesando}
-        rechazando={rechazando}
-        motivoRechazo={motivoRechazo}
-        enviandoRechazo={enviandoRechazo}
-        setRechazando={setRechazando}
-        setMotivoRechazo={setMotivoRechazo}
-        cambiarEstado={cambiarEstado}
-        confirmarRechazo={confirmarRechazo}
-        cancelandoConfirmada={cancelandoConfirmada}
-        motivoCancelacion={motivoCancelacion}
-        enviandoCancelacion={enviandoCancelacion}
-        setCancelandoConfirmada={setCancelandoConfirmada}
-        setMotivoCancelacion={setMotivoCancelacion}
-        confirmarCancelacionConfirmada={confirmarCancelacionConfirmada}
-        sugerencia={sugerenciasPorClave.get(data.clave) || null}
-        onSolicitarUnion={solicitarUnion}
-        deshacerInfo={deshacerPorClave.get(data.clave) || []}
-        deshaciendoId={deshaciendoId}
-        onDeshacerUnion={deshacerUnion}
-        chatActivo={chatActivoPorClave.get(data.clave) ?? true}
-      />
-    ))
+  const renderTarjeta = (data: (typeof gruposPorPaciente)[number]) => (
+    <PacienteCard
+      key={data.clave}
+      data={data}
+      procesando={procesando}
+      rechazando={rechazando}
+      motivoRechazo={motivoRechazo}
+      enviandoRechazo={enviandoRechazo}
+      setRechazando={setRechazando}
+      setMotivoRechazo={setMotivoRechazo}
+      cambiarEstado={cambiarEstado}
+      confirmarRechazo={confirmarRechazo}
+      cancelandoConfirmada={cancelandoConfirmada}
+      motivoCancelacion={motivoCancelacion}
+      enviandoCancelacion={enviandoCancelacion}
+      setCancelandoConfirmada={setCancelandoConfirmada}
+      setMotivoCancelacion={setMotivoCancelacion}
+      confirmarCancelacionConfirmada={confirmarCancelacionConfirmada}
+      sugerencia={sugerenciasPorClave.get(data.clave) || null}
+      onSolicitarUnion={solicitarUnion}
+      deshacerInfo={deshacerPorClave.get(data.clave) || []}
+      deshaciendoId={deshaciendoId}
+      onDeshacerUnion={deshacerUnion}
+      chatActivo={chatActivoPorClave.get(data.clave) ?? true}
+    />
   )
+
+  const LIMITE_DEFAULT = 5
+  const LIMITE_CHIP = 10
+  const esVistaDefault = tab === 'todas' && !selectedDate
+
+  const listaCitas = (() => {
+    if (esVistaDefault) {
+      const conFuturas = gruposPorPaciente.filter(d => d.proximasCitas.length > 0)
+      const soloHistorial = gruposPorPaciente.filter(d => d.proximasCitas.length === 0)
+
+      if (conFuturas.length === 0 && soloHistorial.length === 0) {
+        return (
+          <div style={{ background: '#fff', borderRadius: 16, padding: '60px 20px', border: '1px solid #E5E7EB', textAlign: 'center' }}>
+            <Calendar size={48} color="#D1D5DB" aria-hidden="true" style={{ margin: '0 auto 16px' }} />
+            <p style={{ fontSize: 16, color: '#374151', fontWeight: 700, marginBottom: 8 }}>Aún no tienes citas</p>
+            <p style={{ fontSize: 14, color: '#6B7280' }}>Cuando los pacientes soliciten citas, aparecerán aquí</p>
+          </div>
+        )
+      }
+
+      const visiblesActivas = verMasActivas ? conFuturas : conFuturas.slice(0, LIMITE_DEFAULT)
+      return (
+        <>
+          {conFuturas.length === 0 ? (
+            <div style={{ background: '#fff', borderRadius: 16, padding: '40px 20px', border: '1px solid #E5E7EB', textAlign: 'center' }}>
+              <Calendar size={40} color="#D1D5DB" aria-hidden="true" style={{ margin: '0 auto 12px' }} />
+              <p style={{ fontSize: 15, color: '#374151', fontWeight: 700, marginBottom: 6 }}>Sin citas próximas</p>
+              <p style={{ fontSize: 13, color: '#6B7280' }}>No hay citas confirmadas o pendientes en el futuro</p>
+            </div>
+          ) : (
+            <>
+              {visiblesActivas.map(renderTarjeta)}
+              {!verMasActivas && conFuturas.length > LIMITE_DEFAULT && (
+                <button
+                  onClick={() => setVerMasActivas(true)}
+                  style={{ width: '100%', background: '#fff', border: '1.5px solid #E5E7EB', borderRadius: 12, padding: '12px 16px', fontSize: 13, fontWeight: 700, color: '#1E3A5F', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}
+                >
+                  Ver más citas ({conFuturas.length - LIMITE_DEFAULT} más)
+                </button>
+              )}
+            </>
+          )}
+
+          {soloHistorial.length > 0 && (
+            <div style={{ marginTop: 8 }}>
+              <button
+                onClick={() => setMostrarHistorialPagina(v => !v)}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 12, padding: '12px 16px', fontSize: 13, fontWeight: 700, color: '#6B7280', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}
+              >
+                <span>{mostrarHistorialPagina ? 'Ocultar historial' : `Ver historial (${soloHistorial.length} paciente${soloHistorial.length !== 1 ? 's' : ''})`}</span>
+                <span style={{ fontSize: 16 }}>{mostrarHistorialPagina ? '▲' : '▼'}</span>
+              </button>
+              {mostrarHistorialPagina && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
+                  {soloHistorial.map(renderTarjeta)}
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )
+    }
+
+    // Vista con chip activo o fecha seleccionada
+    if (gruposPorPaciente.length === 0) {
+      return (
+        <div style={{ background: '#fff', borderRadius: 16, padding: '60px 20px', border: '1px solid #E5E7EB', textAlign: 'center' }}>
+          <Calendar size={48} color="#D1D5DB" aria-hidden="true" style={{ margin: '0 auto 16px' }} />
+          <p style={{ fontSize: 16, color: '#374151', fontWeight: 700, marginBottom: 8 }}>
+            {selectedDate ? 'Sin citas ese día' : tab === 'pending_verification' ? 'Sin citas pendientes' : tab === 'confirmed' ? 'Sin citas confirmadas' : tab === 'completed' ? 'Sin citas completadas' : 'Sin citas canceladas'}
+          </p>
+          <p style={{ fontSize: 14, color: '#6B7280' }}>
+            {selectedDate ? 'Elige otro día en el calendario.' : 'Cambia el filtro de arriba para ver otras citas'}
+          </p>
+        </div>
+      )
+    }
+
+    const visibles = verMasFiltradas ? gruposPorPaciente : gruposPorPaciente.slice(0, LIMITE_CHIP)
+    return (
+      <>
+        {visibles.map(renderTarjeta)}
+        {!verMasFiltradas && gruposPorPaciente.length > LIMITE_CHIP && (
+          <button
+            onClick={() => setVerMasFiltradas(true)}
+            style={{ width: '100%', background: '#fff', border: '1.5px solid #E5E7EB', borderRadius: 12, padding: '12px 16px', fontSize: 13, fontWeight: 700, color: '#1E3A5F', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}
+          >
+            Ver más ({gruposPorPaciente.length - LIMITE_CHIP} más)
+          </button>
+        )}
+      </>
+    )
+  })()
 
   const chipFecha = selectedDate && (
     <div className="fade-up" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
@@ -712,6 +803,7 @@ export default function CitasPage() {
 
         {isMobile ? (
           <div className="fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <CalendarioMensual citas={citas} selectedDate={selectedDate} onSelectDate={setSelectedDate} />
             {chipFecha}
             {listaCitas}
           </div>
