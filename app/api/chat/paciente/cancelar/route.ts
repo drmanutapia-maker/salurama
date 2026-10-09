@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
 
     const { error: updateError } = await supabase
       .from('citas')
-      .update({ estado: 'cancelada_paciente' })
+      .update({ estado: 'cancelada_paciente', cancelled_at: new Date().toISOString() })
       .eq('id', cita.id)
 
     if (updateError) {

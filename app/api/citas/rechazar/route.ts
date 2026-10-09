@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
 
     const { error: updateError } = await supabaseAdmin
       .from('citas')
-      .update({ estado: 'cancelled', rejection_reason: motivo })
+      .update({ estado: 'cancelled', rejection_reason: motivo, cancelled_at: new Date().toISOString() })
       .eq('id', citaId)
 
     if (updateError) {
