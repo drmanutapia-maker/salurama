@@ -187,8 +187,9 @@ export async function POST(request: NextRequest) {
       .from('consultorios')
       .select('id, horario')
       .eq('doctor_id', medicoId)
-      .eq('es_principal', true)
       .eq('activo', true)
+      .order('orden', { ascending: true })
+      .limit(1)
       .maybeSingle()
 
     if (consultorioError || !consultorio) {
