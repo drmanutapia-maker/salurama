@@ -91,7 +91,7 @@ export default function CitasPage() {
   const cargarCitas = useCallback(async (docId: string) => {
     const { data, error } = await supabase
       .from('citas')
-      .select('*, consultorio:consultorios(nombre)')
+      .select('*, consultorio:consultorios(nombre, whatsapp_recepcion)')
       .eq('medico_id', docId)
       .order('fecha', { ascending: false })
       .order('hora', { ascending: true })
@@ -567,6 +567,8 @@ export default function CitasPage() {
       deshaciendoId={deshaciendoId}
       onDeshacerUnion={deshacerUnion}
       chatActivo={chatActivoPorClave.get(data.clave) ?? true}
+      medicoNombre={medico?.full_name ?? ''}
+      medicoEspecialidad={medico?.specialty ?? ''}
     />
   )
 

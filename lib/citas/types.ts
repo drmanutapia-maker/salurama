@@ -13,7 +13,7 @@ export interface Cita {
   review_token?: string | null
   rejection_reason?: string | null
   consultorio_id?: string | null
-  consultorio?: { nombre: string | null } | null
+  consultorio?: { nombre: string | null; whatsapp_recepcion?: string | null } | null
 }
 
 export interface MedicoData {

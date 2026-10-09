@@ -4,6 +4,11 @@ import { useRouter } from 'next/navigation'
 import { Cita } from '@/lib/citas/types'
 import { formatFecha } from '@/lib/citas/fechas'
 
+function buildWaUrl(telefono: string, mensaje: string): string {
+  const num = telefono.replace(/\D/g, '')
+  return `https://wa.me/${num}?text=${encodeURIComponent(mensaje)}`
+}
+
 export const statusColors: Record<string, { bg: string; text: string; label: string }> = {
   pending_verification: { bg: '#FEF3C7', text: '#92400E', label: 'Pendiente' },
   confirmed: { bg: '#DCFCE7', text: '#059669', label: 'Confirmada' },
@@ -145,6 +150,8 @@ interface PacienteCardProps {
   // Estado real del canal de chat para TODO el paciente (todas sus citas
   // agrupadas, no solo las del tab activo) -- ver chatActivoParaGrupo().
   chatActivo: boolean
+  medicoNombre: string
+  medicoEspecialidad: string
 }
 
 export default function PacienteCard({
@@ -153,7 +160,7 @@ export default function PacienteCard({
   cancelandoConfirmada, motivoCancelacion, enviandoCancelacion,
   setCancelandoConfirmada, setMotivoCancelacion, confirmarCancelacionConfirmada,
   sugerencia, onSolicitarUnion, deshacerInfo, deshaciendoId, onDeshacerUnion,
-  chatActivo,
+  chatActivo, medicoNombre, medicoEspecialidad,
 }: PacienteCardProps) {
   const router = useRouter()
   const { pacienteNombre, pacienteId, totalCitas, proximasCitas, historial } = data
@@ -287,6 +294,34 @@ export default function PacienteCard({
               )}
             </div>
 
+            {proxCita.consultorio?.whatsapp_recepcion && (() => {
+              const esPrimera = idx === 0 && historial.length === 0
+              const msg = [
+                'NUEVA CITA EN SALURAMA',
+                `Dr. ${medicoNombre}${medicoEspecialidad ? ` - ${medicoEspecialidad}` : ''}`,
+                `Consultorio: ${proxCita.consultorio?.nombre ?? ''}`,
+                `Paciente: ${pacienteNombre}`,
+                `Fecha: ${formatFecha(proxCita.fecha)}`,
+                `Hora: ${proxCita.hora?.slice(0, 5)}`,
+                `Tipo: ${esPrimera ? 'Primera vez' : 'Subsecuente'}`,
+              ].join('\n')
+              return (
+                <a
+                  href={buildWaUrl(proxCita.consultorio.whatsapp_recepcion, msg)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    marginTop: 8, padding: '8px 12px', borderRadius: 8,
+                    background: '#25D366', color: '#fff',
+                    fontSize: 13, fontWeight: 700, textDecoration: 'none',
+                  }}
+                >
+                  📲 Avisar a clínica
+                </a>
+              )
+            })()}
+
             {rechazando === proxCita.id && (
               <div style={{ marginTop: 12, padding: 14, background: '#FEF2F2', borderRadius: 10, border: '1px solid #FECACA' }}>
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#991B1B', marginBottom: 6 }}>
@@ -347,13 +382,45 @@ export default function PacienteCard({
               const completada = c.estado === 'completed'
               const Icono = completada ? Check : cancelada ? XCircle : Clock
               const color = completada ? '#6B7280' : cancelada ? '#DC2626' : statusColors[c.estado]?.text || '#6B7280'
+              const waTelCancelacion = cancelada ? c.consultorio?.whatsapp_recepcion : null
               return (
-                <div key={c.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                  <span style={{ fontSize: 13, color: '#374151' }}>{formatFecha(c.fecha)}</span>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600, color, opacity: cancelada ? 0.8 : 1 }}>
-                    <Icono size={13} aria-hidden="true" />
-                    {completada ? 'Completada' : cancelada ? 'Cancelada' : (statusColors[c.estado]?.label || c.estado)}
-                  </span>
+                <div key={c.id} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                    <span style={{ fontSize: 13, color: '#374151' }}>{formatFecha(c.fecha)}</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600, color, opacity: cancelada ? 0.8 : 1 }}>
+                      <Icono size={13} aria-hidden="true" />
+                      {completada ? 'Completada' : cancelada ? 'Cancelada' : (statusColors[c.estado]?.label || c.estado)}
+                    </span>
+                  </div>
+                  {waTelCancelacion && (() => {
+                    const porPaciente = c.estado === 'cancelada_paciente'
+                    const lineas = [
+                      'CITA CANCELADA EN SALURAMA',
+                      `Dr. ${medicoNombre}${medicoEspecialidad ? ` - ${medicoEspecialidad}` : ''}`,
+                      `Consultorio: ${c.consultorio?.nombre ?? ''}`,
+                      `Paciente: ${pacienteNombre}`,
+                      porPaciente
+                        ? `La cita del ${formatFecha(c.fecha)} a las ${c.hora?.slice(0, 5)} fue cancelada por el paciente.`
+                        : `La cita del ${formatFecha(c.fecha)} a las ${c.hora?.slice(0, 5)} fue cancelada por el médico.`,
+                      ...((!porPaciente && c.rejection_reason) ? [`Motivo: ${c.rejection_reason}`] : []),
+                    ]
+                    const msg = lineas.join('\n')
+                    return (
+                      <a
+                        href={buildWaUrl(waTelCancelacion, msg)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                          padding: '6px 10px', borderRadius: 8,
+                          background: '#25D366', color: '#fff',
+                          fontSize: 12, fontWeight: 700, textDecoration: 'none',
+                        }}
+                      >
+                        📲 Avisar cancelación a clínica
+                      </a>
+                    )
+                  })()}
                 </div>
               )
             })}
