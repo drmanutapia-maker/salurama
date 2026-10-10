@@ -12,7 +12,7 @@ const citaSchema = z.object({
   medicoId: z.string().uuid('ID de médico inválido'),
   pacienteNombre: z.string().trim().min(2).max(100).regex(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/, 'Nombre inválido'),
   pacienteEmail: z.string().email().toLowerCase().max(254),
-  pacienteTelefono: z.string().regex(/^\+?[\d\s\-\(\)]{10,20}$/, 'Teléfono inválido').optional().or(z.literal('')),
+  pacienteTelefono: z.string().regex(/^\+?[\d\s\-\(\)]{10,20}$/, 'Teléfono inválido'),
   fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida'),
   hora: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Hora inválida'),
   motivo: z.string().trim().max(500).optional(),
