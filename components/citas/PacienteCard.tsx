@@ -301,9 +301,10 @@ export default function PacienteCard({
                 `Dr. ${medicoNombre}${medicoEspecialidad ? ` - ${medicoEspecialidad}` : ''}`,
                 `Consultorio: ${proxCita.consultorio?.nombre ?? ''}`,
                 `Paciente: ${pacienteNombre}`,
+                `Tel: ${proxCita.paciente_telefono}`,
+                `Tipo: ${esPrimera ? 'Primera vez' : 'Subsecuente'}`,
                 `Fecha: ${formatFecha(proxCita.fecha)}`,
                 `Hora: ${proxCita.hora?.slice(0, 5)}`,
-                `Tipo: ${esPrimera ? 'Primera vez' : 'Subsecuente'}`,
               ].join('\n')
               return (
                 <a
@@ -399,6 +400,7 @@ export default function PacienteCard({
                       `Dr. ${medicoNombre}${medicoEspecialidad ? ` - ${medicoEspecialidad}` : ''}`,
                       `Consultorio: ${c.consultorio?.nombre ?? ''}`,
                       `Paciente: ${pacienteNombre}`,
+                      `Tel: ${c.paciente_telefono}`,
                       porPaciente
                         ? `La cita del ${formatFecha(c.fecha)} a las ${c.hora?.slice(0, 5)} fue cancelada por el paciente.`
                         : `La cita del ${formatFecha(c.fecha)} a las ${c.hora?.slice(0, 5)} fue cancelada por el médico.`,
