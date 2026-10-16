@@ -95,16 +95,25 @@ export async function calcularCompletitudPorDoctorServidor(
 ): Promise<Map<string, number>> {
   const supabase = getSupabase()
   const ids = doctors.map(d => d.id)
-  const { data: contacto } = ids.length > 0
-    ? await supabase.from('doctors').select('id, phone, clinic_phone, whatsapp_phone').in('id', ids)
-    : { data: [] as { id: string; phone: string | null; clinic_phone: string | null; whatsapp_phone: string | null }[] }
+  const [{ data: contacto }, { data: consultoriosData }] = await Promise.all([
+    ids.length > 0
+      ? supabase.from('doctors').select('id, phone, whatsapp_phone').in('id', ids)
+      : { data: [] as { id: string; phone: string | null; whatsapp_phone: string | null }[] },
+    ids.length > 0
+      ? supabase.from('consultorios').select('doctor_id, telefono').in('doctor_id', ids).eq('activo', true).order('orden', { ascending: true })
+      : { data: [] as { doctor_id: string; telefono: string | null }[] },
+  ])
   const contactoPorId = new Map((contacto ?? []).map(c => [c.id, c]))
+  const telefonoPorDoctor = new Map<string, string | null>()
+  for (const c of consultoriosData ?? []) {
+    if (!telefonoPorDoctor.has(c.doctor_id)) telefonoPorDoctor.set(c.doctor_id, c.telefono)
+  }
 
   return calcularCompletitudPorDoctor(
     supabase,
     doctors.map(d => {
       const c = contactoPorId.get(d.id)
-      return { ...d, phone: c?.phone ?? null, clinic_phone: c?.clinic_phone ?? null, whatsapp_phone: c?.whatsapp_phone ?? null }
+      return { ...d, phone: c?.phone ?? null, clinic_phone: telefonoPorDoctor.get(d.id) ?? null, whatsapp_phone: c?.whatsapp_phone ?? null }
     })
   )
 }
@@ -138,10 +147,13 @@ export async function getEspecialistasDestacados(): Promise<EspecialistaHomepage
         .from('consultorios')
         .select('doctor_id, nombre, horario, telefono')
         .in('doctor_id', doctorIds)
-        .eq('es_principal', true)
         .eq('activo', true)
+        .order('orden', { ascending: true })
     : { data: [] as { doctor_id: string; nombre: string | null; horario: unknown; telefono: string | null }[] }
-  const consultorioPorDoctor = new Map((consultoriosData ?? []).map(c => [c.doctor_id, c]))
+  const consultorioPorDoctor = new Map<string, NonNullable<typeof consultoriosData>[number]>()
+  for (const c of consultoriosData ?? []) {
+    if (!consultorioPorDoctor.has(c.doctor_id)) consultorioPorDoctor.set(c.doctor_id, c)
+  }
 
   const doctorsConConsultorio = doctors.map(d => ({
     ...d,

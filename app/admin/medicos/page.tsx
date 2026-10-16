@@ -476,9 +476,12 @@ export default function AdminMedicos() {
       // Consultorios: horario y lat/lng para los checks de completitud.
       const doctorIds = doctors.map(d => d.id)
       const { data: consultoriosData } = doctorIds.length > 0
-        ? await supabase.from('consultorios').select('doctor_id, lat, lng, horario').in('doctor_id', doctorIds).eq('es_principal', true)
+        ? await supabase.from('consultorios').select('doctor_id, lat, lng, horario').in('doctor_id', doctorIds).order('orden', { ascending: true })
         : { data: [] as { doctor_id: string; lat: number | null; lng: number | null; horario: unknown }[] }
-      const consultorioPorDoctor = new Map((consultoriosData ?? []).map(c => [c.doctor_id, c]))
+      const consultorioPorDoctor = new Map<string, NonNullable<typeof consultoriosData>[number]>()
+      for (const c of consultoriosData ?? []) {
+        if (!consultorioPorDoctor.has(c.doctor_id)) consultorioPorDoctor.set(c.doctor_id, c)
+      }
 
       // email y "tiene algún teléfono" (sin los números) de todos los médicos:
       // ya no se leen de la tabla, solo por esta función de admin.

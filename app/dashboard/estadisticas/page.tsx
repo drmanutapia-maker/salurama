@@ -79,7 +79,8 @@ export default function EstadisticasPage() {
         .from('consultorios')
         .select('lat, lng, horario')
         .eq('doctor_id', doc.id)
-        .eq('es_principal', true)
+        .order('orden', { ascending: true })
+        .limit(1)
         .maybeSingle()
 
       // Vistas — misma fuente que /dashboard: cuenta real desde la tabla

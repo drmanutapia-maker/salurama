@@ -155,7 +155,8 @@ export default function DashboardMedico() {
           .from('consultorios')
           .select('lat, lng, horario')
           .eq('doctor_id', doctor.id)
-          .eq('es_principal', true)
+          .order('orden', { ascending: true })
+          .limit(1)
           .maybeSingle()
 
         const hoy = fechaISOLocal(new Date())

@@ -51,12 +51,11 @@ function getSupabaseServiceRole() {
 // el médico los marcó como visibles. user_id se usa para isOwner.
 // clinic_type, clinic_name, clinic_address, clinic_lat, clinic_lng, clinic_addresses,
 // clinic_phone_visible y horario ya no vienen de doctors: se leen del consultorio
-// principal (consultorios WHERE es_principal=true AND activo=true) y se montan
+// principal (consultorios WHERE orden=1 AND activo=true) y se montan
 // sobre el objeto medico antes de pasar a DoctorProfileClient.
 const COLUMNAS_DOCTOR_PUBLICO = [
   'id', 'slug', 'is_active', 'user_id', 'full_name', 'display_name', 'professional_title',
-  'specialty', 'sub_specialty', 'ciudad', 'estado', 'colonia', 'cp', 'street', 'ext_number',
-  'int_number', 'floor', 'consultation_price_general',
+  'specialty', 'sub_specialty', 'ciudad', 'estado', 'consultation_price_general',
   'consultation_price_first_time', 'consultation_price_followup', 'photo_url', 'about_me',
   'rating_avg', 'rating_count', 'years_experience', 'hospital_affiliation', 'languages',
   'insurance_names', 'accepts_insurance', 'payment_methods', 'factura_disponible',
@@ -87,14 +86,13 @@ async function getConsultorios(doctorId: string): Promise<ConsultorioPublico[]> 
   const { data } = await getSupabase()
     .from('consultorios')
     .select(
-      'id, nombre, tipo, street, ext_number, int_number, floor, colonia, ciudad, estado, cp, formatted_address, lat, lng, telefono_visible, horario, wheelchair_accessible, has_elevator, has_parking, public_transport_nearby, es_principal, activo, orden'
+      'id, nombre, tipo, street, ext_number, int_number, floor, colonia, ciudad, estado, cp, formatted_address, lat, lng, telefono_visible, horario, wheelchair_accessible, has_elevator, has_parking, public_transport_nearby, activo, orden'
     )
     .eq('doctor_id', doctorId)
     .eq('activo', true)
     .order('orden', { ascending: true })
-  // Principal primero, luego adicionales por orden
+  // Ya viene ordenado por orden ASC desde la query
   const rows = (data ?? []) as ConsultorioPublico[]
-  rows.sort((a, b) => (b.es_principal ? 1 : 0) - (a.es_principal ? 1 : 0))
   return rows
 }
 
@@ -234,12 +232,12 @@ export default async function DoctorPage({
     getConsultorios(doctor.id),
   ])
 
-  const principal = consultorios.find(c => c.es_principal) ?? consultorios[0] ?? null
+  const principal = consultorios[0] ?? null
 
-  // Teléfonos de consultorios adicionales (es_principal=false) con telefono_visible=true.
+  // Teléfonos de consultorios adicionales con telefono_visible=true.
   // Se obtienen en paralelo con get_consultorio_telefono (SECURITY DEFINER). Un fallo
   // individual no tumba el perfil: se trata como sin teléfono para ese consultorio.
-  const adicionales = consultorios.filter(c => !c.es_principal && c.telefono_visible)
+  const adicionales = consultorios.filter(c => c.id !== principal?.id && c.telefono_visible)
   const telefonosAdicionales: Record<string, string | null> = {}
   if (adicionales.length > 0) {
     const supabase = getSupabase()
@@ -260,6 +258,12 @@ export default async function DoctorPage({
     clinic_lng: principal?.lng ?? null,
     clinic_phone_visible: principal?.telefono_visible ?? null,
     horario: principal?.horario ?? null,
+    street: principal?.street ?? null,
+    ext_number: principal?.ext_number ?? null,
+    int_number: principal?.int_number ?? null,
+    floor: principal?.floor ?? null,
+    cp: principal?.cp ?? null,
+    colonia: principal?.colonia ?? null,
   }
 
   return <DoctorProfileClient medico={medicoConConsultorio} consultorios={consultorios} telefonosAdicionales={telefonosAdicionales} {...profileData} {...contacto} />

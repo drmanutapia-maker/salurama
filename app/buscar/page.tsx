@@ -154,10 +154,13 @@ export default async function BuscarPage({
         .from('consultorios')
         .select('doctor_id, lat, lng, horario')
         .in('doctor_id', doctorIds)
-        .eq('es_principal', true)
         .eq('activo', true)
+        .order('orden', { ascending: true })
     : { data: [] as { doctor_id: string; lat: number | null; lng: number | null; horario: unknown }[] }
-  const consultorioPorDoctor = new Map((consultoriosData ?? []).map(c => [c.doctor_id, c]))
+  const consultorioPorDoctor = new Map<string, NonNullable<typeof consultoriosData>[number]>()
+  for (const c of consultoriosData ?? []) {
+    if (!consultorioPorDoctor.has(c.doctor_id)) consultorioPorDoctor.set(c.doctor_id, c)
+  }
 
   // Merge de campos de consultorio sobre cada doctor antes de completitud y orden.
   const doctorsConConsultorio = doctorsRaw.map(d => ({

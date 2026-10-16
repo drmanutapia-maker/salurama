@@ -149,10 +149,13 @@ export default async function EspecialidadEstadoPage({ params }: { params: Promi
         .from('consultorios')
         .select('doctor_id, lat, lng')
         .in('doctor_id', medicosIds)
-        .eq('es_principal', true)
         .eq('activo', true)
+        .order('orden', { ascending: true })
     : { data: [] as { doctor_id: string; lat: number | null; lng: number | null }[] }
-  const consultorioPorDoctor = new Map((consultoriosData ?? []).map(c => [c.doctor_id, c]))
+  const consultorioPorDoctor = new Map<string, NonNullable<typeof consultoriosData>[number]>()
+  for (const c of consultoriosData ?? []) {
+    if (!consultorioPorDoctor.has(c.doctor_id)) consultorioPorDoctor.set(c.doctor_id, c)
+  }
 
   const medicos = medicosBase.map((d: any) => ({
     ...d,

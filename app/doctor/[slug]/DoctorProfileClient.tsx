@@ -20,7 +20,7 @@ import { calculateProfileCompletion } from '@/hooks/useProfileCompletion'
 import BaculoEsculapio from '@/components/icons/BaculoEsculapio'
 import { proximoDiaDisponible } from '@/lib/proximaCitaDisponible'
 
-// Un consultorio adicional (tabla consultorios, es_principal=false).
+// Consultorio de la tabla consultorios (orden > 1 = adicional).
 // Consultorio leído directamente de la tabla consultorios (Subfase 3.3+).
 // Campos públicos — sin telefono (protegido por RLS de columna).
 export interface ConsultorioPublico {
@@ -44,7 +44,6 @@ export interface ConsultorioPublico {
   has_elevator: boolean
   has_parking: boolean
   public_transport_nearby: boolean
-  es_principal: boolean
   activo: boolean
   orden: number
 }
@@ -1538,7 +1537,7 @@ export default function DoctorProfileClient({
   // en el cliente cuando se implemente ese flujo. Por ahora clinic_phone=null
   // para adicionales.
   const listaConsultoriosParaTabs: ConsultorioParaTabs[] = consultorios.length > 0
-    ? consultorios.map(c => ({
+    ? consultorios.map((c, index) => ({
         id: c.id,
         clinic_name: c.nombre,
         clinic_type: c.tipo,
@@ -1552,7 +1551,7 @@ export default function DoctorProfileClient({
         estado: c.estado,
         clinic_lat: c.lat,
         clinic_lng: c.lng,
-        clinic_phone: c.es_principal ? (telefonoVisible ?? null) : (telefonosAdicionales[c.id] ?? null),
+        clinic_phone: index === 0 ? (telefonoVisible ?? null) : (telefonosAdicionales[c.id] ?? null),
         clinic_phone_visible: c.telefono_visible,
         horario: c.horario,
       }))

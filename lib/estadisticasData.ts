@@ -140,7 +140,7 @@ export async function getEstadisticasData(userId: string): Promise<{ data: Estad
 
   const { data: doctor } = await db
     .from('doctors')
-    .select('id, full_name, photo_url, about_me, consultation_price_first_time, consultation_price_general, phone, clinic_phone, whatsapp_phone, languages, pricing_tier, specialty, ciudad')
+    .select('id, full_name, photo_url, about_me, consultation_price_first_time, consultation_price_general, phone, whatsapp_phone, languages, pricing_tier, specialty, ciudad')
     .eq('user_id', userId)
     .single()
 
@@ -148,9 +148,10 @@ export async function getEstadisticasData(userId: string): Promise<{ data: Estad
 
   const { data: consultorio } = await db
     .from('consultorios')
-    .select('lat, lng, horario')
+    .select('lat, lng, horario, telefono')
     .eq('doctor_id', doctor.id)
-    .eq('es_principal', true)
+    .order('orden', { ascending: true })
+    .limit(1)
     .maybeSingle()
 
   // Límites de "este mes" / "mes anterior" — mismo criterio que
@@ -240,6 +241,7 @@ export async function getEstadisticasData(userId: string): Promise<{ data: Estad
       clinic_lat: consultorio?.lat ?? null,
       clinic_lng: consultorio?.lng ?? null,
       horario: (consultorio?.horario as Record<string, any> | null) ?? null,
+      clinic_phone: consultorio?.telefono ?? null,
     },
     experienceCount: expRes.data?.length || 0,
     educationCount: eduRes.data?.length || 0,

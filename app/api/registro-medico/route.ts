@@ -163,7 +163,6 @@ export async function POST(request: NextRequest) {
         formatted_address: fullAddress,
         lat: lat,
         lng: lng,
-        es_principal: true,
         activo: false,
       })
 
