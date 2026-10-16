@@ -19,9 +19,9 @@ export interface ConsultorioRow {
   telefono: string | null
   telefono_visible: boolean
   horario: Record<string, any> | null
-  es_principal: boolean
   activo: boolean
   orden: number
+  whatsapp_recepcion?: string | null
 }
 
 interface Props {
