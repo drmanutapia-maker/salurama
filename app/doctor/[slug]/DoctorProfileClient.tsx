@@ -81,11 +81,14 @@ export interface Medico {
   accepts_insurance: boolean
   payment_methods: string[] | null
   factura_disponible: boolean | null
+  is_founding_member?: boolean
   clinic_name: string | null
   clinic_lat: number | null
   clinic_lng: number | null
   clinic_address: string | null
+  clinic_phone?: string | null
   clinic_phone_visible?: boolean | null
+  whatsapp_phone?: string | null
   whatsapp_available: boolean
   facebook_url: string | null
   instagram_url: string | null
@@ -215,7 +218,9 @@ function calcularResumenHorario(horarioRaw: unknown): { label: string; rango: st
   return grupos.map(g => ({
     label: g.idxs.length === 1
       ? DIAS_LABELS_FULL[g.idxs[0]]
-      : `${DIAS_LABELS_FULL[g.idxs[0]]} a ${DIAS_LABELS_FULL[g.idxs[g.idxs.length - 1]]}`,
+      : g.idxs.length === 2
+        ? `${DIAS_LABELS_FULL[g.idxs[0]]} y ${DIAS_LABELS_FULL[g.idxs[g.idxs.length - 1]]}`
+        : `${DIAS_LABELS_FULL[g.idxs[0]]} a ${DIAS_LABELS_FULL[g.idxs[g.idxs.length - 1]]}`,
     rango: `${g.inicio} - ${g.fin}`,
   }))
 }
@@ -1113,7 +1118,6 @@ function construirDireccionConsultorio(c: ConsultorioParaDireccion) {
   const direccionCompleta = [
     c.street,
     c.ext_number ? `#${c.ext_number}` : '',
-    c.int_number ? `${c.clinic_type === 'hospital' ? 'Consultorio' : 'Int.'} ${c.int_number}` : '',
   ].filter(Boolean).join(' ') || ''
 
   const direccionExtendida = [
@@ -1213,15 +1217,16 @@ function UbicacionConsultorios({ consultorios }: { consultorios: ConsultorioPara
 
       {activo.clinic_name && <p style={{ fontSize: 13, fontWeight: 600, color: '#111827', marginBottom: 4 }}>{activo.clinic_name}</p>}
       {direccionCompleta && <p style={{ fontSize: 13, color: '#4A5568', marginBottom: 2 }}>{direccionCompleta}</p>}
-      {activo.floor && <p style={{ fontSize: 13, color: '#4A5568', marginBottom: 2 }}>Piso {activo.floor}</p>}
       {activo.colonia && <p style={{ fontSize: 13, color: '#4A5568', marginBottom: 2 }}>Col. {activo.colonia}</p>}
-      <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 12 }}>
+      <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 2 }}>
         {[
           activo.cp ? `CP ${activo.cp}` : '',
           activo.ciudad,
           activo.estado ? getStateLabel(activo.estado) : activo.estado,
         ].filter(Boolean).join(', ')}
       </p>
+      {activo.floor && <p style={{ fontSize: 13, color: '#4A5568', marginBottom: 2 }}>Piso {activo.floor}</p>}
+      {activo.int_number && <p style={{ fontSize: 13, color: '#4A5568', marginBottom: 12 }}>Consultorio {activo.int_number}</p>}
 
       {/* El teléfono ya viene filtrado desde el servidor (null si el médico
           no lo marcó como visible), así que aquí solo se muestra si existe. */}
@@ -1758,7 +1763,9 @@ export default function DoctorProfileClient({
                   // el listener de "tocar fuera" de abajo.
                   onClick={() => setMostrarTooltipBadge(true)}
                 >
-                  <BaculoEsculapio size={isMobile ? 16 : 20} color="#2A9D8F" />
+                  <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 20, height: 20, borderRadius: '50%', background: medico.is_founding_member ? '#D97706' : '#2A9D8F' }}>
+                    <BaculoEsculapio size={11} color="white" />
+                  </span>
                   {mostrarTooltipBadge && (
                     <span
                       ref={tooltipRef}

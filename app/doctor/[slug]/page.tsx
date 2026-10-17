@@ -61,7 +61,7 @@ const COLUMNAS_DOCTOR_PUBLICO = [
   'insurance_names', 'accepts_insurance', 'payment_methods', 'factura_disponible',
   'whatsapp_available', 'facebook_url', 'instagram_url', 'tiktok_url', 'linkedin_url',
   'website_url', 'professional_license', 'review_status', 'min_patient_age',
-  'max_patient_age', 'duracion_cita_minutos', 'pricing_tier',
+  'max_patient_age', 'duracion_cita_minutos', 'pricing_tier', 'is_founding_member',
 ].join(', ')
 
 // Este mismo lookup alimenta tanto generateMetadata como el perfil completo
@@ -264,6 +264,8 @@ export default async function DoctorPage({
     floor: principal?.floor ?? null,
     cp: principal?.cp ?? null,
     colonia: principal?.colonia ?? null,
+    clinic_phone: contacto.telefonoVisible ?? null,
+    whatsapp_phone: contacto.whatsappVisible ?? null,
   }
 
   return <DoctorProfileClient medico={medicoConConsultorio} consultorios={consultorios} telefonosAdicionales={telefonosAdicionales} {...profileData} {...contacto} />
