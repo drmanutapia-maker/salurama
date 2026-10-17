@@ -259,9 +259,11 @@ function InfoModal({ title, children, onClose }: { title: string; children: Reac
 
 function AppointmentModal({
   medico,
+  consultorios,
   onClose,
 }: {
   medico: Medico
+  consultorios: ConsultorioParaTabs[]
   onClose: () => void
 }) {
   const [step, setStep] = useState(1)
@@ -295,6 +297,7 @@ function AppointmentModal({
   const [verificandoCodigo, setVerificandoCodigo] = useState(false)
   const [pacienteId, setPacienteId] = useState<string | null>(null)
   const [actualizarDatos, setActualizarDatos] = useState(false)
+  const [selectedConsultorioId, setSelectedConsultorioId] = useState<string | null>(consultorios[0]?.id ?? null)
   const [ocupadas, setOcupadas] = useState<string[]>([])
   const [fechasBloqueadas, setFechasBloqueadas] = useState<Set<string>>(new Set())
   const [mesCalendario, setMesCalendario] = useState(() => {
@@ -312,12 +315,13 @@ function AppointmentModal({
   // ese error en el flujo normal.
   useEffect(() => {
     let cancelado = false
-    fetch(`/api/citas/disponibilidad?medicoId=${medico.id}&fecha=${formData.requested_date}`)
+    const consultorioParam = selectedConsultorioId ? `&consultorioId=${selectedConsultorioId}` : ''
+    fetch(`/api/citas/disponibilidad?medicoId=${medico.id}&fecha=${formData.requested_date}${consultorioParam}`)
       .then(res => res.ok ? res.json() : { ocupadas: [] })
       .then(data => { if (!cancelado) setOcupadas(data.ocupadas || []) })
       .catch(() => { if (!cancelado) setOcupadas([]) })
     return () => { cancelado = true }
-  }, [medico.id, formData.requested_date])
+  }, [medico.id, formData.requested_date, selectedConsultorioId])
 
   // Fechas puntuales que el médico bloqueó (ej. vacaciones) desde
   // /dashboard/horario -- se piden todas de una vez (no por fecha, como
@@ -428,8 +432,10 @@ function AppointmentModal({
   }
 
   const horarioParsed = (() => {
-    if (!medico?.horario) return null
-    let horario = medico.horario
+    const consultorioSeleccionado = consultorios.find(c => c.id === selectedConsultorioId)
+    const horarioFuente = consultorioSeleccionado?.horario ?? medico?.horario
+    if (!horarioFuente) return null
+    let horario = horarioFuente
     if (typeof horario === 'string') {
       try { horario = JSON.parse(horario) } catch { return null }
     }
@@ -661,6 +667,7 @@ function AppointmentModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           medicoId: medico.id,
+          consultorioId: selectedConsultorioId || undefined,
           pacienteNombre: formData.patient_name,
           pacienteEmail: formData.patient_email,
           pacienteTelefono: formData.patient_phone,
@@ -715,6 +722,31 @@ function AppointmentModal({
         <input type="text" name="website" value={formData.honeypot} onChange={e => setFormData({ ...formData, honeypot: e.target.value })} style={{ position: 'absolute', left: '-9999px', opacity: 0, height: 0 }} tabIndex={-1} autoComplete="off" />
         {step === 1 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {consultorios.length > 1 && (
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4, color: '#1E3A5F' }}>
+                  ¿En qué consultorio quieres tu cita?
+                </label>
+                <select
+                  value={selectedConsultorioId ?? ''}
+                  onChange={e => {
+                    setSelectedConsultorioId(e.target.value || null)
+                    setFormData(f => ({ ...f, requested_time: '' }))
+                  }}
+                  style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #E5E7EB', borderRadius: 8, fontSize: 13, color: '#1E3A5F', background: '#fff', cursor: 'pointer' }}
+                >
+                  {consultorios.map((c, i) => {
+                    const nombre = c.clinic_name || `Consultorio ${i + 1}`
+                    const subtexto = [c.colonia, c.ciudad].filter(Boolean).join(', ')
+                    return (
+                      <option key={c.id} value={c.id}>
+                        {nombre}{subtexto ? ` — ${subtexto}` : ''}
+                      </option>
+                    )
+                  })}
+                </select>
+              </div>
+            )}
             <div>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4, color: '#1E3A5F' }}>Fecha</label>
               <p style={{ fontSize: 12, color: '#6B7280', marginBottom: 6 }}>{diasAtencionTexto}</p>
@@ -2164,7 +2196,7 @@ export default function DoctorProfileClient({
       </div>
 
       {showAppointmentModal && (
-        <AppointmentModal medico={medico} onClose={() => setShowAppointmentModal(false)} />
+        <AppointmentModal medico={medico} consultorios={listaConsultoriosParaTabs} onClose={() => setShowAppointmentModal(false)} />
       )}
       {showPhotoModal && medico.photo_url && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 4000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={() => setShowPhotoModal(false)}>

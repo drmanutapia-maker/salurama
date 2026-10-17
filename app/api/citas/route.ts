@@ -17,6 +17,7 @@ const citaSchema = z.object({
   hora: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Hora inválida'),
   motivo: z.string().trim().max(500).optional(),
   turnstileToken: z.string().min(1),
+  consultorioId: z.string().uuid().optional(),
   pacienteId: z.string().uuid().optional(),
   actualizarDatos: z.boolean().optional(),
 })
@@ -77,7 +78,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { medicoId, pacienteNombre, pacienteEmail, pacienteTelefono, fecha, hora, motivo, turnstileToken, pacienteId, actualizarDatos } = validation.data
+    const { medicoId, consultorioId, pacienteNombre, pacienteEmail, pacienteTelefono, fecha, hora, motivo, turnstileToken, pacienteId, actualizarDatos } = validation.data
 
     let nombreFinal = pacienteNombre
     let emailFinal = pacienteEmail
@@ -183,17 +184,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Médico no disponible' }, { status: 404 })
     }
 
-    const { data: consultorio, error: consultorioError } = await supabase
+    let consultorioQuery = supabase
       .from('consultorios')
       .select('id, horario')
       .eq('doctor_id', medicoId)
       .eq('activo', true)
-      .order('orden', { ascending: true })
-      .limit(1)
-      .maybeSingle()
+
+    if (consultorioId) {
+      consultorioQuery = consultorioQuery.eq('id', consultorioId)
+    } else {
+      consultorioQuery = consultorioQuery.order('orden', { ascending: true }).limit(1)
+    }
+
+    const { data: consultorio, error: consultorioError } = await consultorioQuery.maybeSingle()
 
     if (consultorioError || !consultorio) {
-      console.warn(`[${requestId}] Sin consultorio principal activo: ${medicoId}`)
+      console.warn(`[${requestId}] Sin consultorio activo para medicoId=${medicoId} consultorioId=${consultorioId ?? 'principal'}`)
       return NextResponse.json({ error: 'El médico no tiene consultorio disponible' }, { status: 404 })
     }
 
