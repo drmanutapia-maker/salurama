@@ -107,9 +107,10 @@ Deno.serve(async (req) => {
     // que es del recordatorio de 24h) evita reenvíos si el cron reintenta.
     const rows = await sql`
       SELECT c.id, c.paciente_nombre, c.paciente_email, c.fecha, c.hora,
-             d.full_name AS doctor_nombre, d.clinic_address
+             d.full_name AS doctor_nombre, con.formatted_address AS clinic_address
       FROM citas c
       JOIN doctors d ON d.id = c.medico_id
+      LEFT JOIN consultorios con ON con.doctor_id = d.id AND con.orden = 1
       WHERE c.estado = 'confirmed'
         AND c.reminder_2h_sent_at IS NULL
         AND (c.fecha::text || ' ' || c.hora::text || '-06:00')::timestamptz

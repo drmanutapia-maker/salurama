@@ -82,24 +82,6 @@ export async function geocodeAddress(address: string): Promise<GeocodeResult | n
   }
 }
 
-// Función helper para construir dirección completa desde datos del doctor
-export function buildFullAddress(doctor: {
-  clinic_address?: string | null
-  location_city?: string | null
-  location_state?: string | null
-  cp?: string | null
-}): string {
-  const parts = [
-    doctor.clinic_address,
-    doctor.location_city,
-    doctor.location_state,
-    doctor.cp,
-    'México'
-  ].filter(Boolean)
-
-  return parts.join(', ')
-}
-
 // Test function
 export async function testGeocode() {
   const test = await geocodeAddress('Av. Paseo de la Reforma 222, Ciudad de México')
