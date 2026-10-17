@@ -4,8 +4,8 @@ import { supabase } from '@/lib/supabaseClient'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
-  X, ZoomIn, Calendar, Edit2, Eye, Share2,
-  Star, Users, MoreVertical, Lightbulb,
+  X, ZoomIn, Edit2, Eye, Share2,
+  Star, Users, Lightbulb,
   CheckCircle, ArrowRight,
   AlertCircle, Banknote
 } from 'lucide-react'
@@ -30,14 +30,6 @@ interface Medico {
   ciudad: string | null
   estado: string | null
   user_id?: string
-}
-
-interface Cita {
-  id: string
-  patient_name: string
-  requested_date: string
-  requested_time: string
-  status: 'solicitada' | 'confirmada' | 'terminada' | 'cancelada'
 }
 
 interface StatsResumen {
@@ -76,7 +68,7 @@ export default function DashboardMedico() {
   const [specialtyWarnings, setSpecialtyWarnings] = useState<string[]>([])
 
   const [copied, setCopied] = useState(false)
-  const [citasHoy, setCitasHoy] = useState<Cita[]>([])
+  const [citasPasadasConfirmadas, setCitasPasadasConfirmadas] = useState(0)
   const [stats, setStats] = useState<StatsResumen | null>(null)
   const [consejo, setConsejo] = useState<Consejo | null>(null)
   const [profileCompletion, setProfileCompletion] = useState(0)
@@ -164,15 +156,7 @@ export default function DashboardMedico() {
         inicioMes.setDate(1)
         const inicioMesStr = inicioMes.toISOString().split('T')[0]
 
-        const [citasHoyRes, completadasRes, eduRes, expRes, condRes, visitasRes, specialtyCredRes] = await Promise.all([
-          supabase.from('citas')
-            .select('id, paciente_nombre, fecha, hora, estado')
-            .eq('medico_id', doctor.id)
-            .gte('fecha', hoy)
-            .in('estado', ['pending_verification', 'confirmed'])
-            .order('fecha', { ascending: true })
-            .order('hora', { ascending: true })
-            .limit(1),
+        const [completadasRes, eduRes, expRes, condRes, visitasRes, specialtyCredRes, citasPasadasRes] = await Promise.all([
           // Todas las citas completadas históricas -- de aquí se calculan los
           // "ingresos estimados". No hay columna de precio ni de tipo de cita
           // (primera vez / subsecuente) guardada en `citas`, así que se
@@ -191,6 +175,13 @@ export default function DashboardMedico() {
           supabase.from('doctor_specialty_credentials')
             .select('credentials_status, self_declared_not_current, specialty_granular_mapping(granular_name)')
             .eq('doctor_id', doctor.id),
+          supabase.from('citas')
+            .select('id, paciente_nombre, fecha, hora')
+            .eq('medico_id', doctor.id)
+            .eq('estado', 'confirmed')
+            .lt('fecha', hoy)
+            .order('fecha', { ascending: false })
+            .limit(10),
         ])
 
         // Especialidades con el aviso de "certificación pendiente" — el médico
@@ -201,13 +192,7 @@ export default function DashboardMedico() {
           .map((r: any) => r.specialty_granular_mapping?.granular_name)
           .filter(Boolean))
 
-        setCitasHoy((citasHoyRes.data || []).map((c: any) => ({
-          id: c.id,
-          patient_name: c.paciente_nombre,
-          requested_date: c.fecha,
-          requested_time: c.hora?.slice(0, 5),
-          status: c.estado === 'pending_verification' ? 'solicitada' : c.estado === 'confirmed' ? 'confirmada' : c.estado,
-        })))
+        setCitasPasadasConfirmadas((citasPasadasRes.data || []).length)
 
         // Rating
         let ratingData = { promedio: 0, total: 0 }
@@ -476,14 +461,6 @@ export default function DashboardMedico() {
   const profileUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/doctor/${medico.slug || medico.id}`
   const fechaHoyLegible = new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })
 
-  const formatProximaFecha = (fechaStr: string) => {
-    const hoy = fechaISOLocal(new Date())
-    const manana = fechaISOLocal(new Date(Date.now() + 86400000))
-    if (fechaStr === hoy) return 'Hoy'
-    if (fechaStr === manana) return 'Mañana'
-    return new Date(fechaStr + 'T00:00:00').toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })
-  }
-
   const formatMonto = (monto: number) => `$${monto.toLocaleString('es-MX', { maximumFractionDigits: 0 })}`
 
   return (
@@ -640,6 +617,35 @@ export default function DashboardMedico() {
                 Aún no confirmas tu vigencia en: {specialtyWarnings.join(', ')}. Actualiza tu certificación para mantener tu perfil completo.
               </p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════
+          AVISO CITAS POR COMPLETAR
+      ═══════════════════════════════════════════════════════════ */}
+      {citasPasadasConfirmadas > 0 && (
+        <div style={{ maxWidth: 1100, margin: '0 auto 20px', padding: '0 16px' }}>
+          <div style={{
+            background: '#FEF3C7',
+            border: '1.5px solid #FCD34D',
+            borderRadius: 12,
+            padding: '12px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            flexWrap: 'wrap',
+          }}>
+            <p style={{ fontSize: 13, fontWeight: 500, color: '#92400E', margin: 0, flex: 1, minWidth: 200 }}>
+              Marca tus citas completadas para recibir reseñas de tus pacientes y actualizar tus ingresos estimados
+            </p>
+            <button
+              onClick={() => router.push('/dashboard/citas')}
+              style={{ background: '#D97706', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
+            >
+              Ver citas
+            </button>
           </div>
         </div>
       )}
@@ -819,46 +825,6 @@ export default function DashboardMedico() {
       </div>
 
       {/* ═══════════════════════════════════════════════════════════
-          ACTIVIDAD RECIENTE
-      ═══════════════════════════════════════════════════════════ */}
-      <div style={{ maxWidth: 1100, margin: '0 auto 20px', padding: '0 16px' }}>
-        <div style={{ background: '#fff', padding: 24, borderRadius: 16, border: '1px solid #E5E7EB' }}>
-          <div style={{ marginBottom: 20 }}>
-            <h2 style={{ fontFamily: 'Fraunces', fontSize: 20, fontWeight: 900, color: '#1E3A5F', margin: 0 }}>
-              Actividad Reciente
-            </h2>
-          </div>
-
-          {citasHoy.length > 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {citasHoy.map(c => (
-                <div key={c.id} style={{ background: '#F9FAFB', padding: 16, borderRadius: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderLeft: `4px solid ${c.status === 'confirmada' ? '#059669' : '#F59E0B'}` }}>
-                  <div style={{ display: 'flex', gap: 12, alignItems: 'center', flex: 1, minWidth: 0 }}>
-                    <div style={{ width: 44, height: 44, borderRadius: '50%', background: c.status === 'confirmada' ? '#059669' : '#F59E0B', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, flexShrink: 0 }}>
-                      {c.patient_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontWeight: 600, fontSize: 14, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.patient_name}</p>
-                      <p style={{ fontSize: 13, color: '#6B7280', margin: '2px 0 0' }}>
-                        {formatProximaFecha(c.requested_date)} · {c.requested_time} • {c.status === 'confirmada' ? 'Confirmada' : 'Por confirmar'}
-                      </p>
-                    </div>
-                  </div>
-                  <MoreVertical size={18} color="#9CA3AF" style={{ flexShrink: 0, marginLeft: 8 }} />
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div style={{ textAlign: 'center', padding: 40, background: '#F9FAFB', borderRadius: 12 }}>
-              <Calendar size={40} color="#9CA3AF" style={{ margin: '0 auto 12px', display: 'block' }} />
-              <p style={{ color: '#6B7280', fontSize: 14, margin: 0 }}>Sin próximas citas</p>
-              <p style={{ color: '#6B7280', fontSize: 13, margin: '4px 0 0' }}>Las solicitudes aparecerán aquí</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* ═══════════════════════════════════════════════════════════
           MODAL DE FOTO
       ═══════════════════════════════════════════════════════════ */}
       {showPhotoModal && medico.photo_url && (
@@ -947,23 +913,6 @@ function DashboardSkeleton({ isMobile }: { isMobile: boolean }) {
         </div>
       </div>
 
-      {/* Actividad reciente */}
-      <div style={{ maxWidth: 1100, margin: '0 auto 20px', padding: '0 16px' }}>
-        <div style={{ background: '#fff', padding: 24, borderRadius: 16, border: '1px solid #E5E7EB' }}>
-          <Skeleton width={180} height={20} style={{ marginBottom: 20 }} />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {[0, 1].map(i => (
-              <div key={i} style={{ background: '#F9FAFB', padding: 16, borderRadius: 12, display: 'flex', gap: 12, alignItems: 'center' }}>
-                <Skeleton width={44} height={44} radius={999} style={{ flexShrink: 0 }} />
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <Skeleton width="50%" height={14} />
-                  <Skeleton width="70%" height={12} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
     </div>
   )
 }
