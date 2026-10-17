@@ -738,26 +738,18 @@ export default function EditarPerfilPage() {
   // Medicina Interna se quedó viva en credentials aunque la especialidad ya
   // no existía en doctor_specialties).
   const handleDeleteSpecialty = async (spec: SpecialtyWithLicense) => {
+    if (!medico) return
     if (!confirm('¿Eliminar?')) return
     setSaving(true)
     try {
-      await supabase.from('doctor_specialties').delete().eq('id', spec.id)
-      const { data: mapping } = await supabase
-        .from('specialty_granular_mapping')
-        .select('id')
-        .eq('granular_name', spec.specialty_name)
-        .maybeSingle()
-      if (mapping && medico) {
-        await supabase
-          .from('doctor_specialty_credentials')
-          .delete()
-          .eq('doctor_id', medico.id)
-          .eq('specialty_mapping_id', mapping.id)
-          .eq('is_primary', false)
-      }
+      const { error } = await supabase.rpc('eliminar_especialidad_adicional', {
+        p_doctor_id: medico.id,
+        p_specialty_row_id: spec.id,
+      })
+      if (error) throw error
       await loadData()
-    } catch (err) {
-      alert('Error')
+    } catch (err: any) {
+      alert(err.message || 'Error al eliminar la especialidad')
     } finally {
       setSaving(false)
     }
@@ -1040,9 +1032,14 @@ export default function EditarPerfilPage() {
                     ? <p style={{ fontSize: 13, color: '#6B7280' }}>Consejo: <strong style={{ color: '#111827' }}>{councilMap[medico.specialty]?.councilName}</strong></p>
                     : <p style={{ fontSize: 13, color: '#9CA3AF' }}>Sin consejo certificador para esta especialidad</p>}
                 </div>
-                <p style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4 }}>
-                  El consejo certificador se asigna automáticamente según la especialidad. Para cambiar cuál es tu especialidad principal, marca con la estrella una de tus especialidades secundarias de abajo.
-                </p>
+                {specialties.length > 0 && (
+                  <p style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4 }}>
+                    El consejo certificador se asigna automáticamente según la especialidad.{' '}
+                    {specialties.length === 1
+                      ? 'Para cambiar tu especialidad principal, marca con la estrella tu especialidad secundaria.'
+                      : 'Para cambiar tu especialidad principal, marca con la estrella una de tus especialidades secundarias.'}
+                  </p>
+                )}
 
                 {primaryCredential && (
                   <div style={{ marginTop: 10 }}>
@@ -1082,7 +1079,7 @@ export default function EditarPerfilPage() {
                   </div>
                 )}
               </div>
-              {specialties.length > 0? specialties.map(spec => (
+              {specialties.map(spec => (
                 <div key={spec.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 12px', background: '#F9FAFB', borderRadius: 8, border: '1px solid #E5E7EB', marginBottom: 8 }}>
                   <div>
                     <p style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{spec.specialty_name}</p>
@@ -1102,7 +1099,7 @@ export default function EditarPerfilPage() {
                     <button onClick={() => handleDeleteSpecialty(spec)} style={{ background: 'none', border: 'none', color: '#DC2626', cursor: 'pointer', padding: 4 }}><Trash2 size={15} /></button>
                   </div>
                 </div>
-              )) : <p style={{ fontSize: 13, color: '#9CA3AF' }}>Sin especialidades adicionales.</p>}
+              ))}
             </Card>
 
             <Card title="Biografía" onEdit={() => setActiveModal('intro')}>

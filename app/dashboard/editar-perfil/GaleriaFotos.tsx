@@ -139,8 +139,8 @@ export default function GaleriaFotos({ doctorId, doctorSlug }: { doctorId: strin
     setPhotos(reordered)
     try {
       const [{ error: e1 }, { error: e2 }] = await Promise.all([
-        supabase.from('doctor_gallery_photos').update({ position: index }).eq('id', reordered[index].id),
-        supabase.from('doctor_gallery_photos').update({ position: targetIndex }).eq('id', reordered[targetIndex].id),
+        supabase.from('doctor_gallery_photos').update({ position: index * 10 }).eq('id', reordered[index].id),
+        supabase.from('doctor_gallery_photos').update({ position: targetIndex * 10 }).eq('id', reordered[targetIndex].id),
       ])
       if (e1 || e2) throw e1 || e2
       showToast('Guardado', 'success')
