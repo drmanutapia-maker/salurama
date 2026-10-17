@@ -118,6 +118,14 @@ function formatFechaCorta(iso: string): string {
   return new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
 }
 
+function formatHora(hora: string | null | undefined): string {
+  if (!hora) return ''
+  const [h, m] = hora.split(':').map(Number)
+  const suffix = h < 12 ? 'am' : 'pm'
+  const h12 = h % 12 || 12
+  return `${h12}:${String(m).padStart(2, '0')} ${suffix}`
+}
+
 interface PacienteCardProps {
   data: PacienteCardData
   procesando: string | null
@@ -381,17 +389,38 @@ export default function PacienteCard({
             {historial.map(c => {
               const cancelada = esCancelada(c)
               const completada = c.estado === 'completed'
+              const esConfirmadaPasada = c.estado === 'confirmed'
               const Icono = completada ? Check : cancelada ? XCircle : Clock
-              const color = completada ? '#6B7280' : cancelada ? '#DC2626' : statusColors[c.estado]?.text || '#6B7280'
+              const color = completada ? '#6B7280' : cancelada ? '#DC2626' : esConfirmadaPasada ? '#F59E0B' : statusColors[c.estado]?.text || '#6B7280'
               const waTelCancelacion = cancelada ? c.consultorio?.whatsapp_recepcion : null
               return (
                 <div key={c.id} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                    <span style={{ fontSize: 13, color: '#374151' }}>{formatFecha(c.fecha)}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 13, color: '#374151' }}>
+                      {formatFecha(c.fecha)}{esConfirmadaPasada && c.hora ? ` · ${formatHora(c.hora)}` : ''}
+                    </span>
                     <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600, color, opacity: cancelada ? 0.8 : 1 }}>
                       <Icono size={13} aria-hidden="true" />
                       {completada ? 'Completada' : cancelada ? 'Cancelada' : (statusColors[c.estado]?.label || c.estado)}
                     </span>
+                    {esConfirmadaPasada && (
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        <button
+                          onClick={() => cambiarEstado(c.id, 'completed')}
+                          disabled={!!procesando}
+                          style={{ background: '#ECFDF5', color: '#065F46', border: '1px solid #6EE7B7', fontSize: 11, padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}
+                        >
+                          ✓ Completada
+                        </button>
+                        <button
+                          onClick={() => cambiarEstado(c.id, 'cancelled')}
+                          disabled={!!procesando}
+                          style={{ background: '#FEF2F2', color: '#991B1B', border: '1px solid #FECACA', fontSize: 11, padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}
+                        >
+                          ✗ No se realizó
+                        </button>
+                      </div>
+                    )}
                   </div>
                   {waTelCancelacion && (() => {
                     const porPaciente = c.estado === 'cancelada_paciente'
