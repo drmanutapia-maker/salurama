@@ -96,6 +96,7 @@ export default function ChatPacienteClient({ token }: { token: string }) {
   const [confirmandoCancelar, setConfirmandoCancelar] = useState(false)
   const [cancelando, setCancelando] = useState(false)
   const [errorCancelar, setErrorCancelar] = useState<string | null>(null)
+  const [fueraDeVentana, setFueraDeVentana] = useState<{ whatsapp: string | null } | null>(null)
 
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -166,7 +167,13 @@ export default function ChatPacienteClient({ token }: { token: string }) {
       })
       const data = await res.json().catch(() => null)
       if (!res.ok) {
-        setErrorCancelar(data?.error || 'No se pudo cancelar la cita. Intenta de nuevo.')
+        if (data?.error === 'fuera_de_ventana') {
+          setFueraDeVentana({ whatsapp: data.whatsapp_recepcion ?? null })
+          setErrorCancelar(null)
+          setConfirmandoCancelar(false)
+        } else {
+          setErrorCancelar(data?.error || 'No se pudo cancelar la cita. Intenta de nuevo.')
+        }
         return
       }
       setConfirmandoCancelar(false)
@@ -429,6 +436,32 @@ export default function ChatPacienteClient({ token }: { token: string }) {
               className="font-body text-xs font-semibold text-neutral-600 hover:text-neutral-800 disabled:opacity-50 rounded-lg px-3 py-2 transition-colors"
             >
               No, mantener cita
+            </button>
+          </div>
+        </div>
+      )}
+
+      {fueraDeVentana && (
+        <div className="shrink-0 border-b border-neutral-200 bg-neutral-50 px-4 py-3">
+          <p className="font-body text-sm text-neutral-700 mb-2">
+            Esta cita ya no puede cancelarse en línea. Contacta directamente al consultorio para cancelar.
+          </p>
+          <div className="flex gap-2">
+            {fueraDeVentana.whatsapp && (
+              <a
+                href={`https://wa.me/${fueraDeVentana.whatsapp.replace(/[\s\-]/g, '')}?text=Hola%2C+quisiera+cancelar+mi+cita+agendada+a+trav%C3%A9s+de+Salurama.`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', borderRadius: 8, background: '#25D366', color: '#fff', fontSize: 12, fontWeight: 700, textDecoration: 'none' }}
+              >
+                📲 Contactar consultorio
+              </a>
+            )}
+            <button
+              onClick={() => setFueraDeVentana(null)}
+              className="font-body text-xs font-semibold text-neutral-600 hover:text-neutral-800 rounded-lg px-3 py-2 transition-colors"
+            >
+              Cerrar
             </button>
           </div>
         </div>
