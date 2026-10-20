@@ -4,6 +4,7 @@ import { Redis } from '@upstash/redis'
 import { z } from 'zod'
 import { verificarToken } from '@/lib/chat/token'
 import { sendCitaCanceladaPorPacienteEmail, sendCitaFueraDeVentanaEmail } from '@/lib/email'
+import { notificarMedicoPush } from '@/lib/push/enviarPush'
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL!,
@@ -155,6 +156,20 @@ export async function POST(request: NextRequest) {
     if (updateError) {
       console.error(`[${requestId}] Error cancelando cita:`, updateError)
       return NextResponse.json({ error: 'No se pudo cancelar la cita' }, { status: 500, headers: securityHeaders })
+    }
+
+    // Push al médico — falla en silencio
+    try {
+      const d = new Date(cita.fecha + 'T00:00:00')
+      const fechaFmt = d.toLocaleDateString('es-MX', { day: 'numeric', month: 'long' })
+      const horaFmt = cita.hora.slice(0, 5)
+      await notificarMedicoPush(supabase, sesion.medicoId, {
+        title: 'Cita cancelada',
+        body: `${cita.paciente_nombre} canceló su cita del ${fechaFmt} a las ${horaFmt}.`,
+        url: '/dashboard/citas',
+      })
+    } catch (pushErr) {
+      console.error(`[${requestId}] push error:`, pushErr)
     }
 
     const { data: doctor } = await supabase
