@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
     ]))
     const { data: citasData } = await supabase
       .from('citas')
-      .select('id, fecha, hora, estado')
+      .select('id, fecha, hora, estado, paciente_nombre')
       .in('id', citaIds)
 
     const citaVigente = citasData?.find(c => c.id === sesion.citaActualId)
@@ -138,6 +138,7 @@ export async function POST(request: NextRequest) {
         citaFecha: citaVigente?.fecha || null,
         citaHora: citaVigente?.hora || null,
         citaEstado: citaVigente?.estado || null,
+        pacienteNombre: citaVigente?.paciente_nombre || null,
         citas: citasData || [],
       },
       { headers: { ...securityHeaders, 'X-Request-ID': requestId } }

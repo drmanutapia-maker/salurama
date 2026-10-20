@@ -42,6 +42,7 @@ type SesionData = {
   citaFecha: string | null
   citaHora: string | null
   citaEstado: string | null
+  pacienteNombre: string | null
   citas: Map<string, CitaInfo>
 }
 
@@ -142,6 +143,7 @@ export default function ChatPacienteClient({ token }: { token: string }) {
         citaFecha: data.citaFecha,
         citaHora: data.citaHora,
         citaEstado: data.citaEstado,
+        pacienteNombre: data.pacienteNombre || null,
         citas: new Map((data.citas || []).map((c: CitaInfo) => [c.id, c])),
       })
       setPagina('ok')
@@ -447,16 +449,29 @@ export default function ChatPacienteClient({ token }: { token: string }) {
             Esta cita ya no puede cancelarse en línea. Contacta directamente al consultorio para cancelar.
           </p>
           <div className="flex gap-2">
-            {fueraDeVentana.whatsapp && (
-              <a
-                href={`https://wa.me/${fueraDeVentana.whatsapp.replace(/[\s\-]/g, '')}?text=Hola%2C+quisiera+cancelar+mi+cita+agendada+a+trav%C3%A9s+de+Salurama.`}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', borderRadius: 8, background: '#25D366', color: '#fff', fontSize: 12, fontWeight: 700, textDecoration: 'none' }}
-              >
-                📲 Contactar consultorio
-              </a>
-            )}
+            {fueraDeVentana.whatsapp && (() => {
+              const d = sesion?.citaFecha ? new Date(sesion.citaFecha + 'T00:00:00') : null
+              const fechaFmt = d ? d.toLocaleDateString('es-MX', { day: 'numeric', month: 'long' }) : ''
+              const horaFmt = sesion?.citaHora ? sesion.citaHora.slice(0, 5) : ''
+              const medico = sesion?.medicoNombre ? `con el Dr. ${sesion.medicoNombre}` : ''
+              const partes = [
+                `Hola, soy ${sesion?.pacienteNombre ?? 'un paciente'} y quisiera cancelar mi cita`,
+                fechaFmt ? `del ${fechaFmt}` : '',
+                horaFmt ? `a las ${horaFmt}` : '',
+                medico,
+                'agendada a través de Salurama.',
+              ].filter(Boolean).join(' ')
+              return (
+                <a
+                  href={`https://wa.me/${fueraDeVentana.whatsapp.replace(/[\s\-]/g, '')}?text=${encodeURIComponent(partes)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', borderRadius: 8, background: '#25D366', color: '#fff', fontSize: 12, fontWeight: 700, textDecoration: 'none' }}
+                >
+                  📲 Contactar consultorio
+                </a>
+              )
+            })()}
             <button
               onClick={() => setFueraDeVentana(null)}
               className="font-body text-xs font-semibold text-neutral-600 hover:text-neutral-800 rounded-lg px-3 py-2 transition-colors"
