@@ -7,120 +7,7 @@ import { Turnstile } from '@marsidev/react-turnstile'
 import { useCP } from '@/hooks/useCP'
 import TitleSelect from '@/components/TitleSelect'
 import { supabase } from '@/lib/supabaseClient'
-
-const ESPECIALIDADES = [
-  'Alergología e Inmunología Clínica',
-  'Algología',
-  'Anatomía Patológica',
-  'Anestesiología',
-  'Anestesiología Pediátrica',
-  'Angiología, Cirugía Vascular y Endovascular',
-  'Audiología',
-  'Cardiología',
-  'Cardiología Intervencionista',
-  'Cardiología Pediátrica',
-  'Cirugía Bariátrica',
-  'Cirugía Cardiaca',
-  'Cirugía Cardiaca Pediátrica',
-  'Cirugía Cardiotorácica',
-  'Cirugía de Cabeza y Cuello',
-  'Cirugía de Columna',
-  'Cirugía de Tórax',
-  'Cirugía Endovascular Neurológica',
-  'Cirugía General',
-  'Cirugía Maxilofacial',
-  'Cirugía Neurológica',
-  'Cirugía Oncológica',
-  'Cirugía Oral y Maxilofacial',
-  'Cirugía Pediátrica',
-  'Cirugía Plástica, Estética y Reconstructiva',
-  'Cirugía Torácica Pediátrica',
-  'Coloproctología',
-  'Cuidados Intensivos',
-  'Cuidados Paliativos',
-  'Dermatología',
-  'Dermatología Pediátrica',
-  'Dermatopatología',
-  'Ecocardiografía',
-  'Electrofisiología Cardiaca',
-  'Endocrinología',
-  'Endocrinología Pediátrica',
-  'Endodoncia',
-  'Endoscopia Gastrointestinal',
-  'Endoscopia del Aparato Digestivo',
-  'Epidemiología',
-  'Foniatría',
-  'Gastroenterología',
-  'Gastroenterología Pediátrica',
-  'Genética Médica',
-  'Genética Molecular',
-  'Geriatría',
-  'Gerontología',
-  'Ginecología Oncológica',
-  'Ginecología y Obstetricia',
-  'Hematología',
-  'Hematología Pediátrica',
-  'Imagenología Diagnóstica y Terapéutica',
-  'Infectología',
-  'Infectología Pediátrica',
-  'Inmunología Clínica',
-  'Medicina Aeroespacial',
-  'Medicina Crítica',
-  'Medicina de Urgencias',
-  'Medicina del Deporte',
-  'Medicina del Enfermo Pediátrico en Estado Crítico',
-  'Medicina del Trabajo',
-  'Medicina Familiar',
-  'Medicina Física y Rehabilitación',
-  'Medicina Intensiva',
-  'Medicina Interna',
-  'Medicina Legal y Forense',
-  'Medicina Materno Fetal',
-  'Medicina Nuclear',
-  'Medicina Nuclear e Imagen Molecular',
-  'Nefrología',
-  'Nefrología Pediátrica',
-  'Neonatología',
-  'Neumología',
-  'Neumología Pediátrica',
-  'Neuroanestesiología',
-  'Neurocirugía Pediátrica',
-  'Neurofisiología Clínica',
-  'Neurología',
-  'Neurología Pediátrica',
-  'Neuropatología',
-  'Nutrición Clínica',
-  'Nutriología Clínica',
-  'Obstetricia Crítica',
-  'Odontología Pediátrica',
-  'Oftalmología',
-  'Oncología Médica',
-  'Oncología Pediátrica',
-  'Ortodoncia',
-  'Ortopedia',
-  'Ortopedia Pediátrica',
-  'Otoneurología',
-  'Otorrinolaringología',
-  'Patología Clínica',
-  'Patología Pediátrica',
-  'Pediatría',
-  'Periodoncia',
-  'Psiquiatría',
-  'Psiquiatría Infantil y de la Adolescencia',
-  'Radiología e Imagen',
-  'Radiología Intervencionista',
-  'Radiooncología',
-  'Rehabilitación Cardiaca',
-  'Rehabilitación Neurológica',
-  'Reumatología',
-  'Reumatología Pediátrica',
-  'Salud Pública',
-  'Terapia Endovascular Neurológica',
-  'Terapia Intensiva Pediátrica',
-  'Traumatología y Ortopedia',
-  'Urología',
-  'Urología Pediátrica'
-]
+import EspecialidadAutocomplete from '@/components/ui/EspecialidadAutocomplete'
 
 
 // El mapeo especialidad -> consejo CONACEM ya no vive aquí hardcodeado —
@@ -493,14 +380,22 @@ export default function RegistroMedico() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-[#374151] mb-1.5">Especialidad</label>
-                  <select
+                  <EspecialidadAutocomplete
                     value={form.specialty}
-                    onChange={e => updateField('specialty', e.target.value)}
-                    className="w-full h-12 px-4 border border-[#D1D5DB] rounded-xl focus:ring-2 focus:ring-[#1E3A5F]/20 focus:border-[#1E3A5F] outline-none transition-all bg-white"
-                  >
-                    <option value="">Selecciona</option>
-                    {ESPECIALIDADES.map(e => <option key={e} value={e}>{e}</option>)}
-                  </select>
+                    onChange={v => updateField('specialty', v)}
+                    placeholder="Busca tu especialidad"
+                    inputStyle={{
+                      width: '100%',
+                      height: 48,
+                      padding: '0 16px',
+                      border: '1px solid #D1D5DB',
+                      borderRadius: 12,
+                      fontSize: 14,
+                      fontFamily: "'DM Sans', sans-serif",
+                      outline: 'none',
+                      background: '#fff',
+                    }}
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-[#374151] mb-1.5">Cédula profesional</label>

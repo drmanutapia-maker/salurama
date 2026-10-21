@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { Suspense, useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -12,21 +12,9 @@ import { STATES, getStateLabel } from '@/lib/locations'
 import BottomNav from '@/components/BottomNav'
 import type { BlogArticuloResumen } from '@/lib/blog'
 import { filtrarMedicos } from '@/lib/buscarMedicos'
+import EspecialidadAutocomplete from '@/components/ui/EspecialidadAutocomplete'
 
 // ─── Constantes ────────────────────────────────────────────────────────────────
-
-const ESPECIALIDADES_CONACEM: string[] = [
-  'Alergología','Anestesiología','Angiología y Cirugía Vascular','Cardiología','Cardiología Pediátrica',
-  'Cirugía Cardiovascular','Cirugía General','Cirugía Maxilofacial','Cirugía Pediátrica',
-  'Cirugía Plástica y Reconstructiva','Dermatología','Endocrinología','Endocrinología Pediátrica',
-  'Gastroenterología','Gastroenterología y Endoscopia Pediátrica','Geriatría','Hematología',
-  'Hematología Pediátrica','Infectología','Infectología Pediátrica','Medicina Crítica','Medicina Familiar',
-  'Medicina Física y Rehabilitación','Medicina Interna','Nefrología','Nefrología Pediátrica','Neonatología',
-  'Neumología','Neumología Pediátrica','Neurocirugía','Neurología','Neurología Pediátrica','Oncología',
-  'Oncología Pediátrica','Oftalmología','Ortopedia y Traumatología','Otorrinolaringología','Pediatría',
-  'Psiquiatría','Psiquiatría Infantil y de la Adolescencia','Radiología e Imagen','Reumatología',
-  'Reumatología Pediátrica','Urología','Ginecología y Obstetricia','Medicina General','Nutrición',
-]
 
 const CHIPS_CONFIG = [
   { id: 'cerca', label: 'Cerca de mí', icon: <Navigation size={15} />, tooltip: 'Usa tu ubicación para mostrar médicos más cercanos primero' },
@@ -384,8 +372,6 @@ function BuscarContent({ initialMedicos, heroTitulo, heroTexto, articulosRelacio
   // Búsqueda
   const [busqueda, setBusqueda] = useState('')
   const [inputValue, setInputValue] = useState('')
-  const [sugerencias, setSugerencias] = useState<string[]>([])
-  const [showSugerencias,setShowSugerencias]= useState(false)
 
   // Ubicación / filtros
   const [selectedState, setSelectedState] = useState('')
@@ -402,17 +388,6 @@ function BuscarContent({ initialMedicos, heroTitulo, heroTexto, articulosRelacio
   const [activeTooltip, setActiveTooltip] = useState<string|null>(null)
   const [showMapModal, setShowMapModal] = useState<Medico|null>(null)
   const [showActionSheet, setShowActionSheet] = useState(false)
-  const sugerenciasRef = useRef<HTMLDivElement>(null)
-
-  // ── Cerrar sugerencias al clic fuera ────────────────────────────────────────
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (sugerenciasRef.current && !sugerenciasRef.current.contains(e.target as Node))
-        setShowSugerencias(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [])
 
   // ── Cerrar modal con Escape ──────────────────────────────────────────────────
   useEffect(() => {
@@ -435,30 +410,6 @@ function BuscarContent({ initialMedicos, heroTitulo, heroTexto, articulosRelacio
     if (esp) { setBusqueda(esp); setInputValue(esp) }
     if (est) setSelectedState(est)
   }, [searchParams])
-
-  // ── Sugerencias con debounce 200ms (DB + fallback CONACEM) ──────────────────
-  useEffect(() => {
-    if (inputValue.trim().length < 2) { setShowSugerencias(false); return }
-
-    const controller = new AbortController()
-    const t = setTimeout(async () => {
-      try {
-        const res = await fetch(`/api/buscar/sugerencias?q=${encodeURIComponent(inputValue.trim())}`, {
-          signal: controller.signal,
-        })
-        const dbMatches: string[] = res.ok ? (await res.json()).especialidades ?? [] : []
-        const conacemMatches = ESPECIALIDADES_CONACEM.filter(e => norm(e).includes(norm(inputValue)))
-        const merged = Array.from(new Set([...conacemMatches,...dbMatches])).slice(0, 9)
-
-        setSugerencias(merged)
-        setShowSugerencias(merged.length > 0)
-      } catch (e: any) {
-        if (e.name !== 'AbortError') console.error(e)
-      }
-    }, 200)
-
-    return () => { clearTimeout(t); controller.abort() }
-  }, [inputValue])
 
   // ── Filtrado con useMemo ─────────────────────────────────────────────────────
   const filteredMedicos = useMemo(() => {
@@ -597,7 +548,6 @@ function BuscarContent({ initialMedicos, heroTitulo, heroTexto, articulosRelacio
 
   const handleSearch = useCallback(() => {
     setBusqueda(inputValue)
-    setShowSugerencias(false)
   }, [inputValue])
 
   // ─── Render ─────────────────────────────────────────────────────────────────
@@ -674,47 +624,16 @@ function BuscarContent({ initialMedicos, heroTitulo, heroTexto, articulosRelacio
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', maxWidth: 1000, margin: '0 auto', alignItems: 'stretch' }}>
 
               {/* Input + sugerencias */}
-              <div ref={sugerenciasRef} style={{ flex: '1 1 400px', position: 'relative', minWidth: 280, zIndex: 1000 }}>
-                <Search
-                  size={18}
-                  style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF', pointerEvents: 'none', zIndex: 2 }}
-                />
-                <input
-                  type="text"
-                  placeholder="Especialidad o médico..."
+              <div style={{ flex: '1 1 400px', minWidth: 280, zIndex: 1000 }}>
+                <EspecialidadAutocomplete
                   value={inputValue}
-                  onChange={e => { setInputValue(e.target.value); setBusqueda(e.target.value) }}
-                  onFocus={() => inputValue.length >= 2 && setShowSugerencias(true)}
-                  onKeyDown={e => {
-                    if (e.key === 'Escape') setShowSugerencias(false)
-                    if (e.key === 'Enter') handleSearch()
+                  onChange={v => {
+                    setInputValue(v)
+                    setBusqueda(v)
                   }}
+                  placeholder="Especialidad o médico..."
                   className="buscar-input"
                 />
-
-                {/* Dropdown de sugerencias */}
-                {showSugerencias && sugerencias.length > 0 && (
-                  <div className="scale-in" style={{
-                    position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0,
-                    background: '#fff', borderRadius: 14,
-                    border: '1px solid #E5E7EB',
-                    boxShadow: '0 12px 36px rgba(0,0,0,.12)',
-                    zIndex: 100, overflow: 'hidden',
-                  }}>
-                    {sugerencias.map((s, i) => (
-                      <button
-                        key={i}
-                        className="sugerencia-item"
-                        onMouseDown={e => { e.preventDefault(); setBusqueda(s); setInputValue(s); setShowSugerencias(false) }}
-                      >
-                        <div style={{ width: 28, height: 28, borderRadius: 8, background: '#F5F3FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          <Search size={12} color="#8B5CF6" />
-                        </div>
-                        {s}
-                      </button>
-                    ))}
-                  </div>
-                )}
               </div>
 
               {/* Selector estado - COMPACTO 200px */}

@@ -14,6 +14,7 @@ import imageCompression from 'browser-image-compression'
 import GaleriaFotos from './GaleriaFotos'
 import FechasBloqueadas, { type BloqueoFecha } from '@/components/FechasBloqueadas'
 import { fechaISOLocal } from '@/lib/citas/fechas'
+import EspecialidadAutocomplete from '@/components/ui/EspecialidadAutocomplete'
 
 const UNIVERSIDADES_MEXICO = [
   'Benemérita Universidad Autónoma de Puebla (BUAP)',
@@ -3015,8 +3016,7 @@ function SpecialtiesForm({ specialties, specialty, councilMap, onAdd, onDelete, 
       {specialties.map((spec: any) => <div key={spec.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 12px', background: '#F9FAFB', borderRadius: 8, border: '1px solid #E5E7EB' }}><div><p style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{spec.specialty_name}</p><p style={{ fontSize: 13, color: '#6B7280' }}>Cédula: {spec.license_number}{spec.council && ` · ${spec.council}`}</p></div><button onClick={() => onDelete(spec)} style={{ background: 'none', border: 'none', color: '#DC2626', cursor: 'pointer', padding: 4 }}><Trash2 size={15} /></button></div>)}
       {showForm ? (
         <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '16px', background: '#F9FAFB', borderRadius: 10, border: '1px solid #E5E7EB' }}>
-          <input type="text" value={form.specialty_name} onChange={e => setForm(p => ({ ...p, specialty_name: e.target.value }))} style={inputStyle} list="esp-list" required placeholder="Especialidad" />
-          <datalist id="esp-list">{Object.keys(councilMap).sort().map(name => <option key={name} value={name} />)}</datalist>
+          <EspecialidadAutocomplete value={form.specialty_name} onChange={v => setForm(p => ({ ...p, specialty_name: v }))} placeholder="Busca una especialidad" inputStyle={inputStyle} />
           {form.specialty_name && (
             councilInfo?.councilName
               ? <p style={{ fontSize: 12, color: '#6B7280', margin: 0 }}>Consejo: {councilInfo.councilName}</p>

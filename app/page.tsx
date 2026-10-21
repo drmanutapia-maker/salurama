@@ -1,4 +1,3 @@
-import { createClient } from '@supabase/supabase-js'
 import HomeClient from './HomeClient'
 import { getEspecialistasDestacados } from '@/lib/homepageEspecialistas'
 
@@ -9,94 +8,6 @@ import { getEspecialistasDestacados } from '@/lib/homepageEspecialistas'
 // real (confirmado con `next build`: aparece como ○ con ventana de 10m).
 export const revalidate = 600
 
-const ESPECIALIDADES_CONACEM: string[] = [
-  'Alergología',
-  'Anestesiología',
-  'Angiología y Cirugía Vascular',
-  'Cardiología',
-  'Cardiología Pediátrica',
-  'Cirugía Cardiovascular',
-  'Cirugía General',
-  'Cirugía Maxilofacial',
-  'Cirugía Pediátrica',
-  'Cirugía Plástica y Reconstructiva',
-  'Dermatología',
-  'Endocrinología',
-  'Endocrinología Pediátrica',
-  'Gastroenterología',
-  'Gastroenterología y Endoscopia Pediátrica',
-  'Geriatría',
-  'Hematología',
-  'Hematología Pediátrica',
-  'Infectología',
-  'Infectología Pediátrica',
-  'Medicina Crítica',
-  'Medicina Familiar',
-  'Medicina Física y Rehabilitación',
-  'Medicina Interna',
-  'Nefrología',
-  'Nefrología Pediátrica',
-  'Neonatología',
-  'Neumología',
-  'Neumología Pediátrica',
-  'Neurocirugía',
-  'Neurología',
-  'Neurología Pediátrica',
-  'Oncología',
-  'Oncología Pediátrica',
-  'Oftalmología',
-  'Ortopedia y Traumatología',
-  'Otorrinolaringología',
-  'Pediatría',
-  'Psiquiatría',
-  'Psiquiatría Infantil y de la Adolescencia',
-  'Radiología e Imagen',
-  'Reumatología',
-  'Reumatología Pediátrica',
-  'Urología',
-  'Ginecología y Obstetricia',
-  'Medicina General',
-  'Nutrición',
-  'Oncología Radioterápica',
-  'Patología',
-  'Pediatría del Desarrollo y Conducta',
-]
-
-function getSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
-}
-
-async function getEspecialidades(): Promise<string[]> {
-  const supabase = getSupabase()
-  const [{ data, error }, { data: secundarias }] = await Promise.all([
-    supabase
-      .from('doctors')
-      .select('specialty')
-      .eq('is_active', true)
-      .not('specialty', 'is', null)
-      .limit(500),
-    // Especialidades secundarias certificadas y verificadas -- sin esto, una
-    // especialidad que nadie tiene como PRINCIPAL (pero sí como secundaria
-    // verificada) nunca aparecía como sugerencia/chip aquí, aunque no fuera
-    // ya parte del catálogo fijo de ESPECIALIDADES_CONACEM de arriba.
-    supabase
-      .from('doctor_specialty_credentials')
-      .select('specialty_granular_mapping!inner(granular_name), doctors!inner(is_active)')
-      .eq('is_primary', false)
-      .eq('credentials_status', 'verificado')
-      .eq('doctors.is_active', true)
-      .limit(500),
-  ])
-  if (error || !data) return ESPECIALIDADES_CONACEM
-
-  const nombresSecundarios = (secundarias ?? []).map((r: any) => r.specialty_granular_mapping?.granular_name).filter(Boolean)
-  const fromDB = Array.from(new Set([...data.map(d => d.specialty).filter(Boolean), ...nombresSecundarios])) as string[]
-  const extras = fromDB.filter(esp => !ESPECIALIDADES_CONACEM.includes(esp)).sort()
-  return [...ESPECIALIDADES_CONACEM, ...extras]
-}
 
 // Organization/WebSite — sin afirmar certificación ni verificación por parte
 // de Salurama, solo identidad de la organización (regla de producto, ver
@@ -113,10 +24,7 @@ function organizationSchema() {
 }
 
 export default async function HomePage() {
-  const [especialistas, especialidades] = await Promise.all([
-    getEspecialistasDestacados(),
-    getEspecialidades(),
-  ])
+  const especialistas = await getEspecialistasDestacados()
 
   return (
     <>
@@ -124,7 +32,7 @@ export default async function HomePage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema()) }}
       />
-      <HomeClient especialistas={especialistas} especialidades={especialidades} />
+      <HomeClient especialistas={especialistas} />
     </>
   )
 }

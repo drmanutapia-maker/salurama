@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -13,6 +13,7 @@ import {
 import { STATES, getStateLabel } from '@/lib/locations'
 import BottomNav from '@/components/BottomNav'
 import type { EspecialistaHomepage } from '@/lib/homepageEspecialistas'
+import EspecialidadAutocomplete from '@/components/ui/EspecialidadAutocomplete'
 
 // ─── Constantes ────────────────────────────────────────────────────────────────
 
@@ -83,69 +84,22 @@ const PAGE_STYLES = `
   }
 `
 
-const normalizarTexto = (texto: string): string =>
-  texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
-
-// especialistas/especialidades llegan ya resueltos desde el servidor
-// (app/page.tsx, cacheado 10 min vía revalidate) — antes se pedían aquí en
-// dos useEffect, así que el HTML inicial traía la home vacía hasta que el
-// JS corría. Ninguno de los dos cambia después del primer render, así que
-// no hace falta useState para ellos.
 export default function HomeClient({
   especialistas,
-  especialidades,
 }: {
   especialistas: EspecialistaHomepage[]
-  especialidades: string[]
 }) {
   const router = useRouter()
-  const sugerenciasRef = useRef<HTMLDivElement>(null)
 
   const [inputValue, setInputValue] = useState('')
-  const [selectedSpecialty, setSelectedSpecialty] = useState('')
   const [selectedState, setSelectedState] = useState('')
-  const [sugerencias, setSugerencias] = useState<string[]>([])
-  const [showSugerencias, setShowSugerencias] = useState(false)
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (sugerenciasRef.current &&!sugerenciasRef.current.contains(e.target as Node)) {
-        setShowSugerencias(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
-
-  useEffect(() => {
-    if (inputValue.trim().length < 2) {
-      setShowSugerencias(false)
-      return
-    }
-    const normalizado = normalizarTexto(inputValue)
-    const filtradas = especialidades.filter((esp) => normalizarTexto(esp).includes(normalizado)).slice(0, 8)
-    setSugerencias(filtradas)
-    setShowSugerencias(filtradas.length > 0)
-  }, [inputValue, especialidades])
 
   const handleSearch = useCallback(() => {
     const params = new URLSearchParams()
-    const especialidadFinal = selectedSpecialty || inputValue.trim()
-    if (especialidadFinal) params.set('especialidad', especialidadFinal)
+    if (inputValue.trim()) params.set('especialidad', inputValue.trim())
     if (selectedState) params.set('estado', selectedState)
     router.push(`/buscar?${params.toString()}`)
-  }, [selectedSpecialty, inputValue, selectedState, router])
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setInputValue(e.target.value)
-    setSelectedSpecialty('')
-  }
-
-  const handleSugerenciaClick = (sugerencia: string) => {
-    setSelectedSpecialty(sugerencia)
-    setInputValue(sugerencia)
-    setShowSugerencias(false)
-  }
+  }, [inputValue, selectedState, router])
 
   const handleChipClick = (esp: string) => {
     const params = new URLSearchParams()
@@ -172,43 +126,26 @@ export default function HomeClient({
 
             <div style={{ maxWidth: 900, margin: '0 auto 40px' }}>
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'stretch' }}>
-                <div ref={sugerenciasRef} style={{ flex: '1 1 400px', position: 'relative', minWidth: 280 }}>
-                  <input
-                    type="text"
-                    placeholder="Especialidad o médico..."
+                <div style={{ flex: '1 1 400px', minWidth: 280 }}>
+                  <EspecialidadAutocomplete
                     value={inputValue}
-                    onChange={handleInputChange}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                    style={{
+                    onChange={v => {
+                      setInputValue(v)
+                    }}
+                    placeholder="Especialidad o médico"
+                    inputStyle={{
                       width: '100%',
                       height: 56,
                       padding: '0 24px',
                       borderRadius: 16,
                       border: '1.5px solid #2A9D8F',
                       fontSize: 15,
+                      fontFamily: "'DM Sans', sans-serif",
                       background: '#fff',
                       outline: 'none',
                       boxShadow: '0 2px 8px rgba(42,157,143,.08)',
                     }}
-                    onFocus={(e) => {
-                      e.currentTarget.style.borderColor = '#8B5CF6'
-                      e.currentTarget.style.boxShadow = '0 0 0 3px rgba(139,92,246,.12), 0 2px 8px rgba(42,157,143,.08)'
-                    }}
-                    onBlur={(e) => {
-                      e.currentTarget.style.borderColor = '#2A9D8F'
-                      e.currentTarget.style.boxShadow = '0 2px 8px rgba(42,157,143,.08)'
-                    }}
                   />
-
-                  {showSugerencias && (
-                    <div className="fade-in" style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0, background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', boxShadow: '0 8px 24px rgba(0,0,0,0.12)', zIndex: 100, maxHeight: 300, overflowY: 'auto' }}>
-                      {sugerencias.map((sugerencia, index) => (
-                        <button key={sugerencia} onMouseDown={(e) => { e.preventDefault(); handleSugerenciaClick(sugerencia) }} style={{ width: '100%', padding: '12px 16px', background: 'none', border: 'none', borderBottom: index < sugerencias.length - 1? '1px solid #F3F4F6' : 'none', textAlign: 'left', fontSize: 14, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", transition: 'background 0.15s' }} onMouseEnter={(e) => (e.currentTarget.style.background = '#F5F3FF')} onMouseLeave={(e) => (e.currentTarget.style.background = '#fff')}>
-                          {sugerencia}
-                        </button>
-                      ))}
-                    </div>
-                  )}
                 </div>
 
                 <select value={selectedState} onChange={(e) => setSelectedState(e.target.value)} style={{ height: 56, width: '100%', maxWidth: 200, padding: '0 36px 0 16px', borderRadius: 16, border: '1.5px solid #2A9D8F', fontSize: 15, fontFamily: "'DM Sans', sans-serif", background: '#fff', cursor: 'pointer', outline: 'none', appearance: 'none', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '16px', boxShadow: '0 2px 8px rgba(42,157,143,.08)', flexShrink: 0 }}>
