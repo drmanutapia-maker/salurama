@@ -30,6 +30,12 @@ _pdfs-prueba/
 # etc.) — se acumulan por sesión, nunca deben subirse al repo
 .tmp-*
 
+# Estado interno del CLI de Supabase (generado por `supabase link`)
+supabase/.temp/
+
+# Caché de compilación de TypeScript
+tsconfig.tsbuildinfo
+
 # Captura de pantalla que quedó mal escrita en la raíz por un error de ruta
 # en un script de validación (Playwright) — nunca debió escribirse aquí
 UsersHuaweiAppDataLocalTempclaudec--Users-Huawei-mediopen-appe44fb990-8970-45f0-ac16-83d1449a5d58scratchpaddebug.png
