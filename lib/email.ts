@@ -18,6 +18,7 @@ export async function sendVerificationEmail(
   pacienteNombre?: string,
   citaHora?: string,
   consultorioNombre?: string,
+  medicoTitulo?: string,
 ) {
   const resend = getResend()
   const baseUrl = process.env.NEXT_PUBLIC_URL || 'https://salurama.com'
@@ -26,12 +27,13 @@ export async function sendVerificationEmail(
 
   const saludo = pacienteNombre ? `Hola ${pacienteNombre},` : 'Hola,'
   const fechaCompleta = citaHora ? `${citaFecha} a las ${citaHora}` : citaFecha
+  const nombreCompletoMedico = medicoTitulo ? `${medicoTitulo} ${medicoNombre}` : medicoNombre
 
   try {
     const { data, error } = await resend.emails.send({
       from: 'Salurama <noreply@salurama.com>',
       to: [to],
-      subject: `Confirma tu cita con ${medicoNombre}`,
+      subject: `Confirma tu cita con ${nombreCompletoMedico}`,
       html: `
         <!DOCTYPE html>
         <html>
@@ -45,7 +47,7 @@ export async function sendVerificationEmail(
                 <tr><td style="padding:40px 32px;">
                   <h2 style="margin:0 0 16px;color:#1F2937;font-size:24px;">Confirma tu cita médica</h2>
                   <p style="margin:0 0 16px;color:#6B7280;line-height:1.6;">${saludo}</p>
-                  <p style="margin:0 0 8px;color:#6B7280;line-height:1.6;">Recibimos tu solicitud con <strong>${medicoNombre}</strong>.</p>
+                  <p style="margin:0 0 8px;color:#6B7280;line-height:1.6;">Recibimos tu solicitud con <strong>${nombreCompletoMedico}</strong>.</p>
                   <table cellpadding="0" cellspacing="0" style="margin:0 0 24px;width:100%;background:#F9FAFB;border-radius:10px;">
                     <tr><td style="padding:16px 20px;">
                       <p style="margin:0 0 6px;font-size:12px;color:#9CA3AF;text-transform:uppercase;font-weight:700;">Fecha y hora</p>

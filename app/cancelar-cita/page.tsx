@@ -84,16 +84,6 @@ function CancelarCitaContent() {
       flexDirection: 'column', alignItems: 'center',
       fontFamily: 'system-ui, -apple-system, sans-serif',
     }}>
-      {/* Header */}
-      <div style={{
-        width: '100%', background: '#1E3A5F', padding: '20px',
-        textAlign: 'center', marginBottom: 32,
-      }}>
-        <span style={{ color: '#fff', fontSize: 22, fontWeight: 900, letterSpacing: '-0.5px' }}>
-          Salurama
-        </span>
-      </div>
-
       {/* Card */}
       <div style={{
         width: '100%', maxWidth: 480, margin: '0 auto',

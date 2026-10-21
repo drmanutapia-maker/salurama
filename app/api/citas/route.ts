@@ -174,7 +174,7 @@ export async function POST(request: NextRequest) {
 
     const { data: medico, error: medicoError } = await supabase
      .from('doctors')
-     .select('id, full_name')
+     .select('id, full_name, professional_title')
      .eq('id', medicoId)
      .eq('is_active', true)
      .single()
@@ -307,7 +307,8 @@ export async function POST(request: NextRequest) {
         cancelToken,
         nombreFinal,
         hora,
-        consultorio.nombre || undefined
+        consultorio.nombre || undefined,
+        medico.professional_title ?? undefined
       )
     } catch (emailError) {
       console.error(`[${requestId}] Email failed:`, emailError)
