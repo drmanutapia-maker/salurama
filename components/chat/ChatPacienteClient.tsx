@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import type { ChangeEvent, KeyboardEvent } from 'react'
+import { useRouter } from 'next/navigation'
 import { Send, FileText, Paperclip, Image as ImageIcon, Loader2 } from 'lucide-react'
 import imageCompression from 'browser-image-compression'
 import AvisoNotificaciones from './AvisoNotificaciones'
@@ -43,6 +44,7 @@ type SesionData = {
   citaHora: string | null
   citaEstado: string | null
   pacienteNombre: string | null
+  cancelToken: string | null
   citas: Map<string, CitaInfo>
 }
 
@@ -85,6 +87,7 @@ function formatSeparadorFecha(iso: string): string {
 }
 
 export default function ChatPacienteClient({ token }: { token: string }) {
+  const router = useRouter()
   const [pagina, setPagina] = useState<EstadoPagina>('cargando')
   const [tipoError, setTipoError] = useState<TipoError>('temporal')
   const [sesion, setSesion] = useState<SesionData | null>(null)
@@ -94,10 +97,6 @@ export default function ChatPacienteClient({ token }: { token: string }) {
   const [subiendoArchivo, setSubiendoArchivo] = useState(false)
   const [errorArchivo, setErrorArchivo] = useState<string | null>(null)
   const [abriendoArchivoId, setAbriendoArchivoId] = useState<string | null>(null)
-  const [confirmandoCancelar, setConfirmandoCancelar] = useState(false)
-  const [cancelando, setCancelando] = useState(false)
-  const [errorCancelar, setErrorCancelar] = useState<string | null>(null)
-  const [fueraDeVentana, setFueraDeVentana] = useState<{ whatsapp: string | null } | null>(null)
 
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -144,6 +143,7 @@ export default function ChatPacienteClient({ token }: { token: string }) {
         citaHora: data.citaHora,
         citaEstado: data.citaEstado,
         pacienteNombre: data.pacienteNombre || null,
+        cancelToken: data.cancelToken || null,
         citas: new Map((data.citas || []).map((c: CitaInfo) => [c.id, c])),
       })
       setPagina('ok')
@@ -156,36 +156,6 @@ export default function ChatPacienteClient({ token }: { token: string }) {
       primeraCarga.current = false
     }
   }, [token])
-
-  const cancelarCita = async () => {
-    if (cancelando) return
-    setCancelando(true)
-    setErrorCancelar(null)
-    try {
-      const res = await fetch('/api/chat/paciente/cancelar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token }),
-      })
-      const data = await res.json().catch(() => null)
-      if (!res.ok) {
-        if (data?.error === 'fuera_de_ventana') {
-          setFueraDeVentana({ whatsapp: data.whatsapp_recepcion ?? null })
-          setErrorCancelar(null)
-          setConfirmandoCancelar(false)
-        } else {
-          setErrorCancelar(data?.error || 'No se pudo cancelar la cita. Intenta de nuevo.')
-        }
-        return
-      }
-      setConfirmandoCancelar(false)
-      await cargarSesion()
-    } catch {
-      setErrorCancelar('No se pudo cancelar la cita. Intenta de nuevo.')
-    } finally {
-      setCancelando(false)
-    }
-  }
 
   useEffect(() => {
     cargarSesion()
@@ -397,9 +367,9 @@ export default function ChatPacienteClient({ token }: { token: string }) {
             <p className="font-body text-xs text-neutral-500 truncate">Próxima cita: {formatFecha(sesion.citaFecha, sesion.citaHora)}</p>
           )}
         </div>
-        {(sesion.citaEstado === 'pending_verification' || sesion.citaEstado === 'confirmed') && citaEsFutura && !confirmandoCancelar && (
+        {(sesion.citaEstado === 'pending_verification' || sesion.citaEstado === 'confirmed') && citaEsFutura && sesion.cancelToken && (
           <button
-            onClick={() => { setConfirmandoCancelar(true); setErrorCancelar(null) }}
+            onClick={() => router.push(`/cancelar-cita?token=${sesion.cancelToken}`)}
             className="shrink-0 font-body text-xs font-semibold text-error-600 hover:text-error-700 transition-colors"
           >
             Cancelar cita
@@ -417,70 +387,6 @@ export default function ChatPacienteClient({ token }: { token: string }) {
       </div>
 
       <AvisoNotificaciones token={token} activo={ofrecerNotificaciones} />
-
-      {confirmandoCancelar && (
-        <div className="shrink-0 border-b border-neutral-200 bg-neutral-50 px-4 py-3">
-          <p className="font-body text-sm text-neutral-700 mb-2">¿Seguro que quieres cancelar tu cita?</p>
-          {errorCancelar && (
-            <p className="font-body text-xs text-error-600 mb-2">{errorCancelar}</p>
-          )}
-          <div className="flex gap-2">
-            <button
-              onClick={cancelarCita}
-              disabled={cancelando}
-              className="font-body text-xs font-semibold text-white bg-error-600 hover:bg-error-700 disabled:opacity-50 rounded-lg px-3 py-2 transition-colors"
-            >
-              {cancelando ? 'Cancelando...' : 'Sí, cancelar cita'}
-            </button>
-            <button
-              onClick={() => { setConfirmandoCancelar(false); setErrorCancelar(null) }}
-              disabled={cancelando}
-              className="font-body text-xs font-semibold text-neutral-600 hover:text-neutral-800 disabled:opacity-50 rounded-lg px-3 py-2 transition-colors"
-            >
-              No, mantener cita
-            </button>
-          </div>
-        </div>
-      )}
-
-      {fueraDeVentana && (
-        <div className="shrink-0 border-b border-neutral-200 bg-neutral-50 px-4 py-3">
-          <p className="font-body text-sm text-neutral-700 mb-2">
-            Esta cita ya no puede cancelarse en línea. Contacta directamente al consultorio para cancelar.
-          </p>
-          <div className="flex gap-2">
-            {fueraDeVentana.whatsapp && (() => {
-              const d = sesion?.citaFecha ? new Date(sesion.citaFecha + 'T00:00:00') : null
-              const fechaFmt = d ? d.toLocaleDateString('es-MX', { day: 'numeric', month: 'long' }) : ''
-              const horaFmt = sesion?.citaHora ? sesion.citaHora.slice(0, 5) : ''
-              const medico = sesion?.medicoNombre ? `con el Dr. ${sesion.medicoNombre}` : ''
-              const partes = [
-                `Hola, soy ${sesion?.pacienteNombre ?? 'un paciente'} y quisiera cancelar mi cita`,
-                fechaFmt ? `del ${fechaFmt}` : '',
-                horaFmt ? `a las ${horaFmt}` : '',
-                medico,
-                'agendada a través de Salurama.',
-              ].filter(Boolean).join(' ')
-              return (
-                <a
-                  href={`https://wa.me/${fueraDeVentana.whatsapp.replace(/[\s\-]/g, '')}?text=${encodeURIComponent(partes)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', borderRadius: 8, background: '#25D366', color: '#fff', fontSize: 12, fontWeight: 700, textDecoration: 'none' }}
-                >
-                  📲 Contactar consultorio
-                </a>
-              )
-            })()}
-            <button
-              onClick={() => setFueraDeVentana(null)}
-              className="font-body text-xs font-semibold text-neutral-600 hover:text-neutral-800 rounded-lg px-3 py-2 transition-colors"
-            >
-              Cerrar
-            </button>
-          </div>
-        </div>
-      )}
 
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 pt-4">
         {sesion.items.length === 0 ? (

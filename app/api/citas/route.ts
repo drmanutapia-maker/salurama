@@ -186,7 +186,7 @@ export async function POST(request: NextRequest) {
 
     let consultorioQuery = supabase
       .from('consultorios')
-      .select('id, horario')
+      .select('id, horario, nombre')
       .eq('doctor_id', medicoId)
       .eq('activo', true)
 
@@ -303,8 +303,11 @@ export async function POST(request: NextRequest) {
         emailFinal,
         verificationToken,
         medico.full_name,
-        `${new Date(fecha + 'T00:00:00-06:00').toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' })} a las ${hora}`,
-        cancelToken
+        new Date(fecha + 'T00:00:00-06:00').toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+        cancelToken,
+        nombreFinal,
+        hora,
+        consultorio.nombre || undefined
       )
     } catch (emailError) {
       console.error(`[${requestId}] Email failed:`, emailError)

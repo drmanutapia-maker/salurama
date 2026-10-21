@@ -14,10 +14,18 @@ export async function sendVerificationEmail(
   token: string,
   medicoNombre: string,
   citaFecha: string,
-  cancelToken?: string
+  cancelToken?: string,
+  pacienteNombre?: string,
+  citaHora?: string,
+  consultorioNombre?: string,
 ) {
   const resend = getResend()
-  const verificationUrl = `${process.env.NEXT_PUBLIC_URL || 'https://salurama.com'}/verificar-cita?token=${token}`
+  const baseUrl = process.env.NEXT_PUBLIC_URL || 'https://salurama.com'
+  const verificationUrl = `${baseUrl}/verificar-cita?token=${token}`
+  const cancelUrl = cancelToken ? `${baseUrl}/cancelar-cita?token=${cancelToken}` : null
+
+  const saludo = pacienteNombre ? `Hola ${pacienteNombre},` : 'Hola,'
+  const fechaCompleta = citaHora ? `${citaFecha} a las ${citaHora}` : citaFecha
 
   try {
     const { data, error } = await resend.emails.send({
@@ -31,18 +39,26 @@ export async function sendVerificationEmail(
           <table width="100%" cellpadding="0" cellspacing="0" style="background:#F9FAFB;padding:40px 20px;">
             <tr><td align="center">
               <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:white;border-radius:16px;overflow:hidden;">
-                <tr><td style="background:#0F4C75;padding:32px;text-align:center;">
+                <tr><td style="background:#1E3A5F;padding:32px;text-align:center;">
                   <h1 style="margin:0;color:white;font-size:28px;font-weight:900;">Salurama</h1>
                 </td></tr>
                 <tr><td style="padding:40px 32px;">
                   <h2 style="margin:0 0 16px;color:#1F2937;font-size:24px;">Confirma tu cita médica</h2>
-                  <p style="margin:0 0 16px;color:#6B7280;line-height:1.6;">Hola,</p>
-                  <p style="margin:0 0 16px;color:#6B7280;line-height:1.6;">Recibimos tu solicitud con <strong>${medicoNombre}</strong> para el <strong>${citaFecha}</strong>.</p>
-                  <p style="margin:0 0 24px;color:#6B7280;">Para confirmar, haz clic:</p>
-                  <table cellpadding="0" cellspacing="0" style="margin:24px 0;"><tr><td align="center">
-                    <a href="${verificationUrl}" style="display:inline-block;background:#FF6B6B;color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;">Confirmar mi cita</a>
+                  <p style="margin:0 0 16px;color:#6B7280;line-height:1.6;">${saludo}</p>
+                  <p style="margin:0 0 8px;color:#6B7280;line-height:1.6;">Recibimos tu solicitud con <strong>${medicoNombre}</strong>.</p>
+                  <table cellpadding="0" cellspacing="0" style="margin:0 0 24px;width:100%;background:#F9FAFB;border-radius:10px;">
+                    <tr><td style="padding:16px 20px;">
+                      <p style="margin:0 0 6px;font-size:12px;color:#9CA3AF;text-transform:uppercase;font-weight:700;">Fecha y hora</p>
+                      <p style="margin:0;color:#1F2937;font-weight:600;">${fechaCompleta}</p>
+                      ${consultorioNombre ? `<p style="margin:6px 0 0;font-size:13px;color:#6B7280;">${consultorioNombre}</p>` : ''}
+                    </td></tr>
+                  </table>
+                  <p style="margin:0 0 20px;color:#6B7280;">Para confirmar tu cita, haz clic en el botón:</p>
+                  <table cellpadding="0" cellspacing="0" style="margin:0 0 16px;width:100%;"><tr><td align="center">
+                    <a href="${verificationUrl}" style="display:inline-block;background:#2A9D8F;color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;">Confirmar mi cita</a>
                   </td></tr></table>
-                  <p style="margin:24px 0 0;color:#9CA3AF;font-size:14px;">Este enlace expira en 24 horas.</p>
+                  ${cancelUrl ? `<p style="margin:0 0 20px;text-align:center;"><a href="${cancelUrl}" style="color:#9CA3AF;font-size:13px;text-decoration:underline;">¿Necesitas cancelar? Cancela aquí</a></p>` : ''}
+                  <p style="margin:0;color:#9CA3AF;font-size:13px;">Este enlace expira en 24 horas. Si no solicitaste esta cita, ignora este correo.</p>
                 </td></tr>
                 <tr><td style="background:#F3F4F6;padding:24px;text-align:center;">
                   <p style="margin:0;color:#9CA3AF;font-size:12px;">Salurama. Verifica. Elige. Confía.</p>
