@@ -263,6 +263,7 @@ export async function POST(request: NextRequest) {
     }
 
     const verificationToken = crypto.randomUUID()
+    const cancelToken = crypto.randomUUID()
     const { data: cita, error } = await supabase
       .from('citas')
       .insert({
@@ -276,6 +277,7 @@ export async function POST(request: NextRequest) {
         motivo: motivo || null,
         estado: 'pending_verification',
         verification_token: verificationToken,
+        cancel_token: cancelToken,
         expires_at: new Date(Date.now() + 24 * 3600000).toISOString(),
         ip_address: ip,
       })
@@ -301,7 +303,8 @@ export async function POST(request: NextRequest) {
         emailFinal,
         verificationToken,
         medico.full_name,
-        `${new Date(fecha + 'T00:00:00-06:00').toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' })} a las ${hora}`
+        `${new Date(fecha + 'T00:00:00-06:00').toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' })} a las ${hora}`,
+        cancelToken
       )
     } catch (emailError) {
       console.error(`[${requestId}] Email failed:`, emailError)

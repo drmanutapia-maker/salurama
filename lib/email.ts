@@ -13,7 +13,8 @@ export async function sendVerificationEmail(
   to: string,
   token: string,
   medicoNombre: string,
-  citaFecha: string
+  citaFecha: string,
+  cancelToken?: string
 ) {
   const resend = getResend()
   const verificationUrl = `${process.env.NEXT_PUBLIC_URL || 'https://salurama.com'}/verificar-cita?token=${token}`
