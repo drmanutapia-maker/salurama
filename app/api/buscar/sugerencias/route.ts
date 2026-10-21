@@ -59,37 +59,25 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Parámetro q inválido' }, { status: 400, headers: HEADERS })
   }
 
-  // Dos fuentes: la especialidad principal (doctors.specialty) y cualquier
-  // secundaria certificada y verificada (doctor_specialty_credentials) --
-  // sin esto, alguien buscando "Ginecología y Obstetricia" no veía esa
-  // sugerencia si ningún médico activo la tenía como PRINCIPAL, aunque sí
-  // hubiera médicos activos verificados en ella como secundaria.
-  const [{ data: porPrincipal, error: errorPrincipal }, { data: porSecundaria, error: errorSecundaria }] = await Promise.all([
-    supabase
-      .from('doctors')
-      .select('specialty')
-      .ilike('specialty', `%${validation.data.q}%`)
-      .eq('is_active', true)
-      .not('specialty', 'is', null)
-      .limit(50),
-    supabase
-      .from('doctor_specialty_credentials')
-      .select('specialty_granular_mapping!inner(granular_name), doctors!inner(is_active)')
-      .eq('is_primary', false)
-      .eq('credentials_status', 'verificado')
-      .eq('doctors.is_active', true)
-      .ilike('specialty_granular_mapping.granular_name', `%${validation.data.q}%`)
-      .limit(50),
-  ])
+  const q = validation.data.q
+  const { data, error } = await supabase.rpc('buscar_especialidades', { q })
 
-  if (errorPrincipal || errorSecundaria) {
+  if (error) {
     return NextResponse.json({ error: 'Error de búsqueda' }, { status: 500, headers: HEADERS })
   }
 
-  const nombresSecundarios = (porSecundaria ?? []).map((r: any) => r.specialty_granular_mapping?.granular_name).filter(Boolean)
-  const especialidades = Array.from(new Set([
-    ...(porPrincipal ?? []).map(d => d.specialty).filter(Boolean),
-    ...nombresSecundarios,
-  ]))
+  // Re-sort en JS para que coincidencias al inicio del nombre lleguen primero;
+  // la función SQL ya ordena igual pero el sort aquí es la fuente de verdad
+  // porque slice(0,8) aplica después.
+  const qLower = q.toLowerCase()
+  const especialidades = (data ?? [])
+    .map((r: { granular_name: string }) => r.granular_name)
+    .sort((a: string, b: string) => {
+      const aStarts = a.toLowerCase().startsWith(qLower) ? 0 : 1
+      const bStarts = b.toLowerCase().startsWith(qLower) ? 0 : 1
+      if (aStarts !== bStarts) return aStarts - bStarts
+      return a.localeCompare(b, 'es')
+    })
+    .slice(0, 8)
   return NextResponse.json({ especialidades }, { headers: HEADERS })
 }
