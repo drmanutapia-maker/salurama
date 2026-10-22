@@ -166,6 +166,30 @@ export default function SeccionSeguridad() {
     return () => { cancelRef.current = true }
   }, [load])
 
+  // Sincronización silenciosa de localStorage: si el servidor ya tiene una
+  // credencial para esta cuenta pero este navegador no tiene el id guardado
+  // (iOS PWA ↔ Safari aislados, storage limpiado, modo privado, etc.),
+  // guarda el id automáticamente para que /login muestre el botón de huella.
+  useEffect(() => {
+    if (credenciales.length === 0) return
+    if (obtenerCredencialLocal() !== null) return
+
+    // Intento 1: coincidencia exacta por deviceId — funciona aunque la
+    // cuenta tenga varias credenciales registradas.
+    const localDeviceId = obtenerOCrearDeviceId()
+    const porDispositivo = credenciales.find(c => c.deviceId && c.deviceId === localDeviceId)
+    if (porDispositivo) {
+      guardarCredencialLocal(porDispositivo.credentialId)
+      return
+    }
+
+    // Intento 2: si solo hay una credencial en toda la cuenta, es
+    // inequívocamente de este dispositivo.
+    if (credenciales.length === 1) {
+      guardarCredencialLocal(credenciales[0].credentialId)
+    }
+  }, [credenciales])
+
   // Cuando el navegador rechaza crear una credencial nueva porque ya
   // reconoce una de la cuenta (InvalidStateError), le pedimos que la use
   // para iniciar sesión en vez de crear otra -- así el navegador nos dice
