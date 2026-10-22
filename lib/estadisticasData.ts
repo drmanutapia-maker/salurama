@@ -93,6 +93,7 @@ async function calcularGrupoBenchmark(
 
   const citasPorDoctor = new Map<string, { total: number; confirmadas: number }>()
   for (const c of citasRes.data ?? []) {
+    if (c.estado === 'pending_verification') continue
     const entry = citasPorDoctor.get(c.medico_id) ?? { total: 0, confirmadas: 0 }
     entry.total += 1
     if (c.estado === 'confirmed' || c.estado === 'completed') entry.confirmadas += 1
