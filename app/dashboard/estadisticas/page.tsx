@@ -149,10 +149,12 @@ export default function EstadisticasPage() {
     confirmed: citas.filter(c => c.estado === 'confirmed').length,
     completed: citas.filter(c => c.estado === 'completed').length,
     cancelled: citas.filter(c => c.estado === 'cancelled').length,
+    cancelada_paciente: citas.filter(c => c.estado === 'cancelada_paciente').length,
   }
-  const tasaConfirmacion = total > 0
-    ? Math.round(((porStatus.confirmed + porStatus.completed) / total) * 100)
-    : 0
+  const totalResueltas = porStatus.confirmed + porStatus.completed + porStatus.cancelled + porStatus.cancelada_paciente
+  const tasaConfirmacion: number | null = totalResueltas > 0
+    ? Math.round(((porStatus.confirmed + porStatus.completed) / totalResueltas) * 100)
+    : null
 
   const ratingPromedio = reviews.length > 0
     ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length
@@ -293,7 +295,7 @@ export default function EstadisticasPage() {
           {[
             { icon: <Eye size={20} color="#8B5CF6" />, label: 'Vistas al perfil', value: profileViews, bg: '#F5F3FF', color: '#8B5CF6', trend: { metric: tendencias.vistas, texto: 'Descubre si subieron o bajaron tus vistas este mes' } },
             { icon: <Calendar size={20} color="#1E3A5F" />, label: 'Total citas', value: total, bg: '#E8ECF3', color: '#1E3A5F', trend: null },
-            { icon: <CheckCircle size={20} color="#2A9D8F" />, label: 'Tasa confirmación', value: `${tasaConfirmacion}%`, bg: '#E8F7F5', color: '#2A9D8F', trend: null },
+            { icon: <CheckCircle size={20} color="#2A9D8F" />, label: 'Tasa confirmación', value: tasaConfirmacion !== null ? `${tasaConfirmacion}%` : 'Sin citas', bg: '#E8F7F5', color: '#2A9D8F', trend: null },
             { icon: <Star size={20} color="#D97706" />, label: 'Rating promedio', value: reviews.length > 0 ? ratingPromedio.toFixed(1) : '—', bg: '#FFFBEB', color: '#D97706', trend: { metric: tendencias.calificacion, texto: 'Descubre si subió o bajó tu calificación este mes' } },
           ].map(k => (
             <div key={k.label} style={{ background: k.bg, borderRadius: 14, padding: '18px 16px', textAlign: 'center' }}>
@@ -430,14 +432,18 @@ export default function EstadisticasPage() {
                 subtitulo="En toda la plataforma"
                 grupo={benchmark.nacional}
                 tuRatingTexto={reviews.length > 0 ? `${ratingPromedio.toFixed(1)} ★` : '—'}
-                tuTasaTexto={`${tasaConfirmacion}%`}
+                tuRatingValor={reviews.length > 0 ? ratingPromedio : null}
+                tuTasaTexto={tasaConfirmacion !== null ? `${tasaConfirmacion}%` : 'Sin citas'}
+                tuTasaValor={tasaConfirmacion}
               />
               <BenchmarkGrupoCard
                 titulo={`Médicos de ${benchmark.especialidad}`}
                 subtitulo={benchmark.ciudad ? `En ${benchmark.ciudad}` : 'Sin ciudad registrada en tu perfil'}
                 grupo={benchmark.ciudadGrupo}
                 tuRatingTexto={reviews.length > 0 ? `${ratingPromedio.toFixed(1)} ★` : '—'}
-                tuTasaTexto={`${tasaConfirmacion}%`}
+                tuRatingValor={reviews.length > 0 ? ratingPromedio : null}
+                tuTasaTexto={tasaConfirmacion !== null ? `${tasaConfirmacion}%` : 'Sin citas'}
+                tuTasaValor={tasaConfirmacion}
               />
             </div>
           ) : (
@@ -613,43 +619,79 @@ function TrendBadge({ trend }: { trend: TrendMetric }) {
 // el umbral de anonimato (grupo?.xSuficiente); si no, un aviso en vez del
 // número, para nunca dar a entender un promedio de 1 o 2 médicos.
 function BenchmarkGrupoCard({
-  titulo, subtitulo, grupo, tuRatingTexto, tuTasaTexto,
+  titulo, subtitulo, grupo, tuRatingTexto, tuRatingValor, tuTasaTexto, tuTasaValor,
 }: {
   titulo: string
   subtitulo: string
   grupo: BenchmarkGrupo | null
   tuRatingTexto: string
+  tuRatingValor: number | null
   tuTasaTexto: string
+  tuTasaValor: number | null
 }) {
+  const conteo = grupo ? Math.max(grupo.otrosConRating, grupo.otrosConCitas) : 0
   return (
     <div style={{ background: '#F8FAFC', borderRadius: 14, padding: 16 }}>
       <p style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{titulo}</p>
-      <p style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 12 }}>{subtitulo}</p>
-      <ComparacionFila label="Rating promedio" tuTexto={tuRatingTexto} grupoValor={grupo?.ratingPromedio ?? null} suficiente={grupo?.ratingSuficiente ?? false} formatoGrupo={(v) => `${v.toFixed(1)} ★`} />
-      <ComparacionFila label="Tasa de confirmación" tuTexto={tuTasaTexto} grupoValor={grupo?.tasaConfirmacion ?? null} suficiente={grupo?.tasaSuficiente ?? false} formatoGrupo={(v) => `${v}%`} />
+      <p style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 12 }}>
+        {subtitulo}{conteo > 0 ? ` · ${conteo} médico${conteo !== 1 ? 's' : ''}` : ''}
+      </p>
+      <ComparacionFila
+        label="Rating promedio"
+        tuTexto={tuRatingTexto}
+        tuValor={tuRatingValor}
+        grupoValor={grupo?.ratingPromedio ?? null}
+        suficiente={grupo?.ratingSuficiente ?? false}
+        formatoGrupo={(v) => `${v.toFixed(1)} ★`}
+        formatoDelta={(d) => `${d > 0 ? '+' : ''}${(Math.round(d * 10) / 10).toFixed(1)}`}
+      />
+      <ComparacionFila
+        label="Tasa de confirmación"
+        tuTexto={tuTasaTexto}
+        tuValor={tuTasaValor}
+        grupoValor={grupo?.tasaConfirmacion ?? null}
+        suficiente={grupo?.tasaSuficiente ?? false}
+        formatoGrupo={(v) => `${v}%`}
+        formatoDelta={(d) => `${d > 0 ? '+' : ''}${Math.round(d)}pp`}
+      />
     </div>
   )
 }
 
 function ComparacionFila({
-  label, tuTexto, grupoValor, suficiente, formatoGrupo,
+  label, tuTexto, tuValor, grupoValor, suficiente, formatoGrupo, formatoDelta,
 }: {
   label: string
   tuTexto: string
+  tuValor: number | null
   grupoValor: number | null
   suficiente: boolean
   formatoGrupo: (v: number) => string
+  formatoDelta: (delta: number) => string
 }) {
+  const delta = suficiente && grupoValor !== null && tuValor !== null
+    ? tuValor - grupoValor
+    : null
+  const chipColor = delta === null ? null : delta > 0 ? '#2A9D8F' : delta < 0 ? '#EF4444' : '#9CA3AF'
+  const chipBg   = delta === null ? null : delta > 0 ? '#E8F7F5' : delta < 0 ? '#FEF2F2' : '#F3F4F6'
+
   return (
     <div style={{ marginBottom: 10 }}>
       <p style={{ fontSize: 11, color: '#6B7280', fontWeight: 600, marginBottom: 4 }}>{label}</p>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
         <span style={{ fontSize: 15, fontWeight: 800, color: '#1E3A5F' }}>Tú: {tuTexto}</span>
-        {suficiente && grupoValor !== null ? (
-          <span style={{ fontSize: 13, color: '#6B7280' }}>Grupo: {formatoGrupo(grupoValor)}</span>
-        ) : (
-          <span style={{ fontSize: 11, color: '#9CA3AF', fontStyle: 'italic' }}>Aún no hay datos suficientes</span>
-        )}
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+          {suficiente && grupoValor !== null ? (
+            <span style={{ fontSize: 13, color: '#6B7280' }}>Grupo: {formatoGrupo(grupoValor)}</span>
+          ) : (
+            <span style={{ fontSize: 11, color: '#9CA3AF', fontStyle: 'italic' }}>Aún no hay datos suficientes</span>
+          )}
+          {delta !== null && (
+            <span style={{ fontSize: 11, fontWeight: 700, color: chipColor!, background: chipBg!, borderRadius: 6, padding: '2px 6px' }}>
+              {delta === 0 ? '=' : formatoDelta(delta)}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   )
