@@ -34,6 +34,7 @@ interface Medico {
 
 interface StatsResumen {
   visitas_mes: number
+  mesActual: number
   ingresos_mes: number
   ingresos_total: number
   rating_promedio: number
@@ -210,6 +211,7 @@ export default function DashboardMedico() {
         // Total histórico (no mesActual): el desglose mensual ya vive en
         // /dashboard/estadisticas, aquí no se duplica.
         const visitasMes = visitasRes.count || 0
+        const visitasMesActual = visitasRes.mesActual || 0
 
         // Ingresos estimados: no hay precio ni tipo de cita (primera vez /
         // subsecuente) guardado por cita, solo el precio ACTUAL del perfil.
@@ -235,6 +237,7 @@ export default function DashboardMedico() {
 
         setStats({
           visitas_mes: visitasMes,
+          mesActual: visitasMesActual,
           ingresos_mes: ingresosMes,
           ingresos_total: ingresosTotal,
           rating_promedio: parseFloat(Number(ratingData.promedio || 0).toFixed(1)),
@@ -761,14 +764,14 @@ export default function DashboardMedico() {
           {/* VISITAS */}
           <div style={{ background: '#fff', padding: 24, borderRadius: 16, border: '1px solid #E5E7EB' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-              <p style={{ fontSize: 11, color: '#6B7280', textTransform: 'uppercase', fontWeight: 700, margin: 0, letterSpacing: '0.05em' }}>Vistas totales</p>
+              <p style={{ fontSize: 11, color: '#6B7280', textTransform: 'uppercase', fontWeight: 700, margin: 0, letterSpacing: '0.05em' }}>Vistas este mes</p>
               <Eye size={18} color="#8B5CF6" />
             </div>
             <p style={{ fontSize: 32, fontFamily: 'Fraunces', fontWeight: 900, color: '#1E3A5F', margin: '8px 0', lineHeight: 1 }}>
-              {stats?.visitas_mes || 0}
+              {stats?.mesActual || 0}
             </p>
             <p style={{ fontSize: 11, color: '#6B7280', lineHeight: 1.4, margin: 0 }}>
-              Acumulando datos desde el {fechaHoyLegible}. La tendencia estará disponible próximamente
+              {stats?.visitas_mes || 0} vistas en total desde que creaste tu perfil
             </p>
           </div>
 
