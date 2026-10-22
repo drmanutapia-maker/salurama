@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet'
 import type { LatLng } from 'leaflet'
 
 function fixLeafletIcons() {
@@ -22,6 +22,15 @@ function RecenterMap({ lat, lng }: { lat: number; lng: number }) {
   useEffect(() => {
     map.flyTo([lat, lng], map.getZoom())
   }, [lat, lng, map])
+  return null
+}
+
+function ClickToMove({ onChange }: { onChange: (lat: number, lng: number) => void }) {
+  useMapEvents({
+    click(e) {
+      onChange(e.latlng.lat, e.latlng.lng)
+    },
+  })
   return null
 }
 
@@ -109,6 +118,10 @@ export default function LocationPicker({
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
           <RecenterMap lat={coords.lat} lng={coords.lng} />
+          <ClickToMove onChange={(lat, lng) => {
+            setCoords({ lat, lng })
+            onLocationChange(lat, lng)
+          }} />
           <DraggableMarker
             lat={coords.lat}
             lng={coords.lng}
@@ -120,7 +133,7 @@ export default function LocationPicker({
         </MapContainer>
       </div>
       <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: 6, textAlign: 'center' }}>
-        {coords.lat.toFixed(4)}, {coords.lng.toFixed(4)}
+        Toca el mapa o arrastra el pin para ajustar la ubicación
       </p>
     </div>
   )
