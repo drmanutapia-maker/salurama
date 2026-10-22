@@ -1589,7 +1589,10 @@ function LocationForm({ medico, controlRef, esPrincipal, onMarcarPrincipal }: an
   const [form, setForm] = useState(() => formDesdeMedico(medico))
 
   const [editandoCP, setEditandoCP] = useState(!form.cp)
-  const [pinCoords, setPinCoords] = useState<{ lat: number; lng: number } | null>(null)
+  const [pinCoords, setPinCoords] = useState<{ lat: number; lng: number }>({
+    lat: medico?.clinic_lat ?? 19.4326,
+    lng: medico?.clinic_lng ?? -99.1332,
+  })
   const [geocoding, setGeocoding] = useState(false)
 
   useEffect(() => {
@@ -1617,17 +1620,17 @@ function LocationForm({ medico, controlRef, esPrincipal, onMarcarPrincipal }: an
         { headers: { 'User-Agent': 'Salurama/1.0 (salurama.com)' } }
       )
       const data = await res.json()
-      if (data[0]) setPinCoords({ lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) })
+      const result = data[0]
+      if (result) {
+        const importance = parseFloat(result.importance ?? '0')
+        const type = result.type ?? ''
+        const preciseTypes = ['house', 'road', 'building', 'amenity', 'residential', 'pedestrian', 'footway', 'service']
+        if (importance >= 0.4 || preciseTypes.includes(type)) {
+          setPinCoords({ lat: parseFloat(result.lat), lng: parseFloat(result.lon) })
+        }
+      }
     } catch { /* silently ignore — user can drag pin */ }
     finally { setGeocoding(false) }
-  }
-
-  const useMyLocation = () => {
-    if (!navigator.geolocation) return
-    navigator.geolocation.getCurrentPosition(
-      pos => setPinCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () => {}
-    )
   }
 
   // Campos de doctors que salen de este formulario (dirección + teléfono del
@@ -1846,26 +1849,16 @@ function LocationForm({ medico, controlRef, esPrincipal, onMarcarPrincipal }: an
         </p>
       </div>
 
-      <button
-        type="button"
-        onClick={useMyLocation}
-        style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: '#1E3A5F', background: '#EEF2FF', border: '1px solid #C7D2FE', borderRadius: 8, padding: '8px 12px', cursor: 'pointer' }}
-      >
-        📍 Usar mi ubicación
-      </button>
-
-      {(pinCoords || (medico?.clinic_lat && medico?.clinic_lng)) && (
-        <div style={{ marginTop: 4 }}>
-          <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: '#374151' }}>
-            {geocoding ? '🔍 Buscando dirección…' : 'Arrastra el pin a la ubicación exacta de tu consultorio'}
-          </p>
-          <LocationPicker
-            initialLat={pinCoords?.lat || medico?.clinic_lat || 19.4326}
-            initialLng={pinCoords?.lng || medico?.clinic_lng || -99.1332}
-            onLocationChange={(lat, lng) => setPinCoords({ lat, lng })}
-          />
-        </div>
-      )}
+      <div style={{ marginTop: 4 }}>
+        <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: '#374151' }}>
+          {geocoding ? '🔍 Buscando dirección…' : 'Arrastra el pin a la ubicación exacta de tu consultorio'}
+        </p>
+        <LocationPicker
+          initialLat={pinCoords.lat}
+          initialLng={pinCoords.lng}
+          onLocationChange={(lat, lng) => setPinCoords({ lat, lng })}
+        />
+      </div>
 
       {editandoCP && (
         <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
@@ -2186,11 +2179,10 @@ function ConsultorioAdicionalForm({ consultorio, onSave, onCancel, onEliminar, e
     whatsapp_recepcion: consultorio.whatsapp_recepcion || '',
   })
   const [editandoCP, setEditandoCP] = useState(!form.cp)
-  const [pinCoords, setPinCoords] = useState<{ lat: number; lng: number } | null>(
-    consultorio.lat != null && consultorio.lng != null
-      ? { lat: consultorio.lat, lng: consultorio.lng }
-      : null
-  )
+  const [pinCoords, setPinCoords] = useState<{ lat: number; lng: number }>({
+    lat: consultorio.lat ?? 19.4326,
+    lng: consultorio.lng ?? -99.1332,
+  })
   const [geocoding, setGeocoding] = useState(false)
   // Borrador del horario de este consultorio (ver HorarioConsultorioForm).
   // Sin tocar el editor se conserva lo que ya traía el consultorio (o null).
@@ -2220,17 +2212,17 @@ function ConsultorioAdicionalForm({ consultorio, onSave, onCancel, onEliminar, e
         { headers: { 'User-Agent': 'Salurama/1.0 (salurama.com)' } }
       )
       const data = await res.json()
-      if (data[0]) setPinCoords({ lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) })
+      const result = data[0]
+      if (result) {
+        const importance = parseFloat(result.importance ?? '0')
+        const type = result.type ?? ''
+        const preciseTypes = ['house', 'road', 'building', 'amenity', 'residential', 'pedestrian', 'footway', 'service']
+        if (importance >= 0.4 || preciseTypes.includes(type)) {
+          setPinCoords({ lat: parseFloat(result.lat), lng: parseFloat(result.lon) })
+        }
+      }
     } catch { /* silently ignore — user can drag pin */ }
     finally { setGeocoding(false) }
-  }
-
-  const useMyLocation = () => {
-    if (!navigator.geolocation) return
-    navigator.geolocation.getCurrentPosition(
-      pos => setPinCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () => {}
-    )
   }
 
   // El consultorio tal como quedaría con lo que hay hoy en el formulario.
@@ -2401,26 +2393,16 @@ function ConsultorioAdicionalForm({ consultorio, onSave, onCancel, onEliminar, e
         </p>
       </div>
 
-      <button
-        type="button"
-        onClick={useMyLocation}
-        style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: '#1E3A5F', background: '#EEF2FF', border: '1px solid #C7D2FE', borderRadius: 8, padding: '8px 12px', cursor: 'pointer' }}
-      >
-        📍 Usar mi ubicación
-      </button>
-
-      {pinCoords && (
-        <div style={{ marginTop: 4 }}>
-          <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: '#374151' }}>
-            {geocoding ? '🔍 Buscando dirección…' : 'Arrastra el pin a la ubicación exacta de este consultorio'}
-          </p>
-          <LocationPicker
-            initialLat={pinCoords.lat}
-            initialLng={pinCoords.lng}
-            onLocationChange={(lat, lng) => setPinCoords({ lat, lng })}
-          />
-        </div>
-      )}
+      <div style={{ marginTop: 4 }}>
+        <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: '#374151' }}>
+          {geocoding ? '🔍 Buscando dirección…' : 'Arrastra el pin a la ubicación exacta de este consultorio'}
+        </p>
+        <LocationPicker
+          initialLat={pinCoords.lat}
+          initialLng={pinCoords.lng}
+          onLocationChange={(lat, lng) => setPinCoords({ lat, lng })}
+        />
+      </div>
 
       <HorarioConsultorioForm
         titulo="Horario de este consultorio"
