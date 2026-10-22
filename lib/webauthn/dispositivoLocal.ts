@@ -15,9 +15,7 @@ export function obtenerCredencialLocal(): string | null {
 }
 
 export function guardarCredencialLocal(credentialId: string) {
-  try {
-    localStorage.setItem(LOCAL_KEY, credentialId)
-  } catch {}
+  localStorage.setItem(LOCAL_KEY, credentialId)
 }
 
 export function borrarCredencialLocal() {

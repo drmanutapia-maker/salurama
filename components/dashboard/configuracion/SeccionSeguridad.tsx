@@ -179,14 +179,14 @@ export default function SeccionSeguridad() {
     const localDeviceId = obtenerOCrearDeviceId()
     const porDispositivo = credenciales.find(c => c.deviceId && c.deviceId === localDeviceId)
     if (porDispositivo) {
-      guardarCredencialLocal(porDispositivo.credentialId)
+      try { guardarCredencialLocal(porDispositivo.credentialId) } catch {}
       return
     }
 
     // Intento 2: si solo hay una credencial en toda la cuenta, es
     // inequívocamente de este dispositivo.
     if (credenciales.length === 1) {
-      guardarCredencialLocal(credenciales[0].credentialId)
+      try { guardarCredencialLocal(credenciales[0].credentialId) } catch {}
     }
   }, [credenciales])
 
@@ -242,7 +242,12 @@ export default function SeccionSeguridad() {
       })
       if (!resVerificar.ok) throw new Error('verificar_failed')
 
-      guardarCredencialLocal(credencial.id)
+      try {
+        guardarCredencialLocal(credencial.id)
+      } catch {
+        showToast('No se pudo activar la huella en este dispositivo. Intenta de nuevo o usa otro navegador.', 'error')
+        return
+      }
       await cargarCredenciales()
       showToast('Huella o Face ID activada en este dispositivo', 'success')
     } catch (err: any) {
