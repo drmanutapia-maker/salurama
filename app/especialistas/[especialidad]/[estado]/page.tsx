@@ -82,6 +82,11 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
     description,
     alternates: { canonical: canonicalUrl },
     openGraph: { title, description, url: canonicalUrl },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+    },
   }
 }
 
