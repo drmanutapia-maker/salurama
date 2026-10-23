@@ -34,6 +34,7 @@ export interface BenchmarkGrupo {
   tasaConfirmacion: number | null
   tasaSuficiente: boolean
   otrosConCitas: number
+  totalPares: number
 }
 
 export interface Benchmark {
@@ -76,7 +77,7 @@ async function calcularGrupoBenchmark(
   doctorIds: string[]
 ): Promise<BenchmarkGrupo> {
   if (doctorIds.length === 0) {
-    return { ratingPromedio: null, ratingSuficiente: false, otrosConRating: 0, tasaConfirmacion: null, tasaSuficiente: false, otrosConCitas: 0 }
+    return { ratingPromedio: null, ratingSuficiente: false, otrosConRating: 0, tasaConfirmacion: null, tasaSuficiente: false, otrosConCitas: 0, totalPares: 0 }
   }
 
   const [reviewsRes, citasRes] = await Promise.all([
@@ -119,6 +120,7 @@ async function calcularGrupoBenchmark(
     tasaConfirmacion: tasaSuficiente ? Math.round(tasasPorDoctor.reduce((s, t) => s + t, 0) / otrosConCitas) : null,
     tasaSuficiente,
     otrosConCitas,
+    totalPares: doctorIds.length,
   }
 }
 
@@ -274,7 +276,12 @@ export async function getEstadisticasData(userId: string): Promise<{ data: Estad
       ciudadDoctor ? calcularGrupoBenchmark(db, paresCiudadIds) : Promise.resolve(null),
     ])
 
-    benchmark = { especialidad, ciudad: ciudadDoctor, nacional, ciudadGrupo }
+    benchmark = {
+      especialidad,
+      ciudad: ciudadDoctor,
+      nacional: { ...nacional, totalPares: paresIds.length + 1 },
+      ciudadGrupo: ciudadGrupo ? { ...ciudadGrupo, totalPares: paresCiudadIds.length + 1 } : null,
+    }
   }
 
   return {
