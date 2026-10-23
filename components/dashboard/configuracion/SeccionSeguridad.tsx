@@ -95,6 +95,7 @@ export default function SeccionSeguridad() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<PageErrorType | null>(null)
   const cancelRef = useRef(false)
+  const sincronizacionInicialHecha = useRef(false)
   const [sessions, setSessions] = useState<SessionRow[]>([])
   const [revoking, setRevoking] = useState<string | null>(null)
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
@@ -170,7 +171,15 @@ export default function SeccionSeguridad() {
   // credencial para esta cuenta pero este navegador no tiene el id guardado
   // (iOS PWA ↔ Safari aislados, storage limpiado, modo privado, etc.),
   // guarda el id automáticamente para que /login muestre el botón de huella.
+  //
+  // El ref garantiza que esto corre solo una vez al cargar la pantalla. Si
+  // corriera en cada cambio de `credenciales`, borrar la propia credencial
+  // escribiría la del otro dispositivo en localStorage (reactivando el
+  // biométrico inmediatamente con la llave equivocada).
   useEffect(() => {
+    if (sincronizacionInicialHecha.current) return
+    sincronizacionInicialHecha.current = true
+
     if (credenciales.length === 0) return
     if (obtenerCredencialLocal() !== null) return
 
