@@ -1177,7 +1177,7 @@ export default function EditarPerfilPage() {
               )}
             </Card>
 
-            <Card title="Bloquear fechas" onEdit={() => setActiveModal('bloqueos')}>
+            <Card title="Bloquear fechas de cita" onEdit={() => setActiveModal('bloqueos')}>
               {bloqueosError
                 ? <p style={{ fontSize: 13, color: '#DC2626' }}>No se pudieron cargar tus fechas bloqueadas.</p>
                 : bloqueos.length > 0
