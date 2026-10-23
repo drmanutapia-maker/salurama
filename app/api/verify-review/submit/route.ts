@@ -31,6 +31,14 @@ const securityHeaders = {
   'Referrer-Policy': 'strict-origin-when-cross-origin',
 }
 
+function formatPatientDisplayName(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/)
+  if (parts.length < 2) return parts[0] ?? ''
+  const firstName = parts[0]
+  const lastInitial = parts[1][0].toUpperCase()
+  return `${firstName} ${lastInitial}.`
+}
+
 export async function POST(request: NextRequest) {
   const requestId = crypto.randomUUID().slice(0, 8)
 
@@ -74,7 +82,7 @@ export async function POST(request: NextRequest) {
     // validó en un paso anterior.
     const { data: cita, error: citaError } = await supabase
       .from('citas')
-      .select('id, medico_id')
+      .select('id, medico_id, paciente_nombre')
       .eq('review_token', token)
       .eq('estado', 'completed')
       .maybeSingle()
@@ -107,6 +115,7 @@ export async function POST(request: NextRequest) {
         comment: comment || null,
         is_visible: true,
         cita_id: cita.id,
+        patient_display_name: cita.paciente_nombre ? formatPatientDisplayName(cita.paciente_nombre) : null,
       })
       .select('id')
       .single()
