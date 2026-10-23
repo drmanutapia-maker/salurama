@@ -204,6 +204,9 @@ function VerifyReviewContent() {
               <Turnstile siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!} onSuccess={setTurnstileToken} options={{ theme: 'light' }} />
             </div>
 
+            <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: 8 }}>
+              Tu nombre aparecerá como &quot;María G.&quot; en el perfil del médico.
+            </p>
             <button type="submit" disabled={submitting || !turnstileToken} className="w-full h-12 bg-[#0F172A] text-white rounded-2xl font-medium hover:bg-[#1E293B] disabled:opacity-60 flex items-center justify-center gap-2">
               {submitting ? <><Loader2 size={18} className="animate-spin" />Enviando...</> : <><ShieldCheck size={18} />Publicar reseña</>}
             </button>
