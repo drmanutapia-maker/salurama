@@ -629,7 +629,7 @@ function BenchmarkGrupoCard({
   tuTasaTexto: string
   tuTasaValor: number | null
 }) {
-  const conteo = grupo ? Math.max(grupo.otrosConRating, grupo.otrosConCitas) : 0
+  const conteo = grupo?.totalPares ?? 0
   return (
     <div style={{ background: '#F8FAFC', borderRadius: 14, padding: 16 }}>
       <p style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{titulo}</p>
