@@ -144,6 +144,7 @@ export interface Condition {
 export interface Review {
   id: string
   user_name: string
+  patient_display_name: string | null
   rating: number
   comment: string
   created_at: string
@@ -1294,7 +1295,7 @@ function ReviewCard({ r }: { r: any }) {
     // (?review=, ver el useEffect de reviewDestacadaId en DoctorProfileClient).
     <div id={`review-${r.id}`} style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #E5E7EB', scrollMarginTop: 90, height: '100%' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
-        <span style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>Paciente</span>
+        <span style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>{r.patient_display_name || 'Paciente'}</span>
         <div style={{ display: 'flex', gap: 2 }}>
           {[1, 2, 3, 4, 5].map(i => (
             <Star key={i} size={16} color="#F59E0B" fill={i <= r.rating ? '#F59E0B' : 'none'} />
@@ -1620,6 +1621,7 @@ export default function DoctorProfileClient({
   const doctorSchema = medico ? {
     '@context': 'https://schema.org',
     '@type': 'Physician',
+    '@id': profileUrl,
     name: displayName,
     description: medico.about_me?.substring(0, 200) || `Especialista en ${medico.specialty}`,
     image: medico.photo_url || undefined,
@@ -1634,14 +1636,14 @@ export default function DoctorProfileClient({
     },
     aggregateRating: reviews.length > 0 ? {
       '@type': 'AggregateRating',
-      ratingValue: (medico.rating_avg || 0).toFixed(1),
+      ratingValue: (reviews.reduce((sum, r) => sum + Number(r.rating), 0) / reviews.length).toFixed(1),
       reviewCount: reviews.length,
       bestRating: '5',
       worstRating: '1',
     } : undefined,
-    review: reviews.slice(0, 3).map((r: any) => ({
+    review: reviews.slice(0, 3).map((r) => ({
       '@type': 'Review',
-      author: { '@type': 'Person', name: r.user_name || 'Paciente' },
+      ...(r.patient_display_name ? { author: { '@type': 'Person', name: r.patient_display_name } } : {}),
       reviewBody: r.comment || '',
       reviewRating: {
         '@type': 'Rating',
@@ -1655,6 +1657,16 @@ export default function DoctorProfileClient({
     // marcó como visibles, así que sin teléfono visible cae al WhatsApp visible.
     telephone: telefonoVisible || whatsappVisible || undefined,
     url: profileUrl,
+    sameAs: [
+      medico.linkedin_url,
+      medico.instagram_url,
+      medico.facebook_url,
+    ].filter(Boolean).length > 0
+      ? [medico.linkedin_url, medico.instagram_url, medico.facebook_url].filter(Boolean)
+      : undefined,
+    priceRange: medico.consultation_price_general
+      ? `$${medico.consultation_price_general} MXN`
+      : undefined,
   } : null
 
   const lightboxIndex = lightboxPhoto ? galleryPhotos.findIndex(p => p.id === lightboxPhoto.id) : -1

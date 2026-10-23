@@ -130,7 +130,7 @@ async function getDoctorProfileData(doctorId: string) {
     // DoctorProfileClient, botón "Ver más"), pero eso es paginación de UI,
     // no debe recortar qué reseñas existen para el paciente que llega desde
     // el link de una respuesta (?review=) a una reseña antigua.
-    supabase.from('reviews').select('id, rating, comment, created_at, review_responses(id, respuesta)').eq('doctor_id', doctorId).eq('is_visible', true).order('created_at', { ascending: false }),
+    supabase.from('reviews').select('id, rating, comment, patient_display_name, created_at, review_responses(id, respuesta)').eq('doctor_id', doctorId).eq('is_visible', true).order('created_at', { ascending: false }),
     supabase.from('doctor_specialty_credentials').select('id, credentials_status, specialty_granular_mapping(granular_name, conacem_councils(council_name))').eq('doctor_id', doctorId),
     supabase.from('doctor_gallery_photos').select('id, photo_url, caption').eq('doctor_id', doctorId).order('position'),
     // Solo existencia (head:true) — para el badge de "perfil completo y con
@@ -158,6 +158,7 @@ async function getDoctorProfileData(doctorId: string) {
       return {
         id: r.id,
         user_name: 'Paciente',
+        patient_display_name: r.patient_display_name ?? null,
         rating: r.rating,
         comment: r.comment,
         created_at: r.created_at,
