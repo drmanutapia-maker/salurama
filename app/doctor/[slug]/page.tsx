@@ -15,12 +15,13 @@ import DoctorProfileClient, {
   type ConsultorioPublico,
 } from './DoctorProfileClient'
 
-// Sin ISR aquí a propósito: esta página lee `searchParams` (ver DoctorPage
-// más abajo, para el redirect 301 que preserva el query string), y eso es
-// una Dynamic API de Next.js — fuerza render dinámico en cada request y
-// anula cualquier `export const revalidate`. Confirmado en vivo: las
-// cabeceras de producción ya traen Cache-Control: no-store en cada
-// petición, o sea que el perfil siempre sale fresco, sin necesidad de ISR.
+// ISR con revalidate=60: la página se cachea 60s en Vercel Edge.
+// El redirect de slug legado (UUID → slug canónico) se maneja en el
+// componente hijo SlugRedirect, que sí lee searchParams — así DoctorPage
+// no lo lee y puede beneficiarse del caché.
+
+export const revalidate = 60
+export const dynamic = 'auto'
 
 function getSupabase() {
   return createClient(
@@ -206,6 +207,24 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 type SearchParams = Record<string, string | string[] | undefined>
 
+async function SlugRedirect({
+  slug,
+  canonicalSlug,
+  searchParams,
+}: {
+  slug: string
+  canonicalSlug: string
+  searchParams: Promise<SearchParams>
+}) {
+  const qs = new URLSearchParams()
+  for (const [key, value] of Object.entries(await searchParams)) {
+    if (Array.isArray(value)) value.forEach(v => qs.append(key, v))
+    else if (value !== undefined) qs.set(key, value)
+  }
+  const queryString = qs.toString()
+  permanentRedirect(`/doctor/${canonicalSlug}${queryString ? `?${queryString}` : ''}`)
+}
+
 export default async function DoctorPage({
   params,
   searchParams,
@@ -224,13 +243,7 @@ export default async function DoctorPage({
   // del médico — 301/308 permanente hacia el slug canónico, no se sirve contenido
   // duplicado en dos URLs. Se preserva el query string tal cual llegó.
   if (doctor.slug && doctor.slug !== slug) {
-    const qs = new URLSearchParams()
-    for (const [key, value] of Object.entries(await searchParams)) {
-      if (Array.isArray(value)) value.forEach(v => qs.append(key, v))
-      else if (value !== undefined) qs.set(key, value)
-    }
-    const queryString = qs.toString()
-    permanentRedirect(`/doctor/${doctor.slug}${queryString ? `?${queryString}` : ''}`)
+    return <SlugRedirect slug={slug} canonicalSlug={doctor.slug} searchParams={searchParams} />
   }
 
   const [profileData, contacto, consultorios] = await Promise.all([
