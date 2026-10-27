@@ -197,7 +197,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       images: doctor.photo_url ? [{ url: doctor.photo_url }] : undefined,
     },
     twitter: {
-      card: 'summary_large_image',
+      card: 'summary',
       title,
       description,
       images: doctor.photo_url ? [doctor.photo_url] : undefined,
