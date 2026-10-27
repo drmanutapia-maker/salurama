@@ -223,6 +223,7 @@ async function SlugRedirect({
   }
   const queryString = qs.toString()
   permanentRedirect(`/doctor/${canonicalSlug}${queryString ? `?${queryString}` : ''}`)
+  return null as never
 }
 
 export default async function DoctorPage({
