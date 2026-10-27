@@ -1502,8 +1502,7 @@ export default function DoctorProfileClient({
       try {
         await navigator.share({
           title: `${titlePrefix}${displayName} - ${medico?.specialty}`,
-          text: shareText,
-          url: profileUrl,
+          text: `${shareText} ${profileUrl}`,
         })
         return
       } catch {}
