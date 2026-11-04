@@ -1,7 +1,10 @@
 import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { isManuelEmail } from '@/lib/manuelOnly'
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 function decodeJwtPayload(token: string): Record<string, unknown> {
   try {
@@ -13,8 +16,36 @@ function decodeJwtPayload(token: string): Record<string, unknown> {
 }
 
 export async function proxy(request: NextRequest) {
+  // ─── Redirect UUID → slug en /doctor/* ───────────────────────────────────
+  // Salvavidas para URLs legadas (generadas antes del fix de 2026-10-27).
+  // Corre antes del auth check para no añadir latencia a visitas normales.
+  const pathname = request.nextUrl.pathname
+  const doctorUuid = pathname.startsWith('/doctor/') ? pathname.split('/')[2] : null
+  if (doctorUuid && UUID_REGEX.test(doctorUuid)) {
+    const publicClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+    const { data } = await publicClient
+      .from('doctors')
+      .select('slug')
+      .eq('id', doctorUuid)
+      .maybeSingle()
+    if (data?.slug) {
+      const url = request.nextUrl.clone()
+      url.pathname = `/doctor/${data.slug}`
+      return NextResponse.redirect(url, 308)
+    }
+  }
+
   const response = NextResponse.next({ request })
   response.headers.set('x-pathname', request.nextUrl.pathname)
+
+  // /doctor/* es 100% pública: mismo HTML para todos, no necesita sesión.
+  // Saltamos el auth check para que Next.js pueda cachear estas páginas (ISR).
+  if (request.nextUrl.pathname.startsWith('/doctor/')) {
+    return response
+  }
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
