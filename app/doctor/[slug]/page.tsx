@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { permanentRedirect, notFound } from 'next/navigation'
 import type { Metadata } from 'next'
-import { cache } from 'react'
+import { cache, Suspense } from 'react'
 import { isUuid } from '@/lib/slug'
 import DoctorProfileClient, {
   type Medico,
@@ -15,13 +15,13 @@ import DoctorProfileClient, {
   type ConsultorioPublico,
 } from './DoctorProfileClient'
 
-// ISR con revalidate=60: la página se cachea 60s en Vercel Edge.
-// El redirect de slug legado (UUID → slug canónico) se maneja en el
-// componente hijo SlugRedirect, que sí lee searchParams — así DoctorPage
-// no lo lee y puede beneficiarse del caché.
+// ISR: prerenderizado con generateStaticParams + revalidate=60. force-static
+// necesario para que useSearchParams() en DoctorProfileClient/BackButton no
+// fuerce dynamic — devuelve params vacíos en SSR, funciona tras hidratación.
+// El redirect UUID → slug canónico vive en proxy.ts (antes del auth check).
 
 export const revalidate = 60
-export const dynamic = 'auto'
+export const dynamic = 'force-static'
 
 function getSupabase() {
   return createClient(
@@ -170,6 +170,14 @@ async function getDoctorProfileData(doctorId: string) {
   }
 }
 
+export async function generateStaticParams(): Promise<{ slug: string }[]> {
+  const { data } = await getSupabase()
+    .from('doctors')
+    .select('slug')
+    .eq('is_active', true)
+  return (data ?? []).map(d => ({ slug: d.slug as string }))
+}
+
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params
   const doctor = await resolveDoctor(slug)
@@ -205,33 +213,15 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   }
 }
 
-type SearchParams = Record<string, string | string[] | undefined>
-
-async function SlugRedirect({
-  slug,
-  canonicalSlug,
-  searchParams,
-}: {
-  slug: string
-  canonicalSlug: string
-  searchParams: Promise<SearchParams>
-}) {
-  const qs = new URLSearchParams()
-  for (const [key, value] of Object.entries(await searchParams)) {
-    if (Array.isArray(value)) value.forEach(v => qs.append(key, v))
-    else if (value !== undefined) qs.set(key, value)
-  }
-  const queryString = qs.toString()
-  permanentRedirect(`/doctor/${canonicalSlug}${queryString ? `?${queryString}` : ''}`)
+async function SlugRedirect({ canonicalSlug }: { canonicalSlug: string }) {
+  permanentRedirect(`/doctor/${canonicalSlug}`)
   return null as never
 }
 
 export default async function DoctorPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ slug: string }>
-  searchParams: Promise<SearchParams>
 }) {
   const { slug } = await params
   const doctor = await resolveDoctor(slug)
@@ -244,7 +234,7 @@ export default async function DoctorPage({
   // del médico — 301/308 permanente hacia el slug canónico, no se sirve contenido
   // duplicado en dos URLs. Se preserva el query string tal cual llegó.
   if (doctor.slug && doctor.slug !== slug) {
-    return <SlugRedirect slug={slug} canonicalSlug={doctor.slug} searchParams={searchParams} />
+    return <SlugRedirect canonicalSlug={doctor.slug} />
   }
 
   const [profileData, contacto, consultorios] = await Promise.all([
@@ -289,5 +279,9 @@ export default async function DoctorPage({
     whatsapp_phone: contacto.whatsappVisible ?? null,
   }
 
-  return <DoctorProfileClient medico={medicoConConsultorio} consultorios={consultorios} telefonosAdicionales={telefonosAdicionales} {...profileData} {...contacto} />
+  return (
+    <Suspense fallback={null}>
+      <DoctorProfileClient medico={medicoConConsultorio} consultorios={consultorios} telefonosAdicionales={telefonosAdicionales} {...profileData} {...contacto} />
+    </Suspense>
+  )
 }

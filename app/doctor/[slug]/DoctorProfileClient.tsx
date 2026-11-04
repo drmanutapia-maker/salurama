@@ -1380,7 +1380,6 @@ export default function DoctorProfileClient({
   const [showVerificationModal, setShowVerificationModal] = useState(false)
   const [showConacemModal, setShowConacemModal] = useState(false)
   const [showPhotoModal, setShowPhotoModal] = useState(false)
-  const [isOwner, setIsOwner] = useState(false)
   const [mostrarTooltipBadge, setMostrarTooltipBadge] = useState(false)
   const [copiedToast, setCopiedToast] = useState(false)
   const touchStartRef = useRef<{ x: number; y: number } | null>(null)
@@ -1446,10 +1445,7 @@ export default function DoctorProfileClient({
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ doctorId: id }),
     }).catch(() => {})
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user && medico.user_id && user.id === medico.user_id) setIsOwner(true)
-    })
-  }, [id, medico.user_id])
+  }, [id])
 
   const yearsExp = medico?.years_experience ?? null
   const langs = parseLangs(medico?.languages ?? null)
