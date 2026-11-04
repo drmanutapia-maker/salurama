@@ -904,7 +904,7 @@ export default function EditarPerfilPage() {
             <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 30, fontWeight: 900, color: '#111827', marginBottom: 6 }}>Editar perfil</h1>
             <p style={{ fontSize: 14, color: '#6B7280' }}>Completa tu información profesional</p>
           </div>
-          <button onClick={() => router.push(`/doctor/${medico?.id}?from=edit`)} style={btnGhost}>
+          <button onClick={() => router.push(`/doctor/${medico?.slug || medico?.id}?from=edit`)} style={btnGhost}>
             <Eye size={14} /> Vista previa
           </button>
         </div>

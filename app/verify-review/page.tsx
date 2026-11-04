@@ -83,7 +83,7 @@ function VerifyReviewContent() {
       }
 
       setStatus('submitted')
-      setTimeout(() => router.replace(`/doctor/${appointment.medico_id}?review=thanks`), 2000)
+      setTimeout(() => router.replace(`/doctor/${appointment.medico_slug || appointment.medico_id}?review=thanks`), 2000)
     } catch (error: any) {
       setErrorMsg(error.message || 'Error al guardar')
     } finally {

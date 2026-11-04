@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
 
   const { data: medico } = await supabase
     .from('doctors')
-    .select('full_name')
+    .select('full_name, slug')
     .eq('id', cita.medico_id)
     .single()
 
@@ -51,6 +51,7 @@ export async function POST(request: NextRequest) {
     appointment: {
       id: cita.id,
       medico_id: cita.medico_id,
+      medico_slug: medico?.slug || null,
       paciente_nombre: cita.paciente_nombre,
       fecha: cita.fecha,
       doctorName: medico?.full_name || '',
