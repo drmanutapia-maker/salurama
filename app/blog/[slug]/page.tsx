@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import Image from 'next/image'
 import { notFound } from 'next/navigation'
 import ReactMarkdown from 'react-markdown'
 import { ArrowRight } from 'lucide-react'
@@ -109,10 +110,10 @@ export default async function ArticuloPage({ params }: { params: Promise<{ slug:
         </p>
 
         {articulo.imagen_portada_url && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <Image
             src={articulo.imagen_portada_url}
             alt={articulo.titulo}
+            width={800} height={360}
             style={{ width: '100%', maxHeight: 360, objectFit: 'cover', borderRadius: 16, marginBottom: 32 }}
           />
         )}

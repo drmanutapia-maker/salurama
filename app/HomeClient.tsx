@@ -1,6 +1,7 @@
 'use client'
 import { useState, useCallback } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import {
   Search,
@@ -181,7 +182,7 @@ export default function HomeClient({
                 {especialistas.map((medico) => (
                   <Link key={medico.id} href={`/doctor/${medico.slug ?? medico.id}`} className="card-medico" style={{ background: '#fff', borderRadius: 16, padding: 20, textDecoration: 'none', display: 'flex', flexDirection: 'column', gap: 16 }}>
                     <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-                      {medico.photo_url? (<img src={medico.photo_url} alt={medico.full_name} style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover' }} />) : (<div aria-hidden="true" style={{ width: 64, height: 64, borderRadius: '50%', background: 'linear-gradient(135deg, #1E3A5F, #2A9D8F)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 24, color: '#fff', flexShrink: 0 }}>{(medico.full_name || '?')[0].toUpperCase()}</div>)}
+                      {medico.photo_url? (<Image src={medico.photo_url} alt={medico.full_name} width={64} height={64} style={{ borderRadius: '50%', objectFit: 'cover' }} />) : (<div aria-hidden="true" style={{ width: 64, height: 64, borderRadius: '50%', background: 'linear-gradient(135deg, #1E3A5F, #2A9D8F)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 24, color: '#fff', flexShrink: 0 }}>{(medico.full_name || '?')[0].toUpperCase()}</div>)}
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1E3A5F', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{medico.full_name}</h3>
                         <p style={{ fontSize: 14, color: '#6B7280' }}>{medico.specialty}</p>

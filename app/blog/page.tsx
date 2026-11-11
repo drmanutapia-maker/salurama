@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import Image from 'next/image'
 import { getArticulosPublicados } from '@/lib/blog'
 
 export const revalidate = 600
@@ -63,10 +64,10 @@ export default async function BlogPage() {
               {articulos.map(articulo => (
                 <Link key={articulo.id} href={`/blog/${articulo.slug}`} className="articulo-card">
                   {articulo.imagen_portada_url && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
+                    <Image
                       src={articulo.imagen_portada_url}
                       alt={articulo.titulo}
+                      width={800} height={160}
                       style={{ width: '100%', height: 160, objectFit: 'cover', display: 'block' }}
                     />
                   )}
