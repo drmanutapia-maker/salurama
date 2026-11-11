@@ -112,7 +112,8 @@ export default async function EspecialidadEstadoPage({ params }: { params: Promi
   // principal y se montan sobre cada registro antes de armar el array de Medico.
   const SELECT_COLS = `id, slug, full_name, specialty, photo_url, ciudad, estado,
              consultation_price_general, years_experience, min_patient_age, max_patient_age,
-             hospital_affiliation, languages, insurance_accepted, professional_license, created_at`
+             hospital_affiliation, languages, insurance_accepted, professional_license, created_at,
+             rating_avg, rating_count`
 
   // Médicos que califican por esta especialidad como SECUNDARIA certificada
   // (verificada) -- la principal se resuelve aparte, con el `.eq('specialty', ...)`
@@ -176,8 +177,44 @@ export default async function EspecialidadEstadoPage({ params }: { params: Promi
   const totalReal = medicos.length
   const rangoPrecio = calcularRangoPrecio(medicos)
 
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'MedicalWebPage',
+    name: `Especialistas en ${combinacion.especialidad} en ${estadoLabel}`,
+    description: `${medicos.length} especialistas en ${combinacion.especialidad} en ${estadoLabel}. Agenda cita en línea.`,
+    url: `https://salurama.com/especialistas/${especialidad}/${estado}`,
+    mainEntity: {
+      '@type': 'ItemList',
+      numberOfItems: medicos.length,
+      itemListElement: medicos.map((m, i) => ({
+        '@type': 'ListItem',
+        position: i + 1,
+        item: {
+          '@type': 'Physician',
+          name: m.full_name,
+          url: `https://salurama.com/doctor/${m.slug}`,
+          image: m.photo_url ?? undefined,
+          medicalSpecialty: m.specialty,
+          ...(m.rating_avg && m.rating_count ? {
+            aggregateRating: {
+              '@type': 'AggregateRating',
+              ratingValue: m.rating_avg,
+              reviewCount: m.rating_count,
+              bestRating: 5,
+              worstRating: 1,
+            }
+          } : {}),
+        }
+      }))
+    }
+  }
+
   return (
     <div style={{ minHeight: '100vh', background: '#F9FAFB', fontFamily: "'DM Sans', sans-serif", color: '#111827' }}>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@600;900&family=DM+Sans:wght@300;400;500;700&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }

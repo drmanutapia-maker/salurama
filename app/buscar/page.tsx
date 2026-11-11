@@ -270,13 +270,57 @@ export default async function BuscarPage({
     }
   }
 
+  const qs = new URLSearchParams()
+  if (especialidad) qs.set('especialidad', especialidad)
+  if (estado) qs.set('estado', estado)
+  const qStr = qs.toString()
+  const buscarUrl = `https://salurama.com/buscar${qStr ? `?${qStr}` : ''}`
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name: titulo,
+    description: texto ?? titulo,
+    url: buscarUrl,
+    mainEntity: {
+      '@type': 'ItemList',
+      numberOfItems: medicos.length,
+      itemListElement: medicos.slice(0, 20).map((m, i) => ({
+        '@type': 'ListItem',
+        position: i + 1,
+        item: {
+          '@type': 'Physician',
+          name: m.full_name,
+          url: `https://salurama.com/doctor/${m.slug}`,
+          image: m.photo_url ?? undefined,
+          medicalSpecialty: m.specialty,
+          ...(m.rating_avg && m.rating_count ? {
+            aggregateRating: {
+              '@type': 'AggregateRating',
+              ratingValue: m.rating_avg,
+              reviewCount: m.rating_count,
+              bestRating: 5,
+              worstRating: 1,
+            }
+          } : {}),
+        }
+      }))
+    }
+  }
+
   return (
-    <BuscarClient
-      initialMedicos={medicos}
-      heroTitulo={titulo}
-      heroTexto={texto}
-      articulosRelacionados={articulosRelacionados}
-      paginaDedicada={paginaDedicada}
-    />
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <BuscarClient
+        initialMedicos={medicos}
+        heroTitulo={titulo}
+        heroTexto={texto}
+        articulosRelacionados={articulosRelacionados}
+        paginaDedicada={paginaDedicada}
+      />
+    </>
   )
 }
