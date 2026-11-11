@@ -86,6 +86,7 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
       card: 'summary_large_image',
       title,
       description,
+      images: ['/og-image.png'],
     },
   }
 }

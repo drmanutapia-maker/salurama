@@ -13,6 +13,12 @@ export const metadata: Metadata = {
     description: 'Artículos sencillos sobre especialidades médicas, escritos para pacientes.',
     url: 'https://salurama.com/blog',
   },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Blog para pacientes | Salurama',
+    description: 'Artículos sencillos sobre especialidades médicas, escritos para pacientes.',
+    images: ['/og-image.png'],
+  },
 }
 
 function formatFecha(fecha: string | null): string {
