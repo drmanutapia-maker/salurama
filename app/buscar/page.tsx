@@ -8,6 +8,8 @@ import { calcularCompletitudPorDoctorServidor, compararPorMerito } from '@/lib/h
 import { proximoDiaDisponible } from '@/lib/proximaCitaDisponible'
 import { filtrarMedicos } from '@/lib/buscarMedicos'
 
+export const revalidate = 60
+
 function getSupabase() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
