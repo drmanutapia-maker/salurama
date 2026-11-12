@@ -981,7 +981,18 @@ function AppointmentModal({
             </div>
             <div>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#1E3A5F' }}>Teléfono *</label>
-              <input type="tel" value={formData.patient_phone} onChange={e => setFormData({ ...formData, patient_phone: e.target.value })} readOnly={campoIdentidadBloqueado} style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: 12, fontSize: 14, background: campoIdentidadBloqueado ? '#F3F4F6' : '#fff', color: campoIdentidadBloqueado ? '#6B7280' : 'inherit', cursor: campoIdentidadBloqueado ? 'not-allowed' : 'text' }} placeholder="55 1234 5678" />
+              <input
+                type="tel"
+                value={formData.patient_phone}
+                onChange={e => setFormData({ ...formData, patient_phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                readOnly={campoIdentidadBloqueado}
+                inputMode="numeric"
+                style={{ width: '100%', padding: '12px 16px', border: `1.5px solid ${formData.patient_phone.length > 0 && formData.patient_phone.length < 10 ? '#EF4444' : '#E5E7EB'}`, borderRadius: 12, fontSize: 14, background: campoIdentidadBloqueado ? '#F3F4F6' : '#fff', color: campoIdentidadBloqueado ? '#6B7280' : 'inherit', cursor: campoIdentidadBloqueado ? 'not-allowed' : 'text' }}
+                placeholder="5512345678"
+              />
+              {formData.patient_phone.length > 0 && formData.patient_phone.length < 10 && (
+                <p style={{ fontSize: 12, color: '#EF4444', marginTop: 4 }}>El teléfono debe tener 10 dígitos</p>
+              )}
             </div>
             <div>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#1E3A5F' }}>Motivo de consulta (opcional)</label>
@@ -991,7 +1002,7 @@ function AppointmentModal({
               <button onClick={() => setStep(1)} style={{ flex: 1, background: '#F3F4F6', color: '#6B7280', border: 'none', borderRadius: 12, padding: 14, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
                 Atrás
               </button>
-              <button onClick={() => setStep(3)} disabled={!formData.patient_name || !formData.patient_email || !formData.patient_phone} style={{ flex: 1, background: !formData.patient_name || !formData.patient_email || !formData.patient_phone ? '#9CA3AF' : '#8B5CF6', color: '#fff', border: 'none', borderRadius: 12, padding: 14, fontSize: 14, fontWeight: 600, cursor: !formData.patient_name || !formData.patient_email || !formData.patient_phone ? 'not-allowed' : 'pointer' }}>
+              <button onClick={() => setStep(3)} disabled={!formData.patient_name || !formData.patient_email || formData.patient_phone.length !== 10} style={{ flex: 1, background: !formData.patient_name || !formData.patient_email || formData.patient_phone.length !== 10 ? '#9CA3AF' : '#8B5CF6', color: '#fff', border: 'none', borderRadius: 12, padding: 14, fontSize: 14, fontWeight: 600, cursor: !formData.patient_name || !formData.patient_email || formData.patient_phone.length !== 10 ? 'not-allowed' : 'pointer' }}>
                 Continuar
               </button>
             </div>
