@@ -1,8 +1,5 @@
 User-agent: *
 Allow: /
-Disallow: /hema/
-Disallow: /admin/
-Disallow: /dashboard/
-Disallow: /api/
+Disallow: /api/admin
 
 Sitemap: https://salurama.com/sitemap.xml
