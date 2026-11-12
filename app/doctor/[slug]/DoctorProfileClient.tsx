@@ -9,7 +9,7 @@ import { fraunces, dmSans } from '@/lib/fonts'
 import {
   MapPin, Star, ShieldCheck, Shield, ExternalLink, Copy, CheckCircle, X,
   ChevronDown, ChevronLeft, ChevronRight, Briefcase, GraduationCap, Heart, Calendar, DollarSign, Info,
-  Clock, Navigation, Phone, MessageCircle, Globe, Share2, Image as ImageIcon, Flag
+  Clock, Navigation, Phone, MessageCircle, Globe, Share2, Image as ImageIcon, Flag, Award
 } from 'lucide-react'
 import BackButton from '@/components/BackButton'
 import InstalarAppBanner from '@/components/InstalarAppBanner'
@@ -258,6 +258,87 @@ function InfoModal({ title, children, onClose }: { title: string; children: Reac
           </button>
         </div>
         {children}
+      </div>
+    </div>
+  )
+}
+
+function CredencialModal({
+  tipo, cedula, nombre, especialidad, esFemenino,
+  onVerificadoSep, onVerificadoConacem, onClose,
+}: {
+  tipo: 'sep' | 'conacem'
+  cedula: string | null
+  nombre: string
+  especialidad: string
+  esFemenino: boolean
+  onVerificadoSep: () => void
+  onVerificadoConacem: () => void
+  onClose: () => void
+}) {
+  const [copiado, setCopiado] = useState(false)
+  const texto = tipo === 'sep' ? (cedula ?? '') : nombre
+  const copiar = () => {
+    navigator.clipboard.writeText(texto).catch(() => {})
+    setCopiado(true)
+    setTimeout(() => setCopiado(false), 1500)
+  }
+  return (
+    <div
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 3000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+      onClick={onClose}
+    >
+      <div
+        style={{ background: '#fff', borderRadius: '20px 20px 0 0', padding: '24px 24px 32px', width: '100%', maxWidth: 500 }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div style={{ width: 40, height: 4, background: '#E5E7EB', borderRadius: 2, margin: '0 auto 20px' }} />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+          <h3 style={{ fontFamily: 'var(--font-fraunces), serif', fontSize: 18, fontWeight: 900, color: '#111827', margin: 0 }}>
+            {tipo === 'sep' ? 'Cédula profesional' : 'Certificación de especialidad'}
+          </h3>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
+            <X size={20} color="#6B7280" />
+          </button>
+        </div>
+        <p style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
+          {tipo === 'sep' ? 'Número de cédula' : 'Nombre del médico'}
+        </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#F9FAFB', borderRadius: 10, padding: '12px 14px', marginBottom: 16 }}>
+          <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: '#111827', wordBreak: 'break-all' }}>{texto}</span>
+          <button
+            onClick={copiar}
+            style={{ display: 'flex', alignItems: 'center', gap: 4, background: copiado ? '#F0FDF4' : '#EDE9FE', color: copiado ? '#16A34A' : '#7C3AED', border: 'none', borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0, transition: 'background 0.2s' }}
+          >
+            {copiado ? <CheckCircle size={14} /> : <Copy size={14} />}
+            {copiado ? 'Copiado' : 'Copiar'}
+          </button>
+        </div>
+        <div style={{ background: '#FFF7ED', borderRadius: 10, padding: '12px 14px', marginBottom: 20, border: '1px solid #FED7AA' }}>
+          <p style={{ fontSize: 13, color: '#92400E', margin: 0, lineHeight: 1.5 }}>
+            {tipo === 'sep'
+              ? 'Busca este número en SEP. Confirma que el nombre y la especialidad que aparecen coinciden con los de este perfil.'
+              : `Busca el nombre en CONACEM. Confirma que aparece certificado${esFemenino ? 'a' : ''} en ${especialidad}.`}
+          </p>
+        </div>
+        <a
+          href={tipo === 'sep'
+            ? 'https://cedulaprofesional.sep.gob.mx/cedula/presidencia/indexAvanzada.action'
+            : 'https://conacem.org.mx/buscador'}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: '#1E3A5F', color: '#fff', padding: '14px', borderRadius: 12, textDecoration: 'none', fontSize: 14, fontWeight: 600, marginBottom: 12 }}
+        >
+          <ExternalLink size={16} />
+          {tipo === 'sep' ? 'Abrir portal SEP' : 'Abrir portal CONACEM'}
+        </a>
+        <button
+          onClick={tipo === 'sep' ? onVerificadoSep : onVerificadoConacem}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: 'none', border: '1.5px solid #E5E7EB', color: '#374151', padding: '12px', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer', width: '100%' }}
+        >
+          <CheckCircle size={16} color="#16A34A" />
+          {tipo === 'sep' ? 'La cédula coincide' : (esFemenino ? 'Está certificada' : 'Está certificado')}
+        </button>
       </div>
     </div>
   )
@@ -1388,8 +1469,10 @@ export default function DoctorProfileClient({
   const reviewTrackRef = useRef<HTMLDivElement>(null)
   const [mostrarTodosPadecimientos, setMostrarTodosPadecimientos] = useState(false)
   const [showAppointmentModal, setShowAppointmentModal] = useState(false)
-  const [showVerificationModal, setShowVerificationModal] = useState(false)
-  const [showConacemModal, setShowConacemModal] = useState(false)
+  const [modalCredencial, setModalCredencial] = useState<'sep' | 'conacem' | null>(null)
+  const [modalConacemEspecialidad, setModalConacemEspecialidad] = useState('')
+  const [sepVerificado, setSepVerificado] = useState(false)
+  const [conacemVerificado, setConacemVerificado] = useState(false)
   const [showPhotoModal, setShowPhotoModal] = useState(false)
   const [mostrarTooltipBadge, setMostrarTooltipBadge] = useState(false)
   const [copiedToast, setCopiedToast] = useState(false)
@@ -1489,6 +1572,7 @@ export default function DoctorProfileClient({
   // especialidad certificada — si Manuel aprobó al menos una, ya revisó
   // también la cédula base del médico en ese mismo documento.
   const cedulaVerificada = specialtyCredentials.some(c => c.credentials_status === 'verificado')
+  const esFemenino = (medico?.professional_title ?? '').toLowerCase().includes('dra')
 
   // REGLA (fuente de confusión repetida — documentado 2026-07-23): esta
   // sección del perfil público SOLO muestra especialidades con
@@ -1756,7 +1840,7 @@ export default function DoctorProfileClient({
             {((medico.professional_license && cedulaVerificada) || licenses.length > 0) && (
               <div style={{ position: 'absolute', bottom: 16, left: 16, display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(42, 157, 143, 0.95)', backdropFilter: 'blur(8px)', padding: '6px 12px', borderRadius: 50 }}>
                 <ShieldCheck size={14} color="#fff" />
-                <span style={{ fontSize: 10, fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Cédula verificable</span>
+                <span style={{ fontSize: 10, fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Consulta en fuentes oficiales</span>
               </div>
             )}
           </div>
@@ -1911,6 +1995,59 @@ export default function DoctorProfileClient({
         {/* ─── CONTENIDO PRINCIPAL + SIDEBAR ─── */}
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 340px', gap: 32, alignItems: 'start' }}>
           <div>
+            {/* Credenciales */}
+            {((medico.professional_license && cedulaVerificada) || especialidadesVerificadas.length > 0) && (
+              <section className="fade-up" style={{ marginBottom: 40 }}>
+                <h2 style={{ fontFamily: 'var(--font-fraunces), serif', fontSize: 20, fontWeight: 900, color: '#1E3A5F', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <ShieldCheck size={20} /> Credenciales verificables
+                </h2>
+                <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 16 }}>Consulta directamente en portales oficiales antes de agendar.</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {medico.professional_license && cedulaVerificada && (
+                    <button
+                      onClick={() => setModalCredencial('sep')}
+                      style={{ display: 'flex', alignItems: 'center', gap: 14, background: '#fff', border: '1.5px solid #E5E7EB', borderRadius: 12, padding: '14px 16px', cursor: 'pointer', textAlign: 'left', width: '100%' }}
+                    >
+                      <div style={{ width: 40, height: 40, borderRadius: 10, background: '#EDE9FE', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <Shield size={20} color="#7C3AED" />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: 14, fontWeight: 700, color: '#111827', margin: 0 }}>Cédula profesional</p>
+                        <p style={{ fontSize: 12, color: '#6B7280', margin: 0 }}>Verificar en SEP</p>
+                      </div>
+                      {sepVerificado
+                        ? <CheckCircle size={20} color="#16A34A" />
+                        : <ChevronRight size={18} color="#9CA3AF" />}
+                    </button>
+                  )}
+                  {especialidadesVerificadas.map(cred => (
+                    <button
+                      key={cred.id}
+                      onClick={() => { setModalConacemEspecialidad(cred.granular_name); setModalCredencial('conacem') }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 14, background: '#fff', border: '1.5px solid #E5E7EB', borderRadius: 12, padding: '14px 16px', cursor: 'pointer', textAlign: 'left', width: '100%' }}
+                    >
+                      <div style={{ width: 40, height: 40, borderRadius: 10, background: '#FEF3C7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <Award size={20} color="#D97706" />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: 14, fontWeight: 700, color: '#111827', margin: 0 }}>Certificación de especialidad</p>
+                        <p style={{ fontSize: 12, color: '#6B7280', margin: 0 }}>Verificar en CONACEM</p>
+                      </div>
+                      {conacemVerificado
+                        ? <CheckCircle size={20} color="#16A34A" />
+                        : <ChevronRight size={18} color="#9CA3AF" />}
+                    </button>
+                  ))}
+                  {sepVerificado && conacemVerificado && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#F0FDF4', borderRadius: 10, padding: '10px 14px', border: '1px solid #BBF7D0' }}>
+                      <CheckCircle size={16} color="#16A34A" />
+                      <span style={{ fontSize: 13, fontWeight: 600, color: '#15803D' }}>Credenciales verificadas por ti</span>
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
             {/* Sobre el Doctor */}
             <section className="fade-up" style={{ marginBottom: 40 }}>
               <h2 style={{ fontFamily: 'var(--font-fraunces), serif', fontSize: 24, fontWeight: 900, color: '#1E3A5F', marginBottom: 12 }}>Sobre el Doctor</h2>
@@ -2038,52 +2175,6 @@ export default function DoctorProfileClient({
               </section>
             )}
 
-            {/* Credenciales */}
-            <section className="fade-up" style={{ marginBottom: 40 }}>
-              <h2 style={{ fontFamily: 'var(--font-fraunces), serif', fontSize: 24, fontWeight: 900, color: '#1E3A5F', marginBottom: 12 }}>
-                Consulta credenciales en portales oficiales
-              </h2>
-              <div style={{ background: '#F9FAFB', borderRadius: 12, padding: 16, border: '1px solid #E5E7EB', maxWidth: 600 }}>
-                <p style={{ fontSize: 13, fontWeight: 700, color: '#1E3A5F', marginBottom: 4 }}>
-                  ⚠ Consulta en fuentes oficiales antes de agendar
-                </p>
-                <p style={{ fontSize: 11, color: '#6B7280', marginBottom: 12 }}>
-                  Tú decides con toda la información.
-                </p>
-                {medico.professional_license && cedulaVerificada && (
-                  <div style={{ marginBottom: 12 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#F9FAFB', borderRadius: 8, padding: '8px 12px', marginBottom: 6, border: '1px solid #E5E7EB' }}>
-                      <div>
-                        <p style={{ fontSize: 12, fontWeight: 600, margin: '0 0 2px', color: '#1E3A5F' }}>Cédula profesional</p>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <p style={{ fontSize: 11, color: '#8B5CF6', margin: 0 }}>No. {medico.professional_license}</p>
-                          <CopyButton text={medico.professional_license} label="número de cédula" />
-                        </div>
-                      </div>
-                    </div>
-                    <button onClick={() => setShowVerificationModal(true)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: '#fff', color: '#1E3A5F', borderRadius: 8, padding: '8px 12px', border: '1px solid #E5E7EB', fontSize: 12, fontWeight: 600, cursor: 'pointer', width: '100%' }}>
-                      <Shield size={14} /> Consultar cédula profesional
-                    </button>
-                  </div>
-                )}
-                {especialidadesVerificadas.map(cred => (
-                  <div key={cred.id} style={{ marginBottom: 12 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#F9FAFB', borderRadius: 8, padding: '8px 12px', marginBottom: 6, border: '1px solid #E5E7EB' }}>
-                      <div>
-                        <p style={{ fontSize: 12, fontWeight: 600, margin: '0 2px', color: '#1E3A5F' }}>Certificación de especialidad:  {cred.granular_name}</p>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <p style={{ fontSize: 11, color: '#8B5CF6', margin: 0 }}>{cred.council_name}</p>
-                          <CopyButton text={displayName} label="nombre del médico" />
-                        </div>
-                      </div>
-                    </div>
-                    <button onClick={() => setShowConacemModal(true)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: '#fff', color: '#1E3A5F', borderRadius: 8, padding: '8px 12px', border: '1px solid #E5E7EB', fontSize: 12, fontWeight: 600, cursor: 'pointer', width: '100%' }}>
-                      <Shield size={14} /> Consultar certificación vigente
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </section>
           </div>
 
           {/* ─── SIDEBAR ─── */}
@@ -2298,47 +2389,17 @@ export default function DoctorProfileClient({
           </div>
         </div>
       )}
-      {showVerificationModal && (
-        <InfoModal title="Consultar cédula profesional" onClose={() => setShowVerificationModal(false)}>
-          <div style={{ textAlign: 'center', marginBottom: 16 }}>
-            <div style={{ width: 48, height: 48, background: '#EDE9FE', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
-              <Shield size={22} color="#1E3A5F" />
-            </div>
-            <p style={{ fontSize: 13, color: '#6B7280' }}>Sigue estos pasos para verificar en SEP</p>
-          </div>
-          {medico.professional_license && cedulaVerificada && (
-            <div style={{ background: '#F9FAFB', borderRadius: 8, padding: 12, marginBottom: 16 }}>
-              <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Número de cédula:</p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', padding: '8px 12px', borderRadius: 6, border: '1px solid #E5E7EB' }}>
-                <code style={{ flex: 1, fontSize: 13 }}>{medico.professional_license}</code>
-                <CopyButton text={medico.professional_license} label="cédula" />
-              </div>
-            </div>
-          )}
-          <a href="https://cedulaprofesional.sep.gob.mx/cedula/presidencia/indexAvanzada.action" target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: '#1E3A5F', color: '#fff', padding: '12px', borderRadius: 8, textDecoration: 'none', fontSize: 13, fontWeight: 600 }}>
-            <ExternalLink size={14} /> Abrir portal SEP
-          </a>
-        </InfoModal>
-      )}
-      {showConacemModal && (
-        <InfoModal title="Consultar certificación CONACEM" onClose={() => setShowConacemModal(false)}>
-          <div style={{ textAlign: 'center', marginBottom: 16 }}>
-            <div style={{ width: 48, height: 48, background: '#EDE9FE', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
-              <Shield size={22} color="#1E3A5F" />
-            </div>
-            <p style={{ fontSize: 13, color: '#6B7280' }}>Verifica la certificación de especialidad</p>
-          </div>
-          <div style={{ background: '#F9FAFB', borderRadius: 8, padding: 12, marginBottom: 16 }}>
-            <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Nombre del médico:</p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', padding: '8px 12px', borderRadius: 6, border: '1px solid #E5E7EB' }}>
-              <span style={{ flex: 1, fontSize: 13 }}>{displayName}</span>
-              <CopyButton text={displayName} label="nombre" />
-            </div>
-          </div>
-          <a href="https://conacem.org.mx/buscador" target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: '#1E3A5F', color: '#fff', padding: '12px', borderRadius: 8, textDecoration: 'none', fontSize: 13, fontWeight: 600 }}>
-            <ExternalLink size={14} /> Abrir portal CONACEM
-          </a>
-        </InfoModal>
+      {modalCredencial && (
+        <CredencialModal
+          tipo={modalCredencial}
+          cedula={medico.professional_license}
+          nombre={displayName}
+          especialidad={modalConacemEspecialidad}
+          esFemenino={esFemenino}
+          onVerificadoSep={() => { setSepVerificado(true); setModalCredencial(null) }}
+          onVerificadoConacem={() => { setConacemVerificado(true); setModalCredencial(null) }}
+          onClose={() => setModalCredencial(null)}
+        />
       )}
     </div>
   )
