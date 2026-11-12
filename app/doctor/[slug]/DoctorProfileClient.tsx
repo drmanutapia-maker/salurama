@@ -1845,7 +1845,8 @@ export default function DoctorProfileClient({
               </div>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24, maxWidth: 400 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${medico.rating_count > 0 ? 3 : 2}, 1fr)`, gap: 12, marginBottom: 24, maxWidth: 400 }}>
+              {medico.rating_count > 0 && (
               <div style={{ background: '#fff', borderRadius: 12, padding: 14, textAlign: 'center', border: '1px solid #E5E7EB' }}>
                 <p style={{ fontFamily: 'var(--font-fraunces), serif', fontSize: 22, fontWeight: 900, color: '#1E3A5F' }}>{(medico.rating_avg || 0).toFixed(1)}</p>
                 <div style={{ display: 'flex', justifyContent: 'center', gap: 2, marginBottom: 4 }}>
@@ -1855,6 +1856,7 @@ export default function DoctorProfileClient({
                 </div>
                 <p style={{ fontSize: 10, color: '#9CA3AF', textTransform: 'uppercase', fontWeight: 600 }}>Rating</p>
               </div>
+              )}
               <div style={{ background: '#fff', borderRadius: 12, padding: 14, textAlign: 'center', border: '1px solid #E5E7EB' }}>
                 <p style={{ fontFamily: 'var(--font-fraunces), serif', fontSize: 22, fontWeight: 900, color: '#1E3A5F' }}>{reviews.length}</p>
                 <p style={{ fontSize: 10, color: '#9CA3AF', textTransform: 'uppercase', fontWeight: 600, marginTop: 8 }}>Reseñas</p>

@@ -524,14 +524,15 @@ function BuscarContent({ initialMedicos, heroTitulo, heroTexto, articulosRelacio
     setFiltros(prev => [...prev, id])
   }, [filtros])
 
-  // ── Limpiar todo — sin reload ─────────────────────────────────────────────────
+  // ── Limpiar todo — limpia estado y URL ────────────────────────────────────────
   const limpiarFiltros = useCallback(() => {
     setFiltros([])
     setUserLocation(null)
     setBusqueda('')
     setInputValue('')
     setSelectedState('')
-  }, [])
+    router.push('/buscar')
+  }, [router])
 
   const hayFiltros = filtros.length > 0 || busqueda || selectedState
 
@@ -823,7 +824,7 @@ function BuscarContent({ initialMedicos, heroTitulo, heroTexto, articulosRelacio
                     ? 'Estamos incorporando médicos a la plataforma. Si eres médico, únete ahora sin costo.'
                     : 'Intenta con otra especialidad o quita algún filtro.'}
                 </p>
-                {hayFiltros && (
+                {medicos.length > 0 && (
                   <button
                     onClick={limpiarFiltros}
                     style={{
@@ -832,7 +833,7 @@ function BuscarContent({ initialMedicos, heroTitulo, heroTexto, articulosRelacio
                       cursor: 'pointer', fontFamily: "'DM Sans', sans-serif",
                     }}
                   >
-                    Limpiar filtros
+                    Ver todos los especialistas
                   </button>
                 )}
               </div>
