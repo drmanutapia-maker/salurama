@@ -4,15 +4,13 @@ import { sendVerificationEmail } from '@/lib/email'
 import { Redis } from '@upstash/redis'
 import { z } from 'zod'
 import { OTP_PROOF_WINDOW_MINUTES } from '@/lib/pacienteOtp'
-
-export const runtime = 'edge'
-export const preferredRegion = 'mex1'
+import { cifrar } from '@/lib/chat/crypto'
 
 const citaSchema = z.object({
   medicoId: z.string().uuid('ID de médico inválido'),
   pacienteNombre: z.string().trim().min(2).max(100).regex(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/, 'Nombre inválido'),
   pacienteEmail: z.string().email().toLowerCase().max(254),
-  pacienteTelefono: z.string().regex(/^\+?[\d\s\-\(\)]{10,20}$/, 'Teléfono inválido'),
+  pacienteTelefono: z.string().regex(/^\d{10}$/, 'El teléfono debe tener 10 dígitos'),
   fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida'),
   hora: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Hora inválida'),
   motivo: z.string().trim().max(500).optional(),
@@ -274,7 +272,7 @@ export async function POST(request: NextRequest) {
         paciente_telefono: telefonoFinal || null,
         fecha,
         hora: hora + ':00',
-        motivo: motivo || null,
+        motivo: motivo ? cifrar(motivo) : null,
         estado: 'pending_verification',
         verification_token: verificationToken,
         cancel_token: cancelToken,

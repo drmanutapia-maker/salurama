@@ -135,6 +135,11 @@ export async function POST(request: NextRequest) {
       .select('id, fecha, hora, motivo, estado, completed_at')
       .in('id', citaIds)
 
+    const citasDescifradas = (citasData || []).map(c => ({
+      ...c,
+      motivo: c.motivo ? descifrar(c.motivo) : null,
+    }))
+
     return NextResponse.json(
       {
         salaId: sesion.salaId,
@@ -142,7 +147,7 @@ export async function POST(request: NextRequest) {
         puedeEscribir: sesion.puedeEscribir,
         mensajes: mensajesDescifrados,
         archivos: archivosRes.data,
-        citas: citasData || [],
+        citas: citasDescifradas,
       },
       { headers: { ...securityHeaders, 'X-Request-ID': requestId } }
     )
