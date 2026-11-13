@@ -38,10 +38,10 @@ export function useCookieConsent() {
         const parsed = JSON.parse(stored)
         setConsent(parsed)
       } catch {
-        setIsBannerVisible(true)
+        setTimeout(() => setIsBannerVisible(true), 2000)
       }
     } else {
-      setIsBannerVisible(true)
+      setTimeout(() => setIsBannerVisible(true), 2000)
     }
   }, [])
 
