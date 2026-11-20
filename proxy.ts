@@ -4,6 +4,22 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { isManuelEmail } from '@/lib/manuelOnly'
 
+function buildCsp(nonce: string): string {
+  const directives = [
+    `default-src 'self'`,
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://challenges.cloudflare.com`,
+    `connect-src 'self' https://pwcdwxhfypaxvtqydzcg.supabase.co wss://pwcdwxhfypaxvtqydzcg.supabase.co https://challenges.cloudflare.com`,
+    `img-src 'self' data: blob: https://pwcdwxhfypaxvtqydzcg.supabase.co`,
+    `style-src 'self' https://fonts.googleapis.com`,
+    `font-src 'self' https://fonts.gstatic.com`,
+    `frame-src https://www.openstreetmap.org`,
+    `frame-ancestors 'none'`,
+    `base-uri 'self'`,
+    `form-action 'self'`,
+  ]
+  return directives.join('; ')
+}
+
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 function decodeJwtPayload(token: string): Record<string, unknown> {
@@ -16,6 +32,10 @@ function decodeJwtPayload(token: string): Record<string, unknown> {
 }
 
 export async function proxy(request: NextRequest) {
+  // ─── Nonce CSP ────────────────────────────────────────────────────────────
+  const nonce = Buffer.from(crypto.randomUUID()).toString('base64')
+  const csp = buildCsp(nonce)
+
   // ─── Redirect UUID → slug en /doctor/* ───────────────────────────────────
   // Salvavidas para URLs legadas (generadas antes del fix de 2026-10-27).
   // Corre antes del auth check para no añadir latencia a visitas normales.
@@ -34,17 +54,25 @@ export async function proxy(request: NextRequest) {
     if (data?.slug) {
       const url = request.nextUrl.clone()
       url.pathname = `/doctor/${data.slug}`
-      return NextResponse.redirect(url, 308)
+      const redirectResponse = NextResponse.redirect(url, 308)
+      redirectResponse.headers.set('Content-Security-Policy', csp)
+      return redirectResponse
     }
   }
 
-  const response = NextResponse.next({ request })
+  // Propagar nonce a las páginas via header de request (lo lee layout.tsx)
+  // y adjuntar CSP al header de respuesta.
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-nonce', nonce)
+
+  const response = NextResponse.next({ request: { headers: requestHeaders } })
+  response.headers.set('Content-Security-Policy', csp)
   response.headers.set('x-pathname', request.nextUrl.pathname)
 
   // /doctor/* es 100% pública: mismo HTML para todos, no necesita sesión.
   // Saltamos el auth check para que Next.js pueda cachear estas páginas (ISR).
   if (request.nextUrl.pathname.startsWith('/doctor/')) {
-    return response
+    return response  // CSP ya está en response desde arriba
   }
 
   const supabase = createServerClient(

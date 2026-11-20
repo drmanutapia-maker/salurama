@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
+import { headers } from "next/headers";
 import "./globals.css";
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
@@ -43,7 +44,9 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const nonce = (await headers()).get('x-nonce') ?? undefined
+
   return (
     <html lang="es">
       <head>
@@ -58,7 +61,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             su estado -- el server nunca puede leer sessionStorage, así que
             React solo puede arreglarlo DESPUÉS de pintar. Ver la regla CSS
             correspondiente en app/globals.css. */}
-        <Script src="/scripts/theme-init.js" strategy="beforeInteractive" />
+        <Script src="/scripts/theme-init.js" strategy="beforeInteractive" nonce={nonce} />
       </head>
       <body className="antialiased bg-white text-[#111827]" style={{ margin: 0, padding: 0, overflowX: 'hidden' }}>
         <Navbar />
