@@ -5,7 +5,7 @@
   "packageManager": "pnpm@11.5.3",
   "scripts": {
     "dev": "cross-env NODE_OPTIONS=--use-system-ca next dev",
-    "build": "cross-env NODE_OPTIONS=--use-system-ca next build",
+    "build": "cross-env NODE_OPTIONS=--use-system-ca next build --webpack",
     "start": "cross-env NODE_OPTIONS=--use-system-ca next start",
     "lint": "next lint",
     "test:hema": "pnpm --filter '@salurama/hema-*' test",
