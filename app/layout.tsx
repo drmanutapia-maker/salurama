@@ -58,15 +58,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             su estado -- el server nunca puede leer sessionStorage, así que
             React solo puede arreglarlo DESPUÉS de pintar. Ver la regla CSS
             correspondiente en app/globals.css. */}
-        <Script id="salurama-intro-guard" strategy="beforeInteractive">
-          {`
-            try {
-              if (sessionStorage.getItem('salurama_intro_vista') === '1') {
-                document.documentElement.classList.add('intro-vista');
-              }
-            } catch (e) {}
-          `}
-        </Script>
+        <Script src="/scripts/theme-init.js" strategy="beforeInteractive" />
       </head>
       <body className="antialiased bg-white text-[#111827]" style={{ margin: 0, padding: 0, overflowX: 'hidden' }}>
         <Navbar />
