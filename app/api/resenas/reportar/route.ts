@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { Redis } from '@upstash/redis'
 import { z } from 'zod'
+import { verificarToken } from '@/lib/chat/token'
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL!,
@@ -11,6 +12,7 @@ const redis = new Redis({
 const bodySchema = z.object({
   tipo: z.enum(['review', 'review_response']),
   id: z.string().uuid(),
+  chatToken: z.string().min(1).max(200).optional(),
 })
 
 function getClientIp(request: NextRequest): string {
@@ -26,10 +28,9 @@ const securityHeaders = {
   'Referrer-Policy': 'strict-origin-when-cross-origin',
 }
 
-// Reporte manual público — cualquier visitante del perfil (paciente o
-// médico) puede marcar una reseña o respuesta sin iniciar sesión. Protegido
-// solo con límite por IP (sin Turnstile): es un botón de un clic, no un
-// formulario, y un challenge ahí mataría la UX de un reporte legítimo.
+// Reporte de reseña — requiere un chatToken válido que pruebe que el
+// reportador tuvo al menos una cita con el médico cuya reseña reporta.
+// Mantiene rate limiting por IP como capa adicional.
 export async function POST(request: NextRequest) {
   const requestId = crypto.randomUUID().slice(0, 8)
 
@@ -65,8 +66,30 @@ export async function POST(request: NextRequest) {
     if (!validation.success) {
       return NextResponse.json({ error: 'Datos inválidos' }, { status: 400, headers: securityHeaders })
     }
-    const { tipo, id } = validation.data
+    const { tipo, id, chatToken } = validation.data
+
+    // Requiere un chat token válido que pruebe que el reportador tuvo contacto con este médico
+    if (!chatToken) {
+      return NextResponse.json({ error: 'No autenticado' }, { status: 401, headers: securityHeaders })
+    }
+    const sesion = await verificarToken(supabase, chatToken)
+    if (!sesion) {
+      return NextResponse.json({ error: 'Token inválido' }, { status: 403, headers: securityHeaders })
+    }
+
+    // Verificar que la reseña pertenece al mismo médico que el chat token
     const tabla = tipo === 'review' ? 'reviews' : 'review_responses'
+    const { data: itemOwner } = await supabase
+      .from(tabla)
+      .select('doctor_id')
+      .eq('id', id)
+      .maybeSingle()
+    if (!itemOwner) {
+      return NextResponse.json({ error: 'No encontrado' }, { status: 404, headers: securityHeaders })
+    }
+    if (itemOwner.doctor_id !== sesion.medicoId) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 403, headers: securityHeaders })
+    }
 
     const { data, error } = await supabase
       .from(tabla)

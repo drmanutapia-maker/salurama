@@ -27,10 +27,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Content-Type inválido' }, { status: 415 })
     }
 
+    // Verificar sesión JWT del paciente
+    const authHeader = request.headers.get('Authorization')
+    if (!authHeader) {
+      return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
+    }
+    const userClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        auth: { persistSession: false },
+        global: { headers: { Authorization: authHeader } },
+      }
+    )
+    const { data: { user } } = await userClient.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
+    }
+
     const body = await request.json()
     const validation = bodySchema.safeParse(body)
     if (!validation.success) {
       return NextResponse.json({ error: 'Datos inválidos' }, { status: 400 })
+    }
+
+    // El pacienteId del body debe corresponder al usuario autenticado
+    if (validation.data.pacienteId !== user.id) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
     }
 
     await supabase
