@@ -1,19 +1,19 @@
-import { Fraunces, DM_Sans } from 'next/font/google'
+import localFont from 'next/font/local'
 
-// Auto-hospedadas por next/font (sin request a fonts.googleapis.com en
-// runtime). Modo `variable`: exponen una custom property que cualquier
-// estilo inline descendiente puede referenciar con var(--font-...), en vez
-// de tener que aplicar .className a cada elemento individual.
-export const fraunces = Fraunces({
-  subsets: ['latin'],
-  weight: ['600', '900'],
+// Archivos woff2 descargados de Google Fonts (subset latin).
+// Ambas son fuentes variables: un solo archivo cubre todos los pesos.
+export const fraunces = localFont({
+  src: [
+    { path: '../public/fonts/fraunces.woff2', weight: '600 900', style: 'normal' },
+  ],
   variable: '--font-fraunces',
   display: 'swap',
 })
 
-export const dmSans = DM_Sans({
-  subsets: ['latin'],
-  weight: ['300', '400', '500', '700'],
+export const dmSans = localFont({
+  src: [
+    { path: '../public/fonts/dm-sans.woff2', weight: '300 700', style: 'normal' },
+  ],
   variable: '--font-dm-sans',
   display: 'swap',
 })
