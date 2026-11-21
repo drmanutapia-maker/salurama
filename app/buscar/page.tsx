@@ -7,6 +7,7 @@ import { esCombinacionCalificada, especialidadSlug, estadoSlug } from '@/lib/esp
 import { calcularCompletitudPorDoctorServidor, compararPorMerito } from '@/lib/homepageEspecialistas'
 import { proximoDiaDisponible } from '@/lib/proximaCitaDisponible'
 import { filtrarMedicos } from '@/lib/buscarMedicos'
+import { jsonLdSeguro } from '@/lib/sanitizarTextoLibre'
 
 export const revalidate = 60
 
@@ -314,7 +315,7 @@ export default async function BuscarPage({
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdSeguro(jsonLd) }}
       />
       <BuscarClient
         initialMedicos={medicos}

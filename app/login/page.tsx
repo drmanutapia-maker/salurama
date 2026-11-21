@@ -104,7 +104,11 @@ function LoginContent() {
   const [loading,  setLoading]  = useState(false)
   const [feedback, setFeedback] = useState<Feedback | null>(null)
 
-  const redirectTo = searchParams.get('next') || searchParams.get('redirect') || '/dashboard'
+  const safeRedirect = (url: string) => {
+    if (!url.startsWith('/') || url.startsWith('//')) return '/dashboard'
+    return url
+  }
+  const redirectTo = safeRedirect(searchParams.get('next') || searchParams.get('redirect') || '/dashboard')
   const [checking, setChecking] = useState(true)
   const [webauthnSoportado, setWebauthnSoportado] = useState(false)
   const [credencialLocalActiva, setCredencialLocalActiva] = useState(false)

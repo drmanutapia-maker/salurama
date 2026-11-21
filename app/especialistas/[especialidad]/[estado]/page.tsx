@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation'
 import { MapPin, Shield, ArrowRight, BookOpen } from 'lucide-react'
 import { getStateLabel } from '@/lib/locations'
 import { getCombinacionesCalificadas, resolverPorSlugs, especialidadSlug, estadoSlug } from '@/lib/especialidadEstado'
+import { jsonLdSeguro } from '@/lib/sanitizarTextoLibre'
 import { getArticulosPorEspecialidadTexto } from '@/lib/blog'
 import type { Medico } from '@/app/buscar/BuscarClient'
 
@@ -213,7 +214,7 @@ export default async function EspecialidadEstadoPage({ params }: { params: Promi
     <div style={{ minHeight: '100vh', background: '#F9FAFB', fontFamily: "'DM Sans', sans-serif", color: '#111827' }}>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdSeguro(jsonLd) }}
       />
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@600;900&family=DM+Sans:wght@300;400;500;700&display=swap');
