@@ -115,6 +115,15 @@ export interface License {
   license_number: string
   license_type: string
   institution: string
+  is_primary: boolean
+  specialty_text: string | null
+  specialty_credential_id: string | null
+  doctor_specialty_credentials?: {
+    specialty_mapping_id: string | null
+    specialty_granular_mapping: {
+      granular_name: string | null
+    } | null
+  } | null
 }
 
 export interface EducationItem {
@@ -318,7 +327,7 @@ function CredencialModal({
           <p style={{ fontSize: 13, color: '#92400E', margin: 0, lineHeight: 1.5 }}>
             {tipo === 'sep'
               ? 'Busca este número en SEP. Confirma que el nombre y la especialidad que aparecen coinciden con los de este perfil.'
-              : `Busca el nombre en CONACEM. Confirma que aparece certificado${esFemenino ? 'a' : ''} en ${especialidad}.`}
+              : `Busca el nombre del médico en CONACEM. Confirma que aparece certificado${esFemenino ? 'a' : ''} en ${especialidad}.`}
           </p>
         </div>
         <a
@@ -1471,6 +1480,8 @@ export default function DoctorProfileClient({
   const [showAppointmentModal, setShowAppointmentModal] = useState(false)
   const [modalCredencial, setModalCredencial] = useState<'sep' | 'conacem' | null>(null)
   const [modalConacemEspecialidad, setModalConacemEspecialidad] = useState('')
+  const [modalCedulaActual, setModalCedulaActual] = useState<string | null>(null)
+  const [sepVerificados, setSepVerificados] = useState<Record<string, boolean>>({})
   const [sepVerificado, setSepVerificado] = useState(false)
   const [conacemVerificado, setConacemVerificado] = useState(false)
   const [showPhotoModal, setShowPhotoModal] = useState(false)
@@ -1573,6 +1584,12 @@ export default function DoctorProfileClient({
   // también la cédula base del médico en ese mismo documento.
   const cedulaVerificada = specialtyCredentials.some(c => c.credentials_status === 'verificado')
   const esFemenino = (medico?.professional_title ?? '').toLowerCase().includes('dra')
+
+  // Cédulas de especialidad con especialidad CONACEM verificada vinculada (flujo nuevo).
+  // Si no hay ninguna pero sí hay cedulaVerificada (médicos pre-fix), se muestra el
+  // fallback con medico.professional_license para no romper perfiles existentes.
+  const licenciasEspecialidadVerificadas = licenses.filter(l => l.specialty_credential_id)
+  const mostrarCedulaFallback = licenciasEspecialidadVerificadas.length === 0 && cedulaVerificada && !!medico.professional_license
 
   // REGLA (fuente de confusión repetida — documentado 2026-07-23): esta
   // sección del perfil público SOLO muestra especialidades con
@@ -1837,7 +1854,7 @@ export default function DoctorProfileClient({
                 {(displayName || '?')[0].toUpperCase()}
               </div>
             )}
-            {((medico.professional_license && cedulaVerificada) || licenses.length > 0) && (
+            {(licenciasEspecialidadVerificadas.length > 0 || mostrarCedulaFallback) && (
               <div style={{ position: 'absolute', bottom: 16, left: 16, display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(42, 157, 143, 0.95)', backdropFilter: 'blur(8px)', padding: '6px 12px', borderRadius: 50 }}>
                 <ShieldCheck size={14} color="#fff" />
                 <span style={{ fontSize: 10, fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Consulta en fuentes oficiales</span>
@@ -1996,16 +2013,36 @@ export default function DoctorProfileClient({
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 340px', gap: 32, alignItems: 'start' }}>
           <div>
             {/* Credenciales */}
-            {((medico.professional_license && cedulaVerificada) || especialidadesVerificadas.length > 0) && (
+            {(licenciasEspecialidadVerificadas.length > 0 || mostrarCedulaFallback || especialidadesVerificadas.length > 0) && (
               <section className="fade-up" style={{ marginBottom: 40 }}>
                 <h2 style={{ fontFamily: 'var(--font-fraunces), serif', fontSize: 20, fontWeight: 900, color: '#1E3A5F', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
                   <ShieldCheck size={20} /> Credenciales verificables
                 </h2>
                 <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 16 }}>Consulta directamente en portales oficiales antes de agendar.</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {medico.professional_license && cedulaVerificada && (
+                  {/* SEP — una fila por cédula de especialidad (flujo nuevo) */}
+                  {[...licenciasEspecialidadVerificadas].sort((a, b) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0)).map(lic => (
                     <button
-                      onClick={() => setModalCredencial('sep')}
+                      key={lic.id}
+                      onClick={() => { setModalCedulaActual(lic.license_number); setModalCredencial('sep') }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 14, background: '#fff', border: '1.5px solid #E5E7EB', borderRadius: 12, padding: '14px 16px', cursor: 'pointer', textAlign: 'left', width: '100%' }}
+                    >
+                      <div style={{ width: 40, height: 40, borderRadius: 10, background: '#EDE9FE', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <Shield size={20} color="#7C3AED" />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: 14, fontWeight: 700, color: '#111827', margin: 0 }}>Cédula profesional · {lic.doctor_specialty_credentials?.specialty_granular_mapping?.granular_name}</p>
+                        <p style={{ fontSize: 12, color: '#6B7280', margin: 0 }}>Verificar en SEP</p>
+                      </div>
+                      {sepVerificados[lic.id]
+                        ? <CheckCircle size={20} color="#16A34A" />
+                        : <ChevronRight size={18} color="#9CA3AF" />}
+                    </button>
+                  ))}
+                  {/* SEP — fallback para médicos pre-fix que aún no reprocesaron constancia */}
+                  {mostrarCedulaFallback && (
+                    <button
+                      onClick={() => { setModalCedulaActual(medico.professional_license); setModalCredencial('sep') }}
                       style={{ display: 'flex', alignItems: 'center', gap: 14, background: '#fff', border: '1.5px solid #E5E7EB', borderRadius: 12, padding: '14px 16px', cursor: 'pointer', textAlign: 'left', width: '100%' }}
                     >
                       <div style={{ width: 40, height: 40, borderRadius: 10, background: '#EDE9FE', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -2020,25 +2057,29 @@ export default function DoctorProfileClient({
                         : <ChevronRight size={18} color="#9CA3AF" />}
                     </button>
                   )}
-                  {especialidadesVerificadas.map(cred => (
+                  {/* CONACEM — un solo botón para todas las especialidades verificadas */}
+                  {especialidadesVerificadas.length > 0 && (
                     <button
-                      key={cred.id}
-                      onClick={() => { setModalConacemEspecialidad(cred.granular_name); setModalCredencial('conacem') }}
+                      onClick={() => {
+                        const lista = especialidadesVerificadas.map(c => c.granular_name).join(' y ')
+                        setModalConacemEspecialidad(lista)
+                        setModalCredencial('conacem')
+                      }}
                       style={{ display: 'flex', alignItems: 'center', gap: 14, background: '#fff', border: '1.5px solid #E5E7EB', borderRadius: 12, padding: '14px 16px', cursor: 'pointer', textAlign: 'left', width: '100%' }}
                     >
                       <div style={{ width: 40, height: 40, borderRadius: 10, background: '#FEF3C7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                         <Award size={20} color="#D97706" />
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontSize: 14, fontWeight: 700, color: '#111827', margin: 0 }}>Certificación de especialidad</p>
+                        <p style={{ fontSize: 14, fontWeight: 700, color: '#111827', margin: 0 }}>{especialidadesVerificadas.length > 1 ? 'Certificación de especialidades' : 'Certificación de especialidad'}</p>
                         <p style={{ fontSize: 12, color: '#6B7280', margin: 0 }}>Verificar en CONACEM</p>
                       </div>
                       {conacemVerificado
                         ? <CheckCircle size={20} color="#16A34A" />
                         : <ChevronRight size={18} color="#9CA3AF" />}
                     </button>
-                  ))}
-                  {sepVerificado && conacemVerificado && (
+                  )}
+                  {(sepVerificado || Object.values(sepVerificados).some(Boolean)) && conacemVerificado && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#F0FDF4', borderRadius: 10, padding: '10px 14px', border: '1px solid #BBF7D0' }}>
                       <CheckCircle size={16} color="#16A34A" />
                       <span style={{ fontSize: 13, fontWeight: 600, color: '#15803D' }}>Credenciales verificadas por ti</span>
@@ -2392,11 +2433,20 @@ export default function DoctorProfileClient({
       {modalCredencial && (
         <CredencialModal
           tipo={modalCredencial}
-          cedula={medico.professional_license}
+          cedula={modalCedulaActual}
           nombre={displayName}
           especialidad={modalConacemEspecialidad}
           esFemenino={esFemenino}
-          onVerificadoSep={() => { setSepVerificado(true); setModalCredencial(null) }}
+          onVerificadoSep={() => {
+            // Marca la cédula activa como verificada (flujo multi-cédula o fallback)
+            const licMatch = licenciasEspecialidadVerificadas.find(l => l.license_number === modalCedulaActual)
+            if (licMatch) {
+              setSepVerificados(prev => ({ ...prev, [licMatch.id]: true }))
+            } else {
+              setSepVerificado(true)
+            }
+            setModalCredencial(null)
+          }}
           onVerificadoConacem={() => { setConacemVerificado(true); setModalCredencial(null) }}
           onClose={() => setModalCredencial(null)}
         />

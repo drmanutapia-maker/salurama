@@ -120,7 +120,7 @@ async function getContactoPublico(doctorId: string) {
 async function getDoctorProfileData(doctorId: string) {
   const supabase = getSupabase()
   const [licRes, eduRes, expRes, condRes, revRes, credRes, galRes, citaCompletadaRes] = await Promise.all([
-    supabase.from('doctor_licenses').select('id, license_number, license_type, institution').eq('doctor_id', doctorId),
+    supabase.from('doctor_licenses').select('id, license_number, license_type, institution, is_primary, specialty_text, specialty_credential_id, doctor_specialty_credentials(specialty_mapping_id, specialty_granular_mapping(granular_name))').eq('doctor_id', doctorId),
     supabase.from('doctor_education').select('id, institution, degree, field_of_study, graduation_year').eq('doctor_id', doctorId).order('graduation_year', { ascending: false }),
     supabase.from('doctor_experience').select('id, institution_name, position, location, start_date, end_date, is_current').eq('doctor_id', doctorId).order('is_current', { ascending: false }),
     supabase.from('doctor_conditions').select('id, condition_name, category').eq('doctor_id', doctorId).order('category'),
@@ -141,9 +141,21 @@ async function getDoctorProfileData(doctorId: string) {
     getSupabaseServiceRole().from('citas').select('id', { count: 'exact', head: true }).eq('medico_id', doctorId).eq('estado', 'completed'),
   ])
 
+  // Solo cédulas de especialidad que ya tienen una especialidad verificada vinculada.
+  // Las filas con specialty_credential_id = null (migración inicial) se excluyen aquí;
+  // el componente hace fallback a medico.professional_license para esos casos.
+  const verifiedCredIds = new Set(
+    (credRes.data ?? [])
+      .filter((r: any) => r.credentials_status === 'verificado')
+      .map((r: any) => r.id as string)
+  )
+  const licenciasEspecialidad = (licRes.data ?? []).filter(
+    (l: any) => l.specialty_credential_id && verifiedCredIds.has(l.specialty_credential_id)
+  ) as unknown as License[]
+
   return {
     tieneConsultaCompletada: (citaCompletadaRes.count ?? 0) > 0,
-    licenses: (licRes.data ?? []) as License[],
+    licenses: licenciasEspecialidad,
     education: (eduRes.data ?? []) as EducationItem[],
     experience: (expRes.data ?? []) as ExperienceItem[],
     conditions: (condRes.data ?? []) as Condition[],
