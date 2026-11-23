@@ -11,6 +11,7 @@ import {
   Upload, FileText, X, Trash2, Star, MessageSquare, Image as ImageIcon,
 } from 'lucide-react'
 import { resumenCredenciales, type CredResumen } from '@/lib/credenciales'
+import { normalizeForMatch } from '@/lib/constanciaParser'
 import { isManuelEmail } from '@/lib/manuelOnly'
 import { STATES, getStateLabel } from '@/lib/locations'
 
@@ -43,6 +44,7 @@ interface SpecialtyCredentialRow {
   numero_certificacion: string | null
   vigencia_hasta: string | null
   self_declared_not_current: boolean
+  is_primary: boolean
 }
 
 // Nombres de especialidad que hacen "encontrable" a un médico: la principal
@@ -359,6 +361,7 @@ export default function AdminMedicos() {
   const [constanciaPdfUrls, setConstanciaPdfUrls]         = useState<Record<string, string>>({})
   const [extrayendo, setExtrayendo]                       = useState(false)
   const [extraccionAvisos, setExtraccionAvisos]           = useState<string[]>([])
+  const [cedulasExtraidas, setCedulasExtraidas]           = useState<Record<string, { numeroCedula: string; profesionTexto: string; isPrimary: boolean }>>({})
 
   // ── Reseñas y respuestas (moderación, Parte 3) ──────────────────────────────
   const [resenasModalDoctor, setResenasModalDoctor]       = useState<ResenasDoctorRef | null>(null)
@@ -415,7 +418,7 @@ export default function AdminMedicos() {
           .order('created_at', { ascending: false }),
         supabase
           .from('doctor_specialty_credentials')
-          .select('id, doctor_id, specialty_mapping_id, credentials_status, credentials_verified_at, numero_certificacion, vigencia_hasta, self_declared_not_current, specialty_granular_mapping(granular_name, conacem_councils(council_name))'),
+          .select('id, doctor_id, specialty_mapping_id, is_primary, credentials_status, credentials_verified_at, numero_certificacion, vigencia_hasta, self_declared_not_current, specialty_granular_mapping(granular_name, conacem_councils(council_name))'),
         supabase
           .from('doctor_constancia_audit_log')
           .select('doctor_id'),
@@ -435,6 +438,7 @@ export default function AdminMedicos() {
         const row: SpecialtyCredentialRow = {
           id: r.id,
           specialty_mapping_id: r.specialty_mapping_id,
+          is_primary: r.is_primary,
           granular_name: r.specialty_granular_mapping?.granular_name,
           council_name: r.specialty_granular_mapping?.conacem_councils?.council_name ?? null,
           credentials_status: r.credentials_status,
@@ -696,6 +700,7 @@ export default function AdminMedicos() {
     setConstanciaFolio('')
     setConstanciaNotas('')
     setConstanciaError('')
+    setCedulasExtraidas({})
     setCurrentAuditLogId(null)
     setExtraccionAvisos([])
     cargarHistorialConstancias(m.id)
@@ -714,12 +719,13 @@ export default function AdminMedicos() {
     try {
       const { data, error } = await supabase
         .from('doctor_specialty_credentials')
-        .select('id, specialty_mapping_id, credentials_status, credentials_verified_at, numero_certificacion, vigencia_hasta, self_declared_not_current, specialty_granular_mapping(granular_name, conacem_councils(council_name))')
+        .select('id, specialty_mapping_id, is_primary, credentials_status, credentials_verified_at, numero_certificacion, vigencia_hasta, self_declared_not_current, specialty_granular_mapping(granular_name, conacem_councils(council_name))')
         .eq('doctor_id', doctorId)
       if (error) throw error
       const rows: SpecialtyCredentialRow[] = (data || []).map((r: any) => ({
         id: r.id,
         specialty_mapping_id: r.specialty_mapping_id,
+        is_primary: r.is_primary,
         granular_name: r.specialty_granular_mapping?.granular_name,
         council_name: r.specialty_granular_mapping?.conacem_councils?.council_name ?? null,
         credentials_status: r.credentials_status,
@@ -1069,6 +1075,32 @@ export default function AdminMedicos() {
         if ((data.certifications || []).length === 0) {
           avisos.push('El PDF no tiene ninguna certificación de consejo registrada. Captura folio y vigencia a mano si el médico la tiene.')
         }
+
+        // Procesa cédulas de especialidad extraídas del bloque CEDULA
+        const nuevasCedulas: Record<string, { numeroCedula: string; profesionTexto: string; isPrimary: boolean }> = {}
+        for (const ced of data.cedulas || []) {
+          const normProf = normalizeForMatch(ced.profesionTexto)
+          const matches = modalCredentials.filter(dc =>
+            dc.granular_name && (
+              normalizeForMatch(dc.granular_name) === normProf ||
+              normalizeForMatch(dc.granular_name).includes(normProf) ||
+              normProf.includes(normalizeForMatch(dc.granular_name))
+            )
+          )
+          if (matches.length === 1) {
+            const unaSola = (data.cedulas || []).length === 1
+            nuevasCedulas[matches[0].id] = {
+              numeroCedula: ced.numeroCedula,
+              profesionTexto: ced.profesionTexto,
+              isPrimary: unaSola || matches[0].is_primary,
+            }
+          } else if (matches.length === 0) {
+            avisos.push(`Cédula ${ced.numeroCedula} (${ced.profesionTexto}): no coincide con ninguna especialidad del médico. Verifica a mano.`)
+          } else {
+            avisos.push(`Cédula ${ced.numeroCedula} (${ced.profesionTexto}): coincide con más de una especialidad. Captúrala a mano.`)
+          }
+        }
+        setCedulasExtraidas(nuevasCedulas)
       }
 
       setExtraccionAvisos(avisos)
@@ -1082,6 +1114,7 @@ export default function AdminMedicos() {
   // Aprueba/rechaza UNA especialidad (tarjeta) del médico — requiere que ya
   // se haya guardado el documento en esta sesión del modal.
   async function guardarCredencial(credentialId: string, estadoFinal: 'verificado' | 'no_coincide') {
+    console.log('[guardarCredencial] credentialId:', credentialId, '| estadoFinal:', estadoFinal, '| cedulasExtraidas:', JSON.stringify(cedulasExtraidas))
     if (!constanciaModalDoctor || !currentAuditLogId) {
       setToast({ msg: 'Primero sube y guarda el documento', type: 'error' })
       return
@@ -1110,6 +1143,24 @@ export default function AdminMedicos() {
         })
         .eq('id', credentialId)
       if (error) throw error
+
+      // Al verificar: upsert de la cédula SEP vinculada a esta especialidad
+      if (estadoFinal === 'verificado') {
+        const cedula = cedulasExtraidas[credentialId]
+        if (cedula) {
+          const { error: licError } = await supabase
+            .from('doctor_licenses')
+            .upsert({
+              doctor_id: constanciaModalDoctor.id,
+              license_number: cedula.numeroCedula,
+              license_type: 'especialidad',
+              is_primary: cedula.isPrimary,
+              specialty_text: cedula.profesionTexto,
+              specialty_credential_id: credentialId,
+            }, { onConflict: 'doctor_id,license_number' })
+          if (licError) console.error('[guardarCredencial] upsert doctor_licenses:', licError)
+        }
+      }
 
       setModalCredentials(prev => prev.map(r => r.id === credentialId
         ? { ...r, credentials_status: estadoFinal, credentials_verified_at: estadoFinal === 'verificado' ? ahora : null, numero_certificacion: input.numero.trim() || null, vigencia_hasta: input.vigencia || null, ...camposEstado }
