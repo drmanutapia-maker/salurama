@@ -84,6 +84,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       documentFolio: parsed.documentFolio,
       folioConsistente: parsed.folioConsistente,
+      cedulas: [],
       certifications: [],
       warning: parsed.error,
     })
@@ -126,6 +127,7 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({
     documentFolio: parsed.documentFolio,
     folioConsistente: parsed.folioConsistente,
+    cedulas: parsed.cedulas,
     certifications,
     warning: null,
   })

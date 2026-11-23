@@ -26,9 +26,15 @@ export interface ParsedCertification {
   vigenciaFecha: string | null
 }
 
+export interface ParsedCedula {
+  numeroCedula: string
+  profesionTexto: string
+}
+
 export interface ParsedConstancia {
   documentFolio: string | null
   folioConsistente: boolean
+  cedulas: ParsedCedula[]
   certifications: ParsedCertification[]
   error: string | null
 }
@@ -41,7 +47,7 @@ export function parseConstanciaText(text: string): ParsedConstancia {
   const startIdx = text.indexOf('Cadena original')
   if (startIdx === -1) {
     return {
-      documentFolio, folioConsistente, certifications: [],
+      documentFolio, folioConsistente, cedulas: [], certifications: [],
       error: 'No se encontró la sección "Cadena original" en el PDF — no es el formato esperado de constancia SEP.',
     }
   }
@@ -53,6 +59,7 @@ export function parseConstanciaText(text: string): ParsedConstancia {
   const joined = rawBlock.split('\n').map(l => l.trim()).join('')
   const tokens = joined.split('|')
 
+  const cedulas: ParsedCedula[] = []
   const certifications: ParsedCertification[] = []
   let i = 0
   while (i < tokens.length) {
@@ -60,16 +67,23 @@ export function parseConstanciaText(text: string): ParsedConstancia {
     if (marker === 'CEDULA') {
       if (i + CEDULA_FIELD_COUNT >= tokens.length) {
         return {
-          documentFolio, folioConsistente, certifications,
+          documentFolio, folioConsistente, cedulas, certifications,
           error: 'Formato de "Cadena original" inesperado (bloque CEDULA incompleto) — no se prellenó nada, captura a mano.',
         }
+      }
+      // campos: nombre|apellido1|apellido2|institución|profesión|fecha_titulación|número_cédula|C1|fecha_expedición
+      const fields = tokens.slice(i + 1, i + 1 + CEDULA_FIELD_COUNT)
+      const profesion = fields[4]?.trim() ?? ''
+      const numeroCedula = fields[6]?.trim() ?? ''
+      if (profesion.toUpperCase().startsWith('ESPECIALIDAD') && numeroCedula) {
+        cedulas.push({ numeroCedula, profesionTexto: profesion })
       }
       i += 1 + CEDULA_FIELD_COUNT
     } else if (marker === 'CERTIFICACION') {
       const fields = tokens.slice(i + 1, i + 1 + CERTIFICACION_FIELD_COUNT)
       if (fields.length < CERTIFICACION_FIELD_COUNT || fields.some(f => f === undefined)) {
         return {
-          documentFolio, folioConsistente, certifications,
+          documentFolio, folioConsistente, cedulas, certifications,
           error: 'Formato de "Cadena original" inesperado (bloque CERTIFICACION incompleto) — no se prellenó nada, captura a mano.',
         }
       }
@@ -83,7 +97,7 @@ export function parseConstanciaText(text: string): ParsedConstancia {
     }
   }
 
-  return { documentFolio, folioConsistente, certifications, error: null }
+  return { documentFolio, folioConsistente, cedulas, certifications, error: null }
 }
 
 // Quita TODOS los espacios (no solo los repetidos) antes de comparar. El
