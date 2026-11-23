@@ -88,6 +88,27 @@ BEGIN
   SET is_primary = true
   WHERE doctor_id = p_doctor_id AND specialty_mapping_id = v_new_mapping_id;
 
+  -- 7b. Sincroniza doctor_licenses.is_primary con el cambio anterior —
+  --     la cédula vinculada a la credencial saliente ya no es primaria,
+  --     la vinculada a la entrante pasa a serlo. Solo afecta filas que
+  --     tienen specialty_credential_id; las sin vincular (pre-fix) no se tocan.
+  UPDATE public.doctor_licenses
+  SET is_primary = false
+  WHERE doctor_id = p_doctor_id
+    AND specialty_credential_id IN (
+      SELECT id FROM public.doctor_specialty_credentials
+      WHERE doctor_id = p_doctor_id AND is_primary = false
+        AND specialty_mapping_id != v_new_mapping_id
+    );
+
+  UPDATE public.doctor_licenses
+  SET is_primary = true
+  WHERE doctor_id = p_doctor_id
+    AND specialty_credential_id IN (
+      SELECT id FROM public.doctor_specialty_credentials
+      WHERE doctor_id = p_doctor_id AND is_primary = true
+    );
+
   -- 8. La SALIENTE se registra como especialidad adicional (si por algún
   --    motivo ya hubiera una fila con ese nombre, no duplica).
   IF NOT EXISTS (
